@@ -1,4 +1,5 @@
 from django.db import models
+from django.conf import settings
 from django.utils.translation import gettext_lazy as _
 
 class Category(models.Model):
@@ -24,43 +25,41 @@ class Category(models.Model):
 
 
 class Link(models.Model):
-    """
-    Les cartes cliquables (Le coeur du dashboard).
-    """
-    category = models.ForeignKey(
-        Category, 
-        on_delete=models.CASCADE, 
-        related_name='links',
-        verbose_name=_("Catégorie")
-    )
+    category = models.ForeignKey(Category, on_delete=models.CASCADE, related_name='links')
     
-    # Relation optionnelle : Un lien peut être sponsorisé par un Labo
-    partner = models.ForeignKey(
-        'partners.Partner', 
-        on_delete=models.SET_NULL, 
+    # NOUVEAU : Propriétaire (Si NULL = Lien Global Public, Si Rempli = Lien Privé)
+    pharmacy = models.ForeignKey(
+        settings.AUTH_USER_MODEL, 
+        on_delete=models.CASCADE, 
         null=True, 
         blank=True,
-        related_name='sponsored_links',
-        verbose_name=_("Partenaire associé (Optionnel)")
+        related_name='custom_links'
     )
 
+    partner = models.ForeignKey('partners.Partner', on_delete=models.SET_NULL, null=True, blank=True)
     titre = models.CharField(max_length=100)
     description = models.CharField(max_length=255, blank=True)
-    url = models.URLField(_("URL de destination"))
     
-    image = models.ImageField(
-        upload_to='links/icons/', 
-        blank=True, 
-        null=True,
-        help_text="Picto ou logo spécifique pour ce lien"
-    )
+    # URL ou Fichier
+    url = models.CharField(max_length=500, blank=True) # On passe en CharField pour être souple
+    document = models.FileField(upload_to='pharmacy_docs/', blank=True, null=True) # Pour les PDF
 
-    is_public = models.BooleanField(default=True, help_text="Si faux, invisible pour les pharmacies non-premium (exemple)")
+    image = models.ImageField(upload_to='links/icons/', blank=True, null=True)
+    is_public = models.BooleanField(default=True)
     created_at = models.DateTimeField(auto_now_add=True)
 
-    class Meta:
-        verbose_name = _("Lien")
-        verbose_name_plural = _("Liens")
+    def save(self, *args, **kwargs):
+        # Si c'est un lien privé (pharmacy set), il n'est pas public globalement
+        if self.pharmacy:
+            self.is_public = False
+        super().save(*args, **kwargs)
+
+    @property
+    def final_url(self):
+        # Si c'est un document, l'URL est le chemin du fichier
+        if self.document:
+            return self.document.url
+        return self.url
 
     def __str__(self):
         return self.titre

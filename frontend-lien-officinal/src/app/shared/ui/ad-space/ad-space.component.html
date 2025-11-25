@@ -1,0 +1,30 @@
+<a [href]="link || '#'" 
+   [attr.target]="link ? '_blank' : null"
+   class="block w-full h-full rounded-2xl overflow-hidden transition-all duration-300 relative group"
+   [ngClass]="{
+     'cursor-pointer hover:shadow-md': link,
+     'cursor-default': !link
+   }">
+
+  <img *ngIf="imageUrl" 
+       [src]="imageUrl" 
+       class="w-full h-full object-cover"
+       alt="Publicité partenaire">
+
+  <div *ngIf="!imageUrl" 
+       class="w-full h-full bg-gray-50 border-2 border-dashed border-gray-200 flex flex-col items-center justify-center gap-2 group-hover:bg-gray-100/80 group-hover:border-gray-300 transition-colors">
+    
+    <div class="w-10 h-10 rounded-full bg-gray-100 flex items-center justify-center text-gray-300 group-hover:text-gray-400 group-hover:scale-110 transition-all">
+      <span class="text-xs font-bold">ADS</span>
+    </div>
+    
+    <span class="text-[10px] font-bold uppercase tracking-widest text-gray-400 group-hover:text-gray-500">
+      Espace Partenaire
+    </span>
+  </div>
+
+  <div *ngIf="imageUrl" class="absolute top-2 right-2 bg-black/20 backdrop-blur-sm text-white text-[9px] px-2 py-0.5 rounded-full uppercase tracking-wider font-medium">
+    Pub
+  </div>
+
+</a>
