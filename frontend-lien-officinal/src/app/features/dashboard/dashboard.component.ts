@@ -1,45 +1,78 @@
-import { Component, inject, OnInit } from '@angular/core';
+import { Component, inject, OnInit, ViewChild } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { HttpClient } from '@angular/common/http';
-import { AuthService } from '../../core/auth/auth.service'; // <-- Import indispensable
+import { AuthService } from '../../core/auth/auth.service';
+import { CollaboratorService, Collaborator } from '../../core/services/collaborator.service';
+import { PinPadComponent } from '../../shared/ui/pin-pad/pin-pad.component';
 
 @Component({
   selector: 'app-dashboard',
   standalone: true,
-  imports: [CommonModule],
+  imports: [CommonModule, PinPadComponent], // <-- On importe le PinPad
   templateUrl: './dashboard.component.html',
   styleUrl: './dashboard.component.css'
 })
 export class DashboardComponent implements OnInit {
-  // On injecte le client HTTP pour parler à Django
   private http = inject(HttpClient);
-  
-  // On injecte le service d'Auth pour gérer la déconnexion
   private authService = inject(AuthService);
+  private collaboratorService = inject(CollaboratorService);
+
+  @ViewChild(PinPadComponent) pinPad!: PinPadComponent;
 
   categories: any[] = [];
-  isLoading = true;
+  team: Collaborator[] = [];
+  
+  showPinPad = false;
+  selectedCollaborator: Collaborator | null = null;
+  activeSessionCollaborator: Collaborator | null = null; // Celui qui est connecté
 
   ngOnInit() {
-    // Appel API vers Django.
-    // NOTE : Grâce à l'intercepteur qu'on a créé (auth.interceptor.ts),
-    // le Token est ajouté automatiquement dans l'en-tête de cette requête.
+    this.loadCategories();
+    this.loadTeam();
+  }
+
+  loadCategories() {
     this.http.get<any>('http://127.0.0.1:8000/api/categories/')
       .subscribe({
-        next: (data) => {
-          console.log('✅ Dashboard chargé :', data);
-          // On gère les deux formats possibles (Liste simple ou Pagination Django)
-          this.categories = Array.isArray(data) ? data : data.results || [];
-          this.isLoading = false;
+        next: (data) => this.categories = Array.isArray(data) ? data : data.results || []
+      });
+  }
+
+  loadTeam() {
+    this.collaboratorService.getTeam().subscribe({
+      next: (data: any) => {
+        // Gestion de la pagination Django si nécessaire
+        this.team = Array.isArray(data) ? data : data.results || [];
+      },
+      error: (err) => console.error('Erreur équipe', err)
+    });
+  }
+
+  // Ouvre le PinPad
+  openSession(collab: Collaborator) {
+    this.selectedCollaborator = collab;
+    this.showPinPad = true;
+  }
+
+  // Vérifie le code tapé
+  onPinEntered(code: string) {
+    if (!this.selectedCollaborator) return;
+
+    this.collaboratorService.verifyPin(this.selectedCollaborator.id, code)
+      .subscribe({
+        next: () => {
+          // Succès !
+          this.activeSessionCollaborator = this.selectedCollaborator;
+          this.showPinPad = false;
+          alert(`✅ Session ouverte pour ${this.selectedCollaborator?.first_name}`);
         },
-        error: (err) => {
-          console.error('❌ Erreur chargement dashboard :', err);
-          this.isLoading = false;
+        error: () => {
+          // Erreur !
+          this.pinPad.triggerError();
         }
       });
   }
 
-  // Cette méthode est appelée quand on clique sur le bouton "Déconnexion" dans le HTML
   logout() {
     this.authService.logout();
   }

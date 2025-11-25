@@ -20,6 +20,40 @@
     </button>
 </div>
   </header>
+<div class="mb-8">
+    <div class="flex items-center gap-4 overflow-x-auto pb-2">
+      
+      <div class="text-xs font-bold text-gray-400 uppercase tracking-widest mr-2">
+        Équipe
+      </div>
+
+      <button *ngFor="let collab of team" 
+              (click)="openSession(collab)"
+              class="flex items-center gap-2 bg-white pl-2 pr-4 py-2 rounded-full border border-gray-200 shadow-sm hover:border-blue-400 hover:shadow-md transition-all active:scale-95 group">
+        
+        <div class="w-8 h-8 rounded-full flex items-center justify-center text-white font-bold text-sm transition-colors"
+             [ngClass]="activeSessionCollaborator?.id === collab.id ? 'bg-green-500' : 'bg-gray-400 group-hover:bg-blue-500'">
+          {{ collab.first_name.charAt(0) }}
+        </div>
+        
+        <div class="text-left">
+          <p class="font-bold text-gray-700 text-sm leading-tight">{{ collab.first_name }}</p>
+          <p class="text-[10px] text-gray-400 uppercase leading-none">{{ collab.role }}</p>
+        </div>
+      </button>
+
+      <div *ngIf="team.length === 0" class="text-sm text-gray-400 italic">
+        Aucun collaborateur. Ajoutez-les dans l'admin Django.
+      </div>
+    </div>
+  </div>
+
+  <app-pin-pad 
+      *ngIf="showPinPad" 
+      [title]="'Code de ' + selectedCollaborator?.first_name"
+      (cancel)="showPinPad = false"
+      (pinComplete)="onPinEntered($event)">
+  </app-pin-pad>
 
   <div class="space-y-8">
     <section *ngFor="let cat of categories">
@@ -50,6 +84,13 @@
         </a>
       </div>
     </section>
+
+    <app-pin-pad 
+      *ngIf="showPinPad" 
+      [title]="'Code de ' + selectedCollaborator?.first_name"
+      (cancel)="showPinPad = false"
+      (pinComplete)="onPinEntered($event)">
+  </app-pin-pad>
 
     <div *ngIf="categories.length === 0" class="flex flex-col items-center justify-center py-20 opacity-60">
       <div class="animate-spin rounded-full h-10 w-10 border-b-2 border-blue-600 mb-4"></div>
