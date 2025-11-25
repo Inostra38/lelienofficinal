@@ -1,0 +1,74 @@
+<aside class="w-64 bg-white border-r border-gray-200 flex flex-col h-full shrink-0 z-20">
+    
+  <div class="p-6 flex items-center gap-3 shrink-0">
+    <div class="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center text-white font-bold">L</div>
+    <span class="font-bold text-gray-800 text-lg tracking-tight">Le Lien Officinal</span>
+  </div>
+
+  <nav class="flex-1 px-4 space-y-1 overflow-y-auto custom-scrollbar">
+    <div *ngFor="let item of menuItems" 
+         class="flex items-center gap-3 px-4 py-3 rounded-xl cursor-pointer transition-all duration-200 group"
+         [ngClass]="item.active ? 'bg-blue-50 text-blue-700 font-semibold' : 'text-gray-600 hover:bg-gray-100 hover:text-gray-900'">
+      <span class="text-xl">{{ item.icon }}</span>
+      <span>{{ item.label }}</span>
+    </div>
+  </nav>
+
+  <div class="p-4 border-t border-gray-100 shrink-0 bg-gray-50/50">
+    
+    <div *ngIf="activeCollaborator" class="animate-in fade-in slide-in-from-bottom-2 duration-300">
+      
+      <div class="bg-white p-2 pr-4 rounded-xl border border-green-200 shadow-sm flex items-center gap-3">
+        
+        <button (click)="logout.emit()" 
+                class="w-8 h-8 flex items-center justify-center rounded-lg text-gray-400 hover:text-red-600 hover:bg-red-50 transition-colors"
+                title="Fermer la session">
+          <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+          </svg>
+        </button>
+
+        <div class="w-px h-8 bg-gray-100"></div>
+
+        <div class="w-9 h-9 rounded-full bg-green-500 text-white flex items-center justify-center font-bold text-xs shadow-sm tracking-widest uppercase shrink-0">
+          {{ activeCollaborator.first_name.charAt(0) }}{{ activeCollaborator.last_name.charAt(0) }}
+        </div>
+        
+        <div class="overflow-hidden flex-1 min-w-0">
+          <p class="text-sm text-gray-800 font-bold truncate">
+            {{ activeCollaborator.first_name }}
+          </p>
+          <p class="text-[10px] text-green-600 font-medium truncate flex items-center gap-1">
+            <span class="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse"></span> En ligne
+          </p>
+        </div>
+
+      </div>
+
+    </div>
+
+    <div *ngIf="!activeCollaborator" class="animate-in fade-in duration-300">
+      <p class="text-xs font-bold text-gray-400 uppercase tracking-widest mb-3 text-center">Qui êtes-vous ?</p>
+      
+      <div class="grid grid-cols-4 gap-2">
+        <button *ngFor="let collab of team" 
+                (click)="sessionClick.emit(collab)"
+                class="aspect-square rounded-xl bg-white border border-gray-200 hover:border-blue-500 hover:shadow-md transition-all active:scale-95 flex items-center justify-center group relative">
+          
+          <span class="text-xs font-bold text-gray-600 group-hover:text-blue-600 uppercase tracking-tight">
+            {{ collab.first_name.charAt(0) }}{{ collab.last_name.charAt(0) }}
+          </span>
+          
+          <span class="absolute -top-8 left-1/2 -translate-x-1/2 bg-gray-800 text-white text-[10px] py-1 px-2 rounded opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none whitespace-nowrap z-50 shadow-lg">
+            {{ collab.first_name }} {{ collab.last_name }}
+          </span>
+        </button>
+
+        <div class="aspect-square rounded-xl border border-dashed border-gray-300 flex items-center justify-center text-gray-300 cursor-not-allowed">
+          <span class="text-xs">+</span>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</aside>
