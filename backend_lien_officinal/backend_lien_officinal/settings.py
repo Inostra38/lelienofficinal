@@ -145,3 +145,19 @@ CORS_ALLOWED_ORIGINS = [
     "http://localhost:4200",
     "http://127.0.0.1:4200",
 ]
+
+# REST FRAMEWORK CONFIG
+REST_FRAMEWORK = {
+    'DEFAULT_AUTHENTICATION_CLASSES': (
+        'rest_framework_simplejwt.authentication.JWTAuthentication',
+    ),
+    'DEFAULT_PERMISSION_CLASSES': (
+        'rest_framework.permissions.IsAuthenticated', # <-- Tout est verrouillé par défaut !
+    ),
+}
+
+from datetime import timedelta
+SIMPLE_JWT = {
+    'ACCESS_TOKEN_LIFETIME': timedelta(days=1), # Le token dure 1 jour (pratique pour le mode Kiosque)
+    'REFRESH_TOKEN_LIFETIME': timedelta(days=7),
+}

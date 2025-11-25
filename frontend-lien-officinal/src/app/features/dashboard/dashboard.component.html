@@ -1,0 +1,59 @@
+<p>dashboard works!</p>
+<div class="min-h-screen bg-gray-50 p-8">
+  <header class="mb-8 border-b pb-4 bg-white p-4 rounded-xl shadow-sm flex justify-between items-center">
+    <div>
+      <h1 class="text-2xl font-bold text-gray-800 flex items-center gap-2">
+        🏥 Le Lien Officinal
+      </h1>
+      <p class="text-gray-500 text-sm mt-1">
+        Connecté à : <span class="font-semibold text-blue-600">{{ categories.length }} catégories</span>
+      </p>
+    </div>
+    <div class="flex items-center gap-3">
+        <span class="text-xs font-mono bg-gray-100 px-2 py-1 rounded text-gray-600">v1.0</span>
+        <div class="h-8 w-8 rounded-full bg-blue-600 text-white flex items-center justify-center font-bold">P</div>
+    </div>
+    <div class="flex items-center gap-3">
+    <button (click)="logout()" 
+            class="text-sm bg-red-50 text-red-600 px-3 py-1 rounded hover:bg-red-100 transition-colors">
+      Déconnexion
+    </button>
+</div>
+  </header>
+
+  <div class="space-y-8">
+    <section *ngFor="let cat of categories">
+      <h2 class="text-lg font-bold text-gray-700 mb-3 flex items-center gap-2 uppercase tracking-wide">
+        <span class="bg-blue-100 text-blue-600 w-8 h-8 flex items-center justify-center rounded-lg text-sm">📂</span>
+        {{ cat.nom }}
+      </h2>
+
+      <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+        <a *ngFor="let link of cat.links" 
+           [href]="link.url" 
+           target="_blank"
+           class="group bg-white p-4 rounded-xl shadow-sm border border-gray-100 hover:shadow-lg hover:border-blue-300 hover:-translate-y-1 transition-all duration-200 flex items-start gap-4">
+          
+           <div class="w-12 h-12 rounded-lg bg-gray-50 border border-gray-100 flex items-center justify-center overflow-hidden shrink-0 group-hover:bg-white">
+              <img *ngIf="link.partner?.logo" [src]="link.partner.logo" class="w-full h-full object-contain p-1">
+              <span *ngIf="!link.partner?.logo" class="text-2xl opacity-50">🔗</span>
+           </div>
+
+           <div class="overflow-hidden">
+             <h3 class="font-bold text-gray-800 group-hover:text-blue-600 truncate text-base">
+               {{ link.titre }}
+             </h3>
+             <p class="text-xs text-gray-500 line-clamp-2 mt-1">
+               {{ link.partner ? '⭐ Sponsorisé par ' + link.partner.nom : (link.description || 'Accès rapide') }}
+             </p>
+           </div>
+        </a>
+      </div>
+    </section>
+
+    <div *ngIf="categories.length === 0" class="flex flex-col items-center justify-center py-20 opacity-60">
+      <div class="animate-spin rounded-full h-10 w-10 border-b-2 border-blue-600 mb-4"></div>
+      <p class="text-gray-500">Récupération des données Django...</p>
+    </div>
+  </div>
+</div>
