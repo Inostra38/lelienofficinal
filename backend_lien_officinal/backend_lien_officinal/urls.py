@@ -11,12 +11,11 @@ from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView
 urlpatterns = [
     path('admin/', admin.site.urls),
     
-    # API Routes des applications (Tout est préfixé par api/)
+    # API Routes des applications
     path('api/', include('apps.resources.urls')),
     path('api/', include('apps.team.urls')),
     
     # Auth
-    # path('api/register/', RegisterView.as_view(), name='register'), 
     path('api/token/', TokenObtainPairView.as_view(), name='token_obtain_pair'),
     path('api/token/refresh/', TokenRefreshView.as_view(), name='token_refresh'),
 ]

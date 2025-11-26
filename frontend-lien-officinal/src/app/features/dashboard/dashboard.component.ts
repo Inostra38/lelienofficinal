@@ -9,7 +9,7 @@ import { DragDropModule, CdkDragDrop, moveItemInArray, transferArrayItem } from 
 import { AuthService } from '../../core/auth/auth.service';
 import { CollaboratorService, Collaborator } from '../../core/services/collaborator.service';
 
-// Composants Enfants (UI)
+// Composants Enfants
 import { PinPadComponent } from '../../shared/ui/pin-pad/pin-pad.component';
 import { SidebarComponent } from './components/sidebar/sidebar.component';
 import { HeaderComponent } from './components/header/header.component';
@@ -58,13 +58,12 @@ export interface Category {
     AdSpaceComponent, 
     AddLinkModalComponent,
     CardDetailComponent,
-    CategoryAssignerModalComponent
+    CategoryAssignerModalComponent 
   ],
   templateUrl: './dashboard.component.html',
   styleUrl: './dashboard.component.css'
 })
 export class DashboardComponent implements OnInit { // 👈 DÉBUT DE LA CLASSE
-  // Injection des services
   private http = inject(HttpClient);
   private authService = inject(AuthService);
   private collaboratorService = inject(CollaboratorService);
@@ -100,7 +99,9 @@ export class DashboardComponent implements OnInit { // 👈 DÉBUT DE LA CLASSE
   // ============================================================
 
   loadCategories() {
-    this.http.get<any>('http://127.0.0.1:8000/api/categories/')
+    const timestamp = new Date().getTime(); 
+    
+    this.http.get<any>(`http://127.0.0.1:8000/api/categories/?t=${timestamp}`)
       .subscribe({
         next: (data) => {
           const rawData = Array.isArray(data) ? data : data.results || [];
@@ -113,7 +114,6 @@ export class DashboardComponent implements OnInit { // 👈 DÉBUT DE LA CLASSE
             }))
           }));
           this.updateDisplay();
-          console.log("📦 Données chargées :", this.allCategories.length, "catégories.");
         },
         error: (err) => console.error('Erreur chargement catégories', err)
       });
@@ -161,11 +161,8 @@ export class DashboardComponent implements OnInit { // 👈 DÉBUT DE LA CLASSE
       const matchingCards = cat.cards.filter(card => {
         const titleMatch = (card.titre || '').toLowerCase().includes(term);
         const partnerMatch = (card.partner?.nom || '').toLowerCase().includes(term);
+        const itemMatch = (card.items || []).some(item => (item.label || '').toLowerCase().includes(term));
         
-        const itemMatch = (card.items || []).some(item => 
-            (item.label || '').toLowerCase().includes(term)
-        );
-
         return titleMatch || partnerMatch || itemMatch;
       });
 
@@ -174,7 +171,7 @@ export class DashboardComponent implements OnInit { // 👈 DÉBUT DE LA CLASSE
   }
 
   // ============================================================
-  // 3. ACTIONS (Drag&Drop, Edit, Favoris, Détail)
+  // 3. ACTIONS
   // ============================================================
 
   toggleEditMode() {
@@ -194,11 +191,28 @@ export class DashboardComponent implements OnInit { // 👈 DÉBUT DE LA CLASSE
     }
   }
 
-  deleteLink(card: ResourceCard, event: Event) {
+  hideOrDeleteCard(card: ResourceCard, event: Event) { 
     event.stopPropagation();
-    if(confirm(`Supprimer la carte "${card.titre}" ?`)) {
-       console.log("Suppression demandée pour", card.id);
-       // TODO: Appel API delete
+    
+    // 1. Suppression (si carte privée)
+    if(card.type === 'PRIVATE') {
+       if(confirm(`Voulez-vous vraiment SUPPRIMER votre carte privée "${card.titre}" ? Cette action est irréversible.`)) {
+           this.http.delete(`http://127.0.0.1:8000/api/cards/${card.id}/`).subscribe({
+               next: () => {
+                   this.loadCategories();
+               },
+               error: (err) => console.error("Erreur suppression", err)
+           });
+       }
+       return;
+    }
+
+    // 2. Masquage (si carte officielle/partenaire)
+    if(confirm(`Voulez-vous masquer la carte "${card.titre}" de votre tableau de bord ?`)) {
+        this.http.post(`http://127.0.0.1:8000/api/cards/${card.id}/toggle-visibility/`, {}).subscribe({
+            next: () => this.loadCategories(),
+            error: (err) => console.error("Erreur masquage", err)
+        });
     }
   }
 
@@ -218,32 +232,38 @@ export class DashboardComponent implements OnInit { // 👈 DÉBUT DE LA CLASSE
     this.openedCard = null;
   }
   
-assignCategory(categoryId: number) { 
+  handleCardSelection(card: ResourceCard) {
+    this.showAddModal = false; 
+    this.selectedCardToAssign = card; 
+  }
+
+  assignCategory(categoryId: number) { 
     if (!this.selectedCardToAssign) return;
 
     const cardId = this.selectedCardToAssign.id;
+    const payload = { category: categoryId };
     
-    // 🛑 ATTENTION : Utilisation de la nouvelle route spécifique 
-    // qui contourne le ViewSet pour cette action unique.
-    this.http.patch(`http://127.0.0.1:8000/api/cards/${cardId}/assign-category/`, { category: categoryId })
+    this.http.patch(`http://127.0.0.1:8000/api/cards/${cardId}/assign-category/`, payload)
       .subscribe({
         next: () => {
-          this.selectedCardToAssign = null; 
-          this.loadCategories(); 
-          alert(`Ressource classée et ajoutée !`);
+          this.selectedCardToAssign = null;
+          
+          // 🔥 FIX CRITIQUE : Petit délai pour laisser la base de données s'actualiser
+          setTimeout(() => {
+            this.loadCategories(); // Recharge après 100ms
+            alert(`✅ Ressource classée et ajoutée !`);
+          }, 100); 
+
         },
         error: (err) => {
-          console.error("Erreur d'assignation:", err.error); // Afficher l'erreur du backend
-          alert("Erreur lors de l'assignation de la catégorie.");
+          console.error("❌ ERREUR ASSIGNATION :", err.error);
+          alert(`Erreur d'assignation : ${err.error?.category?.[0] || 'Vérifiez la console.'}`);
           this.selectedCardToAssign = null; 
         }
       });
-  }
+}
 
-
-  // ============================================================
-  // 4. GESTION ÉQUIPE & AUTH
-  // ============================================================
+  // --- GESTION ÉQUIPE & AUTH ---
 
   openSession(collab: Collaborator) {
     this.selectedCollaborator = collab;
@@ -252,16 +272,13 @@ assignCategory(categoryId: number) {
 
   onPinEntered(code: string) {
     if (!this.selectedCollaborator) return;
-
     this.collaboratorService.verifyPin(this.selectedCollaborator.id, code)
       .subscribe({
         next: () => {
           this.activeSessionCollaborator = this.selectedCollaborator;
           this.showPinPad = false;
         },
-        error: () => {
-          this.pinPad.triggerError();
-        }
+        error: () => this.pinPad.triggerError()
       });
   }
 
@@ -273,39 +290,54 @@ assignCategory(categoryId: number) {
     this.authService.logout();
   }
 
-  // ============================================================
-  // 5. AJOUT DE LIEN
-  // ============================================================
+  // --- AJOUT DE LIEN PERSONNEL ---
 
   onLinkAdded(data: any) {
-    // Sécurité : Catégorie par défaut si manquante
-    let finalCategoryId = data.category;
-    if (!finalCategoryId) {
-        finalCategoryId = this.allCategories.length > 0 ? this.allCategories[0].id : '';
+    
+    // --- VALIDATION INITIALE ---
+    if (!data.title || !data.category) {
+        alert("Le titre et la catégorie sont obligatoires.");
+        return;
+    }
+    if (this.allCategories.length === 0) {
+        alert("Erreur critique : Aucune catégorie n'est chargée. Rechargez la page.");
+        return;
     }
 
+    // 1. Détermination de l'ID de Catégorie (S'assurer d'avoir la valeur)
+    let finalCategoryId = data.category;
+    
+    if (data.type === 'WEB' && !data.url) { alert("L'URL est obligatoire pour un lien Web."); return; }
+    if (data.type === 'FILE' && !data.file) { alert("Le fichier est obligatoire."); return; }
+    
+    // --- CONSTRUCTION DU PAYLOAD (FormData) ---
     const formData = new FormData();
     formData.append('titre', data.title);
-    formData.append('category', finalCategoryId);
+    
+    // 💡 FIX CRITIQUE : Conversion explicite en chaîne pour la FK
+    formData.append('category', String(finalCategoryId)); 
+
+    formData.append('type', data.type);
 
     if (data.type === 'WEB') {
-      formData.append('type', 'WEB');
       formData.append('url', data.url);
     } else {
-      formData.append('type', 'PDF');
       formData.append('document', data.file);
     }
 
+    // --- APPEL API ---
     this.http.post('http://127.0.0.1:8000/api/cards/', formData).subscribe({
       next: () => {
-        alert('Ressource ajoutée !');
+        alert('✅ Ressource ajoutée !');
         this.showAddModal = false;
-        this.loadCategories();
+        this.loadCategories(); // Rafraîchissement
       },
       error: (err) => {
-        console.error(err);
-        alert("Erreur lors de l'ajout.");
+        console.error('❌ ERREUR POST DJANGO:', err.error);
+        // Affichage de l'erreur spécifique de validation Django (pour identifier le champ manquant)
+        const errorDetail = err.error?.category?.[0] || err.error?.detail || JSON.stringify(err.error);
+        alert(`Erreur d'ajout (400) : ${errorDetail}`);
       }
     });
   }
-}
+} // 👈 FIN DE LA CLASSE

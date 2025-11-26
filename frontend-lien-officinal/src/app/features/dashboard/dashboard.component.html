@@ -61,9 +61,16 @@
                  class="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6">
 
               <div *ngFor="let card of cat.cards" cdkDrag 
-                   (click)="openDetail(card, $event)" class="bg-white rounded-2xl border border-gray-200 shadow-sm hover:shadow-md transition-all duration-300 flex flex-col overflow-hidden group h-full cursor-pointer relative">
+                   (click)="openDetail(card, $event)" class="bg-white rounded-2xl border border-gray-200 shadow-sm hover:shadow-md transition-all duration-300 flex flex-col overflow-hidden group h-full cursor-pointer relative"
+                   [ngClass]="isEditMode ? 'animate-pulse' : ''">
                  
-                 <div class="p-4 pb-2 flex items-start gap-3 border-b border-gray-50">
+                 <button *ngIf="isEditMode" 
+                         (click)="hideOrDeleteCard(card, $event)" class="absolute top-2 right-2 w-8 h-8 flex items-center justify-center bg-red-100 text-red-600 rounded-full shadow-md z-20 hover:bg-red-600 hover:text-white transition-colors"
+                         title="Cliquer pour supprimer ou masquer la carte">
+                     🗑️
+                 </button>
+
+                 <div class="p-4 pb-2 flex items-start gap-3 border-b border-gray-50/20 bg-gray-50/30">
                     <div class="w-10 h-10 rounded-lg bg-white border border-gray-100 flex items-center justify-center shrink-0 shadow-sm p-1">
                         <img *ngIf="card.logo" [src]="card.logo" class="w-full h-full object-contain">
                         <span *ngIf="!card.logo" class="text-xl">🏢</span>
@@ -96,16 +103,12 @@
                  </div>
 
                  <div class="px-3 py-2 bg-gray-50 border-t border-gray-100 flex justify-end">
-                    <button class="hover:bg-white hover:shadow-sm p-1.5 rounded transition-all" title="Voir les notes">
-                        ✏️ Notes
+                    <button (click)="openDetail(card, $event)" class="hover:bg-white hover:shadow-sm p-1.5 rounded transition-all flex items-center gap-1" title="Voir les notes">
+                        ✏️ <span class="text-xs text-gray-400">Notes</span>
                     </button>
                  </div>
                  
-                 <button *ngIf="isEditMode && card.type === 'PRIVATE'" 
-                         (click)="deleteLink(card, $event)"
-                         class="absolute top-2 right-2 bg-red-100 text-red-600 w-8 h-8 rounded-full flex items-center justify-center shadow-md z-20 hover:bg-red-600 hover:text-white transition-colors">
-                    🗑️
-                 </button>
+                 <div *ngIf="isEditMode" cdkDragHandle class="absolute inset-0 bg-transparent cursor-move"></div>
               </div>
             </div>
 
@@ -117,14 +120,14 @@
                  class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4">
                
                <div *ngFor="let card of cat.cards" cdkDrag (click)="openDetail(card, $event)"
-                    class="bg-white rounded-xl border border-gray-200 shadow-sm hover:shadow-lg hover:border-blue-300 hover:-translate-y-1 transition-all cursor-pointer flex flex-col items-center text-center p-6 group h-full aspect-square justify-center relative">
+                    class="bg-white rounded-xl border border-gray-200 shadow-sm hover:shadow-lg hover:border-blue-300 hover:-translate-y-1 transition-all cursor-pointer p-4 flex flex-col items-center text-center relative group aspect-square justify-center">
                   <div class="w-16 h-16 mb-3 flex items-center justify-center text-4xl">
                       <img *ngIf="card.logo" [src]="card.logo" class="w-full h-full object-contain">
                       <span *ngIf="!card.logo" class="text-4xl">🏢</span>
                   </div>
                   <span class="font-bold text-gray-800 text-sm leading-tight line-clamp-2">{{ card.titre }}</span>
                   
-                  <button *ngIf="isEditMode && card.type === 'PRIVATE'" (click)="deleteLink(card, $event)" class="absolute top-1 right-1 text-red-500 bg-white rounded-full border border-red-100 w-6 h-6 flex items-center justify-center">×</button>
+                  <button *ngIf="isEditMode" (click)="hideOrDeleteCard(card, $event)" class="absolute top-1 right-1 text-red-500 bg-white rounded-full border border-red-100 w-6 h-6 flex items-center justify-center">🗑️</button>
                </div>
             </div>
 
@@ -150,6 +153,7 @@
                          {{ item.label }}
                       </a>
                   </div>
+                   <button *ngIf="isEditMode" (click)="hideOrDeleteCard(card, $event)" class="text-red-500 hover:text-red-700 w-6 h-6 flex items-center justify-center">🗑️</button>
                </div>
             </div>
 
@@ -167,11 +171,13 @@
   <span class="text-4xl leading-none font-light mb-1">+</span>
 </button>
 
-<app-card-detail 
-    *ngIf="openedCard" 
-    [card]="openedCard" 
-    (close)="closeDetail()">
-</app-card-detail>
+<app-category-assigner-modal
+  *ngIf="selectedCardToAssign"
+  [categories]="allCategories"
+  [cardToAssign]="selectedCardToAssign"
+  (assign)="assignCategory($event)"
+  (cancel)="selectedCardToAssign = null">
+</app-category-assigner-modal>
 
 <app-add-link-modal 
     *ngIf="showAddModal" 
@@ -181,17 +187,15 @@
     (addLink)="onLinkAdded($event)"
     (selectCard)="selectedCardToAssign = $event; showAddModal = false"> </app-add-link-modal>
 
+<app-card-detail 
+    *ngIf="openedCard" 
+    [card]="openedCard" 
+    (close)="closeDetail()">
+</app-card-detail>
+
 <app-pin-pad 
     *ngIf="showPinPad" 
     [title]="'Code de ' + selectedCollaborator?.first_name"
     (cancel)="showPinPad = false"
     (pinComplete)="onPinEntered($event)">
 </app-pin-pad>
-
-<app-category-assigner-modal
-  *ngIf="selectedCardToAssign"
-  [categories]="allCategories"
-  [cardToAssign]="selectedCardToAssign"
-  (assign)="assignCategory($event)"
-  (cancel)="selectedCardToAssign = null">
-</app-category-assigner-modal>

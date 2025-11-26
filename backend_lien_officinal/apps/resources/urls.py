@@ -1,6 +1,6 @@
 from django.urls import path, include
 from rest_framework.routers import DefaultRouter
-from . import views # Importe toutes les vues (meilleure pratique)
+from . import views # Importe toutes les vues (pour accéder à views.assign_category_to_card)
 
 # 1. Définition du Router (pour les ViewSets)
 router = DefaultRouter()
@@ -14,7 +14,7 @@ urlpatterns = [
     # Routes des ViewSets
     path('', include(router.urls)),
     
-    # 🚨 ROUTE SPÉCIALISÉE POUR L'ASSIGNATION
-    # C'est la ligne que Django n'arrive pas à lire
+    # 🚨 FIX CRITIQUE : AJOUT DE LA ROUTE MANUELLE 🚨
+    # Le ViewSet ne gère pas les actions qui ne sont pas standard (POST/GET/PATCH).
     path('cards/<int:pk>/assign-category/', views.assign_category_to_card, name='assign-category'),
 ]

@@ -107,6 +107,7 @@ class PharmacyPreference(models.Model):
     card = models.ForeignKey(ResourceCard, on_delete=models.CASCADE, related_name='preferences')
     
     is_favorite = models.BooleanField(default=False)
+    is_hidden = models.BooleanField(default=False)
     notes_perso = models.TextField(_("Notes Privées"), blank=True)
     updated_at = models.DateTimeField(auto_now=True)
 
