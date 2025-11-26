@@ -1,102 +1,118 @@
-<div class="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-[fadeIn_0.2s_ease-out]">
-  
+<div
+  class="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-[fadeIn_0.2s_ease-out]">
   <div class="bg-white rounded-2xl shadow-2xl w-full max-w-lg overflow-hidden transform transition-all">
-    
+
     <div class="bg-gray-50 p-4 border-b border-gray-100 flex justify-between items-center">
       <h3 class="font-bold text-gray-800 text-lg">Ajouter une ressource</h3>
-      <button (click)="close.emit()" class="text-gray-400 hover:text-gray-600 w-8 h-8 flex items-center justify-center rounded-full hover:bg-gray-200 transition-colors">
-        ✕
-      </button>
+      <button (click)="close.emit()"
+        class="text-gray-400 hover:text-gray-600 w-8 h-8 flex items-center justify-center rounded-full hover:bg-gray-200 transition-colors">✕</button>
     </div>
 
     <div class="p-6">
-      
-      <div *ngIf="step === 'CHOICE'" class="grid grid-cols-2 gap-4">
-        
-        <button (click)="step = 'WEB'" class="p-6 border-2 border-gray-100 rounded-xl hover:border-blue-500 hover:bg-blue-50 transition-all flex flex-col items-center gap-3 group text-left">
-          <div class="w-12 h-12 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center text-2xl group-hover:scale-110 transition-transform">
-            🌐
-          </div>
-          <div>
-            <span class="block font-bold text-gray-700">Lien Web</span>
-            <span class="text-xs text-gray-500">Site pro, Outil en ligne, Drive...</span>
-          </div>
+
+      <div *ngIf="step === 'CHOICE'" class="grid grid-cols-3 gap-3">
+
+        <button (click)="step = 'CATALOG'"
+          class="p-4 border-2 border-blue-100 bg-blue-50 rounded-xl hover:border-blue-500 hover:shadow-md transition-all flex flex-col items-center gap-2 group text-center h-32 justify-center">
+          <span class="text-3xl group-hover:scale-110 transition-transform">📚</span>
+          <span class="font-bold text-blue-800 text-sm">Catalogue Officiel</span>
         </button>
 
-        <button (click)="step = 'FILE'" class="p-6 border-2 border-gray-100 rounded-xl hover:border-blue-500 hover:bg-blue-50 transition-all flex flex-col items-center gap-3 group text-left">
-          <div class="w-12 h-12 rounded-full bg-orange-100 text-orange-600 flex items-center justify-center text-2xl group-hover:scale-110 transition-transform">
-            📄
-          </div>
-          <div>
-            <span class="block font-bold text-gray-700">Document PDF</span>
-            <span class="text-xs text-gray-500">Protocole, Planning, Liste...</span>
-          </div>
+        <button (click)="step = 'WEB'"
+          class="p-4 border-2 border-gray-100 rounded-xl hover:border-gray-400 hover:bg-gray-50 transition-all flex flex-col items-center gap-2 group text-center h-32 justify-center">
+          <span class="text-3xl opacity-60 group-hover:opacity-100">🌐</span>
+          <span class="font-bold text-gray-700 text-sm">Lien Web</span>
         </button>
 
+        <button (click)="step = 'FILE'"
+          class="p-4 border-2 border-gray-100 rounded-xl hover:border-gray-400 hover:bg-gray-50 transition-all flex flex-col items-center gap-2 group text-center h-32 justify-center">
+          <span class="text-3xl opacity-60 group-hover:opacity-100">📄</span>
+          <span class="font-bold text-gray-700 text-sm">PDF / Image</span>
+        </button>
+      </div>
+
+      <div *ngIf="step === 'CATALOG'" class="space-y-4 animate-in fade-in slide-in-from-right-4 duration-300">
+        <div class="flex items-center gap-2 mb-2">
+          <button (click)="step = 'CHOICE'" class="text-gray-400 hover:text-gray-600 text-sm font-bold">←
+            Retour</button>
+        </div>
+
+        <input type="text" [(ngModel)]="searchCatalog" placeholder="Rechercher (ex: Ameli, Vidal)..."
+          class="w-full p-3 border border-gray-200 rounded-lg bg-gray-50 focus:bg-white outline-none">
+
+        <div
+          class="h-64 overflow-y-auto border border-gray-100 rounded-lg p-2 space-y-2 custom-scrollbar bg-gray-50/50">
+          <button *ngFor="let card of library" (click)="selectFromCatalog(card)"
+            [class.hidden]="searchCatalog && !card.titre.toLowerCase().includes(searchCatalog.toLowerCase())"
+            class="w-full flex items-center gap-3 p-3 rounded-lg bg-white hover:bg-blue-50 border border-transparent hover:border-blue-100 group transition-all text-left shadow-sm">
+
+            <span class="text-xl w-8 text-center">📚</span>
+
+            <div class="flex-1 min-w-0">
+              <p class="font-bold text-gray-700 group-hover:text-blue-700 truncate">{{ card.titre }}</p>
+              <p class="text-[10px] text-gray-400 truncate">{{ card.description_officielle || 'Carte officielle' }}</p>
+            </div>
+            <span class="ml-auto text-blue-500 opacity-0 group-hover:opacity-100 font-bold text-xl">+</span>
+          </button>
+
+          <div *ngIf="library.length === 0" class="text-center text-gray-400 py-10 text-sm">
+            Le catalogue est vide.
+          </div>
+        </div>
       </div>
 
       <div *ngIf="step === 'WEB'" class="space-y-4 animate-in fade-in slide-in-from-right-4 duration-300">
-        
         <div>
           <label class="block text-sm font-bold text-gray-700 mb-1">Dans quelle catégorie ?</label>
-          <select [(ngModel)]="formData.category" class="w-full p-3 border border-gray-300 rounded-lg bg-white focus:ring-2 focus:ring-blue-500 outline-none transition-all">
-            <option value="" disabled selected>-- Choisir une catégorie --</option>
+          <select [(ngModel)]="formData.category"
+            class="w-full p-3 border border-gray-300 rounded-lg bg-white focus:ring-2 focus:ring-blue-500 outline-none">
+            <option value="" disabled selected>-- Choisir --</option>
             <option *ngFor="let cat of categories" [value]="cat.id">📂 {{ cat.nom }}</option>
           </select>
         </div>
-
         <div>
-          <label class="block text-sm font-medium text-gray-700 mb-1">Titre du lien</label>
-          <input type="text" [(ngModel)]="formData.title" class="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none" placeholder="Ex: Planning Gardes">
+          <label class="block text-sm font-medium text-gray-700 mb-1">Titre</label>
+          <input type="text" [(ngModel)]="formData.title"
+            class="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none">
         </div>
-
         <div>
-          <label class="block text-sm font-medium text-gray-700 mb-1">Adresse URL</label>
-          <input type="url" [(ngModel)]="formData.url" class="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none" placeholder="https://...">
+          <label class="block text-sm font-medium text-gray-700 mb-1">URL</label>
+          <input type="url" [(ngModel)]="formData.url"
+            class="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none">
         </div>
-
         <div class="flex justify-end gap-3 mt-8 pt-4 border-t border-gray-100">
-          <button (click)="step = 'CHOICE'" class="px-4 py-2 text-gray-500 hover:bg-gray-100 rounded-lg font-medium transition-colors">Retour</button>
-          <button (click)="submit()" 
-                  [disabled]="!formData.title || !formData.url || !formData.category"
-                  class="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-bold shadow-md hover:shadow-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed">
-            Ajouter le lien
+          <button (click)="step = 'CHOICE'"
+            class="px-4 py-2 text-gray-500 hover:bg-gray-100 rounded-lg font-medium">Retour</button>
+          <button (click)="submit()" [disabled]="!formData.title || !formData.category"
+            class="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-bold disabled:opacity-50">
+            Ajouter
           </button>
         </div>
       </div>
 
       <div *ngIf="step === 'FILE'" class="space-y-4 animate-in fade-in slide-in-from-right-4 duration-300">
-        
         <div>
           <label class="block text-sm font-bold text-gray-700 mb-1">Dans quelle catégorie ?</label>
-          <select [(ngModel)]="formData.category" class="w-full p-3 border border-gray-300 rounded-lg bg-white focus:ring-2 focus:ring-blue-500 outline-none">
-            <option value="" disabled selected>-- Choisir une catégorie --</option>
+          <select [(ngModel)]="formData.category"
+            class="w-full p-3 border border-gray-300 rounded-lg bg-white focus:ring-2 focus:ring-blue-500 outline-none">
+            <option value="" disabled selected>-- Choisir --</option>
             <option *ngFor="let cat of categories" [value]="cat.id">📂 {{ cat.nom }}</option>
           </select>
         </div>
-
         <div>
-          <label class="block text-sm font-medium text-gray-700 mb-1">Nom du document</label>
-          <input type="text" [(ngModel)]="formData.title" class="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none" placeholder="Ex: Protocole Grippe">
+          <label class="block text-sm font-medium text-gray-700 mb-1">Titre</label>
+          <input type="text" [(ngModel)]="formData.title"
+            class="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none">
         </div>
-
         <div>
-          <label class="block text-sm font-medium text-gray-700 mb-1">Fichier (PDF, Image)</label>
-          <div class="relative border-2 border-dashed border-gray-300 rounded-lg p-6 text-center hover:bg-gray-50 transition-colors group">
-            <input type="file" (change)="onFileSelected($event)" class="absolute inset-0 w-full h-full opacity-0 cursor-pointer">
-            <div class="text-gray-500 group-hover:text-blue-600">
-              <span class="text-2xl block mb-1">📎</span>
-              <span *ngIf="!formData.file">Cliquez pour choisir un fichier</span>
-              <span *ngIf="formData.file" class="font-bold text-green-600">{{ formData.file.name }}</span>
-            </div>
-          </div>
+          <label class="block text-sm font-medium text-gray-700 mb-1">Fichier</label>
+          <input type="file" (change)="onFileSelected($event)" class="w-full p-2 border rounded-lg bg-gray-50">
         </div>
-
         <div class="flex justify-end gap-3 mt-8 pt-4 border-t border-gray-100">
-          <button (click)="step = 'CHOICE'" class="px-4 py-2 text-gray-500 hover:bg-gray-100 rounded-lg font-medium transition-colors">Retour</button>
-          <button (click)="submit()" 
-                  [disabled]="!formData.title || !formData.file || !formData.category"
-                  class="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-bold shadow-md hover:shadow-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed">
+          <button (click)="step = 'CHOICE'"
+            class="px-4 py-2 text-gray-500 hover:bg-gray-100 rounded-lg font-medium">Retour</button>
+          <button (click)="submit()" [disabled]="!formData.title || !formData.file || !formData.category"
+            class="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-bold disabled:opacity-50">
             Uploader
           </button>
         </div>
