@@ -1,19 +1,17 @@
+# backend_lien_officinal/urls.py
 from django.contrib import admin
 from django.urls import path, include
 from django.conf import settings
 from django.conf.urls.static import static
-
-# Import des vues principales (pour l'authentification)
 from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView
-# Assurez-vous d'avoir importé RegisterView si elle existe, sinon commentez-la
-# from apps.core.views import RegisterView 
 
 urlpatterns = [
     path('admin/', admin.site.urls),
     
-    # API Routes des applications
+    # API Routes
     path('api/', include('apps.resources.urls')),
     path('api/', include('apps.team.urls')),
+    path('api/', include('apps.partners.urls')),  # 👈 AJOUTER CETTE LIGNE
     
     # Auth
     path('api/token/', TokenObtainPairView.as_view(), name='token_obtain_pair'),

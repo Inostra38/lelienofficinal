@@ -1,3 +1,4 @@
+<!-- src/app/features/dashboard/dashboard.component.html -->
 <div class="flex h-screen bg-gray-50 overflow-hidden">
 
   <app-sidebar 
@@ -163,14 +164,24 @@
       </div>
     </div>
   </main>
+
 </div>
 
+<!-- ========================================== -->
+<!-- MODALES ET OVERLAYS (EN DEHORS DU LAYOUT) -->
+<!-- ========================================== -->
+
+<!-- Overlay de publicité d'inactivité -->
+<app-inactivity-ad-overlay></app-inactivity-ad-overlay>
+
+<!-- Bouton d'ajout de ressource -->
 <button *ngIf="!isEditMode"
         (click)="showAddModal = true" 
         class="fixed bottom-8 right-8 w-16 h-16 bg-blue-600 hover:bg-blue-700 text-white rounded-full shadow-lg shadow-blue-200 flex items-center justify-center transition-all hover:scale-110 hover:-translate-y-1 z-30 group cursor-pointer">
   <span class="text-4xl leading-none font-light mb-1">+</span>
 </button>
 
+<!-- Modal d'assignation de catégorie -->
 <app-category-assigner-modal
   *ngIf="selectedCardToAssign"
   [categories]="allCategories"
@@ -179,20 +190,24 @@
   (cancel)="selectedCardToAssign = null">
 </app-category-assigner-modal>
 
+<!-- Modal d'ajout de lien -->
 <app-add-link-modal 
     *ngIf="showAddModal" 
     [categories]="allCategories"
     [library]="libraryItems"
     (close)="showAddModal = false" 
     (addLink)="onLinkAdded($event)"
-    (selectCard)="selectedCardToAssign = $event; showAddModal = false"> </app-add-link-modal>
+    (selectCard)="selectedCardToAssign = $event; showAddModal = false">
+</app-add-link-modal>
 
+<!-- Panneau de détail de carte -->
 <app-card-detail 
     *ngIf="openedCard" 
     [card]="openedCard" 
     (close)="closeDetail()">
 </app-card-detail>
 
+<!-- Clavier PIN -->
 <app-pin-pad 
     *ngIf="showPinPad" 
     [title]="'Code de ' + selectedCollaborator?.first_name"

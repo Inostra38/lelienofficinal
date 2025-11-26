@@ -1,6 +1,11 @@
+// src/app/features/dashboard/dashboard.component.ts
 import { Component, inject, OnInit, ViewChild } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { HttpClient } from '@angular/common/http';
+
+// Services de publicité
+import { InactivityAdService, AdContent } from '../../core/services/inactivity-ad.service';
+import { InactivityAdOverlayComponent } from '../../shared/ui/inactivity-ad-overlay/inactivity-ad-overlay.component';
 
 // Modules pour le Drag & Drop
 import { DragDropModule, CdkDragDrop, moveItemInArray, transferArrayItem } from '@angular/cdk/drag-drop';
@@ -13,7 +18,6 @@ import { CollaboratorService, Collaborator } from '../../core/services/collabora
 import { PinPadComponent } from '../../shared/ui/pin-pad/pin-pad.component';
 import { SidebarComponent } from './components/sidebar/sidebar.component';
 import { HeaderComponent } from './components/header/header.component';
-import { AdSpaceComponent } from '../../shared/ui/ad-space/ad-space.component';
 import { AddLinkModalComponent } from '../../shared/ui/add-link-modal/add-link-modal.component';
 import { CardDetailComponent } from './components/card-detail/card-detail.component';
 import { CategoryAssignerModalComponent } from '../../shared/ui/category-assigner-modal/category-assigner-modal.component';
@@ -40,7 +44,6 @@ export interface ResourceCard {
   notes_perso: string;
 }
 
-// 🚨 MISE À JOUR CRITIQUE : Ajout du champ adopted_cards
 export interface Category {
   id: number;
   nom: string;
@@ -56,11 +59,11 @@ export interface Category {
     DragDropModule, 
     PinPadComponent, 
     SidebarComponent, 
-    HeaderComponent, 
-    AdSpaceComponent, 
+    HeaderComponent,
     AddLinkModalComponent,
     CardDetailComponent,
-    CategoryAssignerModalComponent 
+    CategoryAssignerModalComponent,
+    InactivityAdOverlayComponent
   ],
   templateUrl: './dashboard.component.html',
   styleUrl: './dashboard.component.css'
@@ -69,6 +72,7 @@ export class DashboardComponent implements OnInit {
   private http = inject(HttpClient);
   private authService = inject(AuthService);
   private collaboratorService = inject(CollaboratorService);
+  private adService = inject(InactivityAdService);
 
   @ViewChild(PinPadComponent) pinPad!: PinPadComponent;
 
@@ -94,39 +98,38 @@ export class DashboardComponent implements OnInit {
     this.loadCategories();
     this.loadTeam();
     this.loadLibrary();
+    this.loadInactivityAd(); 
   }
 
   // ============================================================
   // 1. CHARGEMENT DES DONNÉES
   // ============================================================
 
- loadCategories() {
-  const timestamp = new Date().getTime(); 
-  
-  this.http.get<any>(`http://127.0.0.1:8000/api/categories/?t=${timestamp}`)
-    .subscribe({
-      next: (data) => {
-        const rawData = Array.isArray(data) ? data : data.results || [];
-        
-        this.allCategories = rawData.map((cat: Category) => ({
-          ...cat,
-          // Mapper les cartes natives
-          cards: (cat.cards || []).map(card => ({
-              ...card,
-              items: card.items || [] 
-          })),
-          // ✅ AJOUT : Mapper aussi les cartes adoptées
-          adopted_cards: (cat.adopted_cards || []).map(card => ({
-              ...card,
-              items: card.items || []
-          }))
-        }));
-        
-        this.updateDisplay(); 
-      },
-      error: (err) => console.error('Erreur chargement catégories', err)
-    });
-}
+  loadCategories() {
+    const timestamp = new Date().getTime(); 
+    
+    this.http.get<any>(`http://127.0.0.1:8000/api/categories/?t=${timestamp}`)
+      .subscribe({
+        next: (data) => {
+          const rawData = Array.isArray(data) ? data : data.results || [];
+          
+          this.allCategories = rawData.map((cat: Category) => ({
+            ...cat,
+            cards: (cat.cards || []).map(card => ({
+                ...card,
+                items: card.items || [] 
+            })),
+            adopted_cards: (cat.adopted_cards || []).map(card => ({
+                ...card,
+                items: card.items || []
+            }))
+          }));
+          
+          this.updateDisplay(); 
+        },
+        error: (err) => console.error('Erreur chargement catégories', err)
+      });
+  }
 
   loadTeam() {
     this.collaboratorService.getTeam().subscribe({
@@ -138,40 +141,49 @@ export class DashboardComponent implements OnInit {
   }
 
   loadLibrary() {
-      this.http.get<any[]>('http://127.0.0.1:8000/api/catalog/cards/')
+    this.http.get<any[]>('http://127.0.0.1:8000/api/catalog/cards/')
       .subscribe({
         next: (data) => this.libraryItems = data,
         error: (err) => console.error('Erreur catalogue', err)
       });
   }
 
-  // 🔥 MÉTHODE CRITIQUE : Fusionne les cartes natives et les cartes adoptées
+  loadInactivityAd() {
+    this.http.get<AdContent>('http://127.0.0.1:8000/api/ads/inactivity/')
+      .subscribe({
+        next: (ad) => {
+          console.log('✅ Pub chargée depuis l\'API:', ad);
+          this.adService.loadAd(ad);
+        },
+        error: (err) => {
+          console.error('❌ Erreur chargement pub:', err);
+        }
+      });
+  }
+
+  // ============================================================
+  // 2. MÉTHODES PRIVÉES
+  // ============================================================
+
   private updateDisplay() {
     const rawData: Category[] = JSON.parse(JSON.stringify(this.allCategories));
     
     this.displayedCategories = rawData.map(category => {
-        
-        // 1. Liste des cartes natives/privées
         const nativeCards = category.cards || [];
-        // 2. Liste des cartes adoptées (celles qui ont été assignées à cette catégorie)
         const adoptedCards = category.adopted_cards || [];
-        
-        // 3. Fusion et tri
         const mergedCards = [...nativeCards, ...adoptedCards];
         
-        // Trier par titre pour une UX cohérente
         mergedCards.sort((a, b) => a.titre.localeCompare(b.titre));
 
         return {
             ...category,
-            // Remplacement de l'ancienne liste par la liste fusionnée
             cards: mergedCards
         };
     });
   }
 
   // ============================================================
-  // 2. GESTION DES VUES & RECHERCHE
+  // 3. GESTION DES VUES & RECHERCHE
   // ============================================================
 
   setViewMode(mode: 'COMPACT' | 'LARGE' | 'TABLE') {
@@ -201,7 +213,7 @@ export class DashboardComponent implements OnInit {
   }
 
   // ============================================================
-  // 3. ACTIONS
+  // 4. ACTIONS SUR LES CARTES
   // ============================================================
 
   toggleEditMode() {
@@ -224,8 +236,8 @@ export class DashboardComponent implements OnInit {
   hideOrDeleteCard(card: ResourceCard, event: Event) { 
     event.stopPropagation();
     
-    if(card.type === 'PRIVATE') {
-       if(confirm(`Voulez-vous vraiment SUPPRIMER votre carte privée "${card.titre}" ?`)) {
+    if (card.type === 'PRIVATE') {
+       if (confirm(`Voulez-vous vraiment SUPPRIMER votre carte privée "${card.titre}" ?`)) {
            this.http.delete(`http://127.0.0.1:8000/api/cards/${card.id}/`).subscribe({
                next: () => this.loadCategories(),
                error: (err) => console.error("Erreur suppression", err)
@@ -234,7 +246,7 @@ export class DashboardComponent implements OnInit {
        return;
     }
 
-    if(confirm(`Voulez-vous masquer la carte "${card.titre}" de votre tableau de bord ?`)) {
+    if (confirm(`Voulez-vous masquer la carte "${card.titre}" de votre tableau de bord ?`)) {
         this.http.post(`http://127.0.0.1:8000/api/cards/${card.id}/toggle-visibility/`, {}).subscribe({
             next: () => this.loadCategories(),
             error: (err) => console.error("Erreur masquage", err)
@@ -284,7 +296,9 @@ export class DashboardComponent implements OnInit {
       });
   }
 
-  // --- GESTION ÉQUIPE & AUTH ---
+  // ============================================================
+  // 5. GESTION ÉQUIPE & AUTHENTIFICATION
+  // ============================================================
 
   openSession(collab: Collaborator) {
     this.selectedCollaborator = collab;
@@ -311,7 +325,9 @@ export class DashboardComponent implements OnInit {
     this.authService.logout();
   }
 
-  // --- AJOUT DE LIEN PERSONNEL ---
+  // ============================================================
+  // 6. AJOUT DE RESSOURCES PERSONNELLES
+  // ============================================================
 
   onLinkAdded(data: any) {
     if (this.allCategories.length === 0) {
