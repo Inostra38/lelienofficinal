@@ -1,28 +1,22 @@
-// src/app/features/dashboard/dashboard.component.ts
 import { Component, inject, OnInit, ViewChild } from '@angular/core';
 import { CommonModule } from '@angular/common';
+import { FormsModule } from '@angular/forms';
 import { HttpClient } from '@angular/common/http';
 
-// Services de publicité
-import { InactivityAdService, AdContent } from '../../core/services/inactivity-ad.service';
-import { InactivityAdOverlayComponent } from '../../shared/ui/inactivity-ad-overlay/inactivity-ad-overlay.component';
-
-// Modules pour le Drag & Drop
 import { DragDropModule, CdkDragDrop, moveItemInArray, transferArrayItem } from '@angular/cdk/drag-drop';
 
-// Services
 import { AuthService } from '../../core/auth/auth.service';
 import { CollaboratorService, Collaborator } from '../../core/services/collaborator.service';
 
-// Composants Enfants
 import { PinPadComponent } from '../../shared/ui/pin-pad/pin-pad.component';
 import { SidebarComponent } from './components/sidebar/sidebar.component';
 import { HeaderComponent } from './components/header/header.component';
+import { AdSpaceComponent } from '../../shared/ui/ad-space/ad-space.component';
 import { AddLinkModalComponent } from '../../shared/ui/add-link-modal/add-link-modal.component';
 import { CardDetailComponent } from './components/card-detail/card-detail.component';
 import { CategoryAssignerModalComponent } from '../../shared/ui/category-assigner-modal/category-assigner-modal.component';
 
-// --- DÉFINITION DES TYPES (Interfaces) ---
+// --- INTERFACES ---
 export interface ResourceItem {
   id: number;
   type: 'WEB' | 'PDF' | 'TEL' | 'MAIL';
@@ -47,6 +41,7 @@ export interface ResourceCard {
 export interface Category {
   id: number;
   nom: string;
+  icon_slug: string;
   cards: ResourceCard[];
   adopted_cards?: ResourceCard[]; 
 }
@@ -56,14 +51,15 @@ export interface Category {
   standalone: true,
   imports: [
     CommonModule,
+    FormsModule,
     DragDropModule, 
     PinPadComponent, 
     SidebarComponent, 
-    HeaderComponent,
+    HeaderComponent, 
+    AdSpaceComponent, 
     AddLinkModalComponent,
     CardDetailComponent,
-    CategoryAssignerModalComponent,
-    InactivityAdOverlayComponent
+    CategoryAssignerModalComponent 
   ],
   templateUrl: './dashboard.component.html',
   styleUrl: './dashboard.component.css'
@@ -72,7 +68,6 @@ export class DashboardComponent implements OnInit {
   private http = inject(HttpClient);
   private authService = inject(AuthService);
   private collaboratorService = inject(CollaboratorService);
-  private adService = inject(InactivityAdService);
 
   @ViewChild(PinPadComponent) pinPad!: PinPadComponent;
 
@@ -92,13 +87,16 @@ export class DashboardComponent implements OnInit {
   selectedCollaborator: Collaborator | null = null;
   activeSessionCollaborator: Collaborator | null = null;
   openedCard: ResourceCard | null = null;
-  selectedCardToAssign: ResourceCard | null = null; 
+  selectedCardToAssign: ResourceCard | null = null;
+
+  // --- RENOMMAGE CATÉGORIE ---
+  editingCategoryId: number | null = null;
+  editingCategoryName: string = '';
 
   ngOnInit() {
     this.loadCategories();
     this.loadTeam();
     this.loadLibrary();
-    this.loadInactivityAd(); 
   }
 
   // ============================================================
@@ -148,23 +146,6 @@ export class DashboardComponent implements OnInit {
       });
   }
 
-  loadInactivityAd() {
-    this.http.get<AdContent>('http://127.0.0.1:8000/api/ads/inactivity/')
-      .subscribe({
-        next: (ad) => {
-          console.log('✅ Pub chargée depuis l\'API:', ad);
-          this.adService.loadAd(ad);
-        },
-        error: (err) => {
-          console.error('❌ Erreur chargement pub:', err);
-        }
-      });
-  }
-
-  // ============================================================
-  // 2. MÉTHODES PRIVÉES
-  // ============================================================
-
   private updateDisplay() {
     const rawData: Category[] = JSON.parse(JSON.stringify(this.allCategories));
     
@@ -172,7 +153,6 @@ export class DashboardComponent implements OnInit {
         const nativeCards = category.cards || [];
         const adoptedCards = category.adopted_cards || [];
         const mergedCards = [...nativeCards, ...adoptedCards];
-        
         mergedCards.sort((a, b) => a.titre.localeCompare(b.titre));
 
         return {
@@ -183,7 +163,7 @@ export class DashboardComponent implements OnInit {
   }
 
   // ============================================================
-  // 3. GESTION DES VUES & RECHERCHE
+  // 2. GESTION DES VUES & RECHERCHE
   // ============================================================
 
   setViewMode(mode: 'COMPACT' | 'LARGE' | 'TABLE') {
@@ -200,7 +180,9 @@ export class DashboardComponent implements OnInit {
     }
 
     this.displayedCategories = this.allCategories.map(cat => {
-      const matchingCards = cat.cards.filter(card => {
+      const allCards = [...(cat.cards || []), ...(cat.adopted_cards || [])];
+      
+      const matchingCards = allCards.filter(card => {
         const titleMatch = (card.titre || '').toLowerCase().includes(term);
         const partnerMatch = (card.partner?.nom || '').toLowerCase().includes(term);
         const itemMatch = (card.items || []).some(item => (item.label || '').toLowerCase().includes(term));
@@ -213,11 +195,133 @@ export class DashboardComponent implements OnInit {
   }
 
   // ============================================================
-  // 4. ACTIONS SUR LES CARTES
+  // 3. ACTIONS SUR LES CATÉGORIES
+  // ============================================================
+
+  deleteCategory(category: Category) {
+    const cardsCount = category.cards?.length || 0;
+    const message = cardsCount > 0 
+      ? `Voulez-vous vraiment supprimer la catégorie "${category.nom}" et ses ${cardsCount} carte(s) ?`
+      : `Voulez-vous vraiment supprimer la catégorie "${category.nom}" ?`;
+
+    if (confirm(message)) {
+      this.http.delete(`http://127.0.0.1:8000/api/categories/${category.id}/`)
+        .subscribe({
+          next: () => {
+            this.loadCategories();
+          },
+          error: (err) => {
+            console.error('Erreur suppression catégorie', err);
+            alert("Erreur lors de la suppression.");
+          }
+        });
+    }
+  }
+
+  // ============================================================
+  // 4. RENOMMAGE DE CATÉGORIE
+  // ============================================================
+
+  startRename(category: Category) {
+    this.editingCategoryId = category.id;
+    this.editingCategoryName = category.nom;
+  }
+
+  cancelRename() {
+    this.editingCategoryId = null;
+    this.editingCategoryName = '';
+  }
+
+  saveRename(category: Category) {
+    if (!this.editingCategoryName.trim()) {
+      alert("Le nom ne peut pas être vide.");
+      return;
+    }
+
+    this.http.patch(`http://127.0.0.1:8000/api/categories/${category.id}/`, {
+      nom: this.editingCategoryName.trim()
+    }).subscribe({
+      next: () => {
+        this.editingCategoryId = null;
+        this.editingCategoryName = '';
+        this.loadCategories();
+      },
+      error: (err) => {
+        console.error('Erreur renommage', err);
+        alert(err.error?.nom?.[0] || "Erreur lors du renommage.");
+      }
+    });
+  }
+
+  // ============================================================
+  // 5. RÉORDONNANCEMENT DES CATÉGORIES
+  // ============================================================
+
+  isFirstCategory(category: Category): boolean {
+    return this.displayedCategories.indexOf(category) === 0;
+  }
+
+  isLastCategory(category: Category): boolean {
+    return this.displayedCategories.indexOf(category) === this.displayedCategories.length - 1;
+  }
+
+  moveCategoryUp(category: Category) {
+    const index = this.displayedCategories.indexOf(category);
+    if (index <= 0) return;
+
+    [this.displayedCategories[index - 1], this.displayedCategories[index]] = 
+    [this.displayedCategories[index], this.displayedCategories[index - 1]];
+
+    const allIndex = this.allCategories.findIndex(c => c.id === category.id);
+    if (allIndex > 0) {
+      [this.allCategories[allIndex - 1], this.allCategories[allIndex]] = 
+      [this.allCategories[allIndex], this.allCategories[allIndex - 1]];
+    }
+
+    this.saveOrder();
+  }
+
+  moveCategoryDown(category: Category) {
+    const index = this.displayedCategories.indexOf(category);
+    if (index >= this.displayedCategories.length - 1) return;
+
+    [this.displayedCategories[index], this.displayedCategories[index + 1]] = 
+    [this.displayedCategories[index + 1], this.displayedCategories[index]];
+
+    const allIndex = this.allCategories.findIndex(c => c.id === category.id);
+    if (allIndex < this.allCategories.length - 1) {
+      [this.allCategories[allIndex], this.allCategories[allIndex + 1]] = 
+      [this.allCategories[allIndex + 1], this.allCategories[allIndex]];
+    }
+
+    this.saveOrder();
+  }
+
+  private saveOrder() {
+    const order = this.displayedCategories.map(cat => cat.id);
+    
+    this.http.post('http://127.0.0.1:8000/api/categories/reorder/', { order })
+      .subscribe({
+        next: () => {
+          // Silencieux - pas besoin de feedback
+        },
+        error: (err) => {
+          console.error('Erreur sauvegarde ordre', err);
+          this.loadCategories();
+        }
+      });
+  }
+
+  // ============================================================
+  // 6. ACTIONS SUR LES CARTES
   // ============================================================
 
   toggleEditMode() {
     this.isEditMode = !this.isEditMode;
+    // Annuler le renommage si on quitte le mode édition
+    if (!this.isEditMode) {
+      this.cancelRename();
+    }
   }
 
   drop(event: CdkDragDrop<any[]>) {
@@ -236,8 +340,8 @@ export class DashboardComponent implements OnInit {
   hideOrDeleteCard(card: ResourceCard, event: Event) { 
     event.stopPropagation();
     
-    if (card.type === 'PRIVATE') {
-       if (confirm(`Voulez-vous vraiment SUPPRIMER votre carte privée "${card.titre}" ?`)) {
+    if(card.type === 'PRIVATE') {
+       if(confirm(`Voulez-vous vraiment SUPPRIMER votre carte privée "${card.titre}" ?`)) {
            this.http.delete(`http://127.0.0.1:8000/api/cards/${card.id}/`).subscribe({
                next: () => this.loadCategories(),
                error: (err) => console.error("Erreur suppression", err)
@@ -246,7 +350,7 @@ export class DashboardComponent implements OnInit {
        return;
     }
 
-    if (confirm(`Voulez-vous masquer la carte "${card.titre}" de votre tableau de bord ?`)) {
+    if(confirm(`Voulez-vous masquer la carte "${card.titre}" de votre tableau de bord ?`)) {
         this.http.post(`http://127.0.0.1:8000/api/cards/${card.id}/toggle-visibility/`, {}).subscribe({
             next: () => this.loadCategories(),
             error: (err) => console.error("Erreur masquage", err)
@@ -254,10 +358,26 @@ export class DashboardComponent implements OnInit {
     }
   }
 
-  toggleFavorite(card: ResourceCard, event: Event) {
-    event.stopPropagation();
-    card.is_favorite = !card.is_favorite;
-  }
+ toggleFavorite(card: ResourceCard, event: Event) {
+  event.stopPropagation();
+  
+  // Optimistic update (changement immédiat côté UI)
+  card.is_favorite = !card.is_favorite;
+  
+  // Appel API pour persister
+  this.http.post(`http://127.0.0.1:8000/api/cards/${card.id}/toggle-favorite/`, {})
+    .subscribe({
+      next: (response: any) => {
+        // Synchroniser avec la réponse serveur
+        card.is_favorite = response.is_favorite;
+      },
+      error: (err) => {
+        // Rollback en cas d'erreur
+        card.is_favorite = !card.is_favorite;
+        console.error('Erreur toggle favori', err);
+      }
+    });
+}
 
   openDetail(card: ResourceCard, event: Event) {
     event.preventDefault(); 
@@ -297,7 +417,7 @@ export class DashboardComponent implements OnInit {
   }
 
   // ============================================================
-  // 5. GESTION ÉQUIPE & AUTHENTIFICATION
+  // 7. GESTION ÉQUIPE & AUTH
   // ============================================================
 
   openSession(collab: Collaborator) {
@@ -326,12 +446,12 @@ export class DashboardComponent implements OnInit {
   }
 
   // ============================================================
-  // 6. AJOUT DE RESSOURCES PERSONNELLES
+  // 8. AJOUT DE LIEN PERSONNEL
   // ============================================================
 
   onLinkAdded(data: any) {
     if (this.allCategories.length === 0) {
-        alert("Aucune catégorie disponible.");
+        alert("Aucune catégorie disponible. Créez d'abord une catégorie.");
         return;
     }
 

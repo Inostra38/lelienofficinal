@@ -2,7 +2,7 @@ from rest_framework import viewsets, parsers, status
 from rest_framework.permissions import IsAuthenticated
 from rest_framework_simplejwt.authentication import JWTAuthentication
 from rest_framework.filters import SearchFilter
-from rest_framework.decorators import api_view, permission_classes, authentication_classes
+from rest_framework.decorators import api_view, permission_classes, authentication_classes, action
 from rest_framework.response import Response
 from django.db.models import Prefetch, Q, Exists, OuterRef
 from django.utils.decorators import method_decorator
@@ -10,12 +10,31 @@ from django.views.decorators.csrf import csrf_exempt
 from django.shortcuts import get_object_or_404
 
 from .models import Category, ResourceCard, ResourceItem, PharmacyPreference 
-from .serializers import CategorySerializer, ResourceCardSerializer, ResourceItemSerializer, CatalogCardSerializer
+from .serializers import (
+    CategorySerializer, 
+    CategoryCreateSerializer,
+    ResourceCardSerializer, 
+    ResourceItemSerializer, 
+    CatalogCardSerializer
+)
 
-class CategoryViewSet(viewsets.ReadOnlyModelViewSet):
-    serializer_class = CategorySerializer
+
+# =====================================================
+# CATÉGORIES (CRUD COMPLET)
+# =====================================================
+
+@method_decorator(csrf_exempt, name='dispatch')
+class CategoryViewSet(viewsets.ModelViewSet):
+    """
+    CRUD complet pour les catégories d'une pharmacie.
+    """
     permission_classes = [IsAuthenticated]
     authentication_classes = [JWTAuthentication]
+
+    def get_serializer_class(self):
+        if self.action in ['create', 'update', 'partial_update']:
+            return CategoryCreateSerializer
+        return CategorySerializer
 
     def get_queryset(self):
         user = self.request.user
@@ -29,39 +48,95 @@ class CategoryViewSet(viewsets.ReadOnlyModelViewSet):
             is_hidden=True
         )
 
-        # =====================================================
-        # PARTIE 1 : Cartes avec catégorie native (PRIVATE + OFFICIAL/PARTNER non adoptées)
-        # =====================================================
+        # Cartes de l'utilisateur (PRIVATE uniquement maintenant)
         cards_qs_base = ResourceCard.objects.annotate(
             is_hidden_by_user=Exists(hidden_filter)
         ).exclude(is_hidden_by_user=True)
 
         items_filter = Q(owner__isnull=True) | Q(owner=user)
         
-        # Cartes natives : PRIVATE de l'utilisateur OU OFFICIAL/PARTNER avec catégorie définie
         native_cards_qs = cards_qs_base.prefetch_related(
             Prefetch('items', queryset=ResourceItem.objects.filter(items_filter).order_by('ordre', 'id'))
         ).filter(
-            Q(type='PRIVATE', owner_pharmacy=user) |  # Cartes privées de l'utilisateur
-            Q(type__in=['OFFICIAL', 'PARTNER'], category__isnull=False)  # Officielles avec catégorie native
+            Q(type='PRIVATE', owner_pharmacy=user) |
+            Q(type__in=['OFFICIAL', 'PARTNER'], category__isnull=False)
         )
 
-        # =====================================================
-        # PARTIE 2 : Cartes adoptées (OFFICIAL/PARTNER assignées par l'utilisateur)
-        # =====================================================
-        # On récupère les préférences avec une catégorie assignée
         adopted_preferences = PharmacyPreference.objects.filter(
             pharmacy=user,
             assigned_category__isnull=False
         ).select_related('card', 'assigned_category')
 
-        # Construction du queryset des catégories avec les deux types de cartes
-        categories = Category.objects.all().prefetch_related(
+        # Filtre par pharmacie propriétaire
+        categories = Category.objects.filter(
+            owner_pharmacy=user
+        ).prefetch_related(
             Prefetch('cards', queryset=native_cards_qs),
             Prefetch('adopted_preferences', queryset=adopted_preferences)
         ).order_by('ordre')
         
         return categories
+
+    def perform_create(self, serializer):
+        """Associe automatiquement la catégorie à la pharmacie connectée."""
+        last_order = Category.objects.filter(
+            owner_pharmacy=self.request.user
+        ).count()
+        
+        serializer.save(
+            owner_pharmacy=self.request.user,
+            ordre=last_order
+        )
+
+    def destroy(self, request, *args, **kwargs):
+        """
+        Suppression d'une catégorie.
+        Les cartes PRIVATE sont supprimées en cascade (via on_delete=CASCADE).
+        """
+        category = self.get_object()
+        
+        if category.owner_pharmacy != request.user:
+            return Response(
+                {"detail": "Vous ne pouvez pas supprimer cette catégorie."},
+                status=status.HTTP_403_FORBIDDEN
+            )
+        
+        category_name = category.nom
+        cards_count = category.cards.count()
+        
+        category.delete()
+        
+        return Response({
+            "detail": f"Catégorie '{category_name}' supprimée avec {cards_count} carte(s)."
+        }, status=status.HTTP_200_OK)
+
+    @action(detail=False, methods=['post'], url_path='reorder')
+    def reorder(self, request):
+        """
+        Réordonne les catégories en une seule requête.
+        Attend un payload : { "order": [id1, id2, id3, ...] }
+        """
+        order = request.data.get('order', [])
+        
+        if not order:
+            return Response(
+                {"detail": "Le champ 'order' est requis."},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        # Mise à jour de l'ordre pour chaque catégorie
+        for index, category_id in enumerate(order):
+            Category.objects.filter(
+                id=category_id,
+                owner_pharmacy=request.user
+            ).update(ordre=index)
+        
+        return Response({"detail": "Ordre mis à jour."}, status=status.HTTP_200_OK)
+
+
+# =====================================================
+# CARTES (CRUD pour cartes privées)
+# =====================================================
 
 @method_decorator(csrf_exempt, name='dispatch')
 class ResourceCardViewSet(viewsets.ModelViewSet):
@@ -74,15 +149,18 @@ class ResourceCardViewSet(viewsets.ModelViewSet):
         return ResourceCard.objects.filter(owner_pharmacy=self.request.user, type='PRIVATE')
 
     def perform_create(self, serializer):
-        # 1. Créer la carte (type='PRIVATE' forcé côté serveur)
+        # Vérifier que la catégorie appartient à l'utilisateur
+        category = serializer.validated_data.get('category')
+        if category and category.owner_pharmacy != self.request.user:
+            from rest_framework import serializers as drf_serializers
+            raise drf_serializers.ValidationError({"category": "Cette catégorie ne vous appartient pas."})
+        
         card = serializer.save(owner_pharmacy=self.request.user, type='PRIVATE')
         
-        # 2. Récupérer les données pour le ResourceItem associé
         item_type = self.request.data.get('type', 'WEB')
         item_url = self.request.data.get('url', '')
         item_file = self.request.FILES.get('document')
         
-        # 3. Créer automatiquement le premier ResourceItem lié à la carte
         ResourceItem.objects.create(
             card=card,
             type=item_type,
@@ -92,6 +170,11 @@ class ResourceCardViewSet(viewsets.ModelViewSet):
             owner=self.request.user,
             ordre=0
         )
+
+
+# =====================================================
+# ITEMS (CRUD)
+# =====================================================
 
 @method_decorator(csrf_exempt, name='dispatch')
 class ResourceItemViewSet(viewsets.ModelViewSet):
@@ -106,6 +189,11 @@ class ResourceItemViewSet(viewsets.ModelViewSet):
     def perform_create(self, serializer):
         serializer.save(owner=self.request.user)
 
+
+# =====================================================
+# CATALOGUE (Lecture seule)
+# =====================================================
+
 class CatalogCardViewSet(viewsets.ReadOnlyModelViewSet):
     serializer_class = CatalogCardSerializer
     permission_classes = [IsAuthenticated]
@@ -118,27 +206,26 @@ class CatalogCardViewSet(viewsets.ReadOnlyModelViewSet):
             type__in=['OFFICIAL', 'PARTNER']
         ).order_by('titre')
 
+
 # =====================================================
-# ✅ NOUVELLE LOGIQUE D'ADOPTION
+# ADOPTION DE CARTE
 # =====================================================
+
 @api_view(['PATCH'])
 @permission_classes([IsAuthenticated])
 @authentication_classes([JWTAuthentication])
 def assign_category_to_card(request, pk):
     """
     Adopte une carte officielle/partenaire dans une catégorie personnelle.
-    Crée ou met à jour une PharmacyPreference avec la catégorie assignée.
     """
     card = get_object_or_404(ResourceCard, pk=pk)
 
-    # Vérification : seules les cartes officielles/partenaires peuvent être adoptées
     if card.type not in ['OFFICIAL', 'PARTNER']:
         return Response(
             {"detail": "Seules les cartes officielles peuvent être adoptées."}, 
             status=status.HTTP_403_FORBIDDEN
         )
 
-    # Récupération de la catégorie choisie
     category_id = request.data.get('category')
     if not category_id:
         return Response(
@@ -146,10 +233,9 @@ def assign_category_to_card(request, pk):
             status=status.HTTP_400_BAD_REQUEST
         )
 
-    # Vérifier que la catégorie existe
-    category = get_object_or_404(Category, pk=category_id)
+    # Vérifier que la catégorie appartient à l'utilisateur
+    category = get_object_or_404(Category, pk=category_id, owner_pharmacy=request.user)
 
-    # ✅ Créer ou mettre à jour la préférence utilisateur
     preference, created = PharmacyPreference.objects.get_or_create(
         pharmacy=request.user,
         card=card,
@@ -157,7 +243,6 @@ def assign_category_to_card(request, pk):
     )
     
     if not created:
-        # Mise à jour si la préférence existait déjà
         preference.assigned_category = category
         preference.save()
 
@@ -166,4 +251,31 @@ def assign_category_to_card(request, pk):
         "card_id": card.id,
         "category_id": category.id,
         "category_nom": category.nom
+    }, status=status.HTTP_200_OK)
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+@authentication_classes([JWTAuthentication])
+def toggle_favorite(request, pk):
+    """
+    Bascule le statut favori d'une carte pour la pharmacie connectée.
+    Crée une PharmacyPreference si elle n'existe pas.
+    """
+    card = get_object_or_404(ResourceCard, pk=pk)
+
+    # Récupérer ou créer la préférence
+    preference, created = PharmacyPreference.objects.get_or_create(
+        pharmacy=request.user,
+        card=card,
+        defaults={'is_favorite': True}
+    )
+    
+    if not created:
+        # Basculer l'état
+        preference.is_favorite = not preference.is_favorite
+        preference.save()
+
+    return Response({
+        "card_id": card.id,
+        "is_favorite": preference.is_favorite
     }, status=status.HTTP_200_OK)

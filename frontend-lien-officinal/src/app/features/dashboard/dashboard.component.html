@@ -1,40 +1,36 @@
-<!-- src/app/features/dashboard/dashboard.component.html -->
 <div class="flex h-screen bg-gray-50 overflow-hidden">
 
-  <app-sidebar 
-      [team]="team" 
-      [activeCollaborator]="activeSessionCollaborator"
-      (sessionClick)="openSession($event)"
-      (logout)="closeCollaboratorSession()">
+  <app-sidebar [team]="team" [activeCollaborator]="activeSessionCollaborator" (sessionClick)="openSession($event)"
+    (logout)="closeCollaboratorSession()">
   </app-sidebar>
 
   <main class="flex-1 flex flex-col h-screen overflow-hidden relative">
-    
+
     <app-header (searchChange)="onSearch($event)"></app-header>
 
     <div class="px-8 pt-6 flex justify-between items-center shrink-0">
-      
+
       <div class="flex bg-white p-1 rounded-lg border border-gray-200 shadow-sm">
-        <button (click)="setViewMode('COMPACT')" 
-                class="px-3 py-1.5 rounded-md text-sm font-medium transition-all flex items-center gap-2"
-                [ngClass]="viewMode === 'COMPACT' ? 'bg-blue-50 text-blue-600 shadow-sm ring-1 ring-blue-100' : 'text-gray-500 hover:bg-gray-50'">
+        <button (click)="setViewMode('COMPACT')"
+          class="px-3 py-1.5 rounded-md text-sm font-medium transition-all flex items-center gap-2"
+          [ngClass]="viewMode === 'COMPACT' ? 'bg-blue-50 text-blue-600 shadow-sm ring-1 ring-blue-100' : 'text-gray-500 hover:bg-gray-50'">
           <span>🗂️</span> <span class="hidden sm:inline">Compact</span>
         </button>
-        <button (click)="setViewMode('LARGE')" 
-                class="px-3 py-1.5 rounded-md text-sm font-medium transition-all flex items-center gap-2"
-                [ngClass]="viewMode === 'LARGE' ? 'bg-blue-50 text-blue-600 shadow-sm ring-1 ring-blue-100' : 'text-gray-500 hover:bg-gray-50'">
+        <button (click)="setViewMode('LARGE')"
+          class="px-3 py-1.5 rounded-md text-sm font-medium transition-all flex items-center gap-2"
+          [ngClass]="viewMode === 'LARGE' ? 'bg-blue-50 text-blue-600 shadow-sm ring-1 ring-blue-100' : 'text-gray-500 hover:bg-gray-50'">
           <span>🖼️</span> <span class="hidden sm:inline">Icônes</span>
         </button>
-        <button (click)="setViewMode('TABLE')" 
-                class="px-3 py-1.5 rounded-md text-sm font-medium transition-all flex items-center gap-2"
-                [ngClass]="viewMode === 'TABLE' ? 'bg-blue-50 text-blue-600 shadow-sm ring-1 ring-blue-100' : 'text-gray-500 hover:bg-gray-50'">
+        <button (click)="setViewMode('TABLE')"
+          class="px-3 py-1.5 rounded-md text-sm font-medium transition-all flex items-center gap-2"
+          [ngClass]="viewMode === 'TABLE' ? 'bg-blue-50 text-blue-600 shadow-sm ring-1 ring-blue-100' : 'text-gray-500 hover:bg-gray-50'">
           <span>☰</span> <span class="hidden sm:inline">Liste</span>
         </button>
       </div>
 
-      <button (click)="toggleEditMode()" 
-              class="flex items-center gap-2 px-4 py-2 rounded-full shadow-sm border transition-all ml-4"
-              [ngClass]="isEditMode ? 'bg-orange-100 border-orange-300 text-orange-700' : 'bg-white border-gray-200 text-gray-600 hover:bg-gray-50'">
+      <button (click)="toggleEditMode()"
+        class="flex items-center gap-2 px-4 py-2 rounded-full shadow-sm border transition-all ml-4"
+        [ngClass]="isEditMode ? 'bg-orange-100 border-orange-300 text-orange-700' : 'bg-white border-gray-200 text-gray-600 hover:bg-gray-50'">
         <span class="text-lg">{{ isEditMode ? '✅' : '✏️' }}</span>
         <span class="font-bold text-sm hidden sm:inline">{{ isEditMode ? 'Terminer' : 'Modifier' }}</span>
       </button>
@@ -43,174 +39,249 @@
     <div class="flex-1 overflow-y-auto p-8 scroll-smooth pt-4" cdkDropListGroup>
       <div class="max-w-7xl mx-auto w-full pb-20">
 
+        <!-- MESSAGE SI AUCUNE CATÉGORIE -->
+        <div *ngIf="displayedCategories.length === 0" class="text-center py-20">
+          <div class="text-6xl mb-4">📂</div>
+          <h3 class="text-xl font-bold text-gray-700 mb-2">Aucune catégorie</h3>
+          <p class="text-gray-500 mb-6">Commencez par créer votre première catégorie pour organiser vos ressources.</p>
+          <button (click)="showAddModal = true"
+            class="px-6 py-3 bg-blue-600 text-white rounded-xl font-bold hover:bg-blue-700 transition-colors">
+            + Créer une catégorie
+          </button>
+        </div>
+
         <div class="space-y-12">
           <section *ngFor="let cat of displayedCategories">
-            
+
+            <!-- HEADER CATÉGORIE AVEC RENOMMAGE ET RÉORDONNANCEMENT -->
             <div class="flex items-center gap-3 mb-4 sticky top-0 bg-gray-50/95 backdrop-blur py-2 z-10">
-              <h2 class="text-lg font-bold text-gray-800 uppercase tracking-wide flex items-center gap-2">
-                <span class="bg-blue-100 text-blue-600 p-1 rounded-lg text-base">📂</span>
+
+              <!-- MODE LECTURE : Affiche le nom -->
+              <h2 *ngIf="editingCategoryId !== cat.id"
+                class="text-lg font-bold text-gray-800 uppercase tracking-wide flex items-center gap-2">
+                <span class="bg-blue-100 text-blue-600 p-1 rounded-lg text-base">{{ cat.icon_slug || '📂' }}</span>
                 {{ cat.nom }}
               </h2>
+
+              <!-- MODE ÉDITION DU NOM : Input inline -->
+              <div *ngIf="editingCategoryId === cat.id" class="flex items-center gap-2">
+                <span class="bg-blue-100 text-blue-600 p-1 rounded-lg text-base">{{ cat.icon_slug || '📂' }}</span>
+                <input type="text" [(ngModel)]="editingCategoryName" (keydown.enter)="saveRename(cat)"
+                  (keydown.escape)="cancelRename()"
+                  class="px-3 py-1 border-2 border-blue-500 rounded-lg text-lg font-bold uppercase focus:outline-none">
+                <button (click)="saveRename(cat)"
+                  class="p-1 bg-green-100 text-green-600 rounded-lg hover:bg-green-200">✓</button>
+                <button (click)="cancelRename()"
+                  class="p-1 bg-gray-100 text-gray-600 rounded-lg hover:bg-gray-200">✕</button>
+              </div>
+
               <div class="h-px bg-gray-200 flex-1"></div>
-            </div>
 
-            <div *ngIf="viewMode === 'COMPACT'"
-                 cdkDropList 
-                 [cdkDropListData]="cat.cards" 
-                 (cdkDropListDropped)="drop($event)"
-                 [cdkDropListDisabled]="isSearching || !isEditMode"
-                 class="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6">
+              <!-- BOUTONS EN MODE ÉDITION -->
+              <div *ngIf="isEditMode && editingCategoryId !== cat.id" class="flex items-center gap-1">
 
-              <div *ngFor="let card of cat.cards" cdkDrag 
-                   (click)="openDetail(card, $event)" class="bg-white rounded-2xl border border-gray-200 shadow-sm hover:shadow-md transition-all duration-300 flex flex-col overflow-hidden group h-full cursor-pointer relative"
-                   [ngClass]="isEditMode ? 'animate-pulse' : ''">
-                 
-                 <button *ngIf="isEditMode" 
-                         (click)="hideOrDeleteCard(card, $event)" class="absolute top-2 right-2 w-8 h-8 flex items-center justify-center bg-red-100 text-red-600 rounded-full shadow-md z-20 hover:bg-red-600 hover:text-white transition-colors"
-                         title="Cliquer pour supprimer ou masquer la carte">
-                     🗑️
-                 </button>
+                <!-- Bouton Renommer -->
+                <button (click)="startRename(cat)"
+                  class="p-2 bg-blue-100 text-blue-600 rounded-lg hover:bg-blue-200 transition-colors" title="Renommer">
+                  ✏️
+                </button>
 
-                 <div class="p-4 pb-2 flex items-start gap-3 border-b border-gray-50/20 bg-gray-50/30">
-                    <div class="w-10 h-10 rounded-lg bg-white border border-gray-100 flex items-center justify-center shrink-0 shadow-sm p-1">
-                        <img *ngIf="card.logo" [src]="card.logo" class="w-full h-full object-contain">
-                        <span *ngIf="!card.logo" class="text-xl">🏢</span>
-                    </div>
-                    <div class="flex-1 min-w-0">
-                        <div class="flex justify-between">
-                            <h3 class="font-bold text-gray-800 truncate">{{ card.titre }}</h3>
-                            <button (click)="toggleFavorite(card, $event)" class="text-xl hover:text-yellow-400">{{ card.is_favorite ? '⭐' : '☆' }}</button>
-                        </div>
-                        <div class="flex gap-1 mt-1">
-                             <span *ngIf="card.type === 'OFFICIAL'" class="text-[9px] bg-blue-50 text-blue-600 px-1.5 rounded border border-blue-100 font-bold uppercase">Validé</span>
-                             <span *ngIf="card.type === 'PRIVATE'" class="text-[9px] bg-orange-50 text-orange-600 px-1.5 rounded border border-orange-100 font-bold uppercase">Perso</span>
-                        </div>
-                    </div>
-                 </div>
+                <!-- Bouton Monter -->
+                <button (click)="moveCategoryUp(cat)" [disabled]="isFirstCategory(cat)"
+                  class="p-2 rounded-lg transition-colors"
+                  [ngClass]="isFirstCategory(cat) ? 'bg-gray-100 text-gray-300 cursor-not-allowed' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'"
+                  title="Monter">
+                  ↑
+                </button>
 
-                 <div class="px-4 pb-4 flex-1 flex flex-col mt-2">
-                    <p *ngIf="card.description_officielle" class="text-xs text-gray-500 mb-3 line-clamp-2">{{ card.description_officielle }}</p>
-                    
-                    <div class="flex flex-col gap-1.5">
-                        <a *ngFor="let item of (card.items || [])" [href]="item.final_url" target="_blank" (click)="$event.stopPropagation()"
-                           class="flex items-center gap-2 p-1.5 rounded hover:bg-blue-50 transition-colors group/item">
-                           <span class="text-gray-400 text-xs w-5 text-center">
-                               <span *ngIf="item.type === 'WEB'">🌐</span>
-                               <span *ngIf="item.type === 'PDF'">📄</span>
-                           </span>
-                           <span class="text-sm text-gray-600 group-hover/item:text-blue-700 truncate">{{ item.label }}</span>
-                        </a>
-                    </div>
-                 </div>
+                <!-- Bouton Descendre -->
+                <button (click)="moveCategoryDown(cat)" [disabled]="isLastCategory(cat)"
+                  class="p-2 rounded-lg transition-colors"
+                  [ngClass]="isLastCategory(cat) ? 'bg-gray-100 text-gray-300 cursor-not-allowed' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'"
+                  title="Descendre">
+                  ↓
+                </button>
 
-                 <div class="px-3 py-2 bg-gray-50 border-t border-gray-100 flex justify-end">
-                    <button (click)="openDetail(card, $event)" class="hover:bg-white hover:shadow-sm p-1.5 rounded transition-all flex items-center gap-1" title="Voir les notes">
-                        ✏️ <span class="text-xs text-gray-400">Notes</span>
-                    </button>
-                 </div>
-                 
-                 <div *ngIf="isEditMode" cdkDragHandle class="absolute inset-0 bg-transparent cursor-move"></div>
+                <!-- Bouton Supprimer -->
+                <button (click)="deleteCategory(cat)"
+                  class="p-2 bg-red-100 text-red-600 rounded-lg hover:bg-red-200 transition-colors" title="Supprimer">
+                  🗑️
+                </button>
               </div>
             </div>
 
-            <div *ngIf="viewMode === 'LARGE'"
-                 cdkDropList 
-                 [cdkDropListData]="cat.cards" 
-                 (cdkDropListDropped)="drop($event)"
-                 [cdkDropListDisabled]="isSearching || !isEditMode"
-                 class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4">
-               
-               <div *ngFor="let card of cat.cards" cdkDrag (click)="openDetail(card, $event)"
-                    class="bg-white rounded-xl border border-gray-200 shadow-sm hover:shadow-lg hover:border-blue-300 hover:-translate-y-1 transition-all cursor-pointer p-4 flex flex-col items-center text-center relative group aspect-square justify-center">
-                  <div class="w-16 h-16 mb-3 flex items-center justify-center text-4xl">
-                      <img *ngIf="card.logo" [src]="card.logo" class="w-full h-full object-contain">
-                      <span *ngIf="!card.logo" class="text-4xl">🏢</span>
+            <!-- VUE COMPACT -->
+            <div *ngIf="viewMode === 'COMPACT'" cdkDropList [cdkDropListData]="cat.cards"
+              (cdkDropListDropped)="drop($event)" [cdkDropListDisabled]="isSearching || !isEditMode"
+              class="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6">
+
+              <div *ngFor="let card of cat.cards" cdkDrag (click)="openDetail(card, $event)"
+                class="bg-white rounded-2xl border border-gray-200 shadow-sm hover:shadow-md transition-all duration-300 flex flex-col overflow-hidden group h-full cursor-pointer relative"
+                [ngClass]="isEditMode ? 'animate-pulse' : ''">
+
+                <button *ngIf="isEditMode" (click)="hideOrDeleteCard(card, $event)"
+                  class="absolute top-2 right-2 w-8 h-8 flex items-center justify-center bg-red-100 text-red-600 rounded-full shadow-md z-20 hover:bg-red-600 hover:text-white transition-colors"
+                  title="Cliquer pour supprimer ou masquer la carte">
+                  🗑️
+                </button>
+
+                <div class="p-4 pb-2 flex items-start gap-3 border-b border-gray-50/20 bg-gray-50/30">
+                  <div
+                    class="w-10 h-10 rounded-lg bg-white border border-gray-100 flex items-center justify-center shrink-0 shadow-sm p-1">
+                    <img *ngIf="card.logo" [src]="card.logo" class="w-full h-full object-contain">
+                    <span *ngIf="!card.logo" class="text-xl">🏢</span>
                   </div>
-                  <span class="font-bold text-gray-800 text-sm leading-tight line-clamp-2">{{ card.titre }}</span>
-                  
-                  <button *ngIf="isEditMode" (click)="hideOrDeleteCard(card, $event)" class="absolute top-1 right-1 text-red-500 bg-white rounded-full border border-red-100 w-6 h-6 flex items-center justify-center">🗑️</button>
-               </div>
+                  <div class="flex-1 min-w-0">
+                    <div class="flex justify-between">
+                      <h3 class="font-bold text-gray-800 truncate">{{ card.titre }}</h3>
+                      <button (click)="toggleFavorite(card, $event)" class="text-xl hover:text-yellow-400">{{
+                        card.is_favorite ? '⭐' : '☆' }}</button>
+                    </div>
+                    <div class="flex gap-1 mt-1">
+                      <span *ngIf="card.type === 'OFFICIAL'"
+                        class="text-[9px] bg-blue-50 text-blue-600 px-1.5 rounded border border-blue-100 font-bold uppercase">Validé</span>
+                      <span *ngIf="card.type === 'PRIVATE'"
+                        class="text-[9px] bg-orange-50 text-orange-600 px-1.5 rounded border border-orange-100 font-bold uppercase">Perso</span>
+                    </div>
+                  </div>
+                </div>
+
+                <div class="px-4 pb-4 flex-1 flex flex-col mt-2">
+                  <p *ngIf="card.description_officielle" class="text-xs text-gray-500 mb-3 line-clamp-2">{{
+                    card.description_officielle }}</p>
+
+                  <div class="flex flex-col gap-1.5">
+                    <a *ngFor="let item of (card.items || [])" [href]="item.final_url" target="_blank"
+                      (click)="$event.stopPropagation()"
+                      class="flex items-center gap-2 p-1.5 rounded hover:bg-blue-50 transition-colors group/item">
+                      <span class="text-gray-400 text-xs w-5 text-center">
+                        <span *ngIf="item.type === 'WEB'">🌐</span>
+                        <span *ngIf="item.type === 'PDF'">📄</span>
+                      </span>
+                      <span class="text-sm text-gray-600 group-hover/item:text-blue-700 truncate">{{ item.label
+                        }}</span>
+                    </a>
+                  </div>
+                </div>
+
+                <div class="px-3 py-2 bg-gray-50 border-t border-gray-100 flex justify-end">
+                  <button (click)="openDetail(card, $event)"
+                    class="hover:bg-white hover:shadow-sm p-1.5 rounded transition-all flex items-center gap-1"
+                    title="Voir les notes">
+                    ✏️ <span class="text-xs text-gray-400">Notes</span>
+                  </button>
+                </div>
+
+                <div *ngIf="isEditMode" cdkDragHandle class="absolute inset-0 bg-transparent cursor-move"></div>
+              </div>
+
+              <!-- MESSAGE SI CATÉGORIE VIDE -->
+              <div *ngIf="cat.cards.length === 0"
+                class="col-span-full text-center py-8 text-gray-400 border-2 border-dashed border-gray-200 rounded-xl">
+                <p class="text-sm">Cette catégorie est vide</p>
+                <button (click)="showAddModal = true" class="mt-2 text-blue-600 font-bold text-sm hover:underline">+
+                  Ajouter une ressource</button>
+              </div>
             </div>
 
-            <div *ngIf="viewMode === 'TABLE'"
-                 cdkDropList 
-                 [cdkDropListData]="cat.cards" 
-                 (cdkDropListDropped)="drop($event)"
-                 [cdkDropListDisabled]="isSearching || !isEditMode"
-                 class="flex flex-col gap-2">
+            <!-- VUE LARGE -->
+            <div *ngIf="viewMode === 'LARGE'" cdkDropList [cdkDropListData]="cat.cards"
+              (cdkDropListDropped)="drop($event)" [cdkDropListDisabled]="isSearching || !isEditMode"
+              class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4">
 
-               <div *ngFor="let card of cat.cards" (click)="openDetail(card, $event)"
-                    class="grid grid-cols-12 gap-4 items-center bg-white border border-gray-200 p-2 rounded-lg hover:border-blue-400 cursor-pointer transition-all">
-                  <div class="col-span-4 flex items-center gap-3">
-                      <div class="w-8 h-8 rounded bg-gray-50 flex items-center justify-center text-lg">
-                          <img *ngIf="card.logo" [src]="card.logo" class="w-full h-full object-contain">
-                          <span *ngIf="!card.logo">🏢</span>
-                      </div>
-                      <span class="font-bold text-gray-700 text-sm">{{ card.titre }}</span>
-                  </div>
-                  <div class="col-span-8 flex gap-2 flex-wrap">
-                      <a *ngFor="let item of (card.items || [])" [href]="item.final_url" target="_blank" (click)="$event.stopPropagation()"
-                         class="px-2 py-1 bg-gray-100 rounded text-xs hover:bg-blue-600 hover:text-white transition-colors">
-                         {{ item.label }}
-                      </a>
-                  </div>
-                   <button *ngIf="isEditMode" (click)="hideOrDeleteCard(card, $event)" class="text-red-500 hover:text-red-700 w-6 h-6 flex items-center justify-center">🗑️</button>
-               </div>
+              <div *ngFor="let card of cat.cards" cdkDrag (click)="openDetail(card, $event)"
+                class="bg-white rounded-xl border border-gray-200 shadow-sm hover:shadow-lg hover:border-blue-300 hover:-translate-y-1 transition-all cursor-pointer p-4 flex flex-col items-center text-center relative group aspect-square justify-center">
+                <div class="w-16 h-16 mb-3 flex items-center justify-center text-4xl">
+                  <img *ngIf="card.logo" [src]="card.logo" class="w-full h-full object-contain">
+                  <span *ngIf="!card.logo" class="text-4xl">🏢</span>
+                </div>
+                <span class="font-bold text-gray-800 text-sm leading-tight line-clamp-2">{{ card.titre }}</span>
+
+                <button *ngIf="isEditMode" (click)="hideOrDeleteCard(card, $event)"
+                  class="absolute top-1 right-1 text-red-500 bg-white rounded-full border border-red-100 w-6 h-6 flex items-center justify-center">🗑️</button>
+              </div>
+
+              <!-- MESSAGE SI CATÉGORIE VIDE -->
+              <div *ngIf="cat.cards.length === 0"
+                class="col-span-full text-center py-8 text-gray-400 border-2 border-dashed border-gray-200 rounded-xl">
+                <p class="text-sm">Cette catégorie est vide</p>
+              </div>
             </div>
 
-          </section>
+            <!-- VUE TABLE -->
+            <div *ngIf="viewMode === 'TABLE'" cdkDropList [cdkDropListData]="cat.cards"
+              (cdkDropListDropped)="drop($event)" [cdkDropListDisabled]="isSearching || !isEditMode"
+              class="flex flex-col gap-2">
+
+              <div *ngFor="let card of cat.cards" cdkDrag (click)="openDetail(card, $event)"
+                class="grid grid-cols-12 gap-4 items-center bg-white border border-gray-200 p-2 rounded-lg hover:border-blue-400 cursor-pointer transition-all relative"
+                [ngClass]="isEditMode ? 'cursor-move hover:bg-blue-50' : ''">
+
+                <!-- Icône de drag (visible en mode édition) -->
+                <div *ngIf="isEditMode" cdkDragHandle
+                  class="col-span-1 flex items-center justify-center text-gray-400 cursor-move">
+                  ⠿
+                </div>
+
+                <div [ngClass]="isEditMode ? 'col-span-3' : 'col-span-4'" class="flex items-center gap-3">
+                  <div class="w-8 h-8 rounded bg-gray-50 flex items-center justify-center text-lg">
+                    <img *ngIf="card.logo" [src]="card.logo" class="w-full h-full object-contain">
+                    <span *ngIf="!card.logo">🏢</span>
+                  </div>
+                  <span class="font-bold text-gray-700 text-sm">{{ card.titre }}</span>
+                </div>
+
+                <div [ngClass]="isEditMode ? 'col-span-6' : 'col-span-7'" class="flex gap-2 flex-wrap">
+                  <a *ngFor="let item of (card.items || [])" [href]="item.final_url" target="_blank"
+                    (click)="$event.stopPropagation()"
+                    class="px-2 py-1 bg-gray-100 rounded text-xs hover:bg-blue-600 hover:text-white transition-colors">
+                    {{ item.label }}
+                  </a>
+                </div>
+
+                <button *ngIf="isEditMode" (click)="hideOrDeleteCard(card, $event)"
+                  class="col-span-1 text-red-500 hover:text-red-700 w-6 h-6 flex items-center justify-center">
+                  🗑️
+                </button>
+              </div>
+              
+            <!-- MESSAGE SI CATÉGORIE VIDE -->
+            <div *ngIf="cat.cards.length === 0"
+              class="text-center py-8 text-gray-400 border-2 border-dashed border-gray-200 rounded-xl">
+              <p class="text-sm">Cette catégorie est vide</p>
+            </div>
         </div>
 
+        </section>
       </div>
-    </div>
-  </main>
 
+    </div>
+</div>
+</main>
 </div>
 
-<!-- ========================================== -->
-<!-- MODALES ET OVERLAYS (EN DEHORS DU LAYOUT) -->
-<!-- ========================================== -->
-
-<!-- Overlay de publicité d'inactivité -->
-<app-inactivity-ad-overlay></app-inactivity-ad-overlay>
-
-<!-- Bouton d'ajout de ressource -->
-<button *ngIf="!isEditMode"
-        (click)="showAddModal = true" 
-        class="fixed bottom-8 right-8 w-16 h-16 bg-blue-600 hover:bg-blue-700 text-white rounded-full shadow-lg shadow-blue-200 flex items-center justify-center transition-all hover:scale-110 hover:-translate-y-1 z-30 group cursor-pointer">
+<!-- BOUTON FLOTTANT + -->
+<button *ngIf="!isEditMode" (click)="showAddModal = true"
+  class="fixed bottom-8 right-8 w-16 h-16 bg-blue-600 hover:bg-blue-700 text-white rounded-full shadow-lg shadow-blue-200 flex items-center justify-center transition-all hover:scale-110 hover:-translate-y-1 z-30 group cursor-pointer">
   <span class="text-4xl leading-none font-light mb-1">+</span>
 </button>
 
-<!-- Modal d'assignation de catégorie -->
-<app-category-assigner-modal
-  *ngIf="selectedCardToAssign"
-  [categories]="allCategories"
-  [cardToAssign]="selectedCardToAssign"
-  (assign)="assignCategory($event)"
-  (cancel)="selectedCardToAssign = null">
+<!-- MODALE ASSIGNATION CATÉGORIE -->
+<app-category-assigner-modal *ngIf="selectedCardToAssign" [categories]="allCategories"
+  [cardToAssign]="selectedCardToAssign" (assign)="assignCategory($event)" (cancel)="selectedCardToAssign = null">
 </app-category-assigner-modal>
 
-<!-- Modal d'ajout de lien -->
-<app-add-link-modal 
-    *ngIf="showAddModal" 
-    [categories]="allCategories"
-    [library]="libraryItems"
-    (close)="showAddModal = false" 
-    (addLink)="onLinkAdded($event)"
-    (selectCard)="selectedCardToAssign = $event; showAddModal = false">
+<!-- MODALE AJOUT -->
+<app-add-link-modal *ngIf="showAddModal" [categories]="allCategories" [library]="libraryItems"
+  (close)="showAddModal = false" (addLink)="onLinkAdded($event)"
+  (selectCard)="selectedCardToAssign = $event; showAddModal = false" (categoryCreated)="loadCategories()">
 </app-add-link-modal>
 
-<!-- Panneau de détail de carte -->
-<app-card-detail 
-    *ngIf="openedCard" 
-    [card]="openedCard" 
-    (close)="closeDetail()">
+<!-- MODALE DÉTAIL CARTE -->
+<app-card-detail *ngIf="openedCard" [card]="openedCard" (close)="closeDetail()">
 </app-card-detail>
 
-<!-- Clavier PIN -->
-<app-pin-pad 
-    *ngIf="showPinPad" 
-    [title]="'Code de ' + selectedCollaborator?.first_name"
-    (cancel)="showPinPad = false"
-    (pinComplete)="onPinEntered($event)">
+<!-- MODALE PIN -->
+<app-pin-pad *ngIf="showPinPad" [title]="'Code de ' + selectedCollaborator?.first_name" (cancel)="showPinPad = false"
+  (pinComplete)="onPinEntered($event)">
 </app-pin-pad>

@@ -1,7 +1,6 @@
 from rest_framework import serializers
 from .models import Category, ResourceCard, ResourceItem, PharmacyPreference
 from apps.partners.models import Partner
-from django.db.models import Prefetch
 
 # =====================================================
 # 1. SERIALIZERS BASES ET ITEMS
@@ -11,6 +10,7 @@ class PartnerSerializer(serializers.ModelSerializer):
     class Meta:
         model = Partner
         fields = ['id', 'nom', 'logo']
+
 
 class ResourceItemSerializer(serializers.ModelSerializer):
     final_url = serializers.SerializerMethodField()
@@ -29,8 +29,9 @@ class ResourceItemSerializer(serializers.ModelSerializer):
             return obj.file.url
         return obj.url
 
+
 # =====================================================
-# 2. SERIALIZERS ADOPTÉS (Les vues spéciales)
+# 2. SERIALIZERS CARTES
 # =====================================================
 
 class AdoptedCardSerializer(serializers.ModelSerializer):
@@ -42,18 +43,19 @@ class AdoptedCardSerializer(serializers.ModelSerializer):
         model = ResourceCard
         fields = ['id', 'titre', 'description_officielle', 'logo', 'type', 'items', 'partner']
 
+
 class ResourceCardSerializer(serializers.ModelSerializer):
     """
     Serializer pour la gestion des cartes CRUD (principalement Privées).
     """
     items = ResourceItemSerializer(many=True, read_only=True)
     partner = PartnerSerializer(source='owner_partner', read_only=True)
-    is_favorite = serializers.BooleanField(default=False, read_only=True)
-    notes_perso = serializers.CharField(default="", read_only=True)
+    is_favorite = serializers.SerializerMethodField()
+    notes_perso = serializers.SerializerMethodField()
 
     category = serializers.PrimaryKeyRelatedField(
         queryset=Category.objects.all(), 
-        required=True # Requis pour la création, mais non pour l'assignation (géré par le views.py)
+        required=True
     )
     
     class Meta:
@@ -69,46 +71,30 @@ class ResourceCardSerializer(serializers.ModelSerializer):
             'logo': {'required': False},
         }
 
-# =====================================================
-# 3. LE SERIALIZER DE CATÉGORIE (Le Conteneur Final)
-# =====================================================
-
-class CategorySerializer(serializers.ModelSerializer):
-    """
-    Le serializer qui organise le dashboard.
-    """
-    cards = ResourceCardSerializer(many=True, read_only=True)
-    
-    # 🔥 FIX CRITIQUE : Permet de récupérer les cartes adoptées dans la catégorie
-    adopted_cards = serializers.SerializerMethodField()
-
-    class Meta:
-        model = Category
-        fields = ['id', 'nom', 'icon_slug', 'ordre', 'cards', 'adopted_cards']
-
-    def get_adopted_cards(self, obj):
+    def get_is_favorite(self, obj):
         request = self.context.get('request')
         if not request or not request.user.is_authenticated:
-            return []
+            return False
         
-        # Récupère les préférences de l'utilisateur pour cette catégorie
-        preferences = PharmacyPreference.objects.filter(
+        preference = PharmacyPreference.objects.filter(
             pharmacy=request.user,
-            assigned_category=obj
-        ).select_related('card__owner_partner').prefetch_related('card__items')
-
-        adopted = []
-        for pref in preferences:
-            # On sérialise la carte en utilisant le AdoptedCardSerializer
-            card_data = AdoptedCardSerializer(pref.card).data
-            
-            # On ajoute les données de la préférence (notes, favori)
-            card_data['is_favorite'] = pref.is_favorite
-            card_data['notes_perso'] = pref.notes_perso
-            card_data['is_adopted'] = True
-            adopted.append(card_data)
+            card=obj
+        ).first()
         
-        return adopted
+        return preference.is_favorite if preference else False
+
+    def get_notes_perso(self, obj):
+        request = self.context.get('request')
+        if not request or not request.user.is_authenticated:
+            return ""
+        
+        preference = PharmacyPreference.objects.filter(
+            pharmacy=request.user,
+            card=obj
+        ).first()
+        
+        return preference.notes_perso if preference else ""
+
 
 class CatalogCardSerializer(serializers.ModelSerializer):
     """
@@ -117,3 +103,56 @@ class CatalogCardSerializer(serializers.ModelSerializer):
     class Meta:
         model = ResourceCard
         fields = ['id', 'titre', 'logo', 'description_officielle', 'type']
+
+
+# =====================================================
+# 3. SERIALIZER CATÉGORIE (CRUD COMPLET)
+# =====================================================
+
+class CategorySerializer(serializers.ModelSerializer):
+    """
+    Le serializer qui organise le dashboard + permet CRUD.
+    """
+    cards = ResourceCardSerializer(many=True, read_only=True)
+    adopted_cards = serializers.SerializerMethodField()
+
+    class Meta:
+        model = Category
+        fields = ['id', 'nom', 'icon_slug', 'ordre', 'cards', 'adopted_cards']
+        extra_kwargs = {
+            'icon_slug': {'required': False},
+            'ordre': {'required': False},
+        }
+
+    def get_adopted_cards(self, obj):
+        request = self.context.get('request')
+        if not request or not request.user.is_authenticated:
+            return []
+        
+        preferences = PharmacyPreference.objects.filter(
+            pharmacy=request.user,
+            assigned_category=obj
+        ).select_related('card__owner_partner').prefetch_related('card__items')
+
+        adopted = []
+        for pref in preferences:
+            card_data = AdoptedCardSerializer(pref.card).data
+            card_data['is_favorite'] = pref.is_favorite
+            card_data['notes_perso'] = pref.notes_perso
+            card_data['is_adopted'] = True
+            adopted.append(card_data)
+        
+        return adopted
+
+
+class CategoryCreateSerializer(serializers.ModelSerializer):
+    """
+    Serializer simplifié pour la création de catégorie.
+    """
+    class Meta:
+        model = Category
+        fields = ['id', 'nom', 'icon_slug', 'ordre']
+        extra_kwargs = {
+            'icon_slug': {'required': False},
+            'ordre': {'required': False},
+        }

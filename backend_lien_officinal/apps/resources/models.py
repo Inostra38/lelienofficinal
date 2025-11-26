@@ -6,14 +6,25 @@ class Category(models.Model):
     nom = models.CharField(_("Nom de la catégorie"), max_length=50)
     icon_slug = models.CharField(_("Icône"), max_length=50, default="folder")
     ordre = models.PositiveIntegerField(default=0)
+    
+    # ✅ NOUVEAU : Chaque catégorie appartient à une pharmacie
+    owner_pharmacy = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name='categories',
+        verbose_name=_("Pharmacie propriétaire")
+    )
 
     class Meta:
         verbose_name = _("Catégorie")
         verbose_name_plural = _("Catégories")
         ordering = ['ordre']
+        # Une pharmacie ne peut pas avoir 2 catégories avec le même nom
+        unique_together = ('owner_pharmacy', 'nom')
 
     def __str__(self):
         return self.nom
+
 
 class ResourceCard(models.Model):
     """
@@ -27,7 +38,7 @@ class ResourceCard(models.Model):
 
     category = models.ForeignKey(
         'Category', 
-        on_delete=models.SET_NULL,
+        on_delete=models.CASCADE,  # ✅ CHANGÉ : Si catégorie supprimée, cartes supprimées
         null=True,                 
         blank=True,                
         related_name='cards',
@@ -38,7 +49,7 @@ class ResourceCard(models.Model):
     description_officielle = models.TextField(_("Description officielle"), blank=True)
     logo = models.ImageField(upload_to='cards/logos/', blank=True, null=True)
     
-    type = models.CharField(_("Type de carte"), max_length=20, choices=TYPE_CHOICES, default='OFFICIAL')
+    type = models.CharField(_("Type de carte"), max_length=20, choices=TYPE_CHOICES, default='PRIVATE')
     
     owner_partner = models.ForeignKey('partners.Partner', on_delete=models.SET_NULL, null=True, blank=True)
     owner_pharmacy = models.ForeignKey(
@@ -57,6 +68,7 @@ class ResourceCard(models.Model):
 
     def __str__(self):
         return self.titre
+
 
 class ResourceItem(models.Model):
     """
@@ -99,6 +111,7 @@ class ResourceItem(models.Model):
     def __str__(self):
         return self.label
 
+
 class PharmacyPreference(models.Model):
     """
     La couche de personnalisation par pharmacie sur une carte.
@@ -106,7 +119,6 @@ class PharmacyPreference(models.Model):
     pharmacy = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE)
     card = models.ForeignKey(ResourceCard, on_delete=models.CASCADE, related_name='preferences')
     
-    # ✅ NOUVEAU : Catégorie assignée par le pharmacien (pour l'adoption)
     assigned_category = models.ForeignKey(
         'Category',
         on_delete=models.SET_NULL,
