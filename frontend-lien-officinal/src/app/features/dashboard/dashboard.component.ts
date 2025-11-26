@@ -40,10 +40,12 @@ export interface ResourceCard {
   notes_perso: string;
 }
 
+// 🚨 MISE À JOUR CRITIQUE : Ajout du champ adopted_cards
 export interface Category {
   id: number;
   nom: string;
   cards: ResourceCard[];
+  adopted_cards?: ResourceCard[]; 
 }
 
 @Component({
@@ -63,7 +65,7 @@ export interface Category {
   templateUrl: './dashboard.component.html',
   styleUrl: './dashboard.component.css'
 })
-export class DashboardComponent implements OnInit { // 👈 DÉBUT DE LA CLASSE
+export class DashboardComponent implements OnInit { 
   private http = inject(HttpClient);
   private authService = inject(AuthService);
   private collaboratorService = inject(CollaboratorService);
@@ -98,26 +100,33 @@ export class DashboardComponent implements OnInit { // 👈 DÉBUT DE LA CLASSE
   // 1. CHARGEMENT DES DONNÉES
   // ============================================================
 
-  loadCategories() {
-    const timestamp = new Date().getTime(); 
-    
-    this.http.get<any>(`http://127.0.0.1:8000/api/categories/?t=${timestamp}`)
-      .subscribe({
-        next: (data) => {
-          const rawData = Array.isArray(data) ? data : data.results || [];
-          
-          this.allCategories = rawData.map((cat: Category) => ({
-            ...cat,
-            cards: (cat.cards || []).map(card => ({
-                ...card,
-                items: card.items || [] 
-            }))
-          }));
-          this.updateDisplay();
-        },
-        error: (err) => console.error('Erreur chargement catégories', err)
-      });
-  }
+ loadCategories() {
+  const timestamp = new Date().getTime(); 
+  
+  this.http.get<any>(`http://127.0.0.1:8000/api/categories/?t=${timestamp}`)
+    .subscribe({
+      next: (data) => {
+        const rawData = Array.isArray(data) ? data : data.results || [];
+        
+        this.allCategories = rawData.map((cat: Category) => ({
+          ...cat,
+          // Mapper les cartes natives
+          cards: (cat.cards || []).map(card => ({
+              ...card,
+              items: card.items || [] 
+          })),
+          // ✅ AJOUT : Mapper aussi les cartes adoptées
+          adopted_cards: (cat.adopted_cards || []).map(card => ({
+              ...card,
+              items: card.items || []
+          }))
+        }));
+        
+        this.updateDisplay(); 
+      },
+      error: (err) => console.error('Erreur chargement catégories', err)
+    });
+}
 
   loadTeam() {
     this.collaboratorService.getTeam().subscribe({
@@ -136,8 +145,29 @@ export class DashboardComponent implements OnInit { // 👈 DÉBUT DE LA CLASSE
       });
   }
 
+  // 🔥 MÉTHODE CRITIQUE : Fusionne les cartes natives et les cartes adoptées
   private updateDisplay() {
-    this.displayedCategories = JSON.parse(JSON.stringify(this.allCategories));
+    const rawData: Category[] = JSON.parse(JSON.stringify(this.allCategories));
+    
+    this.displayedCategories = rawData.map(category => {
+        
+        // 1. Liste des cartes natives/privées
+        const nativeCards = category.cards || [];
+        // 2. Liste des cartes adoptées (celles qui ont été assignées à cette catégorie)
+        const adoptedCards = category.adopted_cards || [];
+        
+        // 3. Fusion et tri
+        const mergedCards = [...nativeCards, ...adoptedCards];
+        
+        // Trier par titre pour une UX cohérente
+        mergedCards.sort((a, b) => a.titre.localeCompare(b.titre));
+
+        return {
+            ...category,
+            // Remplacement de l'ancienne liste par la liste fusionnée
+            cards: mergedCards
+        };
+    });
   }
 
   // ============================================================
@@ -194,20 +224,16 @@ export class DashboardComponent implements OnInit { // 👈 DÉBUT DE LA CLASSE
   hideOrDeleteCard(card: ResourceCard, event: Event) { 
     event.stopPropagation();
     
-    // 1. Suppression (si carte privée)
     if(card.type === 'PRIVATE') {
-       if(confirm(`Voulez-vous vraiment SUPPRIMER votre carte privée "${card.titre}" ? Cette action est irréversible.`)) {
+       if(confirm(`Voulez-vous vraiment SUPPRIMER votre carte privée "${card.titre}" ?`)) {
            this.http.delete(`http://127.0.0.1:8000/api/cards/${card.id}/`).subscribe({
-               next: () => {
-                   this.loadCategories();
-               },
+               next: () => this.loadCategories(),
                error: (err) => console.error("Erreur suppression", err)
            });
        }
        return;
     }
 
-    // 2. Masquage (si carte officielle/partenaire)
     if(confirm(`Voulez-vous masquer la carte "${card.titre}" de votre tableau de bord ?`)) {
         this.http.post(`http://127.0.0.1:8000/api/cards/${card.id}/toggle-visibility/`, {}).subscribe({
             next: () => this.loadCategories(),
@@ -247,13 +273,8 @@ export class DashboardComponent implements OnInit { // 👈 DÉBUT DE LA CLASSE
       .subscribe({
         next: () => {
           this.selectedCardToAssign = null;
-          
-          // 🔥 FIX CRITIQUE : Petit délai pour laisser la base de données s'actualiser
-          setTimeout(() => {
-            this.loadCategories(); // Recharge après 100ms
-            alert(`✅ Ressource classée et ajoutée !`);
-          }, 100); 
-
+          this.loadCategories();
+          alert(`✅ Ressource classée et ajoutée !`);
         },
         error: (err) => {
           console.error("❌ ERREUR ASSIGNATION :", err.error);
@@ -261,7 +282,7 @@ export class DashboardComponent implements OnInit { // 👈 DÉBUT DE LA CLASSE
           this.selectedCardToAssign = null; 
         }
       });
-}
+  }
 
   // --- GESTION ÉQUIPE & AUTH ---
 
@@ -293,51 +314,38 @@ export class DashboardComponent implements OnInit { // 👈 DÉBUT DE LA CLASSE
   // --- AJOUT DE LIEN PERSONNEL ---
 
   onLinkAdded(data: any) {
-    
-    // --- VALIDATION INITIALE ---
-    if (!data.title || !data.category) {
-        alert("Le titre et la catégorie sont obligatoires.");
-        return;
-    }
     if (this.allCategories.length === 0) {
-        alert("Erreur critique : Aucune catégorie n'est chargée. Rechargez la page.");
+        alert("Aucune catégorie disponible.");
         return;
     }
 
-    // 1. Détermination de l'ID de Catégorie (S'assurer d'avoir la valeur)
     let finalCategoryId = data.category;
-    
-    if (data.type === 'WEB' && !data.url) { alert("L'URL est obligatoire pour un lien Web."); return; }
-    if (data.type === 'FILE' && !data.file) { alert("Le fichier est obligatoire."); return; }
-    
-    // --- CONSTRUCTION DU PAYLOAD (FormData) ---
+    if (!finalCategoryId) {
+        finalCategoryId = this.allCategories[0].id;
+    }
+
     const formData = new FormData();
     formData.append('titre', data.title);
-    
-    // 💡 FIX CRITIQUE : Conversion explicite en chaîne pour la FK
-    formData.append('category', String(finalCategoryId)); 
-
-    formData.append('type', data.type);
+    formData.append('category', finalCategoryId);
 
     if (data.type === 'WEB') {
+      formData.append('type', 'WEB');
       formData.append('url', data.url);
     } else {
+      formData.append('type', 'PDF');
       formData.append('document', data.file);
     }
 
-    // --- APPEL API ---
     this.http.post('http://127.0.0.1:8000/api/cards/', formData).subscribe({
       next: () => {
         alert('✅ Ressource ajoutée !');
         this.showAddModal = false;
-        this.loadCategories(); // Rafraîchissement
+        this.loadCategories();
       },
       error: (err) => {
-        console.error('❌ ERREUR POST DJANGO:', err.error);
-        // Affichage de l'erreur spécifique de validation Django (pour identifier le champ manquant)
-        const errorDetail = err.error?.category?.[0] || err.error?.detail || JSON.stringify(err.error);
-        alert(`Erreur d'ajout (400) : ${errorDetail}`);
+        console.error('❌ Erreur POST :', err);
+        alert("Erreur lors de l'ajout d'une ressource.");
       }
     });
   }
-} // 👈 FIN DE LA CLASSE
+}

@@ -27,7 +27,7 @@ class ResourceCard(models.Model):
 
     category = models.ForeignKey(
         'Category', 
-        on_delete=models.SET_NULL,  # Rendu optionnel pour les Cartes Officielles
+        on_delete=models.SET_NULL,
         null=True,                 
         blank=True,                
         related_name='cards',
@@ -105,6 +105,16 @@ class PharmacyPreference(models.Model):
     """
     pharmacy = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE)
     card = models.ForeignKey(ResourceCard, on_delete=models.CASCADE, related_name='preferences')
+    
+    # ✅ NOUVEAU : Catégorie assignée par le pharmacien (pour l'adoption)
+    assigned_category = models.ForeignKey(
+        'Category',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='adopted_preferences',
+        verbose_name=_("Catégorie assignée par le pharmacien")
+    )
     
     is_favorite = models.BooleanField(default=False)
     is_hidden = models.BooleanField(default=False)

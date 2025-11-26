@@ -9,13 +9,10 @@ from django.utils.decorators import method_decorator
 from django.views.decorators.csrf import csrf_exempt
 from django.shortcuts import get_object_or_404
 
-from .models import Category, ResourceCard, ResourceItem, PharmacyPreference
+from .models import Category, ResourceCard, ResourceItem, PharmacyPreference 
 from .serializers import CategorySerializer, ResourceCardSerializer, ResourceItemSerializer, CatalogCardSerializer
 
 class CategoryViewSet(viewsets.ReadOnlyModelViewSet):
-    """
-    Vue principale pour le Dashboard. Filtre les cartes masquées par l'utilisateur.
-    """
     serializer_class = CategorySerializer
     permission_classes = [IsAuthenticated]
     authentication_classes = [JWTAuthentication]
@@ -25,72 +22,91 @@ class CategoryViewSet(viewsets.ReadOnlyModelViewSet):
         if not user or user.is_anonymous:
             return Category.objects.none()
 
-        # 1. Filtre les cartes masquées par l'utilisateur connecté
+        # Filtre pour les cartes cachées par l'utilisateur
         hidden_filter = PharmacyPreference.objects.filter(
             pharmacy=user,
             card=OuterRef('pk'),
             is_hidden=True
         )
 
+        # =====================================================
+        # PARTIE 1 : Cartes avec catégorie native (PRIVATE + OFFICIAL/PARTNER non adoptées)
+        # =====================================================
         cards_qs_base = ResourceCard.objects.annotate(
             is_hidden_by_user=Exists(hidden_filter)
         ).exclude(is_hidden_by_user=True)
 
-        # 2. Prépare les items (Publics OU Privés de l'utilisateur)
         items_filter = Q(owner__isnull=True) | Q(owner=user)
         
-        # 3. Finalisation de la QuerySet
-        cards_qs = cards_qs_base.prefetch_related(
+        # Cartes natives : PRIVATE de l'utilisateur OU OFFICIAL/PARTNER avec catégorie définie
+        native_cards_qs = cards_qs_base.prefetch_related(
             Prefetch('items', queryset=ResourceItem.objects.filter(items_filter).order_by('ordre', 'id'))
         ).filter(
-            # Affiche les cartes Officielles/Partenaires non masquées OU les cartes Privées de l'utilisateur
-            Q(type__in=['OFFICIAL', 'PARTNER']) | Q(owner_pharmacy=user)
+            Q(type='PRIVATE', owner_pharmacy=user) |  # Cartes privées de l'utilisateur
+            Q(type__in=['OFFICIAL', 'PARTNER'], category__isnull=False)  # Officielles avec catégorie native
         )
-        
-        return Category.objects.all().prefetch_related(
-            Prefetch('cards', queryset=cards_qs)
+
+        # =====================================================
+        # PARTIE 2 : Cartes adoptées (OFFICIAL/PARTNER assignées par l'utilisateur)
+        # =====================================================
+        # On récupère les préférences avec une catégorie assignée
+        adopted_preferences = PharmacyPreference.objects.filter(
+            pharmacy=user,
+            assigned_category__isnull=False
+        ).select_related('card', 'assigned_category')
+
+        # Construction du queryset des catégories avec les deux types de cartes
+        categories = Category.objects.all().prefetch_related(
+            Prefetch('cards', queryset=native_cards_qs),
+            Prefetch('adopted_preferences', queryset=adopted_preferences)
         ).order_by('ordre')
+        
+        return categories
 
 @method_decorator(csrf_exempt, name='dispatch')
 class ResourceCardViewSet(viewsets.ModelViewSet):
-    """
-    Gestion des cartes PRIVÉES (création/suppression).
-    """
     serializer_class = ResourceCardSerializer
     permission_classes = [IsAuthenticated]
     authentication_classes = [JWTAuthentication]
     parser_classes = [parsers.MultiPartParser, parsers.FormParser]
 
     def get_queryset(self):
-        # Ne liste que les cartes créées par la pharmacie connectée
         return ResourceCard.objects.filter(owner_pharmacy=self.request.user, type='PRIVATE')
 
     def perform_create(self, serializer):
-        # Force le type et le propriétaire au moment de la création
-        serializer.save(owner_pharmacy=self.request.user, type='PRIVATE')
+        # 1. Créer la carte (type='PRIVATE' forcé côté serveur)
+        card = serializer.save(owner_pharmacy=self.request.user, type='PRIVATE')
+        
+        # 2. Récupérer les données pour le ResourceItem associé
+        item_type = self.request.data.get('type', 'WEB')
+        item_url = self.request.data.get('url', '')
+        item_file = self.request.FILES.get('document')
+        
+        # 3. Créer automatiquement le premier ResourceItem lié à la carte
+        ResourceItem.objects.create(
+            card=card,
+            type=item_type,
+            label=card.titre,
+            url=item_url,
+            file=item_file,
+            owner=self.request.user,
+            ordre=0
+        )
 
 @method_decorator(csrf_exempt, name='dispatch')
 class ResourceItemViewSet(viewsets.ModelViewSet):
-    """
-    API pour ajouter/modifier/supprimer un Item (lien ou doc) dans une carte.
-    """
     serializer_class = ResourceItemSerializer
     permission_classes = [IsAuthenticated]
     authentication_classes = [JWTAuthentication]
     parser_classes = [parsers.MultiPartParser, parsers.FormParser]
 
     def get_queryset(self):
-        # Ne liste que les items privés créés par l'utilisateur
         return ResourceItem.objects.filter(owner=self.request.user)
 
     def perform_create(self, serializer):
-        # Assigne le propriétaire au moment de la création
         serializer.save(owner=self.request.user)
 
 class CatalogCardViewSet(viewsets.ReadOnlyModelViewSet):
-    """
-    Liste les CARTES Officielles / Partenaires disponibles dans le catalogue pour adoption.
-    """
     serializer_class = CatalogCardSerializer
     permission_classes = [IsAuthenticated]
     authentication_classes = [JWTAuthentication]
@@ -98,70 +114,56 @@ class CatalogCardViewSet(viewsets.ReadOnlyModelViewSet):
     search_fields = ['titre', 'description_officielle']
 
     def get_queryset(self):
-        # Liste toutes les cartes Officielles ou Partenaires disponibles pour être adoptées
         return ResourceCard.objects.filter(
             type__in=['OFFICIAL', 'PARTNER']
         ).order_by('titre')
 
-# =================================================================
-# VUE SPÉCIALISÉE POUR LE PATCH D'ASSIGNATION (Résout le bug d'assignation)
-# =================================================================
-
+# =====================================================
+# ✅ NOUVELLE LOGIQUE D'ADOPTION
+# =====================================================
 @api_view(['PATCH'])
 @permission_classes([IsAuthenticated])
 @authentication_classes([JWTAuthentication])
 def assign_category_to_card(request, pk):
     """
-    Met à jour la catégorie d'une ResourceCard existante et l'assigne à la pharmacie.
-    Ceci est la solution chirurgicale pour l'adoption du catalogue.
+    Adopte une carte officielle/partenaire dans une catégorie personnelle.
+    Crée ou met à jour une PharmacyPreference avec la catégorie assignée.
     """
     card = get_object_or_404(ResourceCard, pk=pk)
 
-    # 1. Sécurité : Seules les cartes officielles/partenaires peuvent être adoptées
+    # Vérification : seules les cartes officielles/partenaires peuvent être adoptées
     if card.type not in ['OFFICIAL', 'PARTNER']:
-        return Response({"detail": "Seules les cartes officielles peuvent être adoptées."}, status=status.HTTP_403_FORBIDDEN)
+        return Response(
+            {"detail": "Seules les cartes officielles peuvent être adoptées."}, 
+            status=status.HTTP_403_FORBIDDEN
+        )
 
+    # Récupération de la catégorie choisie
     category_id = request.data.get('category')
     if not category_id:
-        return Response({"category": "Ce champ est obligatoire."}, status=status.HTTP_400_BAD_REQUEST)
+        return Response(
+            {"category": "Ce champ est obligatoire."}, 
+            status=status.HTTP_400_BAD_REQUEST
+        )
 
-    # 2. Mise à jour de la carte :
-    card.category_id = category_id
-    card.owner_pharmacy = request.user # 👈 ASSIGNATION DE LA PROPRIÉTÉ
-    card.save()
+    # Vérifier que la catégorie existe
+    category = get_object_or_404(Category, pk=category_id)
 
-    # 3. Réponse avec la carte mise à jour
-    serializer = ResourceCardSerializer(card)
-    return Response(serializer.data)
-
-# =================================================================
-# VUE SPÉCIALISÉE POUR LE TOGGLE DE VISIBILITÉ (Ajouté pour le masquage)
-# =================================================================
-
-@api_view(['POST'])
-@permission_classes([IsAuthenticated])
-@authentication_classes([JWTAuthentication])
-def toggle_card_visibility(request, pk):
-    """
-    Bascule l'état is_hidden pour la carte et l'utilisateur connecté.
-    C'est la solution sécurisée pour "Masquer" une carte officielle/partenaire.
-    """
-    card = get_object_or_404(ResourceCard, pk=pk)
-    
-    # 1. Sécurité : S'assurer que la carte peut être masquée
-    if card.type not in ['OFFICIAL', 'PARTNER']:
-        return Response({"detail": "Seules les cartes officielles peuvent être masquées."}, status=status.HTTP_403_FORBIDDEN)
-    
-    # 2. Récupère ou crée la préférence de l'utilisateur pour cette carte
+    # ✅ Créer ou mettre à jour la préférence utilisateur
     preference, created = PharmacyPreference.objects.get_or_create(
         pharmacy=request.user,
         card=card,
-        defaults={'is_hidden': True} 
+        defaults={'assigned_category': category}
     )
-
+    
     if not created:
-        # 3. Si la préférence existait, on inverse la visibilité
-        preference.is_hidden = not preference.is_hidden
+        # Mise à jour si la préférence existait déjà
+        preference.assigned_category = category
         preference.save()
 
-    return Response({"is_hidden": preference.is_hidden, "action": "updated" if not created else "hidden"})
+    return Response({
+        "detail": f"Carte '{card.titre}' adoptée dans la catégorie '{category.nom}'.",
+        "card_id": card.id,
+        "category_id": category.id,
+        "category_nom": category.nom
+    }, status=status.HTTP_200_OK)
