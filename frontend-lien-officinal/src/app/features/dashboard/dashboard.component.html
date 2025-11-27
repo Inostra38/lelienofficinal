@@ -28,12 +28,22 @@
         </button>
       </div>
 
-      <button (click)="toggleEditMode()"
-        class="flex items-center gap-2 px-4 py-2 rounded-full shadow-sm border transition-all ml-4"
-        [ngClass]="isEditMode ? 'bg-orange-100 border-orange-300 text-orange-700' : 'bg-white border-gray-200 text-gray-600 hover:bg-gray-50'">
-        <span class="text-lg">{{ isEditMode ? '✅' : '✏️' }}</span>
-        <span class="font-bold text-sm hidden sm:inline">{{ isEditMode ? 'Terminer' : 'Modifier' }}</span>
-      </button>
+      <!-- ✅ NOUVEAU : Groupe de boutons Rafraîchir + Modifier -->
+      <div class="flex items-center gap-2">
+        <button (click)="refreshData()"
+          class="flex items-center gap-2 px-4 py-2 rounded-full shadow-sm border border-gray-200 bg-white text-gray-600 hover:bg-gray-50 transition-all"
+          title="Rafraîchir les données">
+          <span class="text-lg">🔄</span>
+          <span class="font-bold text-sm hidden sm:inline">Rafraîchir</span>
+        </button>
+
+        <button (click)="toggleEditMode()"
+          class="flex items-center gap-2 px-4 py-2 rounded-full shadow-sm border transition-all"
+          [ngClass]="isEditMode ? 'bg-orange-100 border-orange-300 text-orange-700' : 'bg-white border-gray-200 text-gray-600 hover:bg-gray-50'">
+          <span class="text-lg">{{ isEditMode ? '✅' : '✏️' }}</span>
+          <span class="font-bold text-sm hidden sm:inline">{{ isEditMode ? 'Terminer' : 'Modifier' }}</span>
+        </button>
+      </div>
     </div>
 
     <div class="flex-1 overflow-y-auto p-8 scroll-smooth pt-4" cdkDropListGroup>
@@ -292,3 +302,6 @@
 <app-pin-pad *ngIf="showPinPad" [title]="'Code de ' + selectedCollaborator?.first_name" (cancel)="showPinPad = false"
   (pinComplete)="onPinEntered($event)">
 </app-pin-pad>
+
+<!-- OVERLAY PUBLICITÉ INACTIVITÉ -->
+<app-inactivity-ad-overlay></app-inactivity-ad-overlay>

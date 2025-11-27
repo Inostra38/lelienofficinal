@@ -7,7 +7,6 @@ class Category(models.Model):
     icon_slug = models.CharField(_("Icône"), max_length=50, default="folder")
     ordre = models.PositiveIntegerField(default=0)
     
-    # ✅ NOUVEAU : Chaque catégorie appartient à une pharmacie
     owner_pharmacy = models.ForeignKey(
         settings.AUTH_USER_MODEL,
         on_delete=models.CASCADE,
@@ -19,7 +18,6 @@ class Category(models.Model):
         verbose_name = _("Catégorie")
         verbose_name_plural = _("Catégories")
         ordering = ['ordre']
-        # Une pharmacie ne peut pas avoir 2 catégories avec le même nom
         unique_together = ('owner_pharmacy', 'nom')
 
     def __str__(self):
@@ -38,7 +36,7 @@ class ResourceCard(models.Model):
 
     category = models.ForeignKey(
         'Category', 
-        on_delete=models.CASCADE,  # ✅ CHANGÉ : Si catégorie supprimée, cartes supprimées
+        on_delete=models.CASCADE,
         null=True,                 
         blank=True,                
         related_name='cards',
@@ -130,7 +128,20 @@ class PharmacyPreference(models.Model):
     
     is_favorite = models.BooleanField(default=False)
     is_hidden = models.BooleanField(default=False)
-    notes_perso = models.TextField(_("Notes Privées"), blank=True)
+    
+    # ✅ NOUVEAU : Deux champs distincts pour les notes
+    note_courte = models.CharField(
+        _("Note courte (mémo rapide)"), 
+        max_length=150, 
+        blank=True,
+        help_text="Affichée sur la carte (max 150 caractères)"
+    )
+    note_longue = models.TextField(
+        _("Note longue (détails)"), 
+        blank=True,
+        help_text="Notes détaillées, procédures, informations..."
+    )
+    
     updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:

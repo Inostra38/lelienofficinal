@@ -7,6 +7,7 @@ import { DragDropModule, CdkDragDrop, moveItemInArray, transferArrayItem } from 
 
 import { AuthService } from '../../core/auth/auth.service';
 import { CollaboratorService, Collaborator } from '../../core/services/collaborator.service';
+import { InactivityAdService } from '../../core/services/inactivity-ad.service'; // ✅ AJOUT
 
 import { PinPadComponent } from '../../shared/ui/pin-pad/pin-pad.component';
 import { SidebarComponent } from './components/sidebar/sidebar.component';
@@ -15,6 +16,7 @@ import { AdSpaceComponent } from '../../shared/ui/ad-space/ad-space.component';
 import { AddLinkModalComponent } from '../../shared/ui/add-link-modal/add-link-modal.component';
 import { CardDetailComponent } from './components/card-detail/card-detail.component';
 import { CategoryAssignerModalComponent } from '../../shared/ui/category-assigner-modal/category-assigner-modal.component';
+import { InactivityAdOverlayComponent } from '../../shared/ui/inactivity-ad-overlay/inactivity-ad-overlay.component'; // ✅ AJOUT
 
 // --- INTERFACES ---
 export interface ResourceItem {
@@ -32,11 +34,11 @@ export interface ResourceCard {
   description_officielle: string;
   logo: string | null;
   type: 'OFFICIAL' | 'PARTNER' | 'PRIVATE';
-  items?: ResourceItem[]; 
+  items?: ResourceItem[];
   partner: { id: number; nom: string; logo: string | null } | null;
   is_favorite: boolean;
-  note_courte: string;   // ✅ NOUVEAU
-  note_longue: string;   // ✅ NOUVEAU
+  note_courte: string;
+  note_longue: string;
 }
 
 export interface Category {
@@ -44,7 +46,7 @@ export interface Category {
   nom: string;
   icon_slug: string;
   cards: ResourceCard[];
-  adopted_cards?: ResourceCard[]; 
+  adopted_cards?: ResourceCard[];
 }
 
 @Component({
@@ -53,38 +55,40 @@ export interface Category {
   imports: [
     CommonModule,
     FormsModule,
-    DragDropModule, 
-    PinPadComponent, 
-    SidebarComponent, 
-    HeaderComponent, 
-    AdSpaceComponent, 
+    DragDropModule,
+    PinPadComponent,
+    SidebarComponent,
+    HeaderComponent,
+    AdSpaceComponent,
     AddLinkModalComponent,
     CardDetailComponent,
-    CategoryAssignerModalComponent 
+    CategoryAssignerModalComponent,
+    InactivityAdOverlayComponent // ✅ AJOUT
   ],
   templateUrl: './dashboard.component.html',
   styleUrl: './dashboard.component.css'
 })
-export class DashboardComponent implements OnInit { 
+export class DashboardComponent implements OnInit {
   private http = inject(HttpClient);
   private authService = inject(AuthService);
   private collaboratorService = inject(CollaboratorService);
+  private inactivityAdService = inject(InactivityAdService); // ✅ AJOUT
 
   @ViewChild(PinPadComponent) pinPad!: PinPadComponent;
 
   // --- DONNÉES ---
-  allCategories: Category[] = [];       
-  displayedCategories: Category[] = []; 
-  team: Collaborator[] = [];            
-  libraryItems: any[] = []; 
-  
+  allCategories: Category[] = [];
+  displayedCategories: Category[] = [];
+  team: Collaborator[] = [];
+  libraryItems: any[] = [];
+
   // --- ÉTATS ---
-  viewMode: 'COMPACT' | 'LARGE' | 'TABLE' = 'COMPACT'; 
-  isEditMode = false;   
-  isSearching = false;  
+  viewMode: 'COMPACT' | 'LARGE' | 'TABLE' = 'COMPACT';
+  isEditMode = false;
+  isSearching = false;
   showPinPad = false;
-  showAddModal = false; 
-  
+  showAddModal = false;
+
   selectedCollaborator: Collaborator | null = null;
   activeSessionCollaborator: Collaborator | null = null;
   openedCard: ResourceCard | null = null;
@@ -98,6 +102,7 @@ export class DashboardComponent implements OnInit {
     this.loadCategories();
     this.loadTeam();
     this.loadLibrary();
+    this.loadInactivityAd(); // ✅ AJOUT
   }
 
   // ============================================================
@@ -105,29 +110,37 @@ export class DashboardComponent implements OnInit {
   // ============================================================
 
   loadCategories() {
-    const timestamp = new Date().getTime(); 
-    
+    const timestamp = new Date().getTime();
+
     this.http.get<any>(`http://127.0.0.1:8000/api/categories/?t=${timestamp}`)
       .subscribe({
         next: (data) => {
           const rawData = Array.isArray(data) ? data : data.results || [];
-          
+
           this.allCategories = rawData.map((cat: Category) => ({
             ...cat,
             cards: (cat.cards || []).map(card => ({
-                ...card,
-                items: card.items || [] 
+              ...card,
+              items: card.items || []
             })),
             adopted_cards: (cat.adopted_cards || []).map(card => ({
-                ...card,
-                items: card.items || []
+              ...card,
+              items: card.items || []
             }))
           }));
-          
-          this.updateDisplay(); 
+
+          this.updateDisplay();
         },
         error: (err) => console.error('Erreur chargement catégories', err)
       });
+  }
+
+  // ✅ NOUVEAU : Méthode de rafraîchissement
+  refreshData() {
+    console.log('🔄 Rafraîchissement des données...');
+    this.loadCategories();
+    this.loadTeam();
+    this.loadLibrary();
   }
 
   loadTeam() {
@@ -147,19 +160,33 @@ export class DashboardComponent implements OnInit {
       });
   }
 
+  // ✅ NOUVEAU : Charger une pub d'inactivité
+  loadInactivityAd() {
+    this.http.get<any>('http://127.0.0.1:8000/api/ads/inactivity/')
+      .subscribe({
+        next: (ad) => {
+          console.log('📺 Publicité chargée:', ad);
+          this.inactivityAdService.loadAd(ad);
+        },
+        error: (err) => {
+          console.warn('⚠️ Pas de publicité disponible', err);
+        }
+      });
+  }
+
   private updateDisplay() {
     const rawData: Category[] = JSON.parse(JSON.stringify(this.allCategories));
-    
-    this.displayedCategories = rawData.map(category => {
-        const nativeCards = category.cards || [];
-        const adoptedCards = category.adopted_cards || [];
-        const mergedCards = [...nativeCards, ...adoptedCards];
-        mergedCards.sort((a, b) => a.titre.localeCompare(b.titre));
 
-        return {
-            ...category,
-            cards: mergedCards
-        };
+    this.displayedCategories = rawData.map(category => {
+      const nativeCards = category.cards || [];
+      const adoptedCards = category.adopted_cards || [];
+      const mergedCards = [...nativeCards, ...adoptedCards];
+      mergedCards.sort((a, b) => a.titre.localeCompare(b.titre));
+
+      return {
+        ...category,
+        cards: mergedCards
+      };
     });
   }
 
@@ -182,12 +209,12 @@ export class DashboardComponent implements OnInit {
 
     this.displayedCategories = this.allCategories.map(cat => {
       const allCards = [...(cat.cards || []), ...(cat.adopted_cards || [])];
-      
+
       const matchingCards = allCards.filter(card => {
         const titleMatch = (card.titre || '').toLowerCase().includes(term);
         const partnerMatch = (card.partner?.nom || '').toLowerCase().includes(term);
         const itemMatch = (card.items || []).some(item => (item.label || '').toLowerCase().includes(term));
-        
+
         return titleMatch || partnerMatch || itemMatch;
       });
 
@@ -201,7 +228,7 @@ export class DashboardComponent implements OnInit {
 
   deleteCategory(category: Category) {
     const cardsCount = category.cards?.length || 0;
-    const message = cardsCount > 0 
+    const message = cardsCount > 0
       ? `Voulez-vous vraiment supprimer la catégorie "${category.nom}" et ses ${cardsCount} carte(s) ?`
       : `Voulez-vous vraiment supprimer la catégorie "${category.nom}" ?`;
 
@@ -270,13 +297,13 @@ export class DashboardComponent implements OnInit {
     const index = this.displayedCategories.indexOf(category);
     if (index <= 0) return;
 
-    [this.displayedCategories[index - 1], this.displayedCategories[index]] = 
-    [this.displayedCategories[index], this.displayedCategories[index - 1]];
+    [this.displayedCategories[index - 1], this.displayedCategories[index]] =
+      [this.displayedCategories[index], this.displayedCategories[index - 1]];
 
     const allIndex = this.allCategories.findIndex(c => c.id === category.id);
     if (allIndex > 0) {
-      [this.allCategories[allIndex - 1], this.allCategories[allIndex]] = 
-      [this.allCategories[allIndex], this.allCategories[allIndex - 1]];
+      [this.allCategories[allIndex - 1], this.allCategories[allIndex]] =
+        [this.allCategories[allIndex], this.allCategories[allIndex - 1]];
     }
 
     this.saveOrder();
@@ -286,13 +313,13 @@ export class DashboardComponent implements OnInit {
     const index = this.displayedCategories.indexOf(category);
     if (index >= this.displayedCategories.length - 1) return;
 
-    [this.displayedCategories[index], this.displayedCategories[index + 1]] = 
-    [this.displayedCategories[index + 1], this.displayedCategories[index]];
+    [this.displayedCategories[index], this.displayedCategories[index + 1]] =
+      [this.displayedCategories[index + 1], this.displayedCategories[index]];
 
     const allIndex = this.allCategories.findIndex(c => c.id === category.id);
     if (allIndex < this.allCategories.length - 1) {
-      [this.allCategories[allIndex], this.allCategories[allIndex + 1]] = 
-      [this.allCategories[allIndex + 1], this.allCategories[allIndex]];
+      [this.allCategories[allIndex], this.allCategories[allIndex + 1]] =
+        [this.allCategories[allIndex + 1], this.allCategories[allIndex]];
     }
 
     this.saveOrder();
@@ -300,7 +327,7 @@ export class DashboardComponent implements OnInit {
 
   private saveOrder() {
     const order = this.displayedCategories.map(cat => cat.id);
-    
+
     this.http.post('http://127.0.0.1:8000/api/categories/reorder/', { order })
       .subscribe({
         next: () => {
@@ -319,7 +346,6 @@ export class DashboardComponent implements OnInit {
 
   toggleEditMode() {
     this.isEditMode = !this.isEditMode;
-    // Annuler le renommage si on quitte le mode édition
     if (!this.isEditMode) {
       this.cancelRename();
     }
@@ -338,70 +364,66 @@ export class DashboardComponent implements OnInit {
     }
   }
 
-  hideOrDeleteCard(card: ResourceCard, event: Event) { 
+  hideOrDeleteCard(card: ResourceCard, event: Event) {
     event.stopPropagation();
-    
-    if(card.type === 'PRIVATE') {
-       if(confirm(`Voulez-vous vraiment SUPPRIMER votre carte privée "${card.titre}" ?`)) {
-           this.http.delete(`http://127.0.0.1:8000/api/cards/${card.id}/`).subscribe({
-               next: () => this.loadCategories(),
-               error: (err) => console.error("Erreur suppression", err)
-           });
-       }
-       return;
+
+    if (card.type === 'PRIVATE') {
+      if (confirm(`Voulez-vous vraiment SUPPRIMER votre carte privée "${card.titre}" ?`)) {
+        this.http.delete(`http://127.0.0.1:8000/api/cards/${card.id}/`).subscribe({
+          next: () => this.loadCategories(),
+          error: (err) => console.error("Erreur suppression", err)
+        });
+      }
+      return;
     }
 
-    if(confirm(`Voulez-vous masquer la carte "${card.titre}" de votre tableau de bord ?`)) {
-        this.http.post(`http://127.0.0.1:8000/api/cards/${card.id}/toggle-visibility/`, {}).subscribe({
-            next: () => this.loadCategories(),
-            error: (err) => console.error("Erreur masquage", err)
-        });
+    if (confirm(`Voulez-vous masquer la carte "${card.titre}" de votre tableau de bord ?`)) {
+      this.http.post(`http://127.0.0.1:8000/api/cards/${card.id}/toggle-visibility/`, {}).subscribe({
+        next: () => this.loadCategories(),
+        error: (err) => console.error("Erreur masquage", err)
+      });
     }
   }
 
- toggleFavorite(card: ResourceCard, event: Event) {
-  event.stopPropagation();
-  
-  // Optimistic update (changement immédiat côté UI)
-  card.is_favorite = !card.is_favorite;
-  
-  // Appel API pour persister
-  this.http.post(`http://127.0.0.1:8000/api/cards/${card.id}/toggle-favorite/`, {})
-    .subscribe({
-      next: (response: any) => {
-        // Synchroniser avec la réponse serveur
-        card.is_favorite = response.is_favorite;
-      },
-      error: (err) => {
-        // Rollback en cas d'erreur
-        card.is_favorite = !card.is_favorite;
-        console.error('Erreur toggle favori', err);
-      }
-    });
-}
+  toggleFavorite(card: ResourceCard, event: Event) {
+    event.stopPropagation();
+
+    card.is_favorite = !card.is_favorite;
+
+    this.http.post(`http://127.0.0.1:8000/api/cards/${card.id}/toggle-favorite/`, {})
+      .subscribe({
+        next: (response: any) => {
+          card.is_favorite = response.is_favorite;
+        },
+        error: (err) => {
+          card.is_favorite = !card.is_favorite;
+          console.error('Erreur toggle favori', err);
+        }
+      });
+  }
 
   openDetail(card: ResourceCard, event: Event) {
-    event.preventDefault(); 
+    event.preventDefault();
     event.stopPropagation();
-    if (this.isEditMode) return; 
-    this.openedCard = card; 
+    if (this.isEditMode) return;
+    this.openedCard = card;
   }
 
   closeDetail() {
     this.openedCard = null;
   }
-  
+
   handleCardSelection(card: ResourceCard) {
-    this.showAddModal = false; 
-    this.selectedCardToAssign = card; 
+    this.showAddModal = false;
+    this.selectedCardToAssign = card;
   }
 
-  assignCategory(categoryId: number) { 
+  assignCategory(categoryId: number) {
     if (!this.selectedCardToAssign) return;
 
     const cardId = this.selectedCardToAssign.id;
     const payload = { category: categoryId };
-    
+
     this.http.patch(`http://127.0.0.1:8000/api/cards/${cardId}/assign-category/`, payload)
       .subscribe({
         next: () => {
@@ -412,7 +434,7 @@ export class DashboardComponent implements OnInit {
         error: (err) => {
           console.error("❌ ERREUR ASSIGNATION :", err.error);
           alert(`Erreur d'assignation : ${err.error?.category?.[0] || 'Vérifiez la console.'}`);
-          this.selectedCardToAssign = null; 
+          this.selectedCardToAssign = null;
         }
       });
   }
@@ -439,7 +461,7 @@ export class DashboardComponent implements OnInit {
   }
 
   closeCollaboratorSession() {
-    this.activeSessionCollaborator = null; 
+    this.activeSessionCollaborator = null;
   }
 
   logout() {
@@ -452,13 +474,13 @@ export class DashboardComponent implements OnInit {
 
   onLinkAdded(data: any) {
     if (this.allCategories.length === 0) {
-        alert("Aucune catégorie disponible. Créez d'abord une catégorie.");
-        return;
+      alert("Aucune catégorie disponible. Créez d'abord une catégorie.");
+      return;
     }
 
     let finalCategoryId = data.category;
     if (!finalCategoryId) {
-        finalCategoryId = this.allCategories[0].id;
+      finalCategoryId = this.allCategories[0].id;
     }
 
     const formData = new FormData();

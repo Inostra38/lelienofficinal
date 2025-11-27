@@ -26,17 +26,13 @@ class ResourceItemSerializer(serializers.ModelSerializer):
         }
 
     def get_final_url(self, obj):
-        # CAS 1 : C'est un fichier (PDF, image...)
         if obj.file:
-            # Construit l'URL absolue vers Django
             return f"{settings.BACKEND_BASE_URL}{obj.file.url}"
         
-        # CAS 2 : C'est un lien web
         url = obj.url or ''
         if not url:
             return ''
         
-        # Si l'URL n'a pas de protocole, on ajoute https://
         if not url.startswith(('http://', 'https://', 'tel:', 'mailto:')):
             return 'https://' + url
         
@@ -164,7 +160,8 @@ class CategorySerializer(serializers.ModelSerializer):
         for pref in preferences:
             card_data = AdoptedCardSerializer(pref.card).data
             card_data['is_favorite'] = pref.is_favorite
-            card_data['notes_perso'] = pref.notes_perso
+            card_data['note_courte'] = pref.note_courte  # ✅ Accès direct
+            card_data['note_longue'] = pref.note_longue  # ✅ Accès direct
             card_data['is_adopted'] = True
             adopted.append(card_data)
         

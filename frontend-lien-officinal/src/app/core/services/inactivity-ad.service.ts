@@ -14,7 +14,7 @@ export interface AdContent {
   providedIn: 'root'
 })
 export class InactivityAdService {
-  private readonly INACTIVITY_DELAY = 60000;
+  private readonly INACTIVITY_DELAY = 15000;
   
   private showAd$ = new BehaviorSubject<boolean>(false);
   private currentAd$ = new BehaviorSubject<AdContent | null>(null);

@@ -310,3 +310,99 @@ def update_notes(request, pk):
         "note_courte": preference.note_courte,
         "note_longue": preference.note_longue
     }, status=status.HTTP_200_OK)
+
+
+# =====================================================
+# ✅ CRÉATION RESSOURCE COMPLÈTE
+# =====================================================
+
+@csrf_exempt  # ✅ Changé ici
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+@authentication_classes([JWTAuthentication])
+def create_full_card(request):
+    """
+    Crée une carte complète avec tous ses items, notes et logo en une seule requête.
+    """
+    try:
+        # 1. Récupérer les données de base
+        titre = request.data.get('titre')
+        category_id = request.data.get('category')
+        description_courte = request.data.get('description_courte', '')
+        logo = request.FILES.get('logo')
+        
+        # Notes
+        note_courte = request.data.get('note_courte', '')
+        note_longue = request.data.get('note_longue', '')
+        
+        # Items (JSON stringifié)
+        items_json = request.data.get('items')
+        
+        if not titre or not category_id:
+            return Response(
+                {"error": "Titre et catégorie sont obligatoires"},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        # Vérifier que la catégorie appartient à l'utilisateur
+        category = get_object_or_404(Category, pk=category_id, owner_pharmacy=request.user)
+        
+        # 2. Créer la carte
+        card = ResourceCard.objects.create(
+            titre=titre,
+            category=category,
+            description_officielle=description_courte,
+            logo=logo,
+            owner_pharmacy=request.user,
+            type='PRIVATE'
+        )
+        
+        # 3. Créer les items
+        if items_json:
+            import json
+            items_data = json.loads(items_json)
+            
+            for index, item_data in enumerate(items_data):
+                item_type = item_data.get('type')
+                label = item_data.get('label')
+                url = item_data.get('url', '')
+                ordre = item_data.get('ordre', index)
+                
+                # Récupérer le fichier associé si présent
+                file_key = f'item_file_{index}'
+                file = request.FILES.get(file_key)
+                
+                ResourceItem.objects.create(
+                    card=card,
+                    type=item_type,
+                    label=label,
+                    url=url,
+                    file=file,
+                    owner=request.user,
+                    ordre=ordre
+                )
+        
+        # 4. Créer/Mettre à jour les préférences (notes)
+        if note_courte or note_longue:
+            PharmacyPreference.objects.update_or_create(
+                pharmacy=request.user,
+                card=card,
+                defaults={
+                    'note_courte': note_courte,
+                    'note_longue': note_longue
+                }
+            )
+        
+        return Response({
+            "id": card.id,
+            "titre": card.titre,
+            "message": "Ressource créée avec succès"
+        }, status=status.HTTP_201_CREATED)
+        
+    except Exception as e:
+        import traceback
+        print("❌ Erreur complète:", traceback.format_exc())  # Pour le debug
+        return Response(
+            {"error": str(e)},
+            status=status.HTTP_500_INTERNAL_SERVER_ERROR
+        )

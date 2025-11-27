@@ -1,19 +1,17 @@
-<div
-  class="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-[fadeIn_0.2s_ease-out]">
-  <div class="bg-white rounded-2xl shadow-2xl w-full max-w-lg overflow-hidden transform transition-all">
+<div class="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-[fadeIn_0.2s_ease-out]">
+  <div class="bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-hidden transform transition-all flex flex-col">
 
-    <div class="bg-gray-50 p-4 border-b border-gray-100 flex justify-between items-center">
+    <div class="bg-gray-50 p-4 border-b border-gray-100 flex justify-between items-center shrink-0">
       <h3 class="font-bold text-gray-800 text-lg">Ajouter une ressource</h3>
       <button (click)="close.emit()"
         class="text-gray-400 hover:text-gray-600 w-8 h-8 flex items-center justify-center rounded-full hover:bg-gray-200 transition-colors">✕</button>
     </div>
 
-    <div class="p-6">
+    <div class="flex-1 overflow-y-auto p-6">
 
       <!-- ÉTAPE CHOIX -->
-      <div *ngIf="step === 'CHOICE'" class="grid grid-cols-2 gap-3">
+      <div *ngIf="step === 'CHOICE'" class="grid grid-cols-3 gap-3">
 
-        <!-- ✅ NOUVEAU : Créer une catégorie -->
         <button (click)="step = 'CATEGORY'"
           class="p-4 border-2 border-green-100 bg-green-50 rounded-xl hover:border-green-500 hover:shadow-md transition-all flex flex-col items-center gap-2 group text-center h-32 justify-center">
           <span class="text-3xl group-hover:scale-110 transition-transform">📂</span>
@@ -26,20 +24,14 @@
           <span class="font-bold text-blue-800 text-sm">Catalogue Officiel</span>
         </button>
 
-        <button (click)="step = 'WEB'"
-          class="p-4 border-2 border-gray-100 rounded-xl hover:border-gray-400 hover:bg-gray-50 transition-all flex flex-col items-center gap-2 group text-center h-32 justify-center">
-          <span class="text-3xl opacity-60 group-hover:opacity-100">🌐</span>
-          <span class="font-bold text-gray-700 text-sm">Lien Web</span>
-        </button>
-
-        <button (click)="step = 'FILE'"
-          class="p-4 border-2 border-gray-100 rounded-xl hover:border-gray-400 hover:bg-gray-50 transition-all flex flex-col items-center gap-2 group text-center h-32 justify-center">
-          <span class="text-3xl opacity-60 group-hover:opacity-100">📄</span>
-          <span class="font-bold text-gray-700 text-sm">PDF / Image</span>
+        <button (click)="step = 'RESOURCE'; addItem()"
+          class="p-4 border-2 border-purple-100 bg-purple-50 rounded-xl hover:border-purple-500 hover:shadow-md transition-all flex flex-col items-center gap-2 group text-center h-32 justify-center">
+          <span class="text-3xl group-hover:scale-110 transition-transform">➕</span>
+          <span class="font-bold text-purple-800 text-sm">Nouvelle Ressource</span>
         </button>
       </div>
 
-      <!-- ✅ NOUVEAU : ÉTAPE CRÉATION CATÉGORIE -->
+      <!-- ÉTAPE CRÉATION CATÉGORIE -->
       <div *ngIf="step === 'CATEGORY'" class="space-y-4 animate-in fade-in slide-in-from-right-4 duration-300">
         <div class="flex items-center gap-2 mb-2">
           <button (click)="step = 'CHOICE'" class="text-gray-400 hover:text-gray-600 text-sm font-bold">← Retour</button>
@@ -76,21 +68,17 @@
       <!-- ÉTAPE CATALOGUE -->
       <div *ngIf="step === 'CATALOG'" class="space-y-4 animate-in fade-in slide-in-from-right-4 duration-300">
         <div class="flex items-center gap-2 mb-2">
-          <button (click)="step = 'CHOICE'" class="text-gray-400 hover:text-gray-600 text-sm font-bold">←
-            Retour</button>
+          <button (click)="step = 'CHOICE'" class="text-gray-400 hover:text-gray-600 text-sm font-bold">← Retour</button>
         </div>
 
         <input type="text" [(ngModel)]="searchCatalog" placeholder="Rechercher (ex: Ameli, Vidal)..."
           class="w-full p-3 border border-gray-200 rounded-lg bg-gray-50 focus:bg-white outline-none">
 
-        <div
-          class="h-64 overflow-y-auto border border-gray-100 rounded-lg p-2 space-y-2 custom-scrollbar bg-gray-50/50">
+        <div class="h-64 overflow-y-auto border border-gray-100 rounded-lg p-2 space-y-2 custom-scrollbar bg-gray-50/50">
           <button *ngFor="let card of library" (click)="selectFromCatalog(card)"
             [class.hidden]="searchCatalog && !card.titre.toLowerCase().includes(searchCatalog.toLowerCase())"
             class="w-full flex items-center gap-3 p-3 rounded-lg bg-white hover:bg-blue-50 border border-transparent hover:border-blue-100 group transition-all text-left shadow-sm">
-
             <span class="text-xl w-8 text-center">📚</span>
-
             <div class="flex-1 min-w-0">
               <p class="font-bold text-gray-700 group-hover:text-blue-700 truncate">{{ card.titre }}</p>
               <p class="text-[10px] text-gray-400 truncate">{{ card.description_officielle || 'Carte officielle' }}</p>
@@ -104,71 +92,185 @@
         </div>
       </div>
 
-      <!-- ÉTAPE WEB -->
-      <div *ngIf="step === 'WEB'" class="space-y-4 animate-in fade-in slide-in-from-right-4 duration-300">
+      <!-- ✅ NOUVEAU : ÉTAPE RESSOURCE COMPLÈTE -->
+      <div *ngIf="step === 'RESOURCE'" class="space-y-4 animate-in fade-in slide-in-from-right-4 duration-300">
+        
         <div class="flex items-center gap-2 mb-2">
-          <button (click)="step = 'CHOICE'" class="text-gray-400 hover:text-gray-600 text-sm font-bold">← Retour</button>
+          <button (click)="step = 'CHOICE'; resetForm()" class="text-gray-400 hover:text-gray-600 text-sm font-bold">← Retour</button>
         </div>
-        <div>
-          <label class="block text-sm font-bold text-gray-700 mb-1">Dans quelle catégorie ?</label>
-          <select [(ngModel)]="formData.category"
-            class="w-full p-3 border border-gray-300 rounded-lg bg-white focus:ring-2 focus:ring-blue-500 outline-none">
-            <option value="" disabled selected>-- Choisir --</option>
-            <option *ngFor="let cat of categories" [value]="cat.id">📂 {{ cat.nom }}</option>
-          </select>
-        </div>
-        <div>
-          <label class="block text-sm font-medium text-gray-700 mb-1">Titre</label>
-          <input type="text" [(ngModel)]="formData.title"
-            class="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none">
-        </div>
-        <div>
-          <label class="block text-sm font-medium text-gray-700 mb-1">URL</label>
-          <input type="url" [(ngModel)]="formData.url"
-            class="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none">
-        </div>
-        <div class="flex justify-end gap-3 mt-8 pt-4 border-t border-gray-100">
-          <button (click)="step = 'CHOICE'"
-            class="px-4 py-2 text-gray-500 hover:bg-gray-100 rounded-lg font-medium">Retour</button>
-          <button (click)="submit()" [disabled]="!formData.title || !formData.category"
-            class="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-bold disabled:opacity-50">
-            Ajouter
-          </button>
-        </div>
-      </div>
 
-      <!-- ÉTAPE FILE -->
-      <div *ngIf="step === 'FILE'" class="space-y-4 animate-in fade-in slide-in-from-right-4 duration-300">
-        <div class="flex items-center gap-2 mb-2">
-          <button (click)="step = 'CHOICE'" class="text-gray-400 hover:text-gray-600 text-sm font-bold">← Retour</button>
-        </div>
-        <div>
-          <label class="block text-sm font-bold text-gray-700 mb-1">Dans quelle catégorie ?</label>
-          <select [(ngModel)]="formData.category"
-            class="w-full p-3 border border-gray-300 rounded-lg bg-white focus:ring-2 focus:ring-blue-500 outline-none">
-            <option value="" disabled selected>-- Choisir --</option>
-            <option *ngFor="let cat of categories" [value]="cat.id">📂 {{ cat.nom }}</option>
-          </select>
-        </div>
-        <div>
-          <label class="block text-sm font-medium text-gray-700 mb-1">Titre</label>
-          <input type="text" [(ngModel)]="formData.title"
-            class="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none">
-        </div>
-        <div>
-          <label class="block text-sm font-medium text-gray-700 mb-1">Fichier</label>
-          <input type="file" (change)="onFileSelected($event)" class="w-full p-2 border rounded-lg bg-gray-50">
-        </div>
-        <div class="flex justify-end gap-3 mt-8 pt-4 border-t border-gray-100">
-          <button (click)="step = 'CHOICE'"
-            class="px-4 py-2 text-gray-500 hover:bg-gray-100 rounded-lg font-medium">Retour</button>
-          <button (click)="submit()" [disabled]="!formData.title || !formData.file || !formData.category"
-            class="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-bold disabled:opacity-50">
-            Uploader
+        <!-- SECTION 1 : INFORMATIONS GÉNÉRALES -->
+        <div class="border border-gray-200 rounded-xl overflow-hidden">
+          <button (click)="toggleSection('info')" 
+                  class="w-full p-4 bg-gray-50 hover:bg-gray-100 flex justify-between items-center transition-colors">
+            <div class="flex items-center gap-2">
+              <span class="text-lg">📋</span>
+              <span class="font-bold text-gray-800">Informations générales</span>
+              <span class="text-xs text-red-500">*obligatoire</span>
+            </div>
+            <span class="text-gray-400 text-xl">{{ sectionsOpen.info ? '▼' : '▶' }}</span>
           </button>
+
+          <div *ngIf="sectionsOpen.info" class="p-4 space-y-4 bg-white">
+            <div>
+              <label class="block text-sm font-bold text-gray-700 mb-1">Titre <span class="text-red-500">*</span></label>
+              <input type="text" [(ngModel)]="resourceForm.titre" placeholder="Ex: Ameli Pro, Planning équipe..."
+                class="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 outline-none">
+            </div>
+
+            <div>
+              <label class="block text-sm font-bold text-gray-700 mb-1">Catégorie <span class="text-red-500">*</span></label>
+              <select [(ngModel)]="resourceForm.category"
+                class="w-full p-3 border border-gray-300 rounded-lg bg-white focus:ring-2 focus:ring-purple-500 outline-none">
+                <option value="" disabled selected>-- Choisir une catégorie --</option>
+                <option *ngFor="let cat of categories" [value]="cat.id">📂 {{ cat.nom }}</option>
+              </select>
+            </div>
+
+            <div>
+              <label class="block text-sm font-medium text-gray-700 mb-1">Description courte (affichée sur la carte)</label>
+              <input type="text" [(ngModel)]="resourceForm.description_courte" maxlength="150"
+                placeholder="Ex: Portail pour gérer les télétransmissions..."
+                class="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 outline-none">
+              <p class="text-xs text-gray-400 mt-1">{{ resourceForm.description_courte.length }}/150 caractères</p>
+            </div>
+
+            <div>
+              <label class="block text-sm font-medium text-gray-700 mb-1">Logo (optionnel)</label>
+              <input type="file" (change)="onLogoSelected($event)" accept="image/*"
+                class="w-full p-2 border border-gray-300 rounded-lg bg-gray-50">
+            </div>
+          </div>
         </div>
+
+        <!-- SECTION 2 : LIENS & DOCUMENTS -->
+        <div class="border border-gray-200 rounded-xl overflow-hidden">
+          <button (click)="toggleSection('items')" 
+                  class="w-full p-4 bg-gray-50 hover:bg-gray-100 flex justify-between items-center transition-colors">
+            <div class="flex items-center gap-2">
+              <span class="text-lg">🔗</span>
+              <span class="font-bold text-gray-800">Liens & Documents ({{ items.length }})</span>
+              <span class="text-xs text-red-500">*au moins 1</span>
+            </div>
+            <span class="text-gray-400 text-xl">{{ sectionsOpen.items ? '▼' : '▶' }}</span>
+          </button>
+
+          <div *ngIf="sectionsOpen.items" class="p-4 space-y-3 bg-white">
+            
+            <div *ngIf="items.length === 0" class="text-center py-8 text-gray-400 border-2 border-dashed border-gray-200 rounded-lg">
+              <p class="text-sm">Ajoutez au moins un lien ou document</p>
+            </div>
+
+            <div *ngFor="let item of items; let i = index" 
+                 class="border border-gray-200 rounded-lg p-3 bg-gray-50 space-y-2">
+              
+              <div class="flex justify-between items-center">
+                <span class="text-xs font-bold text-gray-500 uppercase">Élément {{ i + 1 }}</span>
+                <button (click)="removeItem(item.tempId)" 
+                        class="text-red-500 hover:text-red-700 text-sm">🗑️</button>
+              </div>
+
+              <div class="grid grid-cols-2 gap-2">
+                <div>
+                  <label class="block text-xs font-medium text-gray-600 mb-1">Type</label>
+                  <select [(ngModel)]="item.type" class="w-full p-2 border rounded-lg text-sm bg-white">
+                    <option value="WEB">🌐 Lien Web</option>
+                    <option value="PDF">📄 Document PDF</option>
+                    <option value="TEL">📞 Téléphone</option>
+                    <option value="MAIL">✉️ Email</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label class="block text-xs font-medium text-gray-600 mb-1">Libellé <span class="text-red-500">*</span></label>
+                  <input type="text" [(ngModel)]="item.label" placeholder="Ex: Site officiel"
+                    class="w-full p-2 border rounded-lg text-sm">
+                </div>
+              </div>
+
+              <div *ngIf="item.type === 'WEB'">
+                <label class="block text-xs font-medium text-gray-600 mb-1">URL <span class="text-red-500">*</span></label>
+                <input type="url" [(ngModel)]="item.url" placeholder="https://..."
+                  class="w-full p-2 border rounded-lg text-sm">
+              </div>
+
+              <div *ngIf="item.type === 'PDF'">
+                <label class="block text-xs font-medium text-gray-600 mb-1">Fichier <span class="text-red-500">*</span></label>
+                <input type="file" (change)="onItemFileSelected($event, item)" accept=".pdf,.doc,.docx,.jpg,.png"
+                  class="w-full p-2 border rounded-lg text-sm bg-white">
+              </div>
+
+              <div *ngIf="item.type === 'TEL'">
+                <label class="block text-xs font-medium text-gray-600 mb-1">Numéro <span class="text-red-500">*</span></label>
+                <input type="tel" [(ngModel)]="item.url" placeholder="01 23 45 67 89"
+                  class="w-full p-2 border rounded-lg text-sm">
+              </div>
+
+              <div *ngIf="item.type === 'MAIL'">
+                <label class="block text-xs font-medium text-gray-600 mb-1">Email <span class="text-red-500">*</span></label>
+                <input type="email" [(ngModel)]="item.url" placeholder="contact@exemple.fr"
+                  class="w-full p-2 border rounded-lg text-sm">
+              </div>
+            </div>
+
+            <button (click)="addItem()" 
+                    class="w-full p-3 border-2 border-dashed border-purple-300 rounded-lg text-purple-600 hover:bg-purple-50 hover:border-purple-500 transition-all font-medium">
+              + Ajouter un lien/document
+            </button>
+          </div>
+        </div>
+
+        <!-- SECTION 3 : NOTES PERSONNELLES -->
+        <div class="border border-gray-200 rounded-xl overflow-hidden">
+          <button (click)="toggleSection('notes')" 
+                  class="w-full p-4 bg-gray-50 hover:bg-gray-100 flex justify-between items-center transition-colors">
+            <div class="flex items-center gap-2">
+              <span class="text-lg">📝</span>
+              <span class="font-bold text-gray-800">Notes personnelles</span>
+              <span class="text-xs text-gray-500">optionnel</span>
+            </div>
+            <span class="text-gray-400 text-xl">{{ sectionsOpen.notes ? '▼' : '▶' }}</span>
+          </button>
+
+          <div *ngIf="sectionsOpen.notes" class="p-4 space-y-4 bg-white">
+            <div>
+              <label class="block text-sm font-medium text-gray-700 mb-1">
+                📌 Mémo rapide <span class="text-xs text-gray-400">(visible sur la carte)</span>
+              </label>
+              <input type="text" [(ngModel)]="resourceForm.note_courte" maxlength="150"
+                placeholder="Ex: Identifiants dans le tiroir, contacter Marie..."
+                class="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 outline-none">
+              <p class="text-xs text-gray-400 mt-1">{{ resourceForm.note_courte.length }}/150 caractères</p>
+            </div>
+
+            <div>
+              <label class="block text-sm font-medium text-gray-700 mb-1">
+                📝 Notes détaillées
+              </label>
+              <textarea [(ngModel)]="resourceForm.note_longue" rows="4"
+                placeholder="Procédures, informations importantes..."
+                class="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 outline-none resize-none"></textarea>
+            </div>
+          </div>
+        </div>
+
       </div>
 
     </div>
+
+    <!-- FOOTER ACTIONS (pour étape RESOURCE uniquement) -->
+    <div *ngIf="step === 'RESOURCE'" class="p-4 border-t border-gray-100 bg-gray-50 flex justify-between items-center shrink-0">
+      <button (click)="step = 'CHOICE'; resetForm()" 
+              class="px-4 py-2 text-gray-500 hover:bg-gray-100 rounded-lg font-medium">
+        Annuler
+      </button>
+      <button (click)="submitResource()" 
+              [disabled]="!isFormValid()"
+              class="px-8 py-3 bg-purple-600 text-white rounded-lg hover:bg-purple-700 font-bold disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2">
+        <span>✨</span>
+        <span>Créer la ressource</span>
+      </button>
+    </div>
+
   </div>
 </div>

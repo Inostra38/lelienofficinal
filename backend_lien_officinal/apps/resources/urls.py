@@ -9,8 +9,12 @@ router.register(r'items', views.ResourceItemViewSet, basename='items')
 router.register(r'catalog/cards', views.CatalogCardViewSet, basename='catalog-cards')
 
 urlpatterns = [
-    path('', include(router.urls)),
+    # ✅ Routes spécifiques AVANT le router
+    path('cards/create-full/', views.create_full_card, name='create-full-card'),
     path('cards/<int:pk>/assign-category/', views.assign_category_to_card, name='assign-category'),
     path('cards/<int:pk>/toggle-favorite/', views.toggle_favorite, name='toggle-favorite'),
     path('cards/<int:pk>/update-notes/', views.update_notes, name='update-notes'),
+    
+    # ✅ Router en dernier
+    path('', include(router.urls)),
 ]

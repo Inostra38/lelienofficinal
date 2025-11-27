@@ -1,12 +1,11 @@
-# apps/partners/views.py
 from rest_framework.decorators import api_view, permission_classes
-from rest_framework.permissions import IsAuthenticated
+from rest_framework.permissions import AllowAny  # ✅ Ajout
 from rest_framework.response import Response
 from .models import Partner
 import random
 
 @api_view(['GET'])
-@permission_classes([IsAuthenticated])
+@permission_classes([AllowAny])  # ✅ Temporaire pour tester
 def get_inactivity_ad(request):
     """
     Récupère une pub aléatoire pour l'overlay d'inactivité.
