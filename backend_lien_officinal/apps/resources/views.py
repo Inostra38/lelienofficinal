@@ -279,3 +279,34 @@ def toggle_favorite(request, pk):
         "card_id": card.id,
         "is_favorite": preference.is_favorite
     }, status=status.HTTP_200_OK)
+
+@api_view(['PATCH'])
+@permission_classes([IsAuthenticated])
+@authentication_classes([JWTAuthentication])
+def update_notes(request, pk):
+    """
+    Met à jour les notes d'une carte pour la pharmacie connectée.
+    """
+    card = get_object_or_404(ResourceCard, pk=pk)
+
+    # Récupérer ou créer la préférence
+    preference, created = PharmacyPreference.objects.get_or_create(
+        pharmacy=request.user,
+        card=card
+    )
+    
+    # Mettre à jour les notes si fournies
+    if 'note_courte' in request.data:
+        note_courte = request.data['note_courte'][:150]  # Limite à 150 caractères
+        preference.note_courte = note_courte
+    
+    if 'note_longue' in request.data:
+        preference.note_longue = request.data['note_longue']
+    
+    preference.save()
+
+    return Response({
+        "card_id": card.id,
+        "note_courte": preference.note_courte,
+        "note_longue": preference.note_longue
+    }, status=status.HTTP_200_OK)

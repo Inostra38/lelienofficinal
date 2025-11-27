@@ -1,6 +1,7 @@
 from rest_framework import serializers
 from .models import Category, ResourceCard, ResourceItem, PharmacyPreference
 from apps.partners.models import Partner
+from django.conf import settings
 
 # =====================================================
 # 1. SERIALIZERS BASES ET ITEMS
@@ -25,9 +26,21 @@ class ResourceItemSerializer(serializers.ModelSerializer):
         }
 
     def get_final_url(self, obj):
+        # CAS 1 : C'est un fichier (PDF, image...)
         if obj.file:
-            return obj.file.url
-        return obj.url
+            # Construit l'URL absolue vers Django
+            return f"{settings.BACKEND_BASE_URL}{obj.file.url}"
+        
+        # CAS 2 : C'est un lien web
+        url = obj.url or ''
+        if not url:
+            return ''
+        
+        # Si l'URL n'a pas de protocole, on ajoute https://
+        if not url.startswith(('http://', 'https://', 'tel:', 'mailto:')):
+            return 'https://' + url
+        
+        return url
 
 
 # =====================================================
@@ -51,7 +64,8 @@ class ResourceCardSerializer(serializers.ModelSerializer):
     items = ResourceItemSerializer(many=True, read_only=True)
     partner = PartnerSerializer(source='owner_partner', read_only=True)
     is_favorite = serializers.SerializerMethodField()
-    notes_perso = serializers.SerializerMethodField()
+    note_courte = serializers.SerializerMethodField()
+    note_longue = serializers.SerializerMethodField()
 
     category = serializers.PrimaryKeyRelatedField(
         queryset=Category.objects.all(), 
@@ -62,7 +76,7 @@ class ResourceCardSerializer(serializers.ModelSerializer):
         model = ResourceCard
         fields = [
             'id', 'titre', 'description_officielle', 'logo', 'type', 
-            'items', 'partner', 'is_favorite', 'notes_perso', 
+            'items', 'partner', 'is_favorite', 'note_courte', 'note_longue',
             'category'
         ]
         extra_kwargs = {
@@ -83,7 +97,7 @@ class ResourceCardSerializer(serializers.ModelSerializer):
         
         return preference.is_favorite if preference else False
 
-    def get_notes_perso(self, obj):
+    def get_note_courte(self, obj):
         request = self.context.get('request')
         if not request or not request.user.is_authenticated:
             return ""
@@ -93,7 +107,19 @@ class ResourceCardSerializer(serializers.ModelSerializer):
             card=obj
         ).first()
         
-        return preference.notes_perso if preference else ""
+        return preference.note_courte if preference else ""
+
+    def get_note_longue(self, obj):
+        request = self.context.get('request')
+        if not request or not request.user.is_authenticated:
+            return ""
+        
+        preference = PharmacyPreference.objects.filter(
+            pharmacy=request.user,
+            card=obj
+        ).first()
+        
+        return preference.note_longue if preference else ""
 
 
 class CatalogCardSerializer(serializers.ModelSerializer):

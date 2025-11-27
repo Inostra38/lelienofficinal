@@ -35,7 +35,8 @@ export interface ResourceCard {
   items?: ResourceItem[]; 
   partner: { id: number; nom: string; logo: string | null } | null;
   is_favorite: boolean;
-  notes_perso: string;
+  note_courte: string;   // ✅ NOUVEAU
+  note_longue: string;   // ✅ NOUVEAU
 }
 
 export interface Category {

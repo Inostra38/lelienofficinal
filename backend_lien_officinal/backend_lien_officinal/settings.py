@@ -180,3 +180,6 @@ SIMPLE_JWT = {
     'ACCESS_TOKEN_LIFETIME': timedelta(days=1), # 1 jour
     'REFRESH_TOKEN_LIFETIME': timedelta(days=7), # 7 jours
 }
+
+# URL de base du backend (pour les fichiers media)
+BACKEND_BASE_URL = 'http://127.0.0.1:8000'

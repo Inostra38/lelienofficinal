@@ -147,9 +147,16 @@
                 </div>
 
                 <div class="px-4 pb-4 flex-1 flex flex-col mt-2">
-                  <p *ngIf="card.description_officielle" class="text-xs text-gray-500 mb-3 line-clamp-2">{{
+                  <p *ngIf="card.description_officielle" class="text-xs text-gray-500 mb-2 line-clamp-2">{{
                     card.description_officielle }}</p>
 
+                  <!-- Note courte (mémo) -->
+                  <div *ngIf="card.note_courte" class="bg-yellow-50 border border-yellow-100 rounded-lg p-2 mb-2">
+                    <p class="text-xs text-yellow-800 line-clamp-2 flex items-start gap-1">
+                      <span>📌</span>
+                      <span>{{ card.note_courte }}</span>
+                    </p>
+                  </div>
                   <div class="flex flex-col gap-1.5">
                     <a *ngFor="let item of (card.items || [])" [href]="item.final_url" target="_blank"
                       (click)="$event.stopPropagation()"
@@ -244,20 +251,20 @@
                   🗑️
                 </button>
               </div>
-              
-            <!-- MESSAGE SI CATÉGORIE VIDE -->
-            <div *ngIf="cat.cards.length === 0"
-              class="text-center py-8 text-gray-400 border-2 border-dashed border-gray-200 rounded-xl">
-              <p class="text-sm">Cette catégorie est vide</p>
+
+              <!-- MESSAGE SI CATÉGORIE VIDE -->
+              <div *ngIf="cat.cards.length === 0"
+                class="text-center py-8 text-gray-400 border-2 border-dashed border-gray-200 rounded-xl">
+                <p class="text-sm">Cette catégorie est vide</p>
+              </div>
             </div>
+
+          </section>
         </div>
 
-        </section>
       </div>
-
     </div>
-</div>
-</main>
+  </main>
 </div>
 
 <!-- BOUTON FLOTTANT + -->
