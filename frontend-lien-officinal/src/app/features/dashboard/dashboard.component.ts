@@ -174,7 +174,7 @@ private updateDisplay() {
       ...category,
       cards: mergedCards
     };
-  }).filter(cat => cat.cards.length > 0); // ✅ Ne montrer que les catégories avec des cartes
+  }); // ✅ ON GARDE TOUTES LES CATÉGORIES (même vides)
 }
 
   // ============================================================

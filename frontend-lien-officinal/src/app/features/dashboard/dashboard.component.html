@@ -222,7 +222,7 @@
             <div *ngIf="viewMode === 'LARGE'"
               class="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 xl:grid-cols-7 gap-3">
 
-              <div *ngFor="let card of cat.cards" (click)="openDetail(card, $event)" div
+              <div *ngFor="let card of cat.cards" (click)="openDetail(card, $event)"
                 class="bg-white rounded-xl shadow-sm hover:shadow-lg transition-all border border-gray-100 cursor-pointer p-4 flex flex-col items-center gap-2 relative group">
                 <!-- ✅ BADGE TYPE -->
                 <span class="card-type-badge-compact mt-1" [ngClass]="getBadgeClass(card.type)">
@@ -306,7 +306,6 @@
 
           </section>
         </div>
-
       </div>
     </div>
   </main>
