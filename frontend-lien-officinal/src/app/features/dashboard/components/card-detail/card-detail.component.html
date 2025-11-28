@@ -11,11 +11,10 @@
     
     <div class="flex-1 pt-1">
       <h2 class="text-xl font-bold text-gray-800 leading-tight">{{ card.titre }}</h2>
-      <div class="flex gap-2 mt-2">
-        <span *ngIf="card.type === 'OFFICIAL'" class="text-[10px] bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full font-bold uppercase">Validé</span>
-        <span *ngIf="card.type === 'PARTNER'" class="text-[10px] bg-purple-100 text-purple-700 px-2 py-0.5 rounded-full font-bold uppercase">Partenaire</span>
-        <span *ngIf="card.type === 'PRIVATE'" class="text-[10px] bg-orange-100 text-orange-700 px-2 py-0.5 rounded-full font-bold uppercase">Perso</span>
-      </div>
+      <!-- ✅ BADGE TYPE -->
+      <span class="card-type-badge-inline mt-2" [ngClass]="getBadgeClass(card.type)">
+        {{ getBadgeLabel(card.type) }}
+      </span>
     </div>
 
     <button (click)="close.emit()" class="text-gray-400 hover:text-gray-600 hover:bg-gray-200 rounded-full w-8 h-8 flex items-center justify-center transition-colors">✕</button>
@@ -23,11 +22,16 @@
 
   <!-- ONGLETS -->
   <div class="flex border-b border-gray-200 px-6">
-    <button (click)="activeTab = 'INFO'" class="py-3 px-4 text-sm font-medium border-b-2 transition-colors" [ngClass]="activeTab === 'INFO' ? 'border-blue-600 text-blue-600' : 'border-transparent text-gray-500 hover:text-gray-700'">
-      Ressources
+    <button (click)="activeTab = 'INFO'" 
+            class="py-3 px-4 text-sm font-medium border-b-2 transition-colors" 
+            [ngClass]="activeTab === 'INFO' ? 'border-blue-600 text-blue-600' : 'border-transparent text-gray-500 hover:text-gray-700'">
+      📚 Ressources
     </button>
-    <button (click)="activeTab = 'NOTES'" class="py-3 px-4 text-sm font-medium border-b-2 transition-colors" [ngClass]="activeTab === 'NOTES' ? 'border-blue-600 text-blue-600' : 'border-transparent text-gray-500 hover:text-gray-700'">
-      Notes
+    
+    <button (click)="activeTab = 'NOTES'" 
+            class="py-3 px-4 text-sm font-medium border-b-2 transition-colors" 
+            [ngClass]="activeTab === 'NOTES' ? 'border-blue-600 text-blue-600' : 'border-transparent text-gray-500 hover:text-gray-700'">
+      📝 Notes
     </button>
   </div>
 
@@ -37,24 +41,85 @@
     <!-- ONGLET RESSOURCES -->
     <div *ngIf="activeTab === 'INFO'" class="space-y-6">
       
-      <p *ngIf="card.description_officielle" class="text-gray-600 text-sm bg-gray-50 p-3 rounded-lg border border-gray-100">
-        {{ card.description_officielle }}
-      </p>
-
-      <!-- NOTE COURTE (Aperçu rapide) -->
-      <div *ngIf="card.note_courte" class="bg-yellow-50 border border-yellow-200 rounded-lg p-3">
-        <div class="flex items-center gap-2 mb-1">
-          <span class="text-yellow-600">📌</span>
-          <span class="text-xs font-bold text-yellow-700 uppercase">Mémo</span>
+      <!-- ✅ BOUTON MODIFIER (VERSION DISCRÈTE) -->
+      <div *ngIf="canEdit()" class="flex justify-end -mt-2 mb-3">
+        <button *ngIf="!isEditMode" 
+                (click)="enterEditMode()" 
+                class="text-xs text-gray-400 hover:text-orange-600 hover:underline transition-colors flex items-center gap-1">
+          <span class="text-sm">✏️</span>
+          <span>Modifier</span>
+        </button>
+        
+        <div *ngIf="isEditMode" class="flex gap-2">
+          <button (click)="cancelEdit()" 
+                  class="text-xs text-gray-500 hover:text-gray-700 hover:underline flex items-center gap-1">
+            <span>❌</span>
+            <span>Annuler</span>
+          </button>
+          <button (click)="saveCardChanges()" 
+                  [disabled]="isSaving"
+                  class="text-xs text-green-600 hover:text-green-700 hover:underline font-medium flex items-center gap-1 disabled:opacity-50">
+            <span *ngIf="isSaving" class="w-3 h-3 border-2 border-green-600 border-t-transparent rounded-full animate-spin"></span>
+            <span *ngIf="!isSaving">💾</span>
+            <span>{{ isSaving ? 'Enregistrement...' : 'Enregistrer' }}</span>
+          </button>
         </div>
-        <p class="text-sm text-yellow-800">{{ card.note_courte }}</p>
       </div>
 
-      <div class="border-t border-gray-100 pt-4">
+      <!-- ✅ MODE LECTURE -->
+      <div *ngIf="!isEditMode">
+        <p *ngIf="card.description_officielle" class="text-gray-600 text-sm bg-gray-50 p-3 rounded-lg border border-gray-100">
+          {{ card.description_officielle }}
+        </p>
+
+        <!-- NOTE COURTE (Aperçu rapide) -->
+        <div *ngIf="card.note_courte" class="bg-yellow-50 border border-yellow-200 rounded-lg p-3 mt-4">
+          <div class="flex items-center gap-2 mb-1">
+            <span class="text-yellow-600">📌</span>
+            <span class="text-xs font-bold text-yellow-700 uppercase">Mémo</span>
+          </div>
+          <p class="text-sm text-yellow-800">{{ card.note_courte }}</p>
+        </div>
+      </div>
+
+      <!-- ✅ MODE ÉDITION (PRIVATE uniquement) -->
+      <div *ngIf="isEditMode && card.type === 'PRIVATE'" class="space-y-4">
+        <h3 class="text-sm font-bold text-gray-700 uppercase tracking-wide flex items-center gap-2">
+          <span>📋</span>
+          <span>Informations générales</span>
+        </h3>
+
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-1">Titre</label>
+          <input type="text" [(ngModel)]="editableTitre" 
+                 class="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 outline-none">
+        </div>
+
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-1">Description</label>
+          <textarea [(ngModel)]="editableDescription" rows="3"
+                    class="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 outline-none resize-none"></textarea>
+        </div>
+
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-1">Logo</label>
+          <input type="file" (change)="onLogoSelected($event)" accept="image/*"
+                 class="w-full p-2 border border-gray-300 rounded-lg bg-gray-50">
+        </div>
+      </div>
+
+      <!-- ✅ MESSAGE SI OFFICIAL/PARTNER EN MODE ÉDITION -->
+      <div *ngIf="isEditMode && card.type !== 'PRIVATE'" class="bg-gray-50 border border-gray-200 rounded-lg p-4">
+        <p class="text-sm text-gray-600">
+          🔒 <strong>Carte officielle :</strong> Vous pouvez uniquement supprimer vos ressources privées.
+        </p>
+      </div>
+
+      <div class="border-t border-gray-100 pt-4 mt-6">
         <div class="flex justify-between items-center mb-3">
             <h3 class="text-xs font-bold text-gray-400 uppercase tracking-widest">Liens & Docs</h3>
             <button (click)="showAddForm = !showAddForm" class="text-xs text-blue-600 font-bold hover:underline">
-                {{ showAddForm ? 'Annuler' : '+ Ajouter un lien perso' }}
+                {{ showAddForm ? 'Annuler' : '+ Ajouter une ressource privée' }}
             </button>
         </div>
 
@@ -74,8 +139,8 @@
             </div>
         </div>
 
-        <!-- Liste des liens -->
-        <div class="space-y-2">
+        <!-- ✅ LISTE DES LIENS - MODE LECTURE -->
+        <div *ngIf="!isEditMode" class="space-y-2">
           <div *ngIf="!card.items || card.items.length === 0" class="text-sm text-gray-400 italic text-center py-2">Aucun lien</div>
 
           <a *ngFor="let item of card.items" [href]="item.final_url" target="_blank"
@@ -88,6 +153,58 @@
              <span class="flex-1 text-sm font-bold text-gray-700 group-hover:text-blue-700 truncate">{{ item.label }}</span>
              <span class="text-gray-300 group-hover:text-blue-500">→</span>
           </a>
+        </div>
+
+        <!-- ✅ LISTE DES LIENS - MODE ÉDITION -->
+        <div *ngIf="isEditMode" class="space-y-2">
+          <div *ngIf="!card.items || card.items.length === 0" class="text-sm text-gray-400 italic text-center py-8 border-2 border-dashed border-gray-200 rounded-lg">
+            Aucun lien
+          </div>
+
+          <div *ngFor="let item of card.items; let i = index; let isFirst = first; let isLast = last" 
+               class="border border-gray-200 rounded-lg p-3 bg-gray-50 flex items-center gap-3">
+            
+            <div class="w-8 h-8 rounded-full bg-white flex items-center justify-center text-sm shrink-0">
+              <span *ngIf="item.type === 'WEB'">🌐</span>
+              <span *ngIf="item.type === 'PDF'">📄</span>
+              <span *ngIf="item.type === 'TEL'">📞</span>
+              <span *ngIf="item.type === 'MAIL'">✉️</span>
+            </div>
+
+            <div class="flex-1 min-w-0">
+              <p class="font-medium text-gray-800 text-sm truncate">{{ item.label }}</p>
+              <p class="text-xs text-gray-400 truncate">{{ item.url || 'Document' }}</p>
+            </div>
+
+            <!-- Boutons de réordonnancement (seulement pour PRIVATE) -->
+            <div *ngIf="card.type === 'PRIVATE'" class="flex gap-1">
+              <button (click)="moveItemUp(item)" 
+                      [disabled]="isFirst"
+                      class="w-7 h-7 flex items-center justify-center rounded bg-white border border-gray-300 hover:bg-gray-100 disabled:opacity-30 disabled:cursor-not-allowed transition-colors text-xs"
+                      title="Monter">
+                ↑
+              </button>
+              <button (click)="moveItemDown(item)" 
+                      [disabled]="isLast"
+                      class="w-7 h-7 flex items-center justify-center rounded bg-white border border-gray-300 hover:bg-gray-100 disabled:opacity-30 disabled:cursor-not-allowed transition-colors text-xs"
+                      title="Descendre">
+                ↓
+              </button>
+            </div>
+
+            <!-- Bouton supprimer (conditionnel) -->
+            <button *ngIf="canDeleteItem(item)"
+                    (click)="deleteItem(item.id)" 
+                    class="w-7 h-7 flex items-center justify-center rounded bg-red-50 text-red-600 hover:bg-red-600 hover:text-white transition-colors text-xs"
+                    title="Supprimer">
+              🗑️
+            </button>
+
+            <!-- Indicateur si item non supprimable -->
+            <div *ngIf="!canDeleteItem(item)" class="w-7 h-7 flex items-center justify-center text-gray-300" title="Item officiel">
+              🔒
+            </div>
+          </div>
         </div>
       </div>
     </div>

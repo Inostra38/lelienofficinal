@@ -60,8 +60,10 @@ class ResourceCardSerializer(serializers.ModelSerializer):
     items = ResourceItemSerializer(many=True, read_only=True)
     partner = PartnerSerializer(source='owner_partner', read_only=True)
     is_favorite = serializers.SerializerMethodField()
-    note_courte = serializers.SerializerMethodField()
-    note_longue = serializers.SerializerMethodField()
+    
+    # ✅ SUPPRIME SerializerMethodField et ajoute des champs normaux
+    note_courte = serializers.CharField(max_length=150, required=False, allow_blank=True)
+    note_longue = serializers.CharField(required=False, allow_blank=True)
 
     category = serializers.PrimaryKeyRelatedField(
         queryset=Category.objects.all(), 
@@ -93,29 +95,50 @@ class ResourceCardSerializer(serializers.ModelSerializer):
         
         return preference.is_favorite if preference else False
 
-    def get_note_courte(self, obj):
+    # ✅ AJOUTE ces méthodes pour LIRE les notes depuis PharmacyPreference
+    def to_representation(self, instance):
+        """Surcharge pour injecter les notes depuis PharmacyPreference"""
+        data = super().to_representation(instance)
+        
         request = self.context.get('request')
-        if not request or not request.user.is_authenticated:
-            return ""
+        if request and request.user.is_authenticated:
+            preference = PharmacyPreference.objects.filter(
+                pharmacy=request.user,
+                card=instance
+            ).first()
+            
+            if preference:
+                data['note_courte'] = preference.note_courte or ""
+                data['note_longue'] = preference.note_longue or ""
         
-        preference = PharmacyPreference.objects.filter(
-            pharmacy=request.user,
-            card=obj
-        ).first()
-        
-        return preference.note_courte if preference else ""
+        return data
 
-    def get_note_longue(self, obj):
+    # ✅ AJOUTE cette méthode pour ÉCRIRE les notes dans PharmacyPreference
+    def update(self, instance, validated_data):
+        """Surcharge pour sauvegarder les notes dans PharmacyPreference"""
+        # Extraire les notes du validated_data
+        note_courte = validated_data.pop('note_courte', None)
+        note_longue = validated_data.pop('note_longue', None)
+        
+        # Mettre à jour la carte normalement
+        instance = super().update(instance, validated_data)
+        
+        # Sauvegarder les notes dans PharmacyPreference
         request = self.context.get('request')
-        if not request or not request.user.is_authenticated:
-            return ""
+        if request and request.user.is_authenticated:
+            preference, created = PharmacyPreference.objects.get_or_create(
+                pharmacy=request.user,
+                card=instance
+            )
+            
+            if note_courte is not None:
+                preference.note_courte = note_courte
+            if note_longue is not None:
+                preference.note_longue = note_longue
+            
+            preference.save()
         
-        preference = PharmacyPreference.objects.filter(
-            pharmacy=request.user,
-            card=obj
-        ).first()
-        
-        return preference.note_longue if preference else ""
+        return instance
 
 
 class CatalogCardSerializer(serializers.ModelSerializer):

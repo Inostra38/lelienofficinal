@@ -13,7 +13,7 @@ import { AdSpaceComponent } from '../../shared/ui/ad-space/ad-space.component';
 import { AddLinkModalComponent } from '../../shared/ui/add-link-modal/add-link-modal.component';
 import { CardDetailComponent } from './components/card-detail/card-detail.component';
 import { CategoryAssignerModalComponent } from '../../shared/ui/category-assigner-modal/category-assigner-modal.component';
-import { MoveCardModalComponent } from '../../shared/ui/move-card-modal/move-card-modal.component'; // ✅ NOUVEAU
+import { MoveCardModalComponent } from '../../shared/ui/move-card-modal/move-card-modal.component';
 
 // --- INTERFACES ---
 export interface ResourceItem {
@@ -31,7 +31,7 @@ export interface ResourceCard {
   description_officielle: string;
   logo: string | null;
   type: 'OFFICIAL' | 'PARTNER' | 'PRIVATE';
-  items?: ResourceItem[]; 
+  items?: ResourceItem[];
   partner: { id: number; nom: string; logo: string | null } | null;
   is_favorite: boolean;
   note_courte: string;
@@ -43,7 +43,7 @@ export interface Category {
   nom: string;
   icon_slug: string;
   cards: ResourceCard[];
-  adopted_cards?: ResourceCard[]; 
+  adopted_cards?: ResourceCard[];
 }
 
 @Component({
@@ -52,47 +52,47 @@ export interface Category {
   imports: [
     CommonModule,
     FormsModule,
-    PinPadComponent, 
-    SidebarComponent, 
-    HeaderComponent, 
+    PinPadComponent,
+    SidebarComponent,
+    HeaderComponent,
     CardDetailComponent,
     CategoryAssignerModalComponent,
     AddLinkModalComponent,
-    MoveCardModalComponent // ✅ NOUVEAU
+    MoveCardModalComponent
   ],
   templateUrl: './dashboard.component.html',
   styleUrl: './dashboard.component.css'
 })
-export class DashboardComponent implements OnInit { 
+export class DashboardComponent implements OnInit {
   private http = inject(HttpClient);
   private authService = inject(AuthService);
   private collaboratorService = inject(CollaboratorService);
 
+  showOnlyFavorites = false;
+
   @ViewChild(PinPadComponent) pinPad!: PinPadComponent;
 
   // --- DONNÉES ---
-  allCategories: Category[] = [];       
-  displayedCategories: Category[] = []; 
-  team: Collaborator[] = [];            
-  libraryItems: any[] = []; 
-  
+  allCategories: Category[] = [];
+  displayedCategories: Category[] = [];
+  team: Collaborator[] = [];
+  libraryItems: any[] = [];
+
   // --- ÉTATS ---
-  viewMode: 'COMPACT' | 'LARGE' | 'TABLE' = 'COMPACT'; 
-  isEditMode = false;   
-  isSearching = false;  
+  viewMode: 'COMPACT' | 'LARGE' | 'TABLE' | 'ICON' = 'COMPACT';
+  isEditMode = false;
+  isSearching = false;
   showPinPad = false;
-  showAddModal = false; 
-  
+  showAddModal = false;
+
   selectedCollaborator: Collaborator | null = null;
   activeSessionCollaborator: Collaborator | null = null;
   openedCard: ResourceCard | null = null;
   selectedCardToAssign: ResourceCard | null = null;
 
-  // ✅ NOUVEAU : État pour la modale de déplacement
   cardToMove: ResourceCard | null = null;
   currentCategoryIdForMove: number | null = null;
 
-  // --- RENOMMAGE CATÉGORIE ---
   editingCategoryId: number | null = null;
   editingCategoryName: string = '';
 
@@ -107,26 +107,26 @@ export class DashboardComponent implements OnInit {
   // ============================================================
 
   loadCategories() {
-    const timestamp = new Date().getTime(); 
-    
+    const timestamp = new Date().getTime();
+
     this.http.get<any>(`http://127.0.0.1:8000/api/categories/?t=${timestamp}`)
       .subscribe({
         next: (data) => {
           const rawData = Array.isArray(data) ? data : data.results || [];
-          
+
           this.allCategories = rawData.map((cat: Category) => ({
             ...cat,
             cards: (cat.cards || []).map(card => ({
-                ...card,
-                items: card.items || [] 
+              ...card,
+              items: card.items || []
             })),
             adopted_cards: (cat.adopted_cards || []).map(card => ({
-                ...card,
-                items: card.items || []
+              ...card,
+              items: card.items || []
             }))
           }));
-          
-          this.updateDisplay(); 
+
+          this.updateDisplay();
         },
         error: (err) => console.error('Erreur chargement catégories', err)
       });
@@ -155,28 +155,38 @@ export class DashboardComponent implements OnInit {
     this.loadTeam();
     this.loadLibrary();
   }
+private updateDisplay() {
+  const rawData: Category[] = JSON.parse(JSON.stringify(this.allCategories));
 
-  private updateDisplay() {
-    const rawData: Category[] = JSON.parse(JSON.stringify(this.allCategories));
+  this.displayedCategories = rawData.map(category => {
+    const nativeCards = category.cards || [];
+    const adoptedCards = category.adopted_cards || [];
+    let mergedCards = [...nativeCards, ...adoptedCards];
     
-    this.displayedCategories = rawData.map(category => {
-        const nativeCards = category.cards || [];
-        const adoptedCards = category.adopted_cards || [];
-        const mergedCards = [...nativeCards, ...adoptedCards];
-        mergedCards.sort((a, b) => a.titre.localeCompare(b.titre));
+    // ✅ Filtrer par favoris si activé
+    if (this.showOnlyFavorites) {
+      mergedCards = mergedCards.filter(card => card.is_favorite);
+    }
+    
+    mergedCards.sort((a, b) => a.titre.localeCompare(b.titre));
 
-        return {
-            ...category,
-            cards: mergedCards
-        };
-    });
-  }
+    return {
+      ...category,
+      cards: mergedCards
+    };
+  }).filter(cat => cat.cards.length > 0); // ✅ Ne montrer que les catégories avec des cartes
+}
 
   // ============================================================
   // 2. GESTION DES VUES & RECHERCHE
   // ============================================================
 
-  setViewMode(mode: 'COMPACT' | 'LARGE' | 'TABLE') {
+  toggleFavoritesFilter() {
+    this.showOnlyFavorites = !this.showOnlyFavorites;
+    this.updateDisplay();
+  }
+
+  setViewMode(mode: 'COMPACT' | 'LARGE' | 'TABLE' | 'ICON') {
     this.viewMode = mode;
   }
 
@@ -191,17 +201,46 @@ export class DashboardComponent implements OnInit {
 
     this.displayedCategories = this.allCategories.map(cat => {
       const allCards = [...(cat.cards || []), ...(cat.adopted_cards || [])];
-      
+
       const matchingCards = allCards.filter(card => {
+        // 1. Recherche dans le titre
         const titleMatch = (card.titre || '').toLowerCase().includes(term);
+
+        // 2. Recherche dans la description
+        const descMatch = (card.description_officielle || '').toLowerCase().includes(term);
+
+        // 3. Recherche dans le nom du partenaire
         const partnerMatch = (card.partner?.nom || '').toLowerCase().includes(term);
-        const itemMatch = (card.items || []).some(item => (item.label || '').toLowerCase().includes(term));
-        
-        return titleMatch || partnerMatch || itemMatch;
+
+        // 4. Recherche dans les notes
+        const noteCourtMatch = (card.note_courte || '').toLowerCase().includes(term);
+        const noteLongueMatch = (card.note_longue || '').toLowerCase().includes(term);
+
+        // 5. Recherche dans les items (label + URL)
+        const itemMatch = (card.items || []).some(item => {
+          const labelMatch = (item.label || '').toLowerCase().includes(term);
+          const urlMatch = (item.url || '').toLowerCase().includes(term);
+          return labelMatch || urlMatch;
+        });
+
+        return titleMatch || descMatch || partnerMatch || noteCourtMatch || noteLongueMatch || itemMatch;
       });
 
       return { ...cat, cards: matchingCards };
     }).filter(cat => cat.cards.length > 0);
+
+    // ✅ BONUS : Afficher aussi le nom des catégories qui matchent
+    // (même si elles n'ont pas de cartes matchantes)
+    const categoryNameMatches = this.allCategories.filter(cat =>
+      (cat.nom || '').toLowerCase().includes(term)
+    );
+
+    // Fusionner avec les résultats existants
+    categoryNameMatches.forEach(catMatch => {
+      if (!this.displayedCategories.find(c => c.id === catMatch.id)) {
+        this.displayedCategories.push({ ...catMatch, cards: catMatch.cards || [] });
+      }
+    });
   }
 
   // ============================================================
@@ -210,7 +249,7 @@ export class DashboardComponent implements OnInit {
 
   deleteCategory(category: Category) {
     const cardsCount = category.cards?.length || 0;
-    const message = cardsCount > 0 
+    const message = cardsCount > 0
       ? `Voulez-vous vraiment supprimer la catégorie "${category.nom}" et ses ${cardsCount} carte(s) ?`
       : `Voulez-vous vraiment supprimer la catégorie "${category.nom}" ?`;
 
@@ -279,13 +318,13 @@ export class DashboardComponent implements OnInit {
     const index = this.displayedCategories.indexOf(category);
     if (index <= 0) return;
 
-    [this.displayedCategories[index - 1], this.displayedCategories[index]] = 
-    [this.displayedCategories[index], this.displayedCategories[index - 1]];
+    [this.displayedCategories[index - 1], this.displayedCategories[index]] =
+      [this.displayedCategories[index], this.displayedCategories[index - 1]];
 
     const allIndex = this.allCategories.findIndex(c => c.id === category.id);
     if (allIndex > 0) {
-      [this.allCategories[allIndex - 1], this.allCategories[allIndex]] = 
-      [this.allCategories[allIndex], this.allCategories[allIndex - 1]];
+      [this.allCategories[allIndex - 1], this.allCategories[allIndex]] =
+        [this.allCategories[allIndex], this.allCategories[allIndex - 1]];
     }
 
     this.saveOrder();
@@ -295,13 +334,13 @@ export class DashboardComponent implements OnInit {
     const index = this.displayedCategories.indexOf(category);
     if (index >= this.displayedCategories.length - 1) return;
 
-    [this.displayedCategories[index], this.displayedCategories[index + 1]] = 
-    [this.displayedCategories[index + 1], this.displayedCategories[index]];
+    [this.displayedCategories[index], this.displayedCategories[index + 1]] =
+      [this.displayedCategories[index + 1], this.displayedCategories[index]];
 
     const allIndex = this.allCategories.findIndex(c => c.id === category.id);
     if (allIndex < this.allCategories.length - 1) {
-      [this.allCategories[allIndex], this.allCategories[allIndex + 1]] = 
-      [this.allCategories[allIndex + 1], this.allCategories[allIndex]];
+      [this.allCategories[allIndex], this.allCategories[allIndex + 1]] =
+        [this.allCategories[allIndex + 1], this.allCategories[allIndex]];
     }
 
     this.saveOrder();
@@ -309,11 +348,11 @@ export class DashboardComponent implements OnInit {
 
   private saveOrder() {
     const order = this.displayedCategories.map(cat => cat.id);
-    
+
     this.http.post('http://127.0.0.1:8000/api/categories/reorder/', { order })
       .subscribe({
         next: () => {
-          // Silencieux - pas besoin de feedback
+          // Silencieux
         },
         error: (err) => {
           console.error('Erreur sauvegarde ordre', err);
@@ -333,26 +372,37 @@ export class DashboardComponent implements OnInit {
     }
   }
 
-  // ✅ NOUVEAU : Ouvrir la modale de déplacement
   openMoveCardModal(card: ResourceCard, categoryId: number, event: Event) {
     event.stopPropagation();
     this.cardToMove = card;
     this.currentCategoryIdForMove = categoryId;
   }
 
-  // ✅ NOUVEAU : Déplacer la carte vers une nouvelle catégorie
-moveCard(newCategoryId: number) {
-  if (!this.cardToMove) return;
+  moveCard(newCategoryId: number) {
+    if (!this.cardToMove) return;
 
-  const card = this.cardToMove;
+    const card = this.cardToMove;
 
-  // Si c'est une carte PRIVATE, on met à jour sa catégorie directement
-  if (card.type === 'PRIVATE') {
-    const formData = new FormData();
-    formData.append('category', newCategoryId.toString());
-    
-    this.http.patch(`http://127.0.0.1:8000/api/cards/${card.id}/`, formData)
-      .subscribe({
+    if (card.type === 'PRIVATE') {
+      const formData = new FormData();
+      formData.append('category', newCategoryId.toString());
+
+      this.http.patch(`http://127.0.0.1:8000/api/cards/${card.id}/`, formData)
+        .subscribe({
+          next: () => {
+            this.cardToMove = null;
+            this.currentCategoryIdForMove = null;
+            this.loadCategories();
+          },
+          error: (err) => {
+            console.error('Erreur déplacement carte', err);
+            alert("Erreur lors du déplacement.");
+          }
+        });
+    } else {
+      this.http.patch(`http://127.0.0.1:8000/api/cards/${card.id}/assign-category/`,
+        { category: newCategoryId }
+      ).subscribe({
         next: () => {
           this.cardToMove = null;
           this.currentCategoryIdForMove = null;
@@ -363,85 +413,131 @@ moveCard(newCategoryId: number) {
           alert("Erreur lors du déplacement.");
         }
       });
-  } 
-  // Si c'est une carte OFFICIAL/PARTNER, on met à jour la préférence
-  else {
-    this.http.patch(`http://127.0.0.1:8000/api/cards/${card.id}/assign-category/`, 
-      { category: newCategoryId }
-    ).subscribe({
-      next: () => {
-        this.cardToMove = null;
-        this.currentCategoryIdForMove = null;
-        this.loadCategories();
-      },
-      error: (err) => {
-        console.error('Erreur déplacement carte', err);
-        alert("Erreur lors du déplacement.");
-      }
-    });
+    }
   }
-}
 
-  hideOrDeleteCard(card: ResourceCard, event: Event) { 
+  hideOrDeleteCard(card: ResourceCard, event: Event) {
     event.stopPropagation();
-    
-    if(card.type === 'PRIVATE') {
-       if(confirm(`Voulez-vous vraiment SUPPRIMER votre carte privée "${card.titre}" ?`)) {
-           this.http.delete(`http://127.0.0.1:8000/api/cards/${card.id}/`).subscribe({
-               next: () => this.loadCategories(),
-               error: (err) => console.error("Erreur suppression", err)
-           });
-       }
-       return;
+
+    if (card.type === 'PRIVATE') {
+      if (confirm(`Voulez-vous vraiment SUPPRIMER votre carte privée "${card.titre}" ?`)) {
+        this.http.delete(`http://127.0.0.1:8000/api/cards/${card.id}/`).subscribe({
+          next: () => this.loadCategories(),
+          error: (err) => console.error("Erreur suppression", err)
+        });
+      }
+      return;
     }
 
-    if(confirm(`Voulez-vous masquer la carte "${card.titre}" de votre tableau de bord ?`)) {
-        this.http.post(`http://127.0.0.1:8000/api/cards/${card.id}/toggle-visibility/`, {}).subscribe({
-            next: () => this.loadCategories(),
-            error: (err) => console.error("Erreur masquage", err)
-        });
+    if (confirm(`Voulez-vous masquer la carte "${card.titre}" de votre tableau de bord ?`)) {
+      this.http.post(`http://127.0.0.1:8000/api/cards/${card.id}/toggle-visibility/`, {}).subscribe({
+        next: () => this.loadCategories(),
+        error: (err) => console.error("Erreur masquage", err)
+      });
     }
   }
 
   toggleFavorite(card: ResourceCard, event: Event) {
-    event.stopPropagation();
-    
-    card.is_favorite = !card.is_favorite;
-    
-    this.http.post(`http://127.0.0.1:8000/api/cards/${card.id}/toggle-favorite/`, {})
-      .subscribe({
-        next: (response: any) => {
-          card.is_favorite = response.is_favorite;
-        },
-        error: (err) => {
-          card.is_favorite = !card.is_favorite;
-          console.error('Erreur toggle favori', err);
-        }
-      });
-  }
+  event.stopPropagation();
+
+  card.is_favorite = !card.is_favorite;
+
+  this.http.post(`http://127.0.0.1:8000/api/cards/${card.id}/toggle-favorite/`, {})
+    .subscribe({
+      next: (response: any) => {
+        card.is_favorite = response.is_favorite;
+        
+        // ✅ MISE À JOUR DANS allCategories
+        this.allCategories.forEach(cat => {
+          // Chercher dans les cartes natives
+          const cardIndex = (cat.cards || []).findIndex(c => c.id === card.id);
+          if (cardIndex !== -1) {
+            cat.cards[cardIndex].is_favorite = response.is_favorite;
+          }
+
+          // Chercher dans les cartes adoptées
+          if (cat.adopted_cards) {
+            const adoptedIndex = cat.adopted_cards.findIndex(c => c.id === card.id);
+            if (adoptedIndex !== -1) {
+              cat.adopted_cards[adoptedIndex].is_favorite = response.is_favorite;
+            }
+          }
+        });
+
+        // ✅ FORCER LE REFRESH DE L'AFFICHAGE
+        this.updateDisplay();
+      },
+      error: (err) => {
+        // Rollback en cas d'erreur
+        card.is_favorite = !card.is_favorite;
+        console.error('Erreur toggle favori', err);
+      }
+    });
+}
 
   openDetail(card: ResourceCard, event: Event) {
-    event.preventDefault(); 
+    event.preventDefault();
     event.stopPropagation();
-    if (this.isEditMode) return; 
-    this.openedCard = card; 
+    if (this.isEditMode) return;
+    this.openedCard = card;
   }
 
   closeDetail() {
     this.openedCard = null;
   }
-  
-  handleCardSelection(card: ResourceCard) {
-    this.showAddModal = false; 
-    this.selectedCardToAssign = card; 
+
+  closeDetailAndRefresh() {
+    this.openedCard = null;
+    // ✅ Ne PLUS recharger depuis le serveur
+    // La mise à jour locale suffit
   }
 
-  assignCategory(categoryId: number) { 
+  onCardUpdated(updatedCard: any) {
+    console.log('🔄 Mise à jour locale de la carte:', updatedCard.id);
+
+    // 1. Mettre à jour la carte actuellement ouverte
+    if (this.openedCard && this.openedCard.id === updatedCard.id) {
+      Object.assign(this.openedCard, updatedCard);
+    }
+
+    // 2. Mettre à jour dans allCategories
+    let found = false;
+
+    this.allCategories.forEach(cat => {
+      // Chercher dans les cartes natives
+      const cardIndex = (cat.cards || []).findIndex(c => c.id === updatedCard.id);
+      if (cardIndex !== -1) {
+        cat.cards[cardIndex] = { ...cat.cards[cardIndex], ...updatedCard };
+        found = true;
+      }
+
+      // Chercher dans les cartes adoptées
+      if (cat.adopted_cards) {
+        const adoptedIndex = cat.adopted_cards.findIndex(c => c.id === updatedCard.id);
+        if (adoptedIndex !== -1) {
+          cat.adopted_cards[adoptedIndex] = { ...cat.adopted_cards[adoptedIndex], ...updatedCard };
+          found = true;
+        }
+      }
+    });
+
+    // 3. Forcer la mise à jour de l'affichage
+    if (found) {
+      this.updateDisplay();
+    }
+  }
+
+  handleCardSelection(card: ResourceCard) {
+    this.showAddModal = false;
+    this.selectedCardToAssign = card;
+  }
+
+  assignCategory(categoryId: number) {
     if (!this.selectedCardToAssign) return;
 
     const cardId = this.selectedCardToAssign.id;
     const payload = { category: categoryId };
-    
+
     this.http.patch(`http://127.0.0.1:8000/api/cards/${cardId}/assign-category/`, payload)
       .subscribe({
         next: () => {
@@ -452,7 +548,7 @@ moveCard(newCategoryId: number) {
         error: (err) => {
           console.error("❌ ERREUR ASSIGNATION :", err.error);
           alert(`Erreur d'assignation : ${err.error?.category?.[0] || 'Vérifiez la console.'}`);
-          this.selectedCardToAssign = null; 
+          this.selectedCardToAssign = null;
         }
       });
   }
@@ -479,7 +575,7 @@ moveCard(newCategoryId: number) {
   }
 
   closeCollaboratorSession() {
-    this.activeSessionCollaborator = null; 
+    this.activeSessionCollaborator = null;
   }
 
   logout() {
@@ -492,13 +588,13 @@ moveCard(newCategoryId: number) {
 
   onLinkAdded(data: any) {
     if (this.allCategories.length === 0) {
-        alert("Aucune catégorie disponible. Créez d'abord une catégorie.");
-        return;
+      alert("Aucune catégorie disponible. Créez d'abord une catégorie.");
+      return;
     }
 
     let finalCategoryId = data.category;
     if (!finalCategoryId) {
-        finalCategoryId = this.allCategories[0].id;
+      finalCategoryId = this.allCategories[0].id;
     }
 
     const formData = new FormData();
@@ -525,38 +621,26 @@ moveCard(newCategoryId: number) {
       }
     });
   }
-  /**
-   * Retourne la classe CSS du badge selon le type de carte
-   */
+
+  // ============================================================
+  // 9. BADGES
+  // ============================================================
+
   getBadgeClass(cardType: string): string {
-    switch(cardType) {
-      case 'PRIVATE':
-        return 'badge-private';
-      case 'OFFICIAL':
-        return 'badge-official';
-      case 'PARTNER':
-        return 'badge-partner';
-      default:
-        return '';
+    switch (cardType) {
+      case 'PRIVATE': return 'badge-private';
+      case 'OFFICIAL': return 'badge-official';
+      case 'PARTNER': return 'badge-partner';
+      default: return '';
     }
   }
 
-  /**
-   * Retourne le libellé du badge selon le type de carte
-   */
-/**
-   * Retourne le libellé du badge selon le type de carte
-   */
   getBadgeLabel(cardType: string): string {
-    switch(cardType) {
-      case 'PRIVATE':
-        return 'Privée';
-      case 'OFFICIAL':
-        return 'Validé';    // ✅ Changé de "Officielle" à "Validé"
-      case 'PARTNER':
-        return 'Officiel';  // ✅ Changé de "Partenaire" à "Officiel"
-      default:
-        return '';
+    switch (cardType) {
+      case 'PRIVATE': return 'Privée';
+      case 'OFFICIAL': return 'Validé';
+      case 'PARTNER': return 'Officiel';
+      default: return '';
     }
   }
 }

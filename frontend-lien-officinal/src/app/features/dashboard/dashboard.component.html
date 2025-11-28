@@ -10,22 +10,39 @@
 
     <div class="px-8 pt-6 flex justify-between items-center shrink-0">
 
-      <div class="flex bg-white p-1 rounded-lg border border-gray-200 shadow-sm">
-        <button (click)="setViewMode('COMPACT')"
-          class="px-3 py-1.5 rounded-md text-sm font-medium transition-all flex items-center gap-2"
-          [ngClass]="viewMode === 'COMPACT' ? 'bg-blue-50 text-blue-600 shadow-sm ring-1 ring-blue-100' : 'text-gray-500 hover:bg-gray-50'">
-          <span>🗂️</span> <span class="hidden sm:inline">Compact</span>
+      <div class="flex items-center gap-3">
+
+        <!-- ✅ BOUTON ÉTOILE FAVORIS -->
+        <button (click)="toggleFavoritesFilter()"
+          [class]="showOnlyFavorites 
+        ? 'px-3 py-1.5 rounded-lg bg-yellow-100 text-yellow-600 border border-yellow-300 shadow-sm font-medium transition-all flex items-center gap-2' 
+        : 'px-3 py-1.5 rounded-lg bg-white text-gray-400 border border-gray-200 hover:bg-gray-50 hover:text-gray-600 transition-all flex items-center gap-2'"
+          title="Afficher uniquement les favoris">
+          <span class="text-xl">{{ showOnlyFavorites ? '⭐' : '☆' }}</span>
+          <span class="text-sm font-medium hidden sm:inline">{{ showOnlyFavorites ? 'Favoris' : 'Tous' }}</span>
         </button>
-        <button (click)="setViewMode('LARGE')"
-          class="px-3 py-1.5 rounded-md text-sm font-medium transition-all flex items-center gap-2"
-          [ngClass]="viewMode === 'LARGE' ? 'bg-blue-50 text-blue-600 shadow-sm ring-1 ring-blue-100' : 'text-gray-500 hover:bg-gray-50'">
-          <span>🖼️</span> <span class="hidden sm:inline">Icônes</span>
-        </button>
-        <button (click)="setViewMode('TABLE')"
-          class="px-3 py-1.5 rounded-md text-sm font-medium transition-all flex items-center gap-2"
-          [ngClass]="viewMode === 'TABLE' ? 'bg-blue-50 text-blue-600 shadow-sm ring-1 ring-blue-100' : 'text-gray-500 hover:bg-gray-50'">
-          <span>☰</span> <span class="hidden sm:inline">Liste</span>
-        </button>
+
+        <!-- SÉPARATEUR -->
+        <div class="h-8 w-px bg-gray-300"></div>
+
+        <!-- BOUTONS DE VUE -->
+        <div class="flex bg-white p-1 rounded-lg border border-gray-200 shadow-sm">
+          <button (click)="setViewMode('COMPACT')"
+            class="px-3 py-1.5 rounded-md text-sm font-medium transition-all flex items-center gap-2"
+            [ngClass]="viewMode === 'COMPACT' ? 'bg-blue-50 text-blue-600 shadow-sm ring-1 ring-blue-100' : 'text-gray-500 hover:bg-gray-50'">
+            <span>🗂️</span> <span class="hidden sm:inline">Compact</span>
+          </button>
+          <button (click)="setViewMode('LARGE')"
+            class="px-3 py-1.5 rounded-md text-sm font-medium transition-all flex items-center gap-2"
+            [ngClass]="viewMode === 'LARGE' ? 'bg-blue-50 text-blue-600 shadow-sm ring-1 ring-blue-100' : 'text-gray-500 hover:bg-gray-50'">
+            <span>🖼️</span> <span class="hidden sm:inline">Icônes</span>
+          </button>
+          <button (click)="setViewMode('TABLE')"
+            class="px-3 py-1.5 rounded-md text-sm font-medium transition-all flex items-center gap-2"
+            [ngClass]="viewMode === 'TABLE' ? 'bg-blue-50 text-blue-600 shadow-sm ring-1 ring-blue-100' : 'text-gray-500 hover:bg-gray-50'">
+            <span>☰</span> <span class="hidden sm:inline">Liste</span>
+          </button>
+        </div>
       </div>
 
       <!-- Groupe de boutons Rafraîchir + Modifier -->
@@ -158,141 +175,141 @@
                     </span>
                   </div>
                 </div>
-              <div class="px-4 pb-4 flex-1 flex flex-col mt-2">
-                <p *ngIf="card.description_officielle" class="text-xs text-gray-500 mb-2 line-clamp-2">{{
-                  card.description_officielle }}</p>
+                <div class="px-4 pb-4 flex-1 flex flex-col mt-2">
+                  <p *ngIf="card.description_officielle" class="text-xs text-gray-500 mb-2 line-clamp-2">{{
+                    card.description_officielle }}</p>
 
-                <!-- Note courte (mémo) -->
-                <div *ngIf="card.note_courte" class="bg-yellow-50 border border-yellow-100 rounded-lg p-2 mb-2">
-                  <p class="text-xs text-yellow-800 line-clamp-2 flex items-start gap-1">
-                    <span>📌</span>
-                    <span>{{ card.note_courte }}</span>
-                  </p>
+                  <!-- Note courte (mémo) -->
+                  <div *ngIf="card.note_courte" class="bg-yellow-50 border border-yellow-100 rounded-lg p-2 mb-2">
+                    <p class="text-xs text-yellow-800 line-clamp-2 flex items-start gap-1">
+                      <span>📌</span>
+                      <span>{{ card.note_courte }}</span>
+                    </p>
+                  </div>
+                  <div class="flex flex-col gap-1.5">
+                    <a *ngFor="let item of (card.items || [])" [href]="item.final_url" target="_blank"
+                      (click)="$event.stopPropagation()"
+                      class="flex items-center gap-2 p-1.5 rounded hover:bg-blue-50 transition-colors group/item">
+                      <span class="text-gray-400 text-xs w-5 text-center">
+                        <span *ngIf="item.type === 'WEB'">🌐</span>
+                        <span *ngIf="item.type === 'PDF'">📄</span>
+                      </span>
+                      <span class="text-sm text-gray-600 group-hover/item:text-blue-700 truncate">{{ item.label
+                        }}</span>
+                    </a>
+                  </div>
                 </div>
-                <div class="flex flex-col gap-1.5">
+
+                <div class="px-3 py-2 bg-gray-50 border-t border-gray-100 flex justify-end">
+                  <button (click)="openDetail(card, $event)"
+                    class="hover:bg-white hover:shadow-sm p-1.5 rounded transition-all flex items-center gap-1"
+                    title="Voir les notes">
+                    ✏️ <span class="text-xs text-gray-400">Notes</span>
+                  </button>
+                </div>
+              </div>
+
+              <!-- MESSAGE SI CATÉGORIE VIDE -->
+              <div *ngIf="cat.cards.length === 0"
+                class="col-span-full text-center py-8 text-gray-400 border-2 border-dashed border-gray-200 rounded-xl">
+                <p class="text-sm">Cette catégorie est vide</p>
+                <button (click)="showAddModal = true" class="mt-2 text-blue-600 font-bold text-sm hover:underline">+
+                  Ajouter une ressource</button>
+              </div>
+            </div>
+
+            <!-- VUE LARGE -->
+            <div *ngIf="viewMode === 'LARGE'"
+              class="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 xl:grid-cols-7 gap-3">
+
+              <div *ngFor="let card of cat.cards" (click)="openDetail(card, $event)" div
+                class="bg-white rounded-xl shadow-sm hover:shadow-lg transition-all border border-gray-100 cursor-pointer p-4 flex flex-col items-center gap-2 relative group">
+                <!-- ✅ BADGE TYPE -->
+                <span class="card-type-badge-compact mt-1" [ngClass]="getBadgeClass(card.type)">
+                  {{ getBadgeLabel(card.type) }}
+                </span>
+
+                <!-- Boutons en mode édition -->
+                <div *ngIf="isEditMode" class="absolute top-1 right-1 flex gap-1 z-20">
+                  <button (click)="openMoveCardModal(card, cat.id, $event)"
+                    class="w-6 h-6 flex items-center justify-center bg-blue-100 text-blue-600 rounded-full border border-blue-100"
+                    title="Déplacer">
+                    📁
+                  </button>
+                  <button (click)="hideOrDeleteCard(card, $event)"
+                    class="w-6 h-6 flex items-center justify-center bg-red-100 text-red-600 rounded-full border border-red-100"
+                    title="Supprimer">
+                    🗑️
+                  </button>
+                </div>
+
+                <div class="w-16 h-16 mb-3 flex items-center justify-center text-4xl">
+                  <img *ngIf="card.logo" [src]="card.logo" class="w-full h-full object-contain">
+                  <span *ngIf="!card.logo" class="text-4xl">🏢</span>
+                </div>
+                <span class="font-bold text-gray-800 text-sm leading-tight line-clamp-2">{{ card.titre }}</span>
+              </div>
+
+              <!-- MESSAGE SI CATÉGORIE VIDE -->
+              <div *ngIf="cat.cards.length === 0"
+                class="col-span-full text-center py-8 text-gray-400 border-2 border-dashed border-gray-200 rounded-xl">
+                <p class="text-sm">Cette catégorie est vide</p>
+              </div>
+            </div>
+
+            <!-- VUE TABLE -->
+            <div *ngIf="viewMode === 'TABLE'" class="flex flex-col gap-2">
+
+              <div *ngFor="let card of cat.cards" (click)="openDetail(card, $event)"
+                class="grid gap-4 items-center bg-white border border-gray-200 p-2 rounded-lg hover:border-blue-400 cursor-pointer transition-all relative"
+                [ngClass]="isEditMode ? 'grid-cols-12' : 'grid-cols-11'">
+
+                <div [ngClass]="isEditMode ? 'col-span-4' : 'col-span-5'" class="flex items-center gap-3">
+                  <div class="w-8 h-8 rounded bg-gray-50 flex items-center justify-center text-lg">
+                    <img *ngIf="card.logo" [src]="card.logo" class="w-full h-full object-contain">
+                    <span *ngIf="!card.logo">🏢</span>
+                  </div>
+                  <span class="font-bold text-gray-700 text-sm">{{ card.titre }}</span>
+
+                  <!-- ✅ BADGE TYPE (version petite pour le tableau) -->
+                  <span class="card-type-badge-small" [ngClass]="getBadgeClass(card.type)">
+                    {{ getBadgeLabel(card.type) }}
+                  </span>
+                </div>
+
+                <div [ngClass]="isEditMode ? 'col-span-6' : 'col-span-6'" class="flex gap-2 flex-wrap">
                   <a *ngFor="let item of (card.items || [])" [href]="item.final_url" target="_blank"
                     (click)="$event.stopPropagation()"
-                    class="flex items-center gap-2 p-1.5 rounded hover:bg-blue-50 transition-colors group/item">
-                    <span class="text-gray-400 text-xs w-5 text-center">
-                      <span *ngIf="item.type === 'WEB'">🌐</span>
-                      <span *ngIf="item.type === 'PDF'">📄</span>
-                    </span>
-                    <span class="text-sm text-gray-600 group-hover/item:text-blue-700 truncate">{{ item.label
-                      }}</span>
+                    class="px-2 py-1 bg-gray-100 rounded text-xs hover:bg-blue-600 hover:text-white transition-colors">
+                    {{ item.label }}
                   </a>
+                </div>
+
+                <div *ngIf="isEditMode" class="col-span-2 flex gap-1 justify-end">
+                  <button (click)="openMoveCardModal(card, cat.id, $event)"
+                    class="w-6 h-6 flex items-center justify-center text-blue-600 hover:text-blue-800" title="Déplacer">
+                    📁
+                  </button>
+                  <button (click)="hideOrDeleteCard(card, $event)"
+                    class="w-6 h-6 flex items-center justify-center text-red-500 hover:text-red-700" title="Supprimer">
+                    🗑️
+                  </button>
                 </div>
               </div>
 
-              <div class="px-3 py-2 bg-gray-50 border-t border-gray-100 flex justify-end">
-                <button (click)="openDetail(card, $event)"
-                  class="hover:bg-white hover:shadow-sm p-1.5 rounded transition-all flex items-center gap-1"
-                  title="Voir les notes">
-                  ✏️ <span class="text-xs text-gray-400">Notes</span>
-                </button>
+              <!-- MESSAGE SI CATÉGORIE VIDE -->
+              <div *ngIf="cat.cards.length === 0"
+                class="text-center py-8 text-gray-400 border-2 border-dashed border-gray-200 rounded-xl">
+                <p class="text-sm">Cette catégorie est vide</p>
               </div>
             </div>
 
-            <!-- MESSAGE SI CATÉGORIE VIDE -->
-            <div *ngIf="cat.cards.length === 0"
-              class="col-span-full text-center py-8 text-gray-400 border-2 border-dashed border-gray-200 rounded-xl">
-              <p class="text-sm">Cette catégorie est vide</p>
-              <button (click)="showAddModal = true" class="mt-2 text-blue-600 font-bold text-sm hover:underline">+
-                Ajouter une ressource</button>
-            </div>
+          </section>
         </div>
 
-        <!-- VUE LARGE -->
-        <div *ngIf="viewMode === 'LARGE'" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4">
-
-          <div *ngFor="let card of cat.cards" (click)="openDetail(card, $event)"
-            class="bg-white rounded-xl border border-gray-200 shadow-sm hover:shadow-lg hover:border-blue-300 hover:-translate-y-1 transition-all cursor-pointer p-4 flex flex-col items-center text-center relative group aspect-square justify-center">
-
-            <!-- ✅ BADGE TYPE -->
-            <span class="card-type-badge" [ngClass]="getBadgeClass(card.type)">
-              {{ getBadgeLabel(card.type) }}
-            </span>
-
-            <!-- Boutons en mode édition -->
-            <div *ngIf="isEditMode" class="absolute top-1 right-1 flex gap-1 z-20">
-              <button (click)="openMoveCardModal(card, cat.id, $event)"
-                class="w-6 h-6 flex items-center justify-center bg-blue-100 text-blue-600 rounded-full border border-blue-100"
-                title="Déplacer">
-                📁
-              </button>
-              <button (click)="hideOrDeleteCard(card, $event)"
-                class="w-6 h-6 flex items-center justify-center bg-red-100 text-red-600 rounded-full border border-red-100"
-                title="Supprimer">
-                🗑️
-              </button>
-            </div>
-
-            <div class="w-16 h-16 mb-3 flex items-center justify-center text-4xl">
-              <img *ngIf="card.logo" [src]="card.logo" class="w-full h-full object-contain">
-              <span *ngIf="!card.logo" class="text-4xl">🏢</span>
-            </div>
-            <span class="font-bold text-gray-800 text-sm leading-tight line-clamp-2">{{ card.titre }}</span>
-          </div>
-
-          <!-- MESSAGE SI CATÉGORIE VIDE -->
-          <div *ngIf="cat.cards.length === 0"
-            class="col-span-full text-center py-8 text-gray-400 border-2 border-dashed border-gray-200 rounded-xl">
-            <p class="text-sm">Cette catégorie est vide</p>
-          </div>
-        </div>
-
-        <!-- VUE TABLE -->
-        <div *ngIf="viewMode === 'TABLE'" class="flex flex-col gap-2">
-
-          <div *ngFor="let card of cat.cards" (click)="openDetail(card, $event)"
-            class="grid gap-4 items-center bg-white border border-gray-200 p-2 rounded-lg hover:border-blue-400 cursor-pointer transition-all relative"
-            [ngClass]="isEditMode ? 'grid-cols-12' : 'grid-cols-11'">
-
-            <div [ngClass]="isEditMode ? 'col-span-4' : 'col-span-5'" class="flex items-center gap-3">
-              <div class="w-8 h-8 rounded bg-gray-50 flex items-center justify-center text-lg">
-                <img *ngIf="card.logo" [src]="card.logo" class="w-full h-full object-contain">
-                <span *ngIf="!card.logo">🏢</span>
-              </div>
-              <span class="font-bold text-gray-700 text-sm">{{ card.titre }}</span>
-
-              <!-- ✅ BADGE TYPE (version petite pour le tableau) -->
-              <span class="card-type-badge-small" [ngClass]="getBadgeClass(card.type)">
-                {{ getBadgeLabel(card.type) }}
-              </span>
-            </div>
-
-            <div [ngClass]="isEditMode ? 'col-span-6' : 'col-span-6'" class="flex gap-2 flex-wrap">
-              <a *ngFor="let item of (card.items || [])" [href]="item.final_url" target="_blank"
-                (click)="$event.stopPropagation()"
-                class="px-2 py-1 bg-gray-100 rounded text-xs hover:bg-blue-600 hover:text-white transition-colors">
-                {{ item.label }}
-              </a>
-            </div>
-
-            <div *ngIf="isEditMode" class="col-span-2 flex gap-1 justify-end">
-              <button (click)="openMoveCardModal(card, cat.id, $event)"
-                class="w-6 h-6 flex items-center justify-center text-blue-600 hover:text-blue-800" title="Déplacer">
-                📁
-              </button>
-              <button (click)="hideOrDeleteCard(card, $event)"
-                class="w-6 h-6 flex items-center justify-center text-red-500 hover:text-red-700" title="Supprimer">
-                🗑️
-              </button>
-            </div>
-          </div>
-
-          <!-- MESSAGE SI CATÉGORIE VIDE -->
-          <div *ngIf="cat.cards.length === 0"
-            class="text-center py-8 text-gray-400 border-2 border-dashed border-gray-200 rounded-xl">
-            <p class="text-sm">Cette catégorie est vide</p>
-          </div>
-        </div>
-
-        </section>
       </div>
-
     </div>
-</div>
-</main>
+  </main>
 </div>
 
 <!-- BOUTON FLOTTANT + (✅ RENOMMÉ) -->
@@ -314,10 +331,11 @@
 </app-add-link-modal>
 
 <!-- MODALE DÉTAIL CARTE -->
-<app-card-detail *ngIf="openedCard" [card]="openedCard" (close)="closeDetail()" (refreshNeeded)="loadCategories()">
+<app-card-detail *ngIf="openedCard" [card]="openedCard" (close)="closeDetailAndRefresh()"
+  (cardUpdated)="onCardUpdated($event)">
 </app-card-detail>
 
-<!-- MODALE PIN -->
+<!-- MODAL PIN -->
 <app-pin-pad *ngIf="showPinPad" [title]="'Code de ' + selectedCollaborator?.first_name" (cancel)="showPinPad = false"
   (pinComplete)="onPinEntered($event)">
 </app-pin-pad>

@@ -185,10 +185,58 @@ class ResourceItemViewSet(viewsets.ModelViewSet):
     parser_classes = [parsers.MultiPartParser, parsers.FormParser]
 
     def get_queryset(self):
+        # L'utilisateur ne voit que ses propres items privés
         return ResourceItem.objects.filter(owner=self.request.user)
 
     def perform_create(self, serializer):
         serializer.save(owner=self.request.user)
+
+    def destroy(self, request, *args, **kwargs):
+        """
+        Suppression sécurisée : seul le propriétaire peut supprimer.
+        """
+        item = self.get_object()
+        
+        # Vérifier que l'item appartient bien à l'utilisateur
+        if item.owner != request.user:
+            return Response(
+                {"detail": "Vous ne pouvez pas supprimer cet item."},
+                status=status.HTTP_403_FORBIDDEN
+            )
+        
+        item_label = item.label
+        item.delete()
+        
+        return Response({
+            "detail": f"Item '{item_label}' supprimé."
+        }, status=status.HTTP_200_OK)
+
+    @action(detail=False, methods=['post'], url_path='reorder')
+    def reorder(self, request):
+        """
+        Réordonne les items d'une carte.
+        Attend un payload : { "items": [{"id": 1, "ordre": 0}, {"id": 2, "ordre": 1}] }
+        """
+        items_data = request.data.get('items', [])
+        
+        if not items_data:
+            return Response(
+                {"detail": "Le champ 'items' est requis."},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        # Mise à jour de l'ordre pour chaque item
+        for item_data in items_data:
+            item_id = item_data.get('id')
+            new_ordre = item_data.get('ordre')
+            
+            if item_id is not None and new_ordre is not None:
+                ResourceItem.objects.filter(
+                    id=item_id,
+                    owner=request.user  # Sécurité : seulement ses items
+                ).update(ordre=new_ordre)
+        
+        return Response({"detail": "Ordre mis à jour."}, status=status.HTTP_200_OK)
 
 
 # =====================================================
