@@ -8,6 +8,7 @@ from django.db.models import Prefetch, Q, Exists, OuterRef
 from django.utils.decorators import method_decorator
 from django.views.decorators.csrf import csrf_exempt
 from django.shortcuts import get_object_or_404
+from rest_framework import parsers
 
 from .models import Category, ResourceCard, ResourceItem, PharmacyPreference 
 from .serializers import (
@@ -141,9 +142,9 @@ class CategoryViewSet(viewsets.ModelViewSet):
 @method_decorator(csrf_exempt, name='dispatch')
 class ResourceCardViewSet(viewsets.ModelViewSet):
     serializer_class = ResourceCardSerializer
+    parser_classes = [parsers.MultiPartParser, parsers.FormParser, parsers.JSONParser]  # ✅ AJOUT JSONParser
     permission_classes = [IsAuthenticated]
     authentication_classes = [JWTAuthentication]
-    parser_classes = [parsers.MultiPartParser, parsers.FormParser]
 
     def get_queryset(self):
         return ResourceCard.objects.filter(owner_pharmacy=self.request.user, type='PRIVATE')
