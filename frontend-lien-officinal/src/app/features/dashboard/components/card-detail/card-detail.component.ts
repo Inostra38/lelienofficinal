@@ -66,7 +66,7 @@ export class CardDetailComponent implements OnInit {
     switch(cardType) {
       case 'PRIVATE': return 'Privée';
       case 'OFFICIAL': return 'Validé';
-      case 'PARTNER': return 'Officiel';
+      case 'PARTNER': return 'Partenaire';
       default: return '';
     }
   }

@@ -9,7 +9,6 @@ import { CollaboratorService, Collaborator } from '../../core/services/collabora
 import { PinPadComponent } from '../../shared/ui/pin-pad/pin-pad.component';
 import { SidebarComponent } from './components/sidebar/sidebar.component';
 import { HeaderComponent } from './components/header/header.component';
-import { AdSpaceComponent } from '../../shared/ui/ad-space/ad-space.component';
 import { AddLinkModalComponent } from '../../shared/ui/add-link-modal/add-link-modal.component';
 import { CardDetailComponent } from './components/card-detail/card-detail.component';
 import { CategoryAssignerModalComponent } from '../../shared/ui/category-assigner-modal/category-assigner-modal.component';
@@ -69,6 +68,7 @@ export class DashboardComponent implements OnInit {
   private collaboratorService = inject(CollaboratorService);
 
   showOnlyFavorites = false;
+  searchTerm: string = ''; // ✅ AJOUTÉ pour la recherche
 
   @ViewChild(PinPadComponent) pinPad!: PinPadComponent;
 
@@ -155,6 +155,7 @@ export class DashboardComponent implements OnInit {
     this.loadTeam();
     this.loadLibrary();
   }
+
   private updateDisplay() {
     const rawData: Category[] = JSON.parse(JSON.stringify(this.allCategories));
 
@@ -162,11 +163,6 @@ export class DashboardComponent implements OnInit {
       const nativeCards = category.cards || [];
       const adoptedCards = category.adopted_cards || [];
       let mergedCards = [...nativeCards, ...adoptedCards];
-
-
-      // affiché tous les favoris
-
-
 
       // ✅ Filtrer par favoris si activé
       if (this.showOnlyFavorites) {
@@ -179,7 +175,7 @@ export class DashboardComponent implements OnInit {
         ...category,
         cards: mergedCards
       };
-    }); // ✅ ON GARDE TOUTES LES CATÉGORIES (même vides)
+    });
   }
 
   // ============================================================
@@ -190,17 +186,34 @@ export class DashboardComponent implements OnInit {
     const favorites: ResourceCard[] = [];
 
     this.allCategories.forEach(cat => {
-      // Cartes natives favorites
       const nativeFavorites = (cat.cards || []).filter(card => card.is_favorite);
       favorites.push(...nativeFavorites);
 
-      // Cartes adoptées favorites
       const adoptedFavorites = (cat.adopted_cards || []).filter(card => card.is_favorite);
       favorites.push(...adoptedFavorites);
     });
 
-    // Tri alphabétique
-    return favorites.sort((a, b) => a.titre.localeCompare(b.titre));
+    // ✅ FILTRE PAR RECHERCHE SI NÉCESSAIRE
+    let filteredFavorites = favorites;
+    
+    if (this.searchTerm) {
+      filteredFavorites = favorites.filter(card => {
+        const titleMatch = (card.titre || '').toLowerCase().includes(this.searchTerm);
+        const descMatch = (card.description_officielle || '').toLowerCase().includes(this.searchTerm);
+        const partnerMatch = (card.partner?.nom || '').toLowerCase().includes(this.searchTerm);
+        const noteCourtMatch = (card.note_courte || '').toLowerCase().includes(this.searchTerm);
+        const noteLongueMatch = (card.note_longue || '').toLowerCase().includes(this.searchTerm);
+        const itemMatch = (card.items || []).some(item => {
+          const labelMatch = (item.label || '').toLowerCase().includes(this.searchTerm);
+          const urlMatch = (item.url || '').toLowerCase().includes(this.searchTerm);
+          return labelMatch || urlMatch;
+        });
+
+        return titleMatch || descMatch || partnerMatch || noteCourtMatch || noteLongueMatch || itemMatch;
+      });
+    }
+
+    return filteredFavorites.sort((a, b) => a.titre.localeCompare(b.titre));
   }
 
   toggleFavoritesFilter() {
@@ -213,35 +226,27 @@ export class DashboardComponent implements OnInit {
   }
 
   onSearch(term: string) {
-    term = term.toLowerCase().trim();
-    this.isSearching = !!term;
+    this.searchTerm = term.toLowerCase().trim(); // ✅ SAUVEGARDER le terme
+    this.isSearching = !!this.searchTerm;
 
-    if (!term) {
+    if (!this.searchTerm) {
       this.updateDisplay();
       return;
     }
 
+    // Mode normal : recherche dans les catégories
     this.displayedCategories = this.allCategories.map(cat => {
       const allCards = [...(cat.cards || []), ...(cat.adopted_cards || [])];
 
       const matchingCards = allCards.filter(card => {
-        // 1. Recherche dans le titre
-        const titleMatch = (card.titre || '').toLowerCase().includes(term);
-
-        // 2. Recherche dans la description
-        const descMatch = (card.description_officielle || '').toLowerCase().includes(term);
-
-        // 3. Recherche dans le nom du partenaire
-        const partnerMatch = (card.partner?.nom || '').toLowerCase().includes(term);
-
-        // 4. Recherche dans les notes
-        const noteCourtMatch = (card.note_courte || '').toLowerCase().includes(term);
-        const noteLongueMatch = (card.note_longue || '').toLowerCase().includes(term);
-
-        // 5. Recherche dans les items (label + URL)
+        const titleMatch = (card.titre || '').toLowerCase().includes(this.searchTerm);
+        const descMatch = (card.description_officielle || '').toLowerCase().includes(this.searchTerm);
+        const partnerMatch = (card.partner?.nom || '').toLowerCase().includes(this.searchTerm);
+        const noteCourtMatch = (card.note_courte || '').toLowerCase().includes(this.searchTerm);
+        const noteLongueMatch = (card.note_longue || '').toLowerCase().includes(this.searchTerm);
         const itemMatch = (card.items || []).some(item => {
-          const labelMatch = (item.label || '').toLowerCase().includes(term);
-          const urlMatch = (item.url || '').toLowerCase().includes(term);
+          const labelMatch = (item.label || '').toLowerCase().includes(this.searchTerm);
+          const urlMatch = (item.url || '').toLowerCase().includes(this.searchTerm);
           return labelMatch || urlMatch;
         });
 
@@ -251,13 +256,10 @@ export class DashboardComponent implements OnInit {
       return { ...cat, cards: matchingCards };
     }).filter(cat => cat.cards.length > 0);
 
-    // ✅ BONUS : Afficher aussi le nom des catégories qui matchent
-    // (même si elles n'ont pas de cartes matchantes)
     const categoryNameMatches = this.allCategories.filter(cat =>
-      (cat.nom || '').toLowerCase().includes(term)
+      (cat.nom || '').toLowerCase().includes(this.searchTerm)
     );
 
-    // Fusionner avec les résultats existants
     categoryNameMatches.forEach(catMatch => {
       if (!this.displayedCategories.find(c => c.id === catMatch.id)) {
         this.displayedCategories.push({ ...catMatch, cards: catMatch.cards || [] });
@@ -471,13 +473,11 @@ export class DashboardComponent implements OnInit {
 
           // ✅ MISE À JOUR DANS allCategories
           this.allCategories.forEach(cat => {
-            // Chercher dans les cartes natives
             const cardIndex = (cat.cards || []).findIndex(c => c.id === card.id);
             if (cardIndex !== -1) {
               cat.cards[cardIndex].is_favorite = response.is_favorite;
             }
 
-            // Chercher dans les cartes adoptées
             if (cat.adopted_cards) {
               const adoptedIndex = cat.adopted_cards.findIndex(c => c.id === card.id);
               if (adoptedIndex !== -1) {
@@ -490,7 +490,6 @@ export class DashboardComponent implements OnInit {
           this.updateDisplay();
         },
         error: (err) => {
-          // Rollback en cas d'erreur
           card.is_favorite = !card.is_favorite;
           console.error('Erreur toggle favori', err);
         }
@@ -510,30 +509,24 @@ export class DashboardComponent implements OnInit {
 
   closeDetailAndRefresh() {
     this.openedCard = null;
-    // ✅ Ne PLUS recharger depuis le serveur
-    // La mise à jour locale suffit
   }
 
   onCardUpdated(updatedCard: any) {
     console.log('🔄 Mise à jour locale de la carte:', updatedCard.id);
 
-    // 1. Mettre à jour la carte actuellement ouverte
     if (this.openedCard && this.openedCard.id === updatedCard.id) {
       Object.assign(this.openedCard, updatedCard);
     }
 
-    // 2. Mettre à jour dans allCategories
     let found = false;
 
     this.allCategories.forEach(cat => {
-      // Chercher dans les cartes natives
       const cardIndex = (cat.cards || []).findIndex(c => c.id === updatedCard.id);
       if (cardIndex !== -1) {
         cat.cards[cardIndex] = { ...cat.cards[cardIndex], ...updatedCard };
         found = true;
       }
 
-      // Chercher dans les cartes adoptées
       if (cat.adopted_cards) {
         const adoptedIndex = cat.adopted_cards.findIndex(c => c.id === updatedCard.id);
         if (adoptedIndex !== -1) {
@@ -543,7 +536,6 @@ export class DashboardComponent implements OnInit {
       }
     });
 
-    // 3. Forcer la mise à jour de l'affichage
     if (found) {
       this.updateDisplay();
     }
@@ -661,7 +653,7 @@ export class DashboardComponent implements OnInit {
     switch (cardType) {
       case 'PRIVATE': return 'Privée';
       case 'OFFICIAL': return 'Validé';
-      case 'PARTNER': return 'Officiel';
+      case 'PARTNER': return 'Partenaire';
       default: return '';
     }
   }
