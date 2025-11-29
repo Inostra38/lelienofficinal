@@ -13,7 +13,7 @@ import { AdSpaceComponent } from '../../../../shared/ui/ad-space/ad-space.compon
 export class SidebarComponent {
   @Input() activeCollaborator: Collaborator | null = null;
   @Input() team: Collaborator[] = []; // <--- NOUVEAU : On reçoit l'équipe
-  
+
   @Output() logout = new EventEmitter<void>();
   @Output() sessionClick = new EventEmitter<Collaborator>(); // <--- NOUVEAU : On prévient quand on clique sur qqn
 
@@ -23,4 +23,35 @@ export class SidebarComponent {
     { label: 'Planning', icon: '📅', active: false },
     { label: 'Commandes', icon: '📦', active: false },
   ];
+
+  // Menu Pharmacie
+  pharmacyName: string = 'Pharmacie des Lilas';
+  isPharmacyMenuOpen: boolean = false;
+
+  togglePharmacyMenu(): void {
+    this.isPharmacyMenuOpen = !this.isPharmacyMenuOpen;
+  }
+
+  onMenuItemClick(action: string): void {
+    this.isPharmacyMenuOpen = false;
+
+    switch(action) {
+      case 'account':
+        console.log('Navigation vers Compte');
+        // TODO: Implémenter la navigation vers la page compte
+        break;
+      case 'billing':
+        console.log('Navigation vers Facturation');
+        // TODO: Implémenter la navigation vers la page facturation
+        break;
+      case 'preferences':
+        console.log('Navigation vers Préférences');
+        // TODO: Implémenter la navigation vers la page préférences
+        break;
+      case 'logout':
+        console.log('Déconnexion demandée');
+        this.logout.emit();
+        break;
+    }
+  }
 }
