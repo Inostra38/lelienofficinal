@@ -67,7 +67,7 @@
       <div class="max-w-7xl mx-auto w-full pb-20">
 
         <!-- MESSAGE SI AUCUNE CATÉGORIE -->
-        <div *ngIf="displayedCategories.length === 0" class="text-center py-20">
+        <div *ngIf="displayedCategories.length === 0 && !showOnlyFavorites" class="text-center py-20">
           <div class="text-6xl mb-4">📂</div>
           <h3 class="text-xl font-bold text-gray-700 mb-2">Aucune catégorie</h3>
           <p class="text-gray-500 mb-6">Commencez par créer votre première catégorie pour organiser vos ressources.</p>
@@ -78,74 +78,26 @@
         </div>
 
         <div class="space-y-12">
-          <section *ngFor="let cat of displayedCategories">
 
-            <!-- HEADER CATÉGORIE AVEC RENOMMAGE ET RÉORDONNANCEMENT -->
-            <div class="flex items-center gap-3 mb-4 sticky top-0 bg-gray-50/95 backdrop-blur py-2 z-10">
-
-              <!-- MODE LECTURE : Affiche le nom -->
-              <h2 *ngIf="editingCategoryId !== cat.id"
-                class="text-lg font-bold text-gray-800 uppercase tracking-wide flex items-center gap-2">
-                <span class="bg-blue-100 text-blue-600 p-1 rounded-lg text-base">{{ cat.icon_slug || '📂' }}</span>
-                {{ cat.nom }}
+          <!-- ✅ MODE FAVORIS : Affichage plat sans catégories -->
+          <section *ngIf="showOnlyFavorites">
+            <div class="flex items-center gap-3 mb-6">
+              <h2 class="text-2xl font-bold text-gray-800 uppercase tracking-wide flex items-center gap-3">
+                <span class="bg-yellow-100 text-yellow-600 p-2 rounded-lg">⭐</span>
+                Mes Favoris
               </h2>
-
-              <!-- MODE ÉDITION DU NOM : Input inline -->
-              <div *ngIf="editingCategoryId === cat.id" class="flex items-center gap-2">
-                <span class="bg-blue-100 text-blue-600 p-1 rounded-lg text-base">{{ cat.icon_slug || '📂' }}</span>
-                <input type="text" [(ngModel)]="editingCategoryName" (keydown.enter)="saveRename(cat)"
-                  (keydown.escape)="cancelRename()"
-                  class="px-3 py-1 border-2 border-blue-500 rounded-lg text-lg font-bold uppercase focus:outline-none">
-                <button (click)="saveRename(cat)"
-                  class="p-1 bg-green-100 text-green-600 rounded-lg hover:bg-green-200">✓</button>
-                <button (click)="cancelRename()"
-                  class="p-1 bg-gray-100 text-gray-600 rounded-lg hover:bg-gray-200">✕</button>
-              </div>
-
               <div class="h-px bg-gray-200 flex-1"></div>
-
-              <!-- BOUTONS EN MODE ÉDITION -->
-              <div *ngIf="isEditMode && editingCategoryId !== cat.id" class="flex items-center gap-1">
-
-                <!-- Bouton Renommer -->
-                <button (click)="startRename(cat)"
-                  class="p-2 bg-blue-100 text-blue-600 rounded-lg hover:bg-blue-200 transition-colors" title="Renommer">
-                  ✏️
-                </button>
-
-                <!-- Bouton Monter -->
-                <button (click)="moveCategoryUp(cat)" [disabled]="isFirstCategory(cat)"
-                  class="p-2 rounded-lg transition-colors"
-                  [ngClass]="isFirstCategory(cat) ? 'bg-gray-100 text-gray-300 cursor-not-allowed' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'"
-                  title="Monter">
-                  ↑
-                </button>
-
-                <!-- Bouton Descendre -->
-                <button (click)="moveCategoryDown(cat)" [disabled]="isLastCategory(cat)"
-                  class="p-2 rounded-lg transition-colors"
-                  [ngClass]="isLastCategory(cat) ? 'bg-gray-100 text-gray-300 cursor-not-allowed' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'"
-                  title="Descendre">
-                  ↓
-                </button>
-
-                <!-- Bouton Supprimer -->
-                <button (click)="deleteCategory(cat)"
-                  class="p-2 bg-red-100 text-red-600 rounded-lg hover:bg-red-200 transition-colors" title="Supprimer">
-                  🗑️
-                </button>
-              </div>
             </div>
 
             <!-- VUE COMPACT -->
             <div *ngIf="viewMode === 'COMPACT'" class="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6">
 
-              <div *ngFor="let card of cat.cards" (click)="openDetail(card, $event)"
+              <div *ngFor="let card of getAllFavorites()" (click)="openDetail(card, $event)"
                 class="bg-white rounded-2xl border border-gray-200 shadow-sm hover:shadow-md transition-all duration-300 flex flex-col overflow-hidden group h-full cursor-pointer relative">
 
                 <!-- Boutons en mode édition -->
                 <div *ngIf="isEditMode" class="absolute top-2 right-2 flex gap-2 z-20">
-                  <button (click)="openMoveCardModal(card, cat.id, $event)"
+                  <button (click)="openMoveCardModal(card, 0, $event)"
                     class="w-8 h-8 flex items-center justify-center bg-blue-100 text-blue-600 rounded-full shadow-md hover:bg-blue-600 hover:text-white transition-colors"
                     title="Déplacer vers une autre catégorie">
                     📁
@@ -166,15 +118,14 @@
                   <div class="flex-1 min-w-0">
                     <div class="flex justify-between">
                       <h3 class="font-bold text-gray-800 truncate">{{ card.titre }}</h3>
-                      <button (click)="toggleFavorite(card, $event)" class="text-xl hover:text-yellow-400">{{
-                        card.is_favorite ? '⭐' : '☆' }}</button>
+                      <button (click)="toggleFavorite(card, $event)" class="text-xl hover:text-yellow-400">⭐</button>
                     </div>
-                    <!-- ✅ BADGE TYPE SOUS LE TITRE -->
                     <span class="card-type-badge-inline" [ngClass]="getBadgeClass(card.type)">
                       {{ getBadgeLabel(card.type) }}
                     </span>
                   </div>
                 </div>
+
                 <div class="px-4 pb-4 flex-1 flex flex-col mt-2">
                   <p *ngIf="card.description_officielle" class="text-xs text-gray-500 mb-2 line-clamp-2">{{
                     card.description_officielle }}</p>
@@ -209,29 +160,26 @@
                 </div>
               </div>
 
-              <!-- MESSAGE SI CATÉGORIE VIDE -->
-              <div *ngIf="cat.cards.length === 0"
-                class="col-span-full text-center py-8 text-gray-400 border-2 border-dashed border-gray-200 rounded-xl">
-                <p class="text-sm">Cette catégorie est vide</p>
-                <button (click)="showAddModal = true" class="mt-2 text-blue-600 font-bold text-sm hover:underline">+
-                  Ajouter une ressource</button>
+              <!-- MESSAGE SI AUCUN FAVORI -->
+              <div *ngIf="getAllFavorites().length === 0" class="col-span-full text-center py-20">
+                <div class="text-6xl mb-4">⭐</div>
+                <h3 class="text-xl font-bold text-gray-700 mb-2">Aucun favori</h3>
+                <p class="text-gray-500">Cliquez sur l'étoile d'une carte pour l'ajouter à vos favoris.</p>
               </div>
             </div>
-
             <!-- VUE LARGE -->
             <div *ngIf="viewMode === 'LARGE'"
               class="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 xl:grid-cols-7 gap-3">
 
-              <div *ngFor="let card of cat.cards" (click)="openDetail(card, $event)"
+              <div *ngFor="let card of getAllFavorites()" (click)="openDetail(card, $event)"
                 class="bg-white rounded-xl shadow-sm hover:shadow-lg transition-all border border-gray-100 cursor-pointer p-4 flex flex-col items-center gap-2 relative group">
-                <!-- ✅ BADGE TYPE -->
                 <span class="card-type-badge-compact mt-1" [ngClass]="getBadgeClass(card.type)">
                   {{ getBadgeLabel(card.type) }}
                 </span>
 
                 <!-- Boutons en mode édition -->
                 <div *ngIf="isEditMode" class="absolute top-1 right-1 flex gap-1 z-20">
-                  <button (click)="openMoveCardModal(card, cat.id, $event)"
+                  <button (click)="openMoveCardModal(card, 0, $event)"
                     class="w-6 h-6 flex items-center justify-center bg-blue-100 text-blue-600 rounded-full border border-blue-100"
                     title="Déplacer">
                     📁
@@ -250,17 +198,17 @@
                 <span class="font-bold text-gray-800 text-sm leading-tight line-clamp-2">{{ card.titre }}</span>
               </div>
 
-              <!-- MESSAGE SI CATÉGORIE VIDE -->
-              <div *ngIf="cat.cards.length === 0"
-                class="col-span-full text-center py-8 text-gray-400 border-2 border-dashed border-gray-200 rounded-xl">
-                <p class="text-sm">Cette catégorie est vide</p>
+              <!-- MESSAGE SI AUCUN FAVORI -->
+              <div *ngIf="getAllFavorites().length === 0" class="col-span-full text-center py-20">
+                <div class="text-6xl mb-4">⭐</div>
+                <h3 class="text-xl font-bold text-gray-700 mb-2">Aucun favori</h3>
               </div>
             </div>
 
             <!-- VUE TABLE -->
             <div *ngIf="viewMode === 'TABLE'" class="flex flex-col gap-2">
 
-              <div *ngFor="let card of cat.cards" (click)="openDetail(card, $event)"
+              <div *ngFor="let card of getAllFavorites()" (click)="openDetail(card, $event)"
                 class="grid gap-4 items-center bg-white border border-gray-200 p-2 rounded-lg hover:border-blue-400 cursor-pointer transition-all relative"
                 [ngClass]="isEditMode ? 'grid-cols-12' : 'grid-cols-11'">
 
@@ -271,7 +219,6 @@
                   </div>
                   <span class="font-bold text-gray-700 text-sm">{{ card.titre }}</span>
 
-                  <!-- ✅ BADGE TYPE (version petite pour le tableau) -->
                   <span class="card-type-badge-small" [ngClass]="getBadgeClass(card.type)">
                     {{ getBadgeLabel(card.type) }}
                   </span>
@@ -286,7 +233,7 @@
                 </div>
 
                 <div *ngIf="isEditMode" class="col-span-2 flex gap-1 justify-end">
-                  <button (click)="openMoveCardModal(card, cat.id, $event)"
+                  <button (click)="openMoveCardModal(card, 0, $event)"
                     class="w-6 h-6 flex items-center justify-center text-blue-600 hover:text-blue-800" title="Déplacer">
                     📁
                   </button>
@@ -297,21 +244,252 @@
                 </div>
               </div>
 
-              <!-- MESSAGE SI CATÉGORIE VIDE -->
-              <div *ngIf="cat.cards.length === 0"
-                class="text-center py-8 text-gray-400 border-2 border-dashed border-gray-200 rounded-xl">
-                <p class="text-sm">Cette catégorie est vide</p>
+              <!-- MESSAGE SI AUCUN FAVORI -->
+              <div *ngIf="getAllFavorites().length === 0" class="text-center py-20">
+                <div class="text-6xl mb-4">⭐</div>
+                <h3 class="text-xl font-bold text-gray-700 mb-2">Aucun favori</h3>
               </div>
             </div>
-
           </section>
+
+          <!-- ✅ MODE NORMAL : Affichage par catégories -->
+
+          <ng-container *ngIf="!showOnlyFavorites">
+            <section *ngFor="let cat of displayedCategories">
+
+              <!-- HEADER CATÉGORIE AVEC RENOMMAGE ET RÉORDONNANCEMENT -->
+              <div class="flex items-center gap-3 mb-4 sticky top-0 bg-gray-50/95 backdrop-blur py-2 z-10">
+
+                <!-- MODE LECTURE : Affiche le nom -->
+                <h2 *ngIf="editingCategoryId !== cat.id"
+                  class="text-lg font-bold text-gray-800 uppercase tracking-wide flex items-center gap-2">
+                  <span class="bg-blue-100 text-blue-600 p-1 rounded-lg text-base">{{ cat.icon_slug || '📂' }}</span>
+                  {{ cat.nom }}
+                </h2>
+
+                <!-- MODE ÉDITION DU NOM : Input inline -->
+                <div *ngIf="editingCategoryId === cat.id" class="flex items-center gap-2">
+                  <span class="bg-blue-100 text-blue-600 p-1 rounded-lg text-base">{{ cat.icon_slug || '📂' }}</span>
+                  <input type="text" [(ngModel)]="editingCategoryName" (keydown.enter)="saveRename(cat)"
+                    (keydown.escape)="cancelRename()"
+                    class="px-3 py-1 border-2 border-blue-500 rounded-lg text-lg font-bold uppercase focus:outline-none">
+                  <button (click)="saveRename(cat)"
+                    class="p-1 bg-green-100 text-green-600 rounded-lg hover:bg-green-200">✓</button>
+                  <button (click)="cancelRename()"
+                    class="p-1 bg-gray-100 text-gray-600 rounded-lg hover:bg-gray-200">✕</button>
+                </div>
+
+                <div class="h-px bg-gray-200 flex-1"></div>
+
+                <!-- BOUTONS EN MODE ÉDITION -->
+                <div *ngIf="isEditMode && editingCategoryId !== cat.id" class="flex items-center gap-1">
+
+                  <!-- Bouton Renommer -->
+                  <button (click)="startRename(cat)"
+                    class="p-2 bg-blue-100 text-blue-600 rounded-lg hover:bg-blue-200 transition-colors"
+                    title="Renommer">
+                    ✏️
+                  </button>
+
+                  <!-- Bouton Monter -->
+                  <button (click)="moveCategoryUp(cat)" [disabled]="isFirstCategory(cat)"
+                    class="p-2 rounded-lg transition-colors"
+                    [ngClass]="isFirstCategory(cat) ? 'bg-gray-100 text-gray-300 cursor-not-allowed' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'"
+                    title="Monter">
+                    ↑
+                  </button>
+
+                  <!-- Bouton Descendre -->
+                  <button (click)="moveCategoryDown(cat)" [disabled]="isLastCategory(cat)"
+                    class="p-2 rounded-lg transition-colors"
+                    [ngClass]="isLastCategory(cat) ? 'bg-gray-100 text-gray-300 cursor-not-allowed' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'"
+                    title="Descendre">
+                    ↓
+                  </button>
+
+                  <!-- Bouton Supprimer -->
+                  <button (click)="deleteCategory(cat)"
+                    class="p-2 bg-red-100 text-red-600 rounded-lg hover:bg-red-200 transition-colors" title="Supprimer">
+                    🗑️
+                  </button>
+                </div>
+              </div>
+
+              <!-- VUE COMPACT -->
+              <div *ngIf="viewMode === 'COMPACT'" class="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6">
+
+                <div *ngFor="let card of cat.cards" (click)="openDetail(card, $event)"
+                  class="bg-white rounded-2xl border border-gray-200 shadow-sm hover:shadow-md transition-all duration-300 flex flex-col overflow-hidden group h-full cursor-pointer relative">
+
+                  <!-- Boutons en mode édition -->
+                  <div *ngIf="isEditMode" class="absolute top-2 right-2 flex gap-2 z-20">
+                    <button (click)="openMoveCardModal(card, cat.id, $event)"
+                      class="w-8 h-8 flex items-center justify-center bg-blue-100 text-blue-600 rounded-full shadow-md hover:bg-blue-600 hover:text-white transition-colors"
+                      title="Déplacer vers une autre catégorie">
+                      📁
+                    </button>
+                    <button (click)="hideOrDeleteCard(card, $event)"
+                      class="w-8 h-8 flex items-center justify-center bg-red-100 text-red-600 rounded-full shadow-md hover:bg-red-600 hover:text-white transition-colors"
+                      title="Supprimer ou masquer la carte">
+                      🗑️
+                    </button>
+                  </div>
+
+                  <div class="p-4 pb-2 flex items-start gap-3 border-b border-gray-50/20 bg-gray-50/30">
+                    <div
+                      class="w-10 h-10 rounded-lg bg-white border border-gray-100 flex items-center justify-center shrink-0 shadow-sm p-1">
+                      <img *ngIf="card.logo" [src]="card.logo" class="w-full h-full object-contain">
+                      <span *ngIf="!card.logo" class="text-xl">🏢</span>
+                    </div>
+                    <div class="flex-1 min-w-0">
+                      <div class="flex justify-between">
+                        <h3 class="font-bold text-gray-800 truncate">{{ card.titre }}</h3>
+                        <button (click)="toggleFavorite(card, $event)" class="text-xl hover:text-yellow-400">{{
+                          card.is_favorite ? '⭐' : '☆' }}</button>
+                      </div>
+                      <span class="card-type-badge-inline" [ngClass]="getBadgeClass(card.type)">
+                        {{ getBadgeLabel(card.type) }}
+                      </span>
+                    </div>
+                  </div>
+                  <div class="px-4 pb-4 flex-1 flex flex-col mt-2">
+                    <p *ngIf="card.description_officielle" class="text-xs text-gray-500 mb-2 line-clamp-2">{{
+                      card.description_officielle }}</p>
+
+                    <!-- Note courte (mémo) -->
+                    <div *ngIf="card.note_courte" class="bg-yellow-50 border border-yellow-100 rounded-lg p-2 mb-2">
+                      <p class="text-xs text-yellow-800 line-clamp-2 flex items-start gap-1">
+                        <span>📌</span>
+                        <span>{{ card.note_courte }}</span>
+                      </p>
+                    </div>
+                    <div class="flex flex-col gap-1.5">
+                      <a *ngFor="let item of (card.items || [])" [href]="item.final_url" target="_blank"
+                        (click)="$event.stopPropagation()"
+                        class="flex items-center gap-2 p-1.5 rounded hover:bg-blue-50 transition-colors group/item">
+                        <span class="text-gray-400 text-xs w-5 text-center">
+                          <span *ngIf="item.type === 'WEB'">🌐</span>
+                          <span *ngIf="item.type === 'PDF'">📄</span>
+                        </span>
+                        <span class="text-sm text-gray-600 group-hover/item:text-blue-700 truncate">{{ item.label
+                          }}</span>
+                      </a>
+                    </div>
+                  </div>
+
+                  <div class="px-3 py-2 bg-gray-50 border-t border-gray-100 flex justify-end">
+                    <button (click)="openDetail(card, $event)"
+                      class="hover:bg-white hover:shadow-sm p-1.5 rounded transition-all flex items-center gap-1"
+                      title="Voir les notes">
+                      ✏️ <span class="text-xs text-gray-400">Notes</span>
+                    </button>
+                  </div>
+                </div>
+
+                <!-- MESSAGE SI CATÉGORIE VIDE -->
+                <div *ngIf="cat.cards.length === 0"
+                  class="col-span-full text-center py-8 text-gray-400 border-2 border-dashed border-gray-200 rounded-xl">
+                  <p class="text-sm">Cette catégorie est vide</p>
+                  <button (click)="showAddModal = true" class="mt-2 text-blue-600 font-bold text-sm hover:underline">+
+                    Ajouter une ressource</button>
+                </div>
+              </div>
+
+              <!-- VUE LARGE -->
+              <div *ngIf="viewMode === 'LARGE'"
+                class="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 xl:grid-cols-7 gap-3">
+
+                <div *ngFor="let card of cat.cards" (click)="openDetail(card, $event)"
+                  class="bg-white rounded-xl shadow-sm hover:shadow-lg transition-all border border-gray-100 cursor-pointer p-4 flex flex-col items-center gap-2 relative group">
+                  <span class="card-type-badge-compact mt-1" [ngClass]="getBadgeClass(card.type)">
+                    {{ getBadgeLabel(card.type) }}
+                  </span>
+
+                  <!-- Boutons en mode édition -->
+                  <div *ngIf="isEditMode" class="absolute top-1 right-1 flex gap-1 z-20">
+                    <button (click)="openMoveCardModal(card, cat.id, $event)"
+                      class="w-6 h-6 flex items-center justify-center bg-blue-100 text-blue-600 rounded-full border border-blue-100"
+                      title="Déplacer">
+                      📁
+                    </button>
+                    <button (click)="hideOrDeleteCard(card, $event)"
+                      class="w-6 h-6 flex items-center justify-center bg-red-100 text-red-600 rounded-full border border-red-100"
+                      title="Supprimer">
+                      🗑️
+                    </button>
+                  </div>
+
+                  <div class="w-16 h-16 mb-3 flex items-center justify-center text-4xl">
+                    <img *ngIf="card.logo" [src]="card.logo" class="w-full h-full object-contain">
+                    <span *ngIf="!card.logo" class="text-4xl">🏢</span>
+                  </div>
+                  <span class="font-bold text-gray-800 text-sm leading-tight line-clamp-2">{{ card.titre }}</span>
+                </div>
+
+                <!-- MESSAGE SI CATÉGORIE VIDE -->
+                <div *ngIf="cat.cards.length === 0"
+                  class="col-span-full text-center py-8 text-gray-400 border-2 border-dashed border-gray-200 rounded-xl">
+                  <p class="text-sm">Cette catégorie est vide</p>
+                </div>
+              </div>
+
+              <!-- VUE TABLE -->
+              <div *ngIf="viewMode === 'TABLE'" class="flex flex-col gap-2">
+
+                <div *ngFor="let card of cat.cards" (click)="openDetail(card, $event)"
+                  class="grid gap-4 items-center bg-white border border-gray-200 p-2 rounded-lg hover:border-blue-400 cursor-pointer transition-all relative"
+                  [ngClass]="isEditMode ? 'grid-cols-12' : 'grid-cols-11'">
+
+                  <div [ngClass]="isEditMode ? 'col-span-4' : 'col-span-5'" class="flex items-center gap-3">
+                    <div class="w-8 h-8 rounded bg-gray-50 flex items-center justify-center text-lg">
+                      <img *ngIf="card.logo" [src]="card.logo" class="w-full h-full object-contain">
+                      <span *ngIf="!card.logo">🏢</span>
+                    </div>
+                    <span class="font-bold text-gray-700 text-sm">{{ card.titre }}</span>
+
+                    <span class="card-type-badge-small" [ngClass]="getBadgeClass(card.type)">
+                      {{ getBadgeLabel(card.type) }}
+                    </span>
+                  </div>
+
+                  <div [ngClass]="isEditMode ? 'col-span-6' : 'col-span-6'" class="flex gap-2 flex-wrap">
+                    <a *ngFor="let item of (card.items || [])" [href]="item.final_url" target="_blank"
+                      (click)="$event.stopPropagation()"
+                      class="px-2 py-1 bg-gray-100 rounded text-xs hover:bg-blue-600 hover:text-white transition-colors">
+                      {{ item.label }}
+                    </a>
+                  </div>
+
+                  <div *ngIf="isEditMode" class="col-span-2 flex gap-1 justify-end">
+                    <button (click)="openMoveCardModal(card, cat.id, $event)"
+                      class="w-6 h-6 flex items-center justify-center text-blue-600 hover:text-blue-800"
+                      title="Déplacer">
+                      📁
+                    </button>
+                    <button (click)="hideOrDeleteCard(card, $event)"
+                      class="w-6 h-6 flex items-center justify-center text-red-500 hover:text-red-700"
+                      title="Supprimer">
+                      🗑️
+                    </button>
+                  </div>
+                </div>
+
+                <!-- MESSAGE SI CATÉGORIE VIDE -->
+                <div *ngIf="cat.cards.length === 0"
+                  class="text-center py-8 text-gray-400 border-2 border-dashed border-gray-200 rounded-xl">
+                  <p class="text-sm">Cette catégorie est vide</p>
+                </div>
+              </div>
+
+            </section>
+            </ng-container>
         </div>
       </div>
     </div>
   </main>
 </div>
 
-<!-- BOUTON FLOTTANT + (✅ RENOMMÉ) -->
+<!-- BOUTON FLOTTANT + -->
 <button *ngIf="!isEditMode" (click)="showAddModal = true"
   class="fixed bottom-8 right-8 w-16 h-16 bg-blue-600 hover:bg-blue-700 text-white rounded-full shadow-lg shadow-blue-200 flex items-center justify-center transition-all hover:scale-110 hover:-translate-y-1 z-30 group cursor-pointer">
   <span class="text-4xl leading-none font-light mb-1">+</span>

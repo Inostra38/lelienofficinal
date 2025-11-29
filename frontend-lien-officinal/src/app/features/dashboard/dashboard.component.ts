@@ -155,31 +155,53 @@ export class DashboardComponent implements OnInit {
     this.loadTeam();
     this.loadLibrary();
   }
-private updateDisplay() {
-  const rawData: Category[] = JSON.parse(JSON.stringify(this.allCategories));
+  private updateDisplay() {
+    const rawData: Category[] = JSON.parse(JSON.stringify(this.allCategories));
 
-  this.displayedCategories = rawData.map(category => {
-    const nativeCards = category.cards || [];
-    const adoptedCards = category.adopted_cards || [];
-    let mergedCards = [...nativeCards, ...adoptedCards];
-    
-    // ✅ Filtrer par favoris si activé
-    if (this.showOnlyFavorites) {
-      mergedCards = mergedCards.filter(card => card.is_favorite);
-    }
-    
-    mergedCards.sort((a, b) => a.titre.localeCompare(b.titre));
+    this.displayedCategories = rawData.map(category => {
+      const nativeCards = category.cards || [];
+      const adoptedCards = category.adopted_cards || [];
+      let mergedCards = [...nativeCards, ...adoptedCards];
 
-    return {
-      ...category,
-      cards: mergedCards
-    };
-  }); // ✅ ON GARDE TOUTES LES CATÉGORIES (même vides)
-}
+
+      // affiché tous les favoris
+
+
+
+      // ✅ Filtrer par favoris si activé
+      if (this.showOnlyFavorites) {
+        mergedCards = mergedCards.filter(card => card.is_favorite);
+      }
+
+      mergedCards.sort((a, b) => a.titre.localeCompare(b.titre));
+
+      return {
+        ...category,
+        cards: mergedCards
+      };
+    }); // ✅ ON GARDE TOUTES LES CATÉGORIES (même vides)
+  }
 
   // ============================================================
   // 2. GESTION DES VUES & RECHERCHE
   // ============================================================
+
+  getAllFavorites(): ResourceCard[] {
+    const favorites: ResourceCard[] = [];
+
+    this.allCategories.forEach(cat => {
+      // Cartes natives favorites
+      const nativeFavorites = (cat.cards || []).filter(card => card.is_favorite);
+      favorites.push(...nativeFavorites);
+
+      // Cartes adoptées favorites
+      const adoptedFavorites = (cat.adopted_cards || []).filter(card => card.is_favorite);
+      favorites.push(...adoptedFavorites);
+    });
+
+    // Tri alphabétique
+    return favorites.sort((a, b) => a.titre.localeCompare(b.titre));
+  }
 
   toggleFavoritesFilter() {
     this.showOnlyFavorites = !this.showOnlyFavorites;
@@ -438,42 +460,42 @@ private updateDisplay() {
   }
 
   toggleFavorite(card: ResourceCard, event: Event) {
-  event.stopPropagation();
+    event.stopPropagation();
 
-  card.is_favorite = !card.is_favorite;
+    card.is_favorite = !card.is_favorite;
 
-  this.http.post(`http://127.0.0.1:8000/api/cards/${card.id}/toggle-favorite/`, {})
-    .subscribe({
-      next: (response: any) => {
-        card.is_favorite = response.is_favorite;
-        
-        // ✅ MISE À JOUR DANS allCategories
-        this.allCategories.forEach(cat => {
-          // Chercher dans les cartes natives
-          const cardIndex = (cat.cards || []).findIndex(c => c.id === card.id);
-          if (cardIndex !== -1) {
-            cat.cards[cardIndex].is_favorite = response.is_favorite;
-          }
+    this.http.post(`http://127.0.0.1:8000/api/cards/${card.id}/toggle-favorite/`, {})
+      .subscribe({
+        next: (response: any) => {
+          card.is_favorite = response.is_favorite;
 
-          // Chercher dans les cartes adoptées
-          if (cat.adopted_cards) {
-            const adoptedIndex = cat.adopted_cards.findIndex(c => c.id === card.id);
-            if (adoptedIndex !== -1) {
-              cat.adopted_cards[adoptedIndex].is_favorite = response.is_favorite;
+          // ✅ MISE À JOUR DANS allCategories
+          this.allCategories.forEach(cat => {
+            // Chercher dans les cartes natives
+            const cardIndex = (cat.cards || []).findIndex(c => c.id === card.id);
+            if (cardIndex !== -1) {
+              cat.cards[cardIndex].is_favorite = response.is_favorite;
             }
-          }
-        });
 
-        // ✅ FORCER LE REFRESH DE L'AFFICHAGE
-        this.updateDisplay();
-      },
-      error: (err) => {
-        // Rollback en cas d'erreur
-        card.is_favorite = !card.is_favorite;
-        console.error('Erreur toggle favori', err);
-      }
-    });
-}
+            // Chercher dans les cartes adoptées
+            if (cat.adopted_cards) {
+              const adoptedIndex = cat.adopted_cards.findIndex(c => c.id === card.id);
+              if (adoptedIndex !== -1) {
+                cat.adopted_cards[adoptedIndex].is_favorite = response.is_favorite;
+              }
+            }
+          });
+
+          // ✅ FORCER LE REFRESH DE L'AFFICHAGE
+          this.updateDisplay();
+        },
+        error: (err) => {
+          // Rollback en cas d'erreur
+          card.is_favorite = !card.is_favorite;
+          console.error('Erreur toggle favori', err);
+        }
+      });
+  }
 
   openDetail(card: ResourceCard, event: Event) {
     event.preventDefault();
