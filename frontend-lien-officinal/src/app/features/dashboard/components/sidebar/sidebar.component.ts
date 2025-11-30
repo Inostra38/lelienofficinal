@@ -56,4 +56,12 @@ export class SidebarComponent {
         break;
     }
   }
+
+  getCollaboratorBgClass(color: string): string {
+    return `bg-${color}-500`;
+  }
+
+  getCollaboratorColorClasses(color: string): string {
+    return `bg-${color}-500 border border-${color}-600 hover:border-${color}-700`;
+  }
 }
