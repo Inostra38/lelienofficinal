@@ -1,0 +1,200 @@
+<div class="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+  <!-- En-tête de la section -->
+  <div class="px-6 py-4 border-b border-gray-200 bg-gradient-to-r from-blue-50 to-blue-100">
+    <div class="flex items-center gap-3">
+      <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
+      </svg>
+      <h2 class="text-lg font-bold text-gray-900">Informations de la pharmacie</h2>
+      <span *ngIf="hasUnsavedChanges" class="ml-auto text-xs bg-orange-100 text-orange-700 px-2 py-1 rounded-full font-medium">
+        Modifications non sauvegardées
+      </span>
+    </div>
+  </div>
+
+  <!-- Formulaire -->
+  <div class="p-6">
+    <form (ngSubmit)="savePharmacyInfo()" class="space-y-6">
+
+      <!-- Logo (optionnel) -->
+      <div class="pb-6 border-b border-gray-200">
+        <label class="block text-sm font-medium text-gray-700 mb-2">
+          Logo de la pharmacie (optionnel)
+        </label>
+        <div class="flex items-center gap-4">
+          <div class="w-20 h-20 rounded-lg bg-gradient-to-br from-blue-600 to-blue-700 flex items-center justify-center text-white font-bold text-2xl">
+            P
+          </div>
+          <div>
+            <label class="cursor-pointer inline-flex items-center gap-2 px-4 py-2 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors text-sm font-medium text-gray-700">
+              <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+              </svg>
+              Choisir un logo
+              <input type="file" (change)="onLogoUpload($event)" accept="image/*" class="hidden">
+            </label>
+            <p class="text-xs text-gray-500 mt-1">PNG ou JPG, max 2MB</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- Nom de la pharmacie -->
+      <div>
+        <label class="block text-sm font-medium text-gray-700 mb-2">
+          Nom de la pharmacie <span class="text-red-500">*</span>
+        </label>
+        <input type="text"
+               [(ngModel)]="pharmacyData.name"
+               name="name"
+               (ngModelChange)="onDataChange()"
+               required
+               class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all"
+               placeholder="Pharmacie des Lilas">
+      </div>
+
+      <!-- Adresse -->
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div class="md:col-span-2">
+          <label class="block text-sm font-medium text-gray-700 mb-2">
+            Adresse <span class="text-red-500">*</span>
+          </label>
+          <input type="text"
+                 [(ngModel)]="pharmacyData.address1"
+                 name="address1"
+                 (ngModelChange)="onDataChange()"
+                 required
+                 class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all"
+                 placeholder="12 Avenue des Fleurs">
+        </div>
+
+        <div class="md:col-span-2">
+          <label class="block text-sm font-medium text-gray-700 mb-2">
+            Complément d'adresse
+          </label>
+          <input type="text"
+                 [(ngModel)]="pharmacyData.address2"
+                 name="address2"
+                 (ngModelChange)="onDataChange()"
+                 class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all"
+                 placeholder="Bâtiment A, Étage 2">
+        </div>
+
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-2">
+            Code postal <span class="text-red-500">*</span>
+          </label>
+          <input type="text"
+                 [(ngModel)]="pharmacyData.postalCode"
+                 name="postalCode"
+                 (ngModelChange)="onDataChange()"
+                 required
+                 maxlength="5"
+                 class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all"
+                 placeholder="75020">
+        </div>
+
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-2">
+            Ville <span class="text-red-500">*</span>
+          </label>
+          <input type="text"
+                 [(ngModel)]="pharmacyData.city"
+                 name="city"
+                 (ngModelChange)="onDataChange()"
+                 required
+                 class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all"
+                 placeholder="Paris">
+        </div>
+
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-2">
+            Région <span class="text-red-500">*</span>
+          </label>
+          <input type="text"
+                 [(ngModel)]="pharmacyData.region"
+                 name="region"
+                 (ngModelChange)="onDataChange()"
+                 required
+                 class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all"
+                 placeholder="Île-de-France">
+        </div>
+
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-2">
+            Pays <span class="text-red-500">*</span>
+          </label>
+          <input type="text"
+                 [(ngModel)]="pharmacyData.country"
+                 name="country"
+                 (ngModelChange)="onDataChange()"
+                 required
+                 class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all"
+                 placeholder="France">
+        </div>
+      </div>
+
+      <!-- Informations légales -->
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-4 pt-4 border-t border-gray-200">
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-2">
+            Numéro de SIRET <span class="text-red-500">*</span>
+          </label>
+          <input type="text"
+                 [(ngModel)]="pharmacyData.siret"
+                 name="siret"
+                 (ngModelChange)="onDataChange()"
+                 required
+                 maxlength="14"
+                 class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all"
+                 placeholder="12345678901234">
+          <p class="text-xs text-gray-500 mt-1">14 chiffres</p>
+        </div>
+
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-2">
+            Numéro de TVA <span class="text-red-500">*</span>
+          </label>
+          <input type="text"
+                 [(ngModel)]="pharmacyData.vatNumber"
+                 name="vatNumber"
+                 (ngModelChange)="onDataChange()"
+                 required
+                 class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all"
+                 placeholder="FR12345678901">
+          <p class="text-xs text-gray-500 mt-1">Format européen (ex: FR12345678901)</p>
+        </div>
+      </div>
+
+      <!-- Type de pharmacie -->
+      <div class="pt-4 border-t border-gray-200">
+        <label class="block text-sm font-medium text-gray-700 mb-2">
+          Type de pharmacie <span class="text-red-500">*</span>
+        </label>
+        <select [(ngModel)]="pharmacyData.type"
+                name="type"
+                (ngModelChange)="onDataChange()"
+                required
+                class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all bg-white">
+          <option *ngFor="let type of pharmacyTypes" [value]="type.value">
+            {{ type.label }}
+          </option>
+        </select>
+        <p class="text-xs text-gray-500 mt-1">Utilisé pour le ciblage publicitaire</p>
+      </div>
+
+      <!-- Bouton d'enregistrement -->
+      <div class="flex justify-end pt-4 border-t border-gray-200">
+        <button type="submit"
+                [disabled]="!hasUnsavedChanges"
+                [class.opacity-50]="!hasUnsavedChanges"
+                [class.cursor-not-allowed]="!hasUnsavedChanges"
+                class="px-6 py-2.5 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg transition-colors flex items-center gap-2 disabled:hover:bg-blue-600">
+          <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
+          </svg>
+          Enregistrer les modifications
+        </button>
+      </div>
+    </form>
+  </div>
+</div>

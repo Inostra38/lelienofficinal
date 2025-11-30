@@ -1,5 +1,6 @@
 import { Component, EventEmitter, Input, Output } from '@angular/core';
 import { CommonModule } from '@angular/common';
+import { Router } from '@angular/router';
 import { Collaborator } from '../../../../core/services/collaborator.service';
 import { AdSpaceComponent } from '../../../../shared/ui/ad-space/ad-space.component';
 
@@ -16,6 +17,8 @@ export class SidebarComponent {
 
   @Output() logout = new EventEmitter<void>();
   @Output() sessionClick = new EventEmitter<Collaborator>(); // <--- NOUVEAU : On prévient quand on clique sur qqn
+
+  constructor(private router: Router) {}
 
   menuItems = [
     { label: 'Tableau de bord', icon: '🏠', active: true },
@@ -37,8 +40,7 @@ export class SidebarComponent {
 
     switch(action) {
       case 'account':
-        console.log('Navigation vers Compte');
-        // TODO: Implémenter la navigation vers la page compte
+        this.router.navigate(['/account']);
         break;
       case 'billing':
         console.log('Navigation vers Facturation');
