@@ -1,12 +1,24 @@
 import { Injectable, inject } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { Observable } from 'rxjs';
+import { environment } from '../../../environments/environment';
+
+export type MemberRole = 'Titulaire' | 'Adjoint' | 'Préparateur' | 'Étudiant' | 'Apprenti';
+export type MemberCivility = 'M.' | 'Mme' | 'Autre';
 
 export interface Collaborator {
-  id: number;
+  id?: number;
+  civility: MemberCivility;
   first_name: string;
   last_name: string;
-  role: string;
+  role: MemberRole;
+  color: string;
+  is_active?: boolean;
+  created_at?: string;
+}
+
+export interface CollaboratorCreate extends Collaborator {
+  pin: string;
 }
 
 @Injectable({
@@ -14,17 +26,26 @@ export interface Collaborator {
 })
 export class CollaboratorService {
   private http = inject(HttpClient);
-  // L'URL de ton API (maintenant qu'elle marche !)
-  private apiUrl = 'http://127.0.0.1:8000/api/team/';
+  private apiUrl = `${environment.apiUrl}/api/team`;
 
-  // Récupérer l'équipe
   getTeam(): Observable<Collaborator[]> {
-    return this.http.get<Collaborator[]>(this.apiUrl);
+    return this.http.get<Collaborator[]>(`${this.apiUrl}/`);
   }
 
-  // Vérifier le PIN
+  createCollaborator(data: CollaboratorCreate): Observable<Collaborator> {
+    return this.http.post<Collaborator>(`${this.apiUrl}/`, data);
+  }
+
+  updateCollaborator(id: number, data: Partial<Collaborator>): Observable<Collaborator> {
+    return this.http.patch<Collaborator>(`${this.apiUrl}/${id}/`, data);
+  }
+
+  deleteCollaborator(id: number): Observable<void> {
+    return this.http.delete<void>(`${this.apiUrl}/${id}/`);
+  }
+
   verifyPin(collaboratorId: number, pin: string): Observable<any> {
-    return this.http.post<any>(`${this.apiUrl}verify-pin/`, {
+    return this.http.post<any>(`${this.apiUrl}/verify-pin/`, {
       collaborator_id: collaboratorId,
       pin_code: pin
     });

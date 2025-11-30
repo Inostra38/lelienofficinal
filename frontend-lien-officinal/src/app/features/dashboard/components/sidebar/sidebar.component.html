@@ -33,7 +33,8 @@
 
         <div class="w-px h-8 bg-gray-100"></div>
 
-        <div class="w-9 h-9 rounded-full bg-green-500 text-white flex items-center justify-center font-bold text-xs shadow-sm tracking-widest uppercase shrink-0">
+        <div class="w-9 h-9 rounded-full text-white flex items-center justify-center font-bold text-xs shadow-sm tracking-widest uppercase shrink-0"
+             [ngClass]="getCollaboratorBgClass(activeCollaborator.color)">
           {{ activeCollaborator.first_name.charAt(0) }}{{ activeCollaborator.last_name.charAt(0) }}
         </div>
         
@@ -54,16 +55,17 @@
       <p class="text-xs font-bold text-gray-400 uppercase tracking-widest mb-3 text-center">Qui êtes-vous ?</p>
       
       <div class="grid grid-cols-4 gap-2">
-        <button *ngFor="let collab of team" 
+        <button *ngFor="let collab of team"
                 (click)="sessionClick.emit(collab)"
-                class="aspect-square rounded-xl bg-white border border-gray-200 hover:border-blue-500 hover:shadow-md transition-all active:scale-95 flex items-center justify-center group relative">
-          
-          <span class="text-xs font-bold text-gray-600 group-hover:text-blue-600 uppercase tracking-tight">
+                class="aspect-square rounded-xl hover:shadow-md transition-all active:scale-95 flex items-center justify-center group relative"
+                [ngClass]="getCollaboratorColorClasses(collab.color)">
+
+          <span class="text-xs font-bold uppercase tracking-tight text-white">
             {{ collab.first_name.charAt(0) }}{{ collab.last_name.charAt(0) }}
           </span>
-          
+
           <span class="absolute -top-8 left-1/2 -translate-x-1/2 bg-gray-800 text-white text-[10px] py-1 px-2 rounded opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none whitespace-nowrap z-50 shadow-lg">
-            {{ collab.first_name }} {{ collab.last_name }}
+            {{ collab.civility }} {{ collab.first_name }} {{ collab.last_name }}
           </span>
         </button>
 

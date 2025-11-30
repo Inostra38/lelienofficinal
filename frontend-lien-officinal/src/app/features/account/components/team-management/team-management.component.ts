@@ -1,9 +1,7 @@
-import { Component, OnInit } from '@angular/core';
+import { Component, OnInit, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-
-type MemberRole = 'Titulaire' | 'Adjoint' | 'Préparateur' | 'Étudiant' | 'Apprenti';
-type MemberCivility = 'M.' | 'Mme' | 'Autre';
+import { CollaboratorService, Collaborator, CollaboratorCreate, MemberRole, MemberCivility } from '../../../../core/services/collaborator.service';
 
 interface TeamMember {
   id: string;
@@ -29,7 +27,11 @@ interface ColorOption {
   styleUrl: './team-management.component.css'
 })
 export class TeamManagementComponent implements OnInit {
+  private collaboratorService = inject(CollaboratorService);
+
   teamMembers: TeamMember[] = [];
+  isLoading = false;
+  errorMessage = '';
 
   roles: { value: MemberRole; label: string }[] = [
     { value: 'Titulaire', label: 'Titulaire' },
@@ -96,36 +98,26 @@ export class TeamManagementComponent implements OnInit {
   }
 
   loadTeamMembers() {
-    // Mock data
-    this.teamMembers = [
-      {
-        id: '1',
-        civility: 'Mme',
-        firstName: 'Sophie',
-        lastName: 'Martin',
-        role: 'Titulaire',
-        pin: '1234', // Hashé en production
-        color: 'blue'
+    this.isLoading = true;
+    this.collaboratorService.getTeam().subscribe({
+      next: (collaborators: Collaborator[]) => {
+        this.teamMembers = collaborators.map(c => ({
+          id: c.id?.toString() || '',
+          civility: c.civility,
+          firstName: c.first_name,
+          lastName: c.last_name,
+          role: c.role,
+          pin: '',
+          color: c.color
+        }));
+        this.isLoading = false;
       },
-      {
-        id: '2',
-        civility: 'M.',
-        firstName: 'Pierre',
-        lastName: 'Dubois',
-        role: 'Adjoint',
-        pin: '5678',
-        color: 'green'
-      },
-      {
-        id: '3',
-        civility: 'Mme',
-        firstName: 'Marie',
-        lastName: 'Lefebvre',
-        role: 'Préparateur',
-        pin: '9012',
-        color: 'purple'
+      error: (error) => {
+        console.error('Erreur lors du chargement de l\'équipe:', error);
+        this.errorMessage = 'Impossible de charger l\'équipe';
+        this.isLoading = false;
       }
-    ];
+    });
   }
 
   get memberCount(): number {
@@ -186,27 +178,54 @@ export class TeamManagementComponent implements OnInit {
   }
 
   saveMember() {
+    this.isLoading = true;
+
     if (this.isEditMode && this.currentEditId) {
       // Mode édition
-      const index = this.teamMembers.findIndex(m => m.id === this.currentEditId);
-      if (index !== -1) {
-        this.teamMembers[index] = {
-          id: this.currentEditId,
-          ...this.formData
-        };
-      }
+      const updateData: Partial<Collaborator> = {
+        civility: this.formData.civility,
+        first_name: this.formData.firstName,
+        last_name: this.formData.lastName,
+        role: this.formData.role,
+        color: this.formData.color
+      };
+
+      this.collaboratorService.updateCollaborator(parseInt(this.currentEditId), updateData).subscribe({
+        next: () => {
+          this.loadTeamMembers();
+          this.closeModal();
+          this.isLoading = false;
+        },
+        error: (error) => {
+          console.error('Erreur lors de la mise à jour:', error);
+          this.errorMessage = 'Erreur lors de la mise à jour du collaborateur';
+          this.isLoading = false;
+        }
+      });
     } else {
       // Mode ajout
-      const newMember: TeamMember = {
-        id: Date.now().toString(),
-        ...this.formData
+      const createData: CollaboratorCreate = {
+        civility: this.formData.civility,
+        first_name: this.formData.firstName,
+        last_name: this.formData.lastName,
+        role: this.formData.role,
+        color: this.formData.color,
+        pin: this.formData.pin
       };
-      this.teamMembers.push(newMember);
-    }
 
-    // TODO: Sauvegarder via l'API
-    console.log('Saving member:', this.formData);
-    this.closeModal();
+      this.collaboratorService.createCollaborator(createData).subscribe({
+        next: () => {
+          this.loadTeamMembers();
+          this.closeModal();
+          this.isLoading = false;
+        },
+        error: (error) => {
+          console.error('Erreur lors de la création:', error);
+          this.errorMessage = 'Erreur lors de la création du collaborateur';
+          this.isLoading = false;
+        }
+      });
+    }
   }
 
   confirmDelete(id: string) {
@@ -221,11 +240,21 @@ export class TeamManagementComponent implements OnInit {
 
   deleteMember() {
     if (this.deleteTargetId) {
-      this.teamMembers = this.teamMembers.filter(m => m.id !== this.deleteTargetId);
-      // TODO: Supprimer via l'API
-      console.log('Deleted member:', this.deleteTargetId);
+      this.isLoading = true;
+      this.collaboratorService.deleteCollaborator(parseInt(this.deleteTargetId)).subscribe({
+        next: () => {
+          this.loadTeamMembers();
+          this.cancelDelete();
+          this.isLoading = false;
+        },
+        error: (error) => {
+          console.error('Erreur lors de la suppression:', error);
+          this.errorMessage = 'Erreur lors de la suppression du collaborateur';
+          this.isLoading = false;
+          this.cancelDelete();
+        }
+      });
     }
-    this.cancelDelete();
   }
 
   getColorClass(color: string): string {

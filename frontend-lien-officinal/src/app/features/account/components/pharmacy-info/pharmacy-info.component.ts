@@ -1,8 +1,9 @@
-import { Component, OnInit } from '@angular/core';
+import { Component, OnInit, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
+import { PharmacyService, PharmacyData } from '../../../../core/services/pharmacy.service';
 
-interface PharmacyData {
+interface PharmacyFormData {
   name: string;
   address1: string;
   address2: string;
@@ -24,7 +25,9 @@ interface PharmacyData {
   styleUrl: './pharmacy-info.component.css'
 })
 export class PharmacyInfoComponent implements OnInit {
-  pharmacyData: PharmacyData = {
+  private pharmacyService = inject(PharmacyService);
+
+  pharmacyData: PharmacyFormData = {
     name: '',
     address1: '',
     address2: '',
@@ -46,28 +49,39 @@ export class PharmacyInfoComponent implements OnInit {
 
   hasUnsavedChanges = false;
   initialData: string = '';
+  isLoading = false;
+  errorMessage = '';
 
   ngOnInit() {
-    // TODO: Charger les données depuis l'API
     this.loadPharmacyData();
-    this.initialData = JSON.stringify(this.pharmacyData);
   }
 
   loadPharmacyData() {
-    // Mock data pour la démo
-    this.pharmacyData = {
-      name: 'Pharmacie des Lilas',
-      address1: '12 Avenue des Fleurs',
-      address2: 'Bâtiment A',
-      postalCode: '75020',
-      city: 'Paris',
-      region: 'Île-de-France',
-      country: 'France',
-      siret: '12345678901234',
-      vatNumber: 'FR12345678901',
-      type: 'urbaine'
-    };
-    this.initialData = JSON.stringify(this.pharmacyData);
+    this.isLoading = true;
+    this.pharmacyService.getCurrentPharmacy().subscribe({
+      next: (data: PharmacyData) => {
+        this.pharmacyData = {
+          name: data.nom_officine,
+          address1: data.address1,
+          address2: data.address2,
+          postalCode: data.postal_code,
+          city: data.city,
+          region: data.region,
+          country: data.country,
+          siret: data.siret,
+          vatNumber: data.vat_number,
+          type: data.pharmacy_type,
+          logo: data.logo
+        };
+        this.initialData = JSON.stringify(this.pharmacyData);
+        this.isLoading = false;
+      },
+      error: (error) => {
+        console.error('Erreur lors du chargement des données:', error);
+        this.errorMessage = 'Impossible de charger les données de la pharmacie';
+        this.isLoading = false;
+      }
+    });
   }
 
   onDataChange() {
@@ -76,19 +90,49 @@ export class PharmacyInfoComponent implements OnInit {
   }
 
   savePharmacyInfo() {
-    // TODO: Sauvegarder les données via l'API
-    console.log('Saving pharmacy data:', this.pharmacyData);
-    this.initialData = JSON.stringify(this.pharmacyData);
-    this.hasUnsavedChanges = false;
-    // Afficher une notification de succès
+    this.isLoading = true;
+    const updateData = {
+      nom_officine: this.pharmacyData.name,
+      address1: this.pharmacyData.address1,
+      address2: this.pharmacyData.address2,
+      postal_code: this.pharmacyData.postalCode,
+      city: this.pharmacyData.city,
+      region: this.pharmacyData.region,
+      country: this.pharmacyData.country,
+      siret: this.pharmacyData.siret,
+      vat_number: this.pharmacyData.vatNumber,
+      pharmacy_type: this.pharmacyData.type
+    };
+
+    this.pharmacyService.updatePharmacy(updateData).subscribe({
+      next: (data) => {
+        console.log('Données sauvegardées avec succès:', data);
+        this.initialData = JSON.stringify(this.pharmacyData);
+        this.hasUnsavedChanges = false;
+        this.isLoading = false;
+      },
+      error: (error) => {
+        console.error('Erreur lors de la sauvegarde:', error);
+        this.errorMessage = 'Erreur lors de la sauvegarde des données';
+        this.isLoading = false;
+      }
+    });
   }
 
   onLogoUpload(event: Event) {
     const input = event.target as HTMLInputElement;
     if (input.files && input.files[0]) {
       const file = input.files[0];
-      // TODO: Upload du fichier et récupération de l'URL
-      console.log('Logo selected:', file.name);
+      this.pharmacyService.uploadLogo(file).subscribe({
+        next: (response) => {
+          console.log('Logo uploadé avec succès:', response);
+          this.loadPharmacyData();
+        },
+        error: (error) => {
+          console.error('Erreur lors de l\'upload du logo:', error);
+          this.errorMessage = 'Erreur lors de l\'upload du logo';
+        }
+      });
     }
   }
 }

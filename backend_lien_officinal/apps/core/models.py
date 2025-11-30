@@ -39,8 +39,36 @@ class Pharmacy(AbstractBaseUser, PermissionsMixin):
     email = models.EmailField(_('Adresse Email de connexion'), unique=True)
     nom_officine = models.CharField(_("Nom de l'Officine"), max_length=255)
     siret = models.CharField(_("Numéro SIRET"), max_length=14, unique=True, blank=True, null=True)
-    adresse = models.TextField(_("Adresse complète"), blank=True)
-    
+
+    # Adresse détaillée
+    address1 = models.CharField(_("Adresse ligne 1"), max_length=255, blank=True)
+    address2 = models.CharField(_("Complément d'adresse"), max_length=255, blank=True)
+    postal_code = models.CharField(_("Code postal"), max_length=10, blank=True)
+    city = models.CharField(_("Ville"), max_length=100, blank=True)
+    region = models.CharField(_("Région"), max_length=100, blank=True)
+    country = models.CharField(_("Pays"), max_length=100, default="France")
+
+    # Informations légales
+    vat_number = models.CharField(_("Numéro de TVA"), max_length=20, blank=True)
+
+    # Type de pharmacie
+    class PharmacyType(models.TextChoices):
+        URBAINE = 'urbaine', _('Urbaine')
+        RURALE = 'rurale', _('Rurale')
+        CENTRE_BOURG = 'centre-bourg', _('Centre Bourg')
+        CENTRE_COMMERCIAL = 'centre-commercial', _('Centre Commercial')
+
+    pharmacy_type = models.CharField(
+        _("Type de pharmacie"),
+        max_length=20,
+        choices=PharmacyType.choices,
+        default=PharmacyType.URBAINE,
+        blank=True
+    )
+
+    # Logo (optionnel)
+    logo = models.ImageField(_("Logo"), upload_to='pharmacy_logos/', blank=True, null=True)
+
     # Gestion Premium & Statut
     is_premium = models.BooleanField(_("Abonnement Premium"), default=False)
     is_active = models.BooleanField(default=True)
