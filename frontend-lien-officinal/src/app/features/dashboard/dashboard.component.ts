@@ -577,7 +577,7 @@ export class DashboardComponent implements OnInit {
   }
 
   onPinEntered(code: string) {
-    if (!this.selectedCollaborator) return;
+    if (!this.selectedCollaborator || !this.selectedCollaborator.id) return;
     this.collaboratorService.verifyPin(this.selectedCollaborator.id, code)
       .subscribe({
         next: () => {

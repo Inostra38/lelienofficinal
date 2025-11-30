@@ -43,7 +43,7 @@ INSTALLED_APPS = [
     'apps.team',           # Collaborateurs & PIN
     'apps.resources',      # Liens & Catégories
     'apps.partners',       # Pubs & Labos
-    'apps.notifications',  # Système de notifs
+    # 'apps.notifications',  # Système de notifs (TEMPORAIREMENT DÉSACTIVÉ)
 ]
 
 MIDDLEWARE = [

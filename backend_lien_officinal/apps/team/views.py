@@ -5,19 +5,36 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework_simplejwt.authentication import JWTAuthentication
 from django.shortcuts import get_object_or_404
 from .models import Collaborator
-from .serializers import CollaboratorSerializer, PinVerificationSerializer
+from .serializers import CollaboratorSerializer, CollaboratorCreateSerializer, PinVerificationSerializer
 
-class CollaboratorViewSet(viewsets.ReadOnlyModelViewSet):
+
+class CollaboratorViewSet(viewsets.ModelViewSet):
     """
-    Vue pour lister les collaborateurs de la pharmacie connectée.
+    Vue pour gérer les collaborateurs de la pharmacie connectée.
     """
     serializer_class = CollaboratorSerializer
     permission_classes = [IsAuthenticated]
-    authentication_classes = [JWTAuthentication] # On s'assure que seul le Token est utilisé
+    authentication_classes = [JWTAuthentication]
 
     def get_queryset(self):
         # Filtre de sécurité : ne renvoie que les collaborateurs de la pharmacie connectée.
         return Collaborator.objects.filter(pharmacy=self.request.user, is_active=True)
+
+    def get_serializer_class(self):
+        if self.action == 'create':
+            return CollaboratorCreateSerializer
+        return CollaboratorSerializer
+
+    def perform_create(self, serializer):
+        # Associe automatiquement le collaborateur à la pharmacie connectée
+        serializer.save(pharmacy=self.request.user)
+
+    def destroy(self, request, *args, **kwargs):
+        # Soft delete au lieu de supprimer complètement
+        instance = self.get_object()
+        instance.is_active = False
+        instance.save()
+        return Response(status=status.HTTP_204_NO_CONTENT)
 
     @action(detail=False, methods=['post'], url_path='verify-pin')
     def verify_pin(self, request):
