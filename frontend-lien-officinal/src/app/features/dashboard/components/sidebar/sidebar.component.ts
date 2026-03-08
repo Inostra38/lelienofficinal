@@ -1,8 +1,9 @@
-import { Component, EventEmitter, Input, Output } from '@angular/core';
+import { Component, EventEmitter, Input, Output, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { Router } from '@angular/router';
 import { Collaborator } from '../../../../core/services/collaborator.service';
 import { AdSpaceComponent } from '../../../../shared/ui/ad-space/ad-space.component';
+import { AuthService } from '../../../../core/auth/auth.service';
 
 @Component({
   selector: 'app-sidebar',
@@ -13,11 +14,12 @@ import { AdSpaceComponent } from '../../../../shared/ui/ad-space/ad-space.compon
 })
 export class SidebarComponent {
   @Input() activeCollaborator: Collaborator | null = null;
-  @Input() team: Collaborator[] = []; // <--- NOUVEAU : On reçoit l'équipe
+  @Input() team: Collaborator[] = [];
 
   @Output() logout = new EventEmitter<void>();
-  @Output() sessionClick = new EventEmitter<Collaborator>(); // <--- NOUVEAU : On prévient quand on clique sur qqn
+  @Output() sessionClick = new EventEmitter<Collaborator>();
 
+  private authService = inject(AuthService);
   constructor(private router: Router) {}
 
   menuItems = [
@@ -51,8 +53,7 @@ export class SidebarComponent {
         // TODO: Implémenter la navigation vers la page préférences
         break;
       case 'logout':
-        console.log('Déconnexion demandée');
-        this.logout.emit();
+        this.authService.logout();
         break;
     }
   }

@@ -21,6 +21,42 @@ from .serializers import (
 
 
 # =====================================================
+# ONBOARDING — INITIALISATION DES CATÉGORIES
+# =====================================================
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+@authentication_classes([JWTAuthentication])
+def init_categories(request):
+    """
+    Crée les catégories initiales choisies lors de l'onboarding.
+    Attend : { "categories": [{"nom": "...", "icon_slug": "..."}, ...] }
+    """
+    categories_data = request.data.get('categories', [])
+
+    if not categories_data:
+        return Response(
+            {'detail': 'Au moins une catégorie est requise.'},
+            status=status.HTTP_400_BAD_REQUEST
+        )
+
+    created = []
+    for index, cat in enumerate(categories_data):
+        nom = cat.get('nom', '').strip()
+        if not nom:
+            continue
+        category = Category.objects.create(
+            owner_pharmacy=request.user,
+            nom=nom,
+            icon_slug=cat.get('icon_slug', ''),
+            ordre=index
+        )
+        created.append({'id': category.id, 'nom': category.nom})
+
+    return Response({'created': created}, status=status.HTTP_201_CREATED)
+
+
+# =====================================================
 # CATÉGORIES (CRUD COMPLET)
 # =====================================================
 

@@ -1,0 +1,25 @@
+<div class="min-h-screen bg-gray-50 flex flex-col items-center justify-center p-4">
+
+  <!-- Progress bar -->
+  <div class="w-full max-w-md mb-8">
+    <div class="flex items-center justify-between mb-2">
+      <span class="text-sm text-gray-500">Étape {{ onboarding.currentStep() }} sur 3</span>
+    </div>
+    <div class="w-full bg-gray-200 rounded-full h-2">
+      <div
+        class="bg-green-600 h-2 rounded-full transition-all duration-300"
+        [style.width.%]="(onboarding.currentStep() / 3) * 100">
+      </div>
+    </div>
+  </div>
+
+  <!-- Steps -->
+  <div class="w-full max-w-md">
+    @switch (onboarding.currentStep()) {
+      @case (1) { <app-step1-account /> }
+      @case (2) { <app-step2-officine /> }
+      @case (3) { <app-step3-interests /> }
+    }
+  </div>
+
+</div>

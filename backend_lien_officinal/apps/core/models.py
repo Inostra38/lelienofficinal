@@ -72,6 +72,7 @@ class Pharmacy(AbstractBaseUser, PermissionsMixin):
     # Gestion Premium & Statut
     is_premium = models.BooleanField(_("Abonnement Premium"), default=False)
     is_active = models.BooleanField(default=True)
+    onboarding_completed = models.BooleanField(_("Onboarding complété"), default=False)
     is_staff = models.BooleanField(default=False) # Nécessaire pour accéder à l'admin Django
     date_joined = models.DateTimeField(default=timezone.now)
 

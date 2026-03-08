@@ -1,7 +1,7 @@
 import { Injectable, inject } from '@angular/core';
-import { HttpClient } from '@angular/common/http';
+import { HttpClient, HttpHeaders } from '@angular/common/http';
 import { Router } from '@angular/router';
-import { tap } from 'rxjs/operators';
+import { tap, switchMap } from 'rxjs/operators';
 
 @Injectable({
   providedIn: 'root'
@@ -9,32 +9,52 @@ import { tap } from 'rxjs/operators';
 export class AuthService {
   private http = inject(HttpClient);
   private router = inject(Router);
-  private apiUrl = 'http://127.0.0.1:8000/api/token/';
+  private baseUrl = 'http://127.0.0.1:8000/api';
   private tokenKey = 'access_token';
+  private onboardingKey = 'onboarding_completed';
 
-  // 1. Se connecter et stocker le token
   login(credentials: any) {
-    return this.http.post<any>(this.apiUrl, credentials).pipe(
+    return this.http.post<any>(`${this.baseUrl}/token/`, credentials).pipe(
       tap(response => {
         localStorage.setItem(this.tokenKey, response.access);
+      }),
+      switchMap(() => {
+        const headers = new HttpHeaders({ Authorization: `Bearer ${this.getToken()}` });
+        return this.http.get<any>(`${this.baseUrl}/pharmacy/me/`, { headers });
+      }),
+      tap(profile => {
+        localStorage.setItem(this.onboardingKey, profile.onboarding_completed ? 'true' : 'false');
       })
     );
   }
 
-  // 2. Se déconnecter (On jette le token et on renvoie au login)
+  register(data: { email: string; password: string; password_confirm: string }) {
+    return this.http.post<any>(`${this.baseUrl}/auth/register/`, data).pipe(
+      tap(response => {
+        localStorage.setItem(this.tokenKey, response.access);
+        localStorage.setItem(this.onboardingKey, 'false');
+      })
+    );
+  }
+
   logout() {
     localStorage.removeItem(this.tokenKey);
+    localStorage.removeItem(this.onboardingKey);
     this.router.navigate(['/login']);
   }
 
-  // 3. Est-ce qu'on est connecté ? (Vérification simple)
   isAuthenticated(): boolean {
-    const token = localStorage.getItem(this.tokenKey);
-    // Plus tard, on vérifiera l'expiration du token ici
-    return !!token; 
+    return !!localStorage.getItem(this.tokenKey);
   }
 
-  // 4. Récupérer le token (pour les requêtes API futures)
+  isOnboardingCompleted(): boolean {
+    return localStorage.getItem(this.onboardingKey) === 'true';
+  }
+
+  setOnboardingCompleted() {
+    localStorage.setItem(this.onboardingKey, 'true');
+  }
+
   getToken(): string | null {
     return localStorage.getItem(this.tokenKey);
   }
