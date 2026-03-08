@@ -1,8 +1,8 @@
 import { Component, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { Router, RouterLink } from '@angular/router';
-import { AuthService } from '../../core/auth/auth.service'; // <-- Import
+import { Router, RouterLink, ActivatedRoute } from '@angular/router';
+import { AuthService } from '../../core/auth/auth.service';
 
 @Component({
   selector: 'app-login',
@@ -12,8 +12,9 @@ import { AuthService } from '../../core/auth/auth.service'; // <-- Import
   styleUrl: './login.component.css'
 })
 export class LoginComponent {
-  private authService = inject(AuthService); // On utilise le service
+  private authService = inject(AuthService);
   private router = inject(Router);
+  private route = inject(ActivatedRoute);
 
   email = '';
   password = '';
@@ -29,8 +30,8 @@ export class LoginComponent {
 
     this.authService.login(credentials).subscribe({
       next: () => {
-        // ✅ Succès : On part vers le dashboard sécurisé
-        this.router.navigate(['/dashboard']);
+        const returnUrl = this.route.snapshot.queryParams['returnUrl'] || '/dashboard';
+        this.router.navigateByUrl(returnUrl);
       },
       error: (err) => {
         console.error(err);

@@ -1,12 +1,16 @@
 <div class="flex h-screen bg-gray-50 overflow-hidden">
 
-  <app-sidebar [team]="team" [activeCollaborator]="activeSessionCollaborator" (sessionClick)="openSession($event)"
+  <app-sidebar [team]="team" [activeCollaborator]="activeSessionCollaborator"
+    [unreadMessagesCount]="unreadMessagesCount"
+    [unseenTasksCount]="unseenTasksCount"
+    [pharmacyName]="pharmacyName"
+    (sessionClick)="openSession($event)"
     (logout)="closeCollaboratorSession()">
   </app-sidebar>
 
   <main class="flex-1 flex flex-col h-screen overflow-hidden relative">
 
-    <app-header (searchChange)="onSearch($event)"></app-header>
+    <app-header [pharmacyName]="pharmacyName" (searchChange)="onSearch($event)"></app-header>
 
     <div class="px-8 pt-6 flex justify-between items-center shrink-0">
 
@@ -27,20 +31,20 @@
 
         <!-- BOUTONS DE VUE -->
         <div class="flex bg-white p-1 rounded-lg border border-gray-200 shadow-sm">
-          <button (click)="setViewMode('COMPACT')"
-            class="px-3 py-1.5 rounded-md text-sm font-medium transition-all flex items-center gap-2"
-            [ngClass]="viewMode === 'COMPACT' ? 'bg-blue-50 text-blue-600 shadow-sm ring-1 ring-blue-100' : 'text-gray-500 hover:bg-gray-50'">
-            <span>🗂️</span> <span class="hidden sm:inline">Compact</span>
-          </button>
           <button (click)="setViewMode('LARGE')"
             class="px-3 py-1.5 rounded-md text-sm font-medium transition-all flex items-center gap-2"
-            [ngClass]="viewMode === 'LARGE' ? 'bg-blue-50 text-blue-600 shadow-sm ring-1 ring-blue-100' : 'text-gray-500 hover:bg-gray-50'">
+            [ngClass]="viewMode === 'LARGE' ? 'bg-green-50 text-green-700 shadow-sm ring-1 ring-green-100' : 'text-gray-500 hover:bg-gray-50'">
             <span>🖼️</span> <span class="hidden sm:inline">Icônes</span>
           </button>
           <button (click)="setViewMode('TABLE')"
             class="px-3 py-1.5 rounded-md text-sm font-medium transition-all flex items-center gap-2"
-            [ngClass]="viewMode === 'TABLE' ? 'bg-blue-50 text-blue-600 shadow-sm ring-1 ring-blue-100' : 'text-gray-500 hover:bg-gray-50'">
+            [ngClass]="viewMode === 'TABLE' ? 'bg-green-50 text-green-700 shadow-sm ring-1 ring-green-100' : 'text-gray-500 hover:bg-gray-50'">
             <span>☰</span> <span class="hidden sm:inline">Liste</span>
+          </button>
+          <button (click)="setViewMode('COMPACT')"
+            class="px-3 py-1.5 rounded-md text-sm font-medium transition-all flex items-center gap-2"
+            [ngClass]="viewMode === 'COMPACT' ? 'bg-green-50 text-green-700 shadow-sm ring-1 ring-green-100' : 'text-gray-500 hover:bg-gray-50'">
+            <span>🗂️</span> <span class="hidden sm:inline">Compact</span>
           </button>
         </div>
       </div>
@@ -72,7 +76,7 @@
           <h3 class="text-xl font-bold text-gray-700 mb-2">Aucune catégorie</h3>
           <p class="text-gray-500 mb-6">Commencez par créer votre première catégorie pour organiser vos ressources.</p>
           <button (click)="showAddModal = true"
-            class="px-6 py-3 bg-blue-600 text-white rounded-xl font-bold hover:bg-blue-700 transition-colors">
+            class="px-6 py-3 bg-green-700 text-white rounded-xl font-bold hover:bg-green-800 transition-colors">
             + Créer une catégorie
           </button>
         </div>
@@ -98,7 +102,7 @@
                 <!-- Boutons en mode édition -->
                 <div *ngIf="isEditMode" class="absolute top-2 right-2 flex gap-2 z-20">
                   <button (click)="openMoveCardModal(card, 0, $event)"
-                    class="w-8 h-8 flex items-center justify-center bg-blue-100 text-blue-600 rounded-full shadow-md hover:bg-blue-600 hover:text-white transition-colors"
+                    class="w-8 h-8 flex items-center justify-center bg-green-50 text-green-700 rounded-full shadow-md hover:bg-green-700 hover:text-white transition-colors"
                     title="Déplacer vers une autre catégorie">
                     📁
                   </button>
@@ -140,12 +144,12 @@
                   <div class="flex flex-col gap-1.5">
                     <a *ngFor="let item of (card.items || [])" [href]="item.final_url" target="_blank"
                       (click)="$event.stopPropagation()"
-                      class="flex items-center gap-2 p-1.5 rounded hover:bg-blue-50 transition-colors group/item">
+                      class="flex items-center gap-2 p-1.5 rounded hover:bg-green-50 transition-colors group/item">
                       <span class="text-gray-400 text-xs w-5 text-center">
                         <span *ngIf="item.type === 'WEB'">🌐</span>
                         <span *ngIf="item.type === 'PDF'">📄</span>
                       </span>
-                      <span class="text-sm text-gray-600 group-hover/item:text-blue-700 truncate">{{ item.label
+                      <span class="text-sm text-gray-600 group-hover/item:text-green-700 truncate">{{ item.label
                         }}</span>
                     </a>
                   </div>
@@ -180,7 +184,7 @@
                 <!-- Boutons en mode édition -->
                 <div *ngIf="isEditMode" class="absolute top-1 right-1 flex gap-1 z-20">
                   <button (click)="openMoveCardModal(card, 0, $event)"
-                    class="w-6 h-6 flex items-center justify-center bg-blue-100 text-blue-600 rounded-full border border-blue-100"
+                    class="w-6 h-6 flex items-center justify-center bg-green-50 text-green-700 rounded-full border border-green-100"
                     title="Déplacer">
                     📁
                   </button>
@@ -209,7 +213,7 @@
             <div *ngIf="viewMode === 'TABLE'" class="flex flex-col gap-2">
 
               <div *ngFor="let card of getAllFavorites()" (click)="openDetail(card, $event)"
-                class="grid gap-4 items-center bg-white border border-gray-200 p-2 rounded-lg hover:border-blue-400 cursor-pointer transition-all relative"
+                class="grid gap-4 items-center bg-white border border-gray-200 p-2 rounded-lg hover:border-green-400 cursor-pointer transition-all relative"
                 [ngClass]="isEditMode ? 'grid-cols-12' : 'grid-cols-11'">
 
                 <div [ngClass]="isEditMode ? 'col-span-4' : 'col-span-5'" class="flex items-center gap-3">
@@ -227,14 +231,14 @@
                 <div [ngClass]="isEditMode ? 'col-span-6' : 'col-span-6'" class="flex gap-2 flex-wrap">
                   <a *ngFor="let item of (card.items || [])" [href]="item.final_url" target="_blank"
                     (click)="$event.stopPropagation()"
-                    class="px-2 py-1 bg-gray-100 rounded text-xs hover:bg-blue-600 hover:text-white transition-colors">
+                    class="px-2 py-1 bg-gray-100 rounded text-xs hover:bg-green-700 hover:text-white transition-colors">
                     {{ item.label }}
                   </a>
                 </div>
 
                 <div *ngIf="isEditMode" class="col-span-2 flex gap-1 justify-end">
                   <button (click)="openMoveCardModal(card, 0, $event)"
-                    class="w-6 h-6 flex items-center justify-center text-blue-600 hover:text-blue-800" title="Déplacer">
+                    class="w-6 h-6 flex items-center justify-center text-green-700 hover:text-green-900" title="Déplacer">
                     📁
                   </button>
                   <button (click)="hideOrDeleteCard(card, $event)"
@@ -263,16 +267,16 @@
                 <!-- MODE LECTURE : Affiche le nom -->
                 <h2 *ngIf="editingCategoryId !== cat.id"
                   class="text-lg font-bold text-gray-800 uppercase tracking-wide flex items-center gap-2">
-                  <span class="bg-blue-100 text-blue-600 p-1 rounded-lg text-base">{{ cat.icon_slug || '📂' }}</span>
+                  <span class="bg-green-50 text-green-700 p-1 rounded-lg text-base">{{ cat.icon_slug || '📂' }}</span>
                   {{ cat.nom }}
                 </h2>
 
                 <!-- MODE ÉDITION DU NOM : Input inline -->
                 <div *ngIf="editingCategoryId === cat.id" class="flex items-center gap-2">
-                  <span class="bg-blue-100 text-blue-600 p-1 rounded-lg text-base">{{ cat.icon_slug || '📂' }}</span>
+                  <span class="bg-green-50 text-green-700 p-1 rounded-lg text-base">{{ cat.icon_slug || '📂' }}</span>
                   <input type="text" [(ngModel)]="editingCategoryName" (keydown.enter)="saveRename(cat)"
                     (keydown.escape)="cancelRename()"
-                    class="px-3 py-1 border-2 border-blue-500 rounded-lg text-lg font-bold uppercase focus:outline-none">
+                    class="px-3 py-1 border-2 border-green-500 rounded-lg text-lg font-bold uppercase focus:outline-none">
                   <button (click)="saveRename(cat)"
                     class="p-1 bg-green-100 text-green-600 rounded-lg hover:bg-green-200">✓</button>
                   <button (click)="cancelRename()"
@@ -286,7 +290,7 @@
 
                   <!-- Bouton Renommer -->
                   <button (click)="startRename(cat)"
-                    class="p-2 bg-blue-100 text-blue-600 rounded-lg hover:bg-blue-200 transition-colors"
+                    class="p-2 bg-green-50 text-green-700 rounded-lg hover:bg-green-100 transition-colors"
                     title="Renommer">
                     ✏️
                   </button>
@@ -324,7 +328,7 @@
                   <!-- Boutons en mode édition -->
                   <div *ngIf="isEditMode" class="absolute top-2 right-2 flex gap-2 z-20">
                     <button (click)="openMoveCardModal(card, cat.id, $event)"
-                      class="w-8 h-8 flex items-center justify-center bg-blue-100 text-blue-600 rounded-full shadow-md hover:bg-blue-600 hover:text-white transition-colors"
+                      class="w-8 h-8 flex items-center justify-center bg-green-50 text-green-700 rounded-full shadow-md hover:bg-green-700 hover:text-white transition-colors"
                       title="Déplacer vers une autre catégorie">
                       📁
                     </button>
@@ -366,12 +370,12 @@
                     <div class="flex flex-col gap-1.5">
                       <a *ngFor="let item of (card.items || [])" [href]="item.final_url" target="_blank"
                         (click)="$event.stopPropagation()"
-                        class="flex items-center gap-2 p-1.5 rounded hover:bg-blue-50 transition-colors group/item">
+                        class="flex items-center gap-2 p-1.5 rounded hover:bg-green-50 transition-colors group/item">
                         <span class="text-gray-400 text-xs w-5 text-center">
                           <span *ngIf="item.type === 'WEB'">🌐</span>
                           <span *ngIf="item.type === 'PDF'">📄</span>
                         </span>
-                        <span class="text-sm text-gray-600 group-hover/item:text-blue-700 truncate">{{ item.label
+                        <span class="text-sm text-gray-600 group-hover/item:text-green-700 truncate">{{ item.label
                           }}</span>
                       </a>
                     </div>
@@ -390,7 +394,7 @@
                 <div *ngIf="cat.cards.length === 0"
                   class="col-span-full text-center py-8 text-gray-400 border-2 border-dashed border-gray-200 rounded-xl">
                   <p class="text-sm">Cette catégorie est vide</p>
-                  <button (click)="showAddModal = true" class="mt-2 text-blue-600 font-bold text-sm hover:underline">+
+                  <button (click)="showAddModal = true" class="mt-2 text-green-700 font-bold text-sm hover:underline">+
                     Ajouter une ressource</button>
                 </div>
               </div>
@@ -408,7 +412,7 @@
                   <!-- Boutons en mode édition -->
                   <div *ngIf="isEditMode" class="absolute top-1 right-1 flex gap-1 z-20">
                     <button (click)="openMoveCardModal(card, cat.id, $event)"
-                      class="w-6 h-6 flex items-center justify-center bg-blue-100 text-blue-600 rounded-full border border-blue-100"
+                      class="w-6 h-6 flex items-center justify-center bg-green-50 text-green-700 rounded-full border border-green-100"
                       title="Déplacer">
                       📁
                     </button>
@@ -437,7 +441,7 @@
               <div *ngIf="viewMode === 'TABLE'" class="flex flex-col gap-2">
 
                 <div *ngFor="let card of cat.cards" (click)="openDetail(card, $event)"
-                  class="grid gap-4 items-center bg-white border border-gray-200 p-2 rounded-lg hover:border-blue-400 cursor-pointer transition-all relative"
+                  class="grid gap-4 items-center bg-white border border-gray-200 p-2 rounded-lg hover:border-green-400 cursor-pointer transition-all relative"
                   [ngClass]="isEditMode ? 'grid-cols-12' : 'grid-cols-11'">
 
                   <div [ngClass]="isEditMode ? 'col-span-4' : 'col-span-5'" class="flex items-center gap-3">
@@ -455,14 +459,14 @@
                   <div [ngClass]="isEditMode ? 'col-span-6' : 'col-span-6'" class="flex gap-2 flex-wrap">
                     <a *ngFor="let item of (card.items || [])" [href]="item.final_url" target="_blank"
                       (click)="$event.stopPropagation()"
-                      class="px-2 py-1 bg-gray-100 rounded text-xs hover:bg-blue-600 hover:text-white transition-colors">
+                      class="px-2 py-1 bg-gray-100 rounded text-xs hover:bg-green-700 hover:text-white transition-colors">
                       {{ item.label }}
                     </a>
                   </div>
 
                   <div *ngIf="isEditMode" class="col-span-2 flex gap-1 justify-end">
                     <button (click)="openMoveCardModal(card, cat.id, $event)"
-                      class="w-6 h-6 flex items-center justify-center text-blue-600 hover:text-blue-800"
+                      class="w-6 h-6 flex items-center justify-center text-green-700 hover:text-green-900"
                       title="Déplacer">
                       📁
                     </button>
@@ -491,7 +495,7 @@
 
 <!-- BOUTON FLOTTANT + -->
 <button *ngIf="!isEditMode" (click)="showAddModal = true"
-  class="fixed bottom-8 right-8 w-16 h-16 bg-blue-600 hover:bg-blue-700 text-white rounded-full shadow-lg shadow-blue-200 flex items-center justify-center transition-all hover:scale-110 hover:-translate-y-1 z-30 group cursor-pointer">
+  class="fixed bottom-8 right-8 w-16 h-16 bg-green-700 hover:bg-green-800 text-white rounded-full shadow-lg shadow-green-200 flex items-center justify-center transition-all hover:scale-110 hover:-translate-y-1 z-30 group cursor-pointer">
   <span class="text-4xl leading-none font-light mb-1">+</span>
 </button>
 
@@ -513,9 +517,15 @@
 </app-card-detail>
 
 <!-- MODAL PIN -->
-<app-pin-pad *ngIf="showPinPad" [title]="'Code de ' + selectedCollaborator?.first_name" (cancel)="showPinPad = false"
-  (pinComplete)="onPinEntered($event)">
-</app-pin-pad>
+<app-pin-modal
+  *ngIf="showPinModal && pendingCollaborator"
+  [collaboratorId]="pendingCollaborator.id!"
+  [collaboratorName]="pendingCollaborator.first_name + ' ' + pendingCollaborator.last_name"
+  [collaboratorRole]="pendingCollaborator.role"
+  mode="switch"
+  (pinValidated)="onPinValidated()"
+  (cancelled)="onPinCancelled()">
+</app-pin-modal>
 
 <!-- MODALE DÉPLACEMENT DE CARTE -->
 <app-move-card-modal *ngIf="cardToMove" [categories]="allCategories" [card]="cardToMove"

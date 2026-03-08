@@ -187,7 +187,8 @@ export class TeamManagementComponent implements OnInit {
         first_name: this.formData.firstName,
         last_name: this.formData.lastName,
         role: this.formData.role,
-        color: this.formData.color
+        color: this.formData.color,
+        ...(this.formData.pin ? { pin: this.formData.pin } : {})
       };
 
       this.collaboratorService.updateCollaborator(parseInt(this.currentEditId), updateData).subscribe({

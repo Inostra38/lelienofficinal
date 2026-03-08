@@ -13,6 +13,8 @@ urlpatterns = [
     path('api/', include('apps.resources.urls')),
     path('api/', include('apps.team.urls')),
     path('api/', include('apps.partners.urls')),
+    path('api/', include('apps.messaging.urls')),
+    path('api/', include('apps.tasks.urls')),
 
     # Auth
     path('api/token/', TokenObtainPairView.as_view(), name='token_obtain_pair'),

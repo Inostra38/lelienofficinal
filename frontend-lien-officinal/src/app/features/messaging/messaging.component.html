@@ -1,0 +1,192 @@
+<div class="flex h-screen bg-gray-50 overflow-hidden">
+
+  <!-- ── Sidebar gauche navigation (même style que dashboard) ── -->
+  <aside class="w-16 bg-white border-r border-gray-200 flex flex-col items-center py-4 gap-4 shrink-0 z-20">
+
+    <!-- Logo -->
+    <div class="w-9 h-9 bg-green-700 rounded-lg flex items-center justify-center text-white font-bold text-sm">L</div>
+
+    <div class="w-full h-px bg-gray-100"></div>
+
+    <!-- Retour dashboard -->
+    <button (click)="goToDashboard()"
+            class="w-10 h-10 rounded-xl flex items-center justify-center text-gray-400 hover:text-gray-700 hover:bg-gray-100 transition-colors"
+            title="Tableau de bord">
+      <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l9-9 9 9M5 10v10a1 1 0 001 1h4v-5h4v5h4a1 1 0 001-1V10" />
+      </svg>
+    </button>
+
+    <!-- Messagerie (actif) -->
+    <button class="w-10 h-10 rounded-xl flex items-center justify-center bg-green-50 text-green-700"
+            title="Messagerie">
+      <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
+      </svg>
+    </button>
+
+    <div class="flex-1"></div>
+
+    <!-- Déconnexion -->
+    <button (click)="logout()"
+            class="w-10 h-10 rounded-xl flex items-center justify-center text-gray-300 hover:text-red-500 hover:bg-red-50 transition-colors"
+            title="Déconnexion">
+      <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+      </svg>
+    </button>
+  </aside>
+
+  <!-- ── Sélecteur de collaborateur (overlay) ── -->
+  <div *ngIf="showCollaboratorPicker"
+       class="absolute inset-0 z-50 bg-white/80 backdrop-blur-sm flex items-center justify-center">
+    <div class="bg-white rounded-2xl shadow-2xl border border-gray-100 p-8 w-full max-w-sm mx-4">
+      <h2 class="text-lg font-bold text-gray-800 mb-1">Messagerie d'équipe</h2>
+      <p class="text-sm text-gray-400 mb-6">Qui êtes-vous pour cette session ?</p>
+
+      <div class="grid grid-cols-3 gap-3">
+        <button *ngFor="let collab of team"
+                (click)="selectCollaborator(collab)"
+                class="flex flex-col items-center gap-2 p-3 rounded-xl border border-gray-100 hover:border-green-300 hover:bg-green-50 transition-all group">
+          <div class="w-10 h-10 rounded-full text-white flex items-center justify-center font-bold text-sm"
+               [ngClass]="getCollaboratorBgClass(collab.color)">
+            {{ getInitials(collab) }}
+          </div>
+          <span class="text-xs text-gray-600 font-medium text-center leading-tight">
+            {{ collab.first_name }}
+          </span>
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── Layout principal ── -->
+  <div class="flex flex-1 overflow-hidden relative">
+
+    <!-- ── Overlay verrouillage automatique ── -->
+    <div *ngIf="isLocked"
+         class="absolute inset-0 z-40 backdrop-blur-xl bg-white/30 flex items-center justify-center">
+      <div class="bg-white rounded-2xl shadow-2xl border border-gray-100 p-8 w-full max-w-sm mx-4 text-center">
+
+        <div class="w-14 h-14 rounded-2xl bg-amber-50 flex items-center justify-center mx-auto mb-5">
+          <svg xmlns="http://www.w3.org/2000/svg" class="h-7 w-7 text-amber-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/>
+          </svg>
+        </div>
+
+        <h2 class="font-bold text-gray-800 text-lg mb-1">Session verrouillée</h2>
+        <p class="text-sm text-gray-400 mb-1">Inactivité détectée</p>
+        <p class="font-semibold text-gray-700 mb-6">
+          {{ activeCollaborator?.first_name }} {{ activeCollaborator?.last_name }}
+          <span class="text-xs font-normal text-gray-400 ml-1">({{ activeCollaborator?.role }})</span>
+        </p>
+
+        <!-- Ouvrir modal PIN pour déverrouiller -->
+        <button (click)="showPinModal = true"
+                class="w-full bg-green-700 hover:bg-green-800 text-white font-semibold py-2.5 rounded-xl transition-colors mb-3">
+          Entrer le PIN
+        </button>
+
+        <!-- Changer d'utilisateur -->
+        <button (click)="changeCollaborator()"
+                class="w-full text-sm text-gray-400 hover:text-gray-600 py-2 transition-colors">
+          Changer d'utilisateur
+        </button>
+      </div>
+    </div>
+
+    <!-- Colonne gauche : liste des conversations (30%) -->
+    <div class="w-80 shrink-0 bg-white border-r border-gray-100 flex flex-col overflow-hidden">
+
+      <!-- Collaborateur actif -->
+      <div *ngIf="activeCollaborator"
+           class="px-4 py-2.5 border-b border-gray-50 flex items-center gap-2.5 bg-green-50/60">
+        <button (click)="changeCollaborator()"
+                class="w-7 h-7 flex items-center justify-center rounded-lg text-gray-400 hover:text-red-600 hover:bg-red-50 transition-colors shrink-0"
+                title="Fermer la session">
+          <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+          </svg>
+        </button>
+        <div class="w-7 h-7 rounded-full text-white flex items-center justify-center text-xs font-bold shrink-0"
+             [ngClass]="getCollaboratorBgClass(activeCollaborator.color)">
+          {{ getInitials(activeCollaborator) }}
+        </div>
+        <div class="flex-1 min-w-0">
+          <p class="text-xs font-semibold text-gray-700 truncate">
+            {{ activeCollaborator.first_name }} {{ activeCollaborator.last_name }}
+          </p>
+          <p class="text-[10px] text-green-600 font-medium flex items-center gap-1">
+            <span class="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse"></span> En ligne
+          </p>
+        </div>
+      </div>
+
+      <!-- Liste des fils -->
+      <app-conversation-list
+        class="flex-1 overflow-hidden flex flex-col"
+        [conversations]="conversations"
+        [selectedId]="selectedConversation?.id ?? null"
+        [loading]="loadingConversations"
+        (selected)="onConversationSelected($event)"
+        (newConversation)="onNewConversation()">
+      </app-conversation-list>
+    </div>
+
+    <!-- Colonne droite : détail de la conversation (70%) -->
+    <div class="flex-1 flex flex-col overflow-hidden">
+
+      <!-- État vide -->
+      <div *ngIf="!selectedConversation"
+           class="flex-1 flex flex-col items-center justify-center text-center px-8">
+        <div class="w-20 h-20 rounded-2xl bg-gray-50 flex items-center justify-center mb-4">
+          <svg xmlns="http://www.w3.org/2000/svg" class="h-10 w-10 text-gray-200" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
+          </svg>
+        </div>
+        <h3 class="text-base font-semibold text-gray-400 mb-1">Aucune conversation sélectionnée</h3>
+        <p class="text-sm text-gray-300">Sélectionnez une conversation ou créez-en une nouvelle</p>
+        <button (click)="onNewConversation()"
+                class="mt-5 flex items-center gap-2 bg-green-700 hover:bg-green-800 text-white text-sm font-semibold px-4 py-2 rounded-lg transition-colors">
+          <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 4v16m8-8H4" />
+          </svg>
+          Nouveau fil
+        </button>
+      </div>
+
+      <!-- Détail conversation -->
+      <app-conversation-detail
+        *ngIf="selectedConversation"
+        class="flex-1 flex flex-col overflow-hidden"
+        [conversation]="selectedConversation"
+        [activeCollaboratorId]="activeCollaborator?.id ?? null"
+        (deleted)="onConversationDeleted()">
+      </app-conversation-detail>
+
+    </div>
+  </div>
+
+  <!-- ── Dialog nouveau fil ── -->
+  <app-new-conversation-dialog
+    *ngIf="showNewConversationDialog"
+    [teamMembers]="team"
+    [activeCollaboratorId]="activeCollaborator?.id ?? null"
+    (created)="onConversationCreated($event)"
+    (cancelled)="showNewConversationDialog = false">
+  </app-new-conversation-dialog>
+
+  <!-- ── Modal PIN (switch ou unlock) ── -->
+  <app-pin-modal
+    *ngIf="showPinModal && (pendingCollaborator || (isLocked && activeCollaborator))"
+    [collaboratorId]="(isLocked ? activeCollaborator?.id : pendingCollaborator?.id)!"
+    [collaboratorName]="isLocked
+      ? (activeCollaborator?.first_name + ' ' + activeCollaborator?.last_name)
+      : (pendingCollaborator?.first_name + ' ' + pendingCollaborator?.last_name)"
+    [collaboratorRole]="(isLocked ? activeCollaborator?.role : pendingCollaborator?.role) ?? ''"
+    [mode]="isLocked ? 'unlock' : 'switch'"
+    (pinValidated)="onPinValidated()"
+    (cancelled)="onPinCancelled()">
+  </app-pin-modal>
+
+</div>

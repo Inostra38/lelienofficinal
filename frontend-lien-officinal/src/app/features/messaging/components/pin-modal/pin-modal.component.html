@@ -1,0 +1,65 @@
+<div class="fixed inset-0 z-50 flex items-center justify-center p-4">
+
+  <!-- Fond semi-transparent -->
+  <div class="absolute inset-0 bg-black/40" (click)="mode === 'switch' && cancelled.emit()"></div>
+
+  <!-- Carte modale -->
+  <div class="relative bg-white rounded-2xl shadow-2xl border border-gray-100 p-8 w-full max-w-sm">
+
+    <!-- Icône verrou -->
+    <div class="flex justify-center mb-5">
+      <div class="w-14 h-14 rounded-2xl flex items-center justify-center"
+           [ngClass]="mode === 'unlock' ? 'bg-amber-50' : 'bg-green-50'">
+        <svg xmlns="http://www.w3.org/2000/svg" class="h-7 w-7"
+             [ngClass]="mode === 'unlock' ? 'text-amber-500' : 'text-green-600'"
+             fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/>
+        </svg>
+      </div>
+    </div>
+
+    <!-- Titre -->
+    <h2 class="text-center font-bold text-gray-800 text-lg mb-1">{{ title }}</h2>
+    <p class="text-center text-sm text-gray-400 mb-1">{{ subtitle }}</p>
+
+    <!-- Nom + rôle -->
+    <p class="text-center font-semibold text-gray-700 mb-6">
+      {{ collaboratorName }}
+      <span class="text-xs font-normal text-gray-400 ml-1">({{ collaboratorRole }})</span>
+    </p>
+
+    <!-- 4 cases PIN -->
+    <div class="flex justify-center gap-3 mb-4"
+         [class.animate-shake]="shake">
+      <input *ngFor="let slot of slots; let i = index; trackBy: trackBySlot"
+             #pinInput
+             type="password"
+             inputmode="numeric"
+             maxlength="1"
+             [disabled]="submitting || blocked"
+             (keydown)="onKeyDown(i, $event)"
+             (paste)="onPaste($event)"
+             class="w-12 h-14 text-center text-xl font-bold border-2 rounded-xl outline-none transition-colors
+                    focus:border-green-500 focus:ring-2 focus:ring-green-200
+                    disabled:bg-gray-50 disabled:text-gray-300 border-gray-200 bg-gray-50" />
+    </div>
+
+    <!-- Erreur -->
+    <p *ngIf="error" class="text-center text-sm text-red-500 mb-4">{{ error }}</p>
+
+    <!-- Loader -->
+    <div *ngIf="submitting" class="flex justify-center mb-4">
+      <div class="w-5 h-5 border-2 border-green-600 border-t-transparent rounded-full animate-spin"></div>
+    </div>
+
+    <!-- Bouton annuler (switch uniquement) -->
+    <div *ngIf="mode === 'switch'" class="flex gap-2 mt-2">
+      <button (click)="cancelled.emit()"
+              class="flex-1 py-2.5 rounded-xl border border-gray-200 text-sm text-gray-500 hover:bg-gray-50 transition-colors">
+        Annuler
+      </button>
+    </div>
+
+  </div>
+</div>

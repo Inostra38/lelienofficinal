@@ -1,0 +1,103 @@
+<div class="flex flex-col h-full">
+
+  <!-- Header -->
+  <div class="px-4 py-4 border-b border-gray-100 shrink-0">
+    <div class="flex items-center justify-between mb-3">
+      <h2 class="text-sm font-bold text-gray-700 uppercase tracking-widest">Messagerie</h2>
+      <button (click)="newConversation.emit()"
+              class="flex items-center gap-1.5 bg-green-700 hover:bg-green-800 text-white text-xs font-semibold px-3 py-1.5 rounded-lg transition-colors">
+        <svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 4v16m8-8H4" />
+        </svg>
+        Nouveau
+      </button>
+    </div>
+
+    <!-- Recherche -->
+    <div class="relative">
+      <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-4.35-4.35M17 11A6 6 0 1 1 5 11a6 6 0 0 1 12 0z"/>
+      </svg>
+      <input [(ngModel)]="searchTerm"
+             (ngModelChange)="onSearch()"
+             type="text"
+             placeholder="Rechercher un fil..."
+             class="w-full pl-9 pr-3 py-2 text-sm bg-gray-50 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-300 focus:border-green-400 transition" />
+    </div>
+  </div>
+
+  <!-- Liste -->
+  <div class="flex-1 overflow-y-auto">
+
+    <!-- Chargement -->
+    <div *ngIf="loading" class="flex justify-center items-center h-24">
+      <div class="w-5 h-5 border-2 border-green-600 border-t-transparent rounded-full animate-spin"></div>
+    </div>
+
+    <!-- Vide -->
+    <div *ngIf="!loading && filtered.length === 0" class="flex flex-col items-center justify-center h-40 text-center px-4">
+      <svg xmlns="http://www.w3.org/2000/svg" class="h-10 w-10 text-gray-200 mb-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
+      </svg>
+      <p class="text-sm text-gray-400">
+        {{ searchTerm ? 'Aucun fil trouvé' : 'Aucune conversation' }}
+      </p>
+      <p *ngIf="!searchTerm" class="text-xs text-gray-300 mt-1">Créez votre premier fil</p>
+    </div>
+
+    <!-- Fils -->
+    <div *ngFor="let conv of filtered"
+         (click)="select(conv)"
+         class="px-4 py-3.5 border-b border-gray-50 cursor-pointer transition-colors relative"
+         [ngClass]="conv.id === selectedId
+           ? 'bg-green-50 border-l-[3px] border-l-green-600'
+           : 'hover:bg-gray-50 border-l-[3px] border-l-transparent'">
+
+      <div class="flex items-start gap-3">
+
+        <!-- Avatar du créateur -->
+        <div class="w-9 h-9 rounded-full bg-green-100 text-green-700 flex items-center justify-center text-xs font-bold shrink-0 mt-0.5">
+          {{ getInitials(conv.created_by?.full_name ?? '?') }}
+        </div>
+
+        <div class="flex-1 min-w-0">
+          <div class="flex items-center justify-between gap-2">
+            <!-- Sujet -->
+            <p class="text-sm font-semibold text-gray-800 truncate"
+               [ngClass]="conv.unread_count > 0 ? 'font-bold' : ''">
+              {{ conv.subject }}
+            </p>
+            <!-- Date -->
+            <span class="text-[11px] text-gray-400 shrink-0">
+              {{ formatDate(conv.updated_at) }}
+            </span>
+          </div>
+
+          <div class="flex items-center justify-between mt-0.5">
+            <!-- Aperçu dernier message -->
+            <p class="text-xs text-gray-400 truncate">
+              <span *ngIf="conv.last_message" class="font-medium text-gray-500">{{ conv.last_message.sender }} : </span>
+              {{ conv.last_message?.content || 'Aucun message' }}
+            </p>
+            <!-- Badge non lus -->
+            <span *ngIf="conv.unread_count > 0"
+                  class="ml-2 shrink-0 bg-green-600 text-white text-[10px] font-bold w-5 h-5 rounded-full flex items-center justify-center">
+              {{ conv.unread_count > 9 ? '9+' : conv.unread_count }}
+            </span>
+          </div>
+
+          <!-- Participants -->
+          <div class="flex items-center gap-1 mt-1">
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-3 w-3 text-gray-300" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0" />
+            </svg>
+            <span class="text-[11px] text-gray-300">
+              {{ conv.participants.length }} participant{{ conv.participants.length > 1 ? 's' : '' }}
+            </span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>

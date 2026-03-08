@@ -1,12 +1,17 @@
-import { Component, inject, OnInit, ViewChild } from '@angular/core';
+import { Component, inject, OnInit, OnDestroy } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { HttpClient } from '@angular/common/http';
+import { Subscription, interval, Subject } from 'rxjs';
+import { startWith, switchMap, takeUntil } from 'rxjs/operators';
 
 import { AuthService } from '../../core/auth/auth.service';
 import { CollaboratorService, Collaborator } from '../../core/services/collaborator.service';
+import { MessagingService } from '../../core/services/messaging.service';
+import { PharmacyService } from '../../core/services/pharmacy.service';
+import { TaskService } from '../../core/services/task.service';
 
-import { PinPadComponent } from '../../shared/ui/pin-pad/pin-pad.component';
+import { PinModalComponent } from '../messaging/components/pin-modal/pin-modal.component';
 import { SidebarComponent } from './components/sidebar/sidebar.component';
 import { HeaderComponent } from './components/header/header.component';
 import { AddLinkModalComponent } from '../../shared/ui/add-link-modal/add-link-modal.component';
@@ -51,7 +56,7 @@ export interface Category {
   imports: [
     CommonModule,
     FormsModule,
-    PinPadComponent,
+    PinModalComponent,
     SidebarComponent,
     HeaderComponent,
     CardDetailComponent,
@@ -62,30 +67,32 @@ export interface Category {
   templateUrl: './dashboard.component.html',
   styleUrl: './dashboard.component.css'
 })
-export class DashboardComponent implements OnInit {
+export class DashboardComponent implements OnInit, OnDestroy {
   private http = inject(HttpClient);
   private authService = inject(AuthService);
   private collaboratorService = inject(CollaboratorService);
+  private messagingService = inject(MessagingService);
+  private pharmacyService = inject(PharmacyService);
 
+  pharmacyName = '';
   showOnlyFavorites = false;
-  searchTerm: string = ''; // ✅ AJOUTÉ pour la recherche
-
-  @ViewChild(PinPadComponent) pinPad!: PinPadComponent;
+  searchTerm: string = '';
 
   // --- DONNÉES ---
   allCategories: Category[] = [];
   displayedCategories: Category[] = [];
   team: Collaborator[] = [];
   libraryItems: any[] = [];
+  unreadMessagesCount = 0;
 
   // --- ÉTATS ---
-  viewMode: 'COMPACT' | 'LARGE' | 'TABLE' | 'ICON' = 'COMPACT';
+  viewMode: 'COMPACT' | 'LARGE' | 'TABLE' | 'ICON' = 'LARGE';
   isEditMode = false;
   isSearching = false;
-  showPinPad = false;
+  showPinModal = false;
   showAddModal = false;
 
-  selectedCollaborator: Collaborator | null = null;
+  pendingCollaborator: Collaborator | null = null;
   activeSessionCollaborator: Collaborator | null = null;
   openedCard: ResourceCard | null = null;
   selectedCardToAssign: ResourceCard | null = null;
@@ -96,10 +103,47 @@ export class DashboardComponent implements OnInit {
   editingCategoryId: number | null = null;
   editingCategoryName: string = '';
 
+  private taskService = inject(TaskService);
+  unseenTasksCount = 0;
+
+  private unreadSub: Subscription | null = null;
+  private destroy$ = new Subject<void>();
+
   ngOnInit() {
     this.loadCategories();
     this.loadTeam();
     this.loadLibrary();
+    this.pharmacyService.getCurrentPharmacy().subscribe({
+      next: (data) => { this.pharmacyName = data.nom_officine; }
+    });
+    this.unreadSub = this.messagingService.unreadCount$.subscribe(
+      count => { this.unreadMessagesCount = count; }
+    );
+    this.startTaskUnseenPolling();
+  }
+
+  private startTaskUnseenPolling(): void {
+    const collabId = this.authService.getCurrentCollaboratorId();
+    if (!collabId) return;
+    interval(30000).pipe(
+      startWith(0),
+      takeUntil(this.destroy$),
+      switchMap(() => this.taskService.getUnseenCount(collabId))
+    ).subscribe(r => { this.unseenTasksCount = r.unseen_count; });
+  }
+
+  private restoreCollaboratorSession(team: Collaborator[]): void {
+    const savedId = this.authService.getCurrentCollaboratorId();
+    if (savedId) {
+      const found = team.find(c => c.id === savedId) ?? null;
+      if (found) this.activeSessionCollaborator = found;
+    }
+  }
+
+  ngOnDestroy(): void {
+    this.unreadSub?.unsubscribe();
+    this.destroy$.next();
+    this.destroy$.complete();
   }
 
   // ============================================================
@@ -136,6 +180,7 @@ export class DashboardComponent implements OnInit {
     this.collaboratorService.getTeam().subscribe({
       next: (data: any) => {
         this.team = Array.isArray(data) ? data : data.results || [];
+        this.restoreCollaboratorSession(this.team);
       },
       error: (err) => console.error('Erreur chargement équipe', err)
     });
@@ -572,24 +617,26 @@ export class DashboardComponent implements OnInit {
   // ============================================================
 
   openSession(collab: Collaborator) {
-    this.selectedCollaborator = collab;
-    this.showPinPad = true;
+    this.pendingCollaborator = collab;
+    this.showPinModal = true;
   }
 
-  onPinEntered(code: string) {
-    if (!this.selectedCollaborator || !this.selectedCollaborator.id) return;
-    this.collaboratorService.verifyPin(this.selectedCollaborator.id, code)
-      .subscribe({
-        next: () => {
-          this.activeSessionCollaborator = this.selectedCollaborator;
-          this.showPinPad = false;
-        },
-        error: () => this.pinPad.triggerError()
-      });
+  onPinValidated() {
+    if (!this.pendingCollaborator) return;
+    this.activeSessionCollaborator = this.pendingCollaborator;
+    this.authService.setCurrentCollaboratorId(this.pendingCollaborator.id!);
+    this.showPinModal = false;
+    this.pendingCollaborator = null;
+  }
+
+  onPinCancelled() {
+    this.showPinModal = false;
+    this.pendingCollaborator = null;
   }
 
   closeCollaboratorSession() {
     this.activeSessionCollaborator = null;
+    this.authService.clearCurrentCollaborator();
   }
 
   logout() {

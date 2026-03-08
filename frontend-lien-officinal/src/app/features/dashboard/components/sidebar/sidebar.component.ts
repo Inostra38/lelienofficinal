@@ -15,6 +15,8 @@ import { AuthService } from '../../../../core/auth/auth.service';
 export class SidebarComponent {
   @Input() activeCollaborator: Collaborator | null = null;
   @Input() team: Collaborator[] = [];
+  @Input() unreadMessagesCount = 0;
+  @Input() unseenTasksCount = 0;
 
   @Output() logout = new EventEmitter<void>();
   @Output() sessionClick = new EventEmitter<Collaborator>();
@@ -23,14 +25,19 @@ export class SidebarComponent {
   constructor(private router: Router) {}
 
   menuItems = [
-    { label: 'Tableau de bord', icon: '🏠', active: true },
-    { label: 'Messagerie', icon: '💬', active: false },
-    { label: 'Planning', icon: '📅', active: false },
-    { label: 'Commandes', icon: '📦', active: false },
+    { label: 'Tableau de bord', icon: '🏠', active: true, route: '/dashboard' },
+    { label: 'Messagerie', icon: '💬', active: false, route: '/messagerie' },
+    { label: 'Tâches', icon: '✅', active: false, route: '/taches' },
+    { label: 'Planning', icon: '📅', active: false, route: null },
+    { label: 'Commandes', icon: '📦', active: false, route: null },
   ];
 
+  onMenuItemNav(route: string | null): void {
+    if (route) this.router.navigate([route]);
+  }
+
   // Menu Pharmacie
-  pharmacyName: string = 'Pharmacie des Lilas';
+  @Input() pharmacyName = '';
   isPharmacyMenuOpen: boolean = false;
 
   togglePharmacyMenu(): void {

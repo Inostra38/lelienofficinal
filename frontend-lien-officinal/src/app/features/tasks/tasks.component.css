@@ -1,0 +1,6 @@
+/* Les colonnes desktop sont toujours affichées sur md+ via Tailwind */
+@media (min-width: 768px) {
+  .col-hidden-on-mobile {
+    display: flex !important;
+  }
+}

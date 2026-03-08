@@ -6,7 +6,7 @@
       <h1 class="text-2xl font-bold text-gray-800 flex items-center gap-3">
         Tableau de bord 
         <span class="h-1.5 w-1.5 rounded-full bg-gray-300"></span>
-        <span class="text-gray-500 font-normal text-lg">Pharmacie des Lilas</span>
+        <span class="text-gray-500 font-normal text-lg">{{ pharmacyName }}</span>
       </h1>
 
       <div class="relative w-full max-w-2xl">  <!-- ✅ Déjà aligné à gauche -->
@@ -21,7 +21,7 @@
                [(ngModel)]="searchTerm" 
                (input)="onSearch()"
                placeholder="Rechercher un laboratoire, un grossiste, un outil..." 
-               class="w-full pl-11 pr-16 py-3 bg-gray-100 border-transparent focus:bg-white focus:ring-2 focus:ring-blue-500 focus:border-transparent rounded-xl text-gray-800 placeholder-gray-500 transition-all shadow-sm text-sm font-medium">
+               class="w-full pl-11 pr-16 py-3 bg-gray-100 border-transparent focus:bg-white focus:ring-2 focus:ring-green-500 focus:border-transparent rounded-xl text-gray-800 placeholder-gray-500 transition-all shadow-sm text-sm font-medium">
         
         <div class="absolute inset-y-0 right-0 pr-4 flex items-center pointer-events-none">
           

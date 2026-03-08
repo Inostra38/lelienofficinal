@@ -19,9 +19,9 @@
         </button>
 
         <button (click)="step = 'CATALOG'"
-          class="p-4 border-2 border-blue-100 bg-blue-50 rounded-xl hover:border-blue-500 hover:shadow-md transition-all flex flex-col items-center gap-2 group text-center h-32 justify-center">
+          class="p-4 border-2 border-emerald-100 bg-emerald-50 rounded-xl hover:border-emerald-500 hover:shadow-md transition-all flex flex-col items-center gap-2 group text-center h-32 justify-center">
           <span class="text-3xl group-hover:scale-110 transition-transform">📚</span>
-          <span class="font-bold text-blue-800 text-sm">Catalogue</span>
+          <span class="font-bold text-emerald-800 text-sm">Catalogue</span>
         </button>
 
         <button (click)="step = 'RESOURCE'; addItem()"
@@ -77,11 +77,11 @@
         <div class="h-64 overflow-y-auto border border-gray-100 rounded-lg p-2 space-y-2 custom-scrollbar bg-gray-50/50">
           <button *ngFor="let card of library" (click)="selectFromCatalog(card)"
             [class.hidden]="searchCatalog && !card.titre.toLowerCase().includes(searchCatalog.toLowerCase())"
-            class="w-full flex items-center gap-3 p-3 rounded-lg bg-white hover:bg-blue-50 border border-transparent hover:border-blue-100 group transition-all text-left shadow-sm">
+            class="w-full flex items-center gap-3 p-3 rounded-lg bg-white hover:bg-green-50 border border-transparent hover:border-green-100 group transition-all text-left shadow-sm">
             <span class="text-xl w-8 text-center">📚</span>
             <div class="flex-1 min-w-0">
               <div class="flex items-center gap-2">
-                <p class="font-bold text-gray-700 group-hover:text-blue-700 truncate">{{ card.titre }}</p>
+                <p class="font-bold text-gray-700 group-hover:text-green-700 truncate">{{ card.titre }}</p>
                 <!-- ✅ BADGE -->
                 <span class="text-[10px] px-2 py-0.5 rounded font-semibold uppercase tracking-wide shrink-0"
                       [ngClass]="{
@@ -93,7 +93,7 @@
               </div>
               <p class="text-[10px] text-gray-400 truncate">{{ card.description_officielle || 'Ressource du catalogue' }}</p>
             </div>
-            <span class="ml-auto text-blue-500 opacity-0 group-hover:opacity-100 font-bold text-xl">+</span>
+            <span class="ml-auto text-green-600 opacity-0 group-hover:opacity-100 font-bold text-xl">+</span>
           </button>
 
           <div *ngIf="library.length === 0" class="text-center text-gray-400 py-10 text-sm">

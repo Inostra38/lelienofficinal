@@ -12,6 +12,7 @@ export class AuthService {
   private baseUrl = 'http://127.0.0.1:8000/api';
   private tokenKey = 'access_token';
   private onboardingKey = 'onboarding_completed';
+  private collaboratorKey = 'active_collaborator_id';
 
   login(credentials: any) {
     return this.http.post<any>(`${this.baseUrl}/token/`, credentials).pipe(
@@ -40,11 +41,34 @@ export class AuthService {
   logout() {
     localStorage.removeItem(this.tokenKey);
     localStorage.removeItem(this.onboardingKey);
+    localStorage.removeItem(this.collaboratorKey);
     this.router.navigate(['/login']);
   }
 
+  // ── Collaborateur actif (partagé dashboard + messagerie) ─────────────────
+
+  setCurrentCollaboratorId(id: number): void {
+    localStorage.setItem(this.collaboratorKey, String(id));
+  }
+
+  getCurrentCollaboratorId(): number | null {
+    const id = localStorage.getItem(this.collaboratorKey);
+    return id ? Number(id) : null;
+  }
+
+  clearCurrentCollaborator(): void {
+    localStorage.removeItem(this.collaboratorKey);
+  }
+
   isAuthenticated(): boolean {
-    return !!localStorage.getItem(this.tokenKey);
+    const token = localStorage.getItem(this.tokenKey);
+    if (!token) return false;
+    try {
+      const payload = JSON.parse(atob(token.split('.')[1]));
+      return payload.exp * 1000 > Date.now();
+    } catch {
+      return false;
+    }
   }
 
   isOnboardingCompleted(): boolean {

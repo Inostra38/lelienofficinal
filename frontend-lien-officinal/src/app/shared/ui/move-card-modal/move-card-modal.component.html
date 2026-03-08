@@ -26,15 +26,15 @@
           <label *ngFor="let cat of categories" 
                  class="flex items-center gap-3 p-3 rounded-lg border-2 cursor-pointer transition-all hover:bg-gray-50"
                  [ngClass]="{
-                   'border-blue-500 bg-blue-50': selectedCategoryId === cat.id,
+                   'border-green-500 bg-green-50': selectedCategoryId === cat.id,
                    'border-gray-200': selectedCategoryId !== cat.id,
                    'opacity-50': cat.id === currentCategoryId
                  }">
-            <input type="radio" 
-                   name="category" 
-                   [value]="cat.id" 
+            <input type="radio"
+                   name="category"
+                   [value]="cat.id"
                    [(ngModel)]="selectedCategoryId"
-                   class="w-4 h-4 text-blue-600">
+                   class="w-4 h-4 text-green-700">
             <span class="text-xl">{{ cat.icon_slug || '📂' }}</span>
             <span class="flex-1 font-medium text-gray-700">{{ cat.nom }}</span>
             <span *ngIf="cat.id === currentCategoryId" 
@@ -53,7 +53,7 @@
         </button>
         <button type="submit" 
                 [disabled]="!selectedCategoryId || selectedCategoryId === currentCategoryId"
-                class="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-bold disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center gap-2">
+                class="px-6 py-2 bg-green-700 text-white rounded-lg hover:bg-green-800 font-bold disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center gap-2">
           <span>📁</span>
           <span>Déplacer</span>
         </button>

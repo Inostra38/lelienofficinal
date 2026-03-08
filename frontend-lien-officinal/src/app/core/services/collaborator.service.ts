@@ -13,6 +13,7 @@ export interface Collaborator {
   last_name: string;
   role: MemberRole;
   color: string;
+  pin?: string;
   is_active?: boolean;
   created_at?: string;
 }

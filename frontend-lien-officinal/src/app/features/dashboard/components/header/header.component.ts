@@ -10,6 +10,7 @@ import { FormsModule } from '@angular/forms'; // <--- INDISPENSABLE pour ngModel
   styleUrl: './header.component.css'
 })
 export class HeaderComponent {
+  @Input() pharmacyName = '';
   @Input() team: any[] = [];
   @Input() activeCollaborator: any | null = null;
 

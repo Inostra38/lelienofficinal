@@ -1,0 +1,105 @@
+<div class="task-card border-l-4 bg-gray-50 border border-gray-200 rounded-lg p-3 mb-2 cursor-pointer hover:shadow-md transition-shadow relative overflow-hidden"
+     [class]="priorityBorderClass"
+     [class.opacity-60]="isDone"
+     (click)="openDetail.emit(task)">
+
+  <!-- Titre -->
+  <p class="text-sm font-semibold text-gray-800 leading-snug mb-1"
+     [class.line-through]="isDone"
+     [class.text-gray-400]="isDone">
+    {{ task.title }}
+  </p>
+
+  <!-- Description -->
+  <p *ngIf="task.description" class="text-xs text-gray-500 line-clamp-2 mb-2">
+    {{ task.description }}
+  </p>
+
+  <!-- Assignation (tâche assignée) -->
+  <div *ngIf="task.type === 'ASSIGNED'" class="flex items-center gap-1 mb-2">
+    <div *ngIf="task.created_by"
+         class="w-5 h-5 rounded-full text-white flex items-center justify-center text-[9px] font-bold"
+         [ngClass]="getBgClass(task.created_by.color)"
+         [title]="task.created_by.first_name + ' ' + task.created_by.last_name">
+      {{ getInitials(task.created_by) }}
+    </div>
+    <span class="text-gray-300 text-xs">→</span>
+    <div *ngIf="task.assigned_to"
+         class="w-5 h-5 rounded-full text-white flex items-center justify-center text-[9px] font-bold"
+         [ngClass]="getBgClass(task.assigned_to.color)"
+         [title]="task.assigned_to.first_name + ' ' + task.assigned_to.last_name">
+      {{ getInitials(task.assigned_to) }}
+    </div>
+    <!-- Badge NEW pour tâches assignées terminées non vues -->
+    <span *ngIf="isDone && !task.is_completion_seen"
+          class="ml-1 text-[9px] bg-red-500 text-white font-bold px-1.5 py-0.5 rounded-full">
+      NEW
+    </span>
+  </div>
+
+  <!-- Footer : date + statut + actions -->
+  <div class="flex items-center justify-between mt-1">
+
+    <!-- Date d'échéance -->
+    <div class="flex items-center gap-1" [ngClass]="dueDateClass">
+      <svg *ngIf="task.due_date" xmlns="http://www.w3.org/2000/svg" class="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+      </svg>
+      <span *ngIf="task.due_date" class="text-[10px]">{{ formatDate(task.due_date) }}</span>
+    </div>
+
+    <!-- Statut badge -->
+    <span *ngIf="isInProgress"
+          class="text-[9px] bg-blue-100 text-blue-700 font-semibold px-1.5 py-0.5 rounded-full">
+      En cours
+    </span>
+    <span *ngIf="isDone"
+          class="text-[9px] bg-green-100 text-green-700 font-semibold px-1.5 py-0.5 rounded-full">
+      Terminée
+    </span>
+
+    <!-- Actions -->
+    <div class="flex items-center gap-0.5 ml-auto">
+      <!-- Démarrer -->
+      <button *ngIf="isTodo"
+              (click)="onAction($event, 'start')"
+              class="p-1 text-gray-300 hover:text-blue-500 hover:bg-blue-50 rounded transition-colors"
+              title="Démarrer">
+        <svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z" />
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+        </svg>
+      </button>
+
+      <!-- Terminer -->
+      <button *ngIf="!isDone"
+              (click)="onAction($event, 'complete')"
+              class="p-1 text-gray-300 hover:text-green-600 hover:bg-green-50 rounded transition-colors"
+              title="Terminer">
+        <svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
+        </svg>
+      </button>
+
+      <!-- Rouvrir -->
+      <button *ngIf="isDone"
+              (click)="onAction($event, 'reopen')"
+              class="p-1 text-gray-300 hover:text-orange-500 hover:bg-orange-50 rounded transition-colors"
+              title="Rouvrir">
+        <svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+        </svg>
+      </button>
+
+      <!-- Supprimer -->
+      <button *ngIf="canDelete"
+              (click)="onAction($event, 'delete')"
+              class="p-1 text-gray-300 hover:text-red-500 hover:bg-red-50 rounded transition-colors"
+              title="Supprimer">
+        <svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+        </svg>
+      </button>
+    </div>
+  </div>
+</div>

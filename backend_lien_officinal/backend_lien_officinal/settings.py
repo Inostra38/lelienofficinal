@@ -43,6 +43,8 @@ INSTALLED_APPS = [
     'apps.team',           # Collaborateurs & PIN
     'apps.resources',      # Liens & Catégories
     'apps.partners',       # Pubs & Labos
+    'apps.messaging',      # Messagerie d'équipe
+    'apps.tasks',          # Gestion des tâches
     # 'apps.notifications',  # Système de notifs (TEMPORAIREMENT DÉSACTIVÉ)
 ]
 
@@ -153,6 +155,12 @@ CORS_ALLOWED_ORIGINS = [
     "http://127.0.0.1:4200",
 ]
 
+# Headers personnalisés autorisés (inclut X-Collaborator-Id pour la messagerie)
+from corsheaders.defaults import default_headers
+CORS_ALLOW_HEADERS = list(default_headers) + [
+    'x-collaborator-id',
+]
+
 # --- CSRF : Qui a le droit d'ÉCRIRE (POST/PUT/DELETE) ? ---
 # CRUCIAL : Autorise Angular à faire des POST sans être bloqué par la sécurité CSRF
 CSRF_TRUSTED_ORIGINS = [
@@ -183,3 +191,8 @@ SIMPLE_JWT = {
 
 # URL de base du backend (pour les fichiers media)
 BACKEND_BASE_URL = 'http://127.0.0.1:8000'
+
+# --- CHIFFREMENT AU REPOS (Messagerie) ---
+# ⚠️  En production : stocker cette clé dans une variable d'environnement,
+#     jamais dans le code source. Exemple : os.environ.get('FIELD_ENCRYPTION_KEY')
+FIELD_ENCRYPTION_KEY = 'PfA94lfuOhJvkLTleaA6wiAO0ovezjSP-h8SJbjPvNU='
