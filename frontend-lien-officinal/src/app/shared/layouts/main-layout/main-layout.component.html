@@ -1,0 +1,28 @@
+<div class="flex h-screen overflow-hidden">
+
+  <app-sidebar
+    [team]="team"
+    [activeCollaborator]="activeSessionCollaborator"
+    [unreadMessagesCount]="unreadMessagesCount"
+    [unseenTasksCount]="unseenTasksCount"
+    [pharmacyName]="pharmacyName"
+    (sessionClick)="openSession($event)"
+    (logout)="closeCollaboratorSession()">
+  </app-sidebar>
+
+  <div class="flex-1 overflow-hidden min-w-0">
+    <router-outlet></router-outlet>
+  </div>
+
+</div>
+
+<!-- Modal PIN collaborateur -->
+<app-pin-modal
+  *ngIf="showPinModal && pendingCollaborator"
+  [collaboratorId]="pendingCollaborator.id!"
+  [collaboratorName]="pendingCollaborator.first_name + ' ' + pendingCollaborator.last_name"
+  [collaboratorRole]="pendingCollaborator.role"
+  mode="switch"
+  (pinValidated)="onPinValidated()"
+  (cancelled)="onPinCancelled()">
+</app-pin-modal>

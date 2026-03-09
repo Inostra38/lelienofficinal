@@ -1,14 +1,4 @@
-<div class="flex h-screen bg-gray-50 overflow-hidden">
-
-  <app-sidebar [team]="team" [activeCollaborator]="activeSessionCollaborator"
-    [unreadMessagesCount]="unreadMessagesCount"
-    [unseenTasksCount]="unseenTasksCount"
-    [pharmacyName]="pharmacyName"
-    (sessionClick)="openSession($event)"
-    (logout)="closeCollaboratorSession()">
-  </app-sidebar>
-
-  <main class="flex-1 flex flex-col h-screen overflow-hidden relative">
+<main class="flex flex-col h-full overflow-hidden relative bg-gray-50">
 
     <app-header [pharmacyName]="pharmacyName" (searchChange)="onSearch($event)"></app-header>
 
@@ -22,7 +12,8 @@
         ? 'px-3 py-1.5 rounded-lg bg-yellow-100 text-yellow-600 border border-yellow-300 shadow-sm font-medium transition-all flex items-center gap-2' 
         : 'px-3 py-1.5 rounded-lg bg-white text-gray-400 border border-gray-200 hover:bg-gray-50 hover:text-gray-600 transition-all flex items-center gap-2'"
           title="Afficher uniquement les favoris">
-          <span class="text-xl">{{ showOnlyFavorites ? '⭐' : '☆' }}</span>
+          <svg *ngIf="showOnlyFavorites" xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z"/></svg>
+          <svg *ngIf="!showOnlyFavorites" xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z"/></svg>
           <span class="text-sm font-medium hidden sm:inline">{{ showOnlyFavorites ? 'Favoris' : 'Tous' }}</span>
         </button>
 
@@ -34,17 +25,20 @@
           <button (click)="setViewMode('LARGE')"
             class="px-3 py-1.5 rounded-md text-sm font-medium transition-all flex items-center gap-2"
             [ngClass]="viewMode === 'LARGE' ? 'bg-green-50 text-green-700 shadow-sm ring-1 ring-green-100' : 'text-gray-500 hover:bg-gray-50'">
-            <span>🖼️</span> <span class="hidden sm:inline">Icônes</span>
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z"/></svg>
+            <span class="hidden sm:inline">Icônes</span>
           </button>
           <button (click)="setViewMode('TABLE')"
             class="px-3 py-1.5 rounded-md text-sm font-medium transition-all flex items-center gap-2"
             [ngClass]="viewMode === 'TABLE' ? 'bg-green-50 text-green-700 shadow-sm ring-1 ring-green-100' : 'text-gray-500 hover:bg-gray-50'">
-            <span>☰</span> <span class="hidden sm:inline">Liste</span>
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 10h16M4 14h16M4 18h16"/></svg>
+            <span class="hidden sm:inline">Liste</span>
           </button>
           <button (click)="setViewMode('COMPACT')"
             class="px-3 py-1.5 rounded-md text-sm font-medium transition-all flex items-center gap-2"
             [ngClass]="viewMode === 'COMPACT' ? 'bg-green-50 text-green-700 shadow-sm ring-1 ring-green-100' : 'text-gray-500 hover:bg-gray-50'">
-            <span>🗂️</span> <span class="hidden sm:inline">Compact</span>
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"/></svg>
+            <span class="hidden sm:inline">Compact</span>
           </button>
         </div>
       </div>
@@ -54,14 +48,15 @@
         <button (click)="refreshData()"
           class="flex items-center gap-2 px-4 py-2 rounded-full shadow-sm border border-gray-200 bg-white text-gray-600 hover:bg-gray-50 transition-all"
           title="Rafraîchir les données">
-          <span class="text-lg">🔄</span>
+          <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
           <span class="font-bold text-sm hidden sm:inline">Rafraîchir</span>
         </button>
 
         <button (click)="toggleEditMode()"
           class="flex items-center gap-2 px-4 py-2 rounded-full shadow-sm border transition-all"
           [ngClass]="isEditMode ? 'bg-orange-100 border-orange-300 text-orange-700' : 'bg-white border-gray-200 text-gray-600 hover:bg-gray-50'">
-          <span class="text-lg">{{ isEditMode ? '✅' : '✏️' }}</span>
+          <svg *ngIf="isEditMode" xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>
+          <svg *ngIf="!isEditMode" xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg>
           <span class="font-bold text-sm hidden sm:inline">{{ isEditMode ? 'Terminer' : 'Modifier' }}</span>
         </button>
       </div>
@@ -97,32 +92,29 @@
             <div *ngIf="viewMode === 'COMPACT'" class="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6">
 
               <div *ngFor="let card of getAllFavorites()" (click)="openDetail(card, $event)"
-                class="bg-white rounded-2xl border border-gray-200 shadow-sm hover:shadow-md transition-all duration-300 flex flex-col overflow-hidden group h-full cursor-pointer relative">
+                class="bg-white rounded-2xl border border-gray-200 shadow-sm hover:shadow-md hover:border-green-500 transition-all duration-300 flex flex-col overflow-hidden group h-full cursor-pointer relative">
 
                 <!-- Boutons en mode édition -->
                 <div *ngIf="isEditMode" class="absolute top-2 right-2 flex gap-2 z-20">
                   <button (click)="openMoveCardModal(card, 0, $event)"
                     class="w-8 h-8 flex items-center justify-center bg-green-50 text-green-700 rounded-full shadow-md hover:bg-green-700 hover:text-white transition-colors"
                     title="Déplacer vers une autre catégorie">
-                    📁
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 7a2 2 0 012-2h4l2 2h6a2 2 0 012 2v8a2 2 0 01-2 2H5a2 2 0 01-2-2V7z"/></svg>
                   </button>
                   <button (click)="hideOrDeleteCard(card, $event)"
                     class="w-8 h-8 flex items-center justify-center bg-red-100 text-red-600 rounded-full shadow-md hover:bg-red-600 hover:text-white transition-colors"
                     title="Supprimer ou masquer la carte">
-                    🗑️
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
                   </button>
                 </div>
 
                 <div class="p-4 pb-2 flex items-start gap-3 border-b border-gray-50/20 bg-gray-50/30">
-                  <div
-                    class="w-10 h-10 rounded-lg bg-white border border-gray-100 flex items-center justify-center shrink-0 shadow-sm p-1">
-                    <img *ngIf="card.logo" [src]="card.logo" class="w-full h-full object-contain">
-                    <span *ngIf="!card.logo" class="text-xl">🏢</span>
-                  </div>
                   <div class="flex-1 min-w-0">
                     <div class="flex justify-between">
                       <h3 class="font-bold text-gray-800 truncate">{{ card.titre }}</h3>
-                      <button (click)="toggleFavorite(card, $event)" class="text-xl hover:text-yellow-400">⭐</button>
+                      <button (click)="toggleFavorite(card, $event)" class="text-yellow-500 hover:text-yellow-400 transition-colors">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z"/></svg>
+                      </button>
                     </div>
                     <span class="card-type-badge-inline" [ngClass]="getBadgeClass(card.type)">
                       {{ getBadgeLabel(card.type) }}
@@ -176,7 +168,7 @@
               class="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 xl:grid-cols-7 gap-3">
 
               <div *ngFor="let card of getAllFavorites()" (click)="openDetail(card, $event)"
-                class="bg-white rounded-xl shadow-sm hover:shadow-lg transition-all border border-gray-100 cursor-pointer p-4 flex flex-col items-center gap-2 relative group">
+                class="bg-white rounded-xl shadow-sm hover:shadow-lg hover:border-green-500 transition-all border border-gray-100 cursor-pointer p-4 flex flex-col items-center gap-2 relative group">
                 <span class="card-type-badge-compact mt-1" [ngClass]="getBadgeClass(card.type)">
                   {{ getBadgeLabel(card.type) }}
                 </span>
@@ -186,19 +178,15 @@
                   <button (click)="openMoveCardModal(card, 0, $event)"
                     class="w-6 h-6 flex items-center justify-center bg-green-50 text-green-700 rounded-full border border-green-100"
                     title="Déplacer">
-                    📁
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 7a2 2 0 012-2h4l2 2h6a2 2 0 012 2v8a2 2 0 01-2 2H5a2 2 0 01-2-2V7z"/></svg>
                   </button>
                   <button (click)="hideOrDeleteCard(card, $event)"
                     class="w-6 h-6 flex items-center justify-center bg-red-100 text-red-600 rounded-full border border-red-100"
                     title="Supprimer">
-                    🗑️
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
                   </button>
                 </div>
 
-                <div class="w-16 h-16 mb-3 flex items-center justify-center text-4xl">
-                  <img *ngIf="card.logo" [src]="card.logo" class="w-full h-full object-contain">
-                  <span *ngIf="!card.logo" class="text-4xl">🏢</span>
-                </div>
                 <span class="font-bold text-gray-800 text-sm leading-tight line-clamp-2">{{ card.titre }}</span>
               </div>
 
@@ -217,10 +205,6 @@
                 [ngClass]="isEditMode ? 'grid-cols-12' : 'grid-cols-11'">
 
                 <div [ngClass]="isEditMode ? 'col-span-4' : 'col-span-5'" class="flex items-center gap-3">
-                  <div class="w-8 h-8 rounded bg-gray-50 flex items-center justify-center text-lg">
-                    <img *ngIf="card.logo" [src]="card.logo" class="w-full h-full object-contain">
-                    <span *ngIf="!card.logo">🏢</span>
-                  </div>
                   <span class="font-bold text-gray-700 text-sm">{{ card.titre }}</span>
 
                   <span class="card-type-badge-small" [ngClass]="getBadgeClass(card.type)">
@@ -239,11 +223,11 @@
                 <div *ngIf="isEditMode" class="col-span-2 flex gap-1 justify-end">
                   <button (click)="openMoveCardModal(card, 0, $event)"
                     class="w-6 h-6 flex items-center justify-center text-green-700 hover:text-green-900" title="Déplacer">
-                    📁
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 7a2 2 0 012-2h4l2 2h6a2 2 0 012 2v8a2 2 0 01-2 2H5a2 2 0 01-2-2V7z"/></svg>
                   </button>
                   <button (click)="hideOrDeleteCard(card, $event)"
                     class="w-6 h-6 flex items-center justify-center text-red-500 hover:text-red-700" title="Supprimer">
-                    🗑️
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
                   </button>
                 </div>
               </div>
@@ -267,20 +251,24 @@
                 <!-- MODE LECTURE : Affiche le nom -->
                 <h2 *ngIf="editingCategoryId !== cat.id"
                   class="text-lg font-bold text-gray-800 uppercase tracking-wide flex items-center gap-2">
-                  <span class="bg-green-50 text-green-700 p-1 rounded-lg text-base">{{ cat.icon_slug || '📂' }}</span>
+                  <span class="bg-green-50 text-green-700 p-1 rounded-lg text-base">📂</span>
                   {{ cat.nom }}
                 </h2>
 
                 <!-- MODE ÉDITION DU NOM : Input inline -->
                 <div *ngIf="editingCategoryId === cat.id" class="flex items-center gap-2">
-                  <span class="bg-green-50 text-green-700 p-1 rounded-lg text-base">{{ cat.icon_slug || '📂' }}</span>
+                  <span class="bg-green-50 text-green-700 p-1 rounded-lg text-base">📂</span>
                   <input type="text" [(ngModel)]="editingCategoryName" (keydown.enter)="saveRename(cat)"
                     (keydown.escape)="cancelRename()"
                     class="px-3 py-1 border-2 border-green-500 rounded-lg text-lg font-bold uppercase focus:outline-none">
                   <button (click)="saveRename(cat)"
-                    class="p-1 bg-green-100 text-green-600 rounded-lg hover:bg-green-200">✓</button>
+                    class="p-1 bg-green-100 text-green-600 rounded-lg hover:bg-green-200">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>
+                  </button>
                   <button (click)="cancelRename()"
-                    class="p-1 bg-gray-100 text-gray-600 rounded-lg hover:bg-gray-200">✕</button>
+                    class="p-1 bg-gray-100 text-gray-600 rounded-lg hover:bg-gray-200">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+                  </button>
                 </div>
 
                 <div class="h-px bg-gray-200 flex-1"></div>
@@ -292,7 +280,7 @@
                   <button (click)="startRename(cat)"
                     class="p-2 bg-green-50 text-green-700 rounded-lg hover:bg-green-100 transition-colors"
                     title="Renommer">
-                    ✏️
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg>
                   </button>
 
                   <!-- Bouton Monter -->
@@ -300,7 +288,7 @@
                     class="p-2 rounded-lg transition-colors"
                     [ngClass]="isFirstCategory(cat) ? 'bg-gray-100 text-gray-300 cursor-not-allowed' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'"
                     title="Monter">
-                    ↑
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 15l7-7 7 7"/></svg>
                   </button>
 
                   <!-- Bouton Descendre -->
@@ -308,13 +296,13 @@
                     class="p-2 rounded-lg transition-colors"
                     [ngClass]="isLastCategory(cat) ? 'bg-gray-100 text-gray-300 cursor-not-allowed' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'"
                     title="Descendre">
-                    ↓
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
                   </button>
 
                   <!-- Bouton Supprimer -->
                   <button (click)="deleteCategory(cat)"
                     class="p-2 bg-red-100 text-red-600 rounded-lg hover:bg-red-200 transition-colors" title="Supprimer">
-                    🗑️
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
                   </button>
                 </div>
               </div>
@@ -323,33 +311,30 @@
               <div *ngIf="viewMode === 'COMPACT'" class="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6">
 
                 <div *ngFor="let card of cat.cards" (click)="openDetail(card, $event)"
-                  class="bg-white rounded-2xl border border-gray-200 shadow-sm hover:shadow-md transition-all duration-300 flex flex-col overflow-hidden group h-full cursor-pointer relative">
+                  class="bg-white rounded-2xl border border-gray-200 shadow-sm hover:shadow-md hover:border-green-500 transition-all duration-300 flex flex-col overflow-hidden group h-full cursor-pointer relative">
 
                   <!-- Boutons en mode édition -->
                   <div *ngIf="isEditMode" class="absolute top-2 right-2 flex gap-2 z-20">
                     <button (click)="openMoveCardModal(card, cat.id, $event)"
                       class="w-8 h-8 flex items-center justify-center bg-green-50 text-green-700 rounded-full shadow-md hover:bg-green-700 hover:text-white transition-colors"
                       title="Déplacer vers une autre catégorie">
-                      📁
+                      <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 7a2 2 0 012-2h4l2 2h6a2 2 0 012 2v8a2 2 0 01-2 2H5a2 2 0 01-2-2V7z"/></svg>
                     </button>
                     <button (click)="hideOrDeleteCard(card, $event)"
                       class="w-8 h-8 flex items-center justify-center bg-red-100 text-red-600 rounded-full shadow-md hover:bg-red-600 hover:text-white transition-colors"
                       title="Supprimer ou masquer la carte">
-                      🗑️
+                      <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
                     </button>
                   </div>
 
                   <div class="p-4 pb-2 flex items-start gap-3 border-b border-gray-50/20 bg-gray-50/30">
-                    <div
-                      class="w-10 h-10 rounded-lg bg-white border border-gray-100 flex items-center justify-center shrink-0 shadow-sm p-1">
-                      <img *ngIf="card.logo" [src]="card.logo" class="w-full h-full object-contain">
-                      <span *ngIf="!card.logo" class="text-xl">🏢</span>
-                    </div>
                     <div class="flex-1 min-w-0">
                       <div class="flex justify-between">
                         <h3 class="font-bold text-gray-800 truncate">{{ card.titre }}</h3>
-                        <button (click)="toggleFavorite(card, $event)" class="text-xl hover:text-yellow-400">{{
-                          card.is_favorite ? '⭐' : '☆' }}</button>
+                        <button (click)="toggleFavorite(card, $event)" class="hover:text-yellow-400 transition-colors" [ngClass]="card.is_favorite ? 'text-yellow-500' : 'text-gray-300'">
+                          <svg *ngIf="card.is_favorite" xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z"/></svg>
+                          <svg *ngIf="!card.is_favorite" xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z"/></svg>
+                        </button>
                       </div>
                       <span class="card-type-badge-inline" [ngClass]="getBadgeClass(card.type)">
                         {{ getBadgeLabel(card.type) }}
@@ -385,7 +370,7 @@
                     <button (click)="openDetail(card, $event)"
                       class="hover:bg-white hover:shadow-sm p-1.5 rounded transition-all flex items-center gap-1"
                       title="Voir les notes">
-                      ✏️ <span class="text-xs text-gray-400">Notes</span>
+                      <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg> <span class="text-xs text-gray-400">Notes</span>
                     </button>
                   </div>
                 </div>
@@ -394,8 +379,8 @@
                 <div *ngIf="cat.cards.length === 0"
                   class="col-span-full text-center py-8 text-gray-400 border-2 border-dashed border-gray-200 rounded-xl">
                   <p class="text-sm">Cette catégorie est vide</p>
-                  <button (click)="showAddModal = true" class="mt-2 text-green-700 font-bold text-sm hover:underline">+
-                    Ajouter une ressource</button>
+                  <button (click)="showAddModal = true"
+                    class="mt-2 text-sm text-green-700 hover:underline">+ Ajouter une ressource</button>
                 </div>
               </div>
 
@@ -404,7 +389,7 @@
                 class="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 xl:grid-cols-7 gap-3">
 
                 <div *ngFor="let card of cat.cards" (click)="openDetail(card, $event)"
-                  class="bg-white rounded-xl shadow-sm hover:shadow-lg transition-all border border-gray-100 cursor-pointer p-4 flex flex-col items-center gap-2 relative group">
+                  class="bg-white rounded-xl shadow-sm hover:shadow-lg hover:border-green-500 transition-all border border-gray-100 cursor-pointer p-4 flex flex-col items-center gap-2 relative group">
                   <span class="card-type-badge-compact mt-1" [ngClass]="getBadgeClass(card.type)">
                     {{ getBadgeLabel(card.type) }}
                   </span>
@@ -414,19 +399,15 @@
                     <button (click)="openMoveCardModal(card, cat.id, $event)"
                       class="w-6 h-6 flex items-center justify-center bg-green-50 text-green-700 rounded-full border border-green-100"
                       title="Déplacer">
-                      📁
+                      <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 7a2 2 0 012-2h4l2 2h6a2 2 0 012 2v8a2 2 0 01-2 2H5a2 2 0 01-2-2V7z"/></svg>
                     </button>
                     <button (click)="hideOrDeleteCard(card, $event)"
                       class="w-6 h-6 flex items-center justify-center bg-red-100 text-red-600 rounded-full border border-red-100"
                       title="Supprimer">
-                      🗑️
+                      <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
                     </button>
                   </div>
 
-                  <div class="w-16 h-16 mb-3 flex items-center justify-center text-4xl">
-                    <img *ngIf="card.logo" [src]="card.logo" class="w-full h-full object-contain">
-                    <span *ngIf="!card.logo" class="text-4xl">🏢</span>
-                  </div>
                   <span class="font-bold text-gray-800 text-sm leading-tight line-clamp-2">{{ card.titre }}</span>
                 </div>
 
@@ -434,6 +415,8 @@
                 <div *ngIf="cat.cards.length === 0"
                   class="col-span-full text-center py-8 text-gray-400 border-2 border-dashed border-gray-200 rounded-xl">
                   <p class="text-sm">Cette catégorie est vide</p>
+                  <button (click)="showAddModal = true"
+                    class="mt-2 text-sm text-green-700 hover:underline">+ Ajouter une ressource</button>
                 </div>
               </div>
 
@@ -445,10 +428,6 @@
                   [ngClass]="isEditMode ? 'grid-cols-12' : 'grid-cols-11'">
 
                   <div [ngClass]="isEditMode ? 'col-span-4' : 'col-span-5'" class="flex items-center gap-3">
-                    <div class="w-8 h-8 rounded bg-gray-50 flex items-center justify-center text-lg">
-                      <img *ngIf="card.logo" [src]="card.logo" class="w-full h-full object-contain">
-                      <span *ngIf="!card.logo">🏢</span>
-                    </div>
                     <span class="font-bold text-gray-700 text-sm">{{ card.titre }}</span>
 
                     <span class="card-type-badge-small" [ngClass]="getBadgeClass(card.type)">
@@ -468,12 +447,12 @@
                     <button (click)="openMoveCardModal(card, cat.id, $event)"
                       class="w-6 h-6 flex items-center justify-center text-green-700 hover:text-green-900"
                       title="Déplacer">
-                      📁
+                      <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 7a2 2 0 012-2h4l2 2h6a2 2 0 012 2v8a2 2 0 01-2 2H5a2 2 0 01-2-2V7z"/></svg>
                     </button>
                     <button (click)="hideOrDeleteCard(card, $event)"
                       class="w-6 h-6 flex items-center justify-center text-red-500 hover:text-red-700"
                       title="Supprimer">
-                      🗑️
+                      <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
                     </button>
                   </div>
                 </div>
@@ -482,6 +461,8 @@
                 <div *ngIf="cat.cards.length === 0"
                   class="text-center py-8 text-gray-400 border-2 border-dashed border-gray-200 rounded-xl">
                   <p class="text-sm">Cette catégorie est vide</p>
+                  <button (click)="showAddModal = true"
+                    class="mt-2 text-sm text-green-700 hover:underline">+ Ajouter une ressource</button>
                 </div>
               </div>
 
@@ -490,8 +471,7 @@
         </div>
       </div>
     </div>
-  </main>
-</div>
+</main>
 
 <!-- BOUTON FLOTTANT + -->
 <button *ngIf="!isEditMode" (click)="showAddModal = true"
@@ -515,17 +495,6 @@
 <app-card-detail *ngIf="openedCard" [card]="openedCard" (close)="closeDetailAndRefresh()"
   (cardUpdated)="onCardUpdated($event)">
 </app-card-detail>
-
-<!-- MODAL PIN -->
-<app-pin-modal
-  *ngIf="showPinModal && pendingCollaborator"
-  [collaboratorId]="pendingCollaborator.id!"
-  [collaboratorName]="pendingCollaborator.first_name + ' ' + pendingCollaborator.last_name"
-  [collaboratorRole]="pendingCollaborator.role"
-  mode="switch"
-  (pinValidated)="onPinValidated()"
-  (cancelled)="onPinCancelled()">
-</app-pin-modal>
 
 <!-- MODALE DÉPLACEMENT DE CARTE -->
 <app-move-card-modal *ngIf="cardToMove" [categories]="allCategories" [card]="cardToMove"

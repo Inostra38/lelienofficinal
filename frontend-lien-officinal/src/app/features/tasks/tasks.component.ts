@@ -1,7 +1,7 @@
 import { Component, OnInit, OnDestroy, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { Router } from '@angular/router';
-import { Subject, interval } from 'rxjs';
+import { Subject, Subscription, interval } from 'rxjs';
 import { takeUntil, switchMap, startWith } from 'rxjs/operators';
 
 import { TaskService, Task } from '../../core/services/task.service';
@@ -25,6 +25,7 @@ export class TasksComponent implements OnInit, OnDestroy {
   private authService = inject(AuthService);
   private router = inject(Router);
   private destroy$ = new Subject<void>();
+  private subs = new Subscription();
 
   // Session collaborateur
   activeCollaborator: Collaborator | null = null;
@@ -50,18 +51,24 @@ export class TasksComponent implements OnInit, OnDestroy {
   ngOnInit() {
     this.collaboratorService.getTeam().subscribe(team => {
       this.team = team;
-      const savedId = this.authService.getCurrentCollaboratorId();
-      if (savedId) {
-        const found = team.find(c => c.id === savedId) ?? null;
-        if (found) {
-          this.activeCollaborator = found;
-          this.startPolling();
-        } else {
-          this.showCollaboratorPicker = true;
-        }
-      } else {
-        this.showCollaboratorPicker = true;
-      }
+      // Abonnement réactif : reagit à tout changement (sidebar, messagerie, ici)
+      this.subs.add(
+        this.authService.collaborator$.subscribe(id => {
+          const found = id ? team.find(c => c.id === id) ?? null : null;
+          if (found?.id === this.activeCollaborator?.id) return; // pas de changement
+          this.destroy$.next(); // arrêter le polling en cours
+          this.showPinModal = false;
+          this.pendingCollaborator = null;
+          if (found) {
+            this.activeCollaborator = found;
+            this.showCollaboratorPicker = false;
+            this.startPolling();
+          } else {
+            this.activeCollaborator = null;
+            this.showCollaboratorPicker = true;
+          }
+        })
+      );
     });
   }
 
@@ -72,12 +79,9 @@ export class TasksComponent implements OnInit, OnDestroy {
 
   onPinValidated() {
     if (!this.pendingCollaborator) return;
-    this.activeCollaborator = this.pendingCollaborator;
-    this.authService.setCurrentCollaboratorId(this.pendingCollaborator.id!);
+    this.authService.setCurrentCollaboratorId(this.pendingCollaborator.id!); // le stream gère la suite
     this.showPinModal = false;
-    this.showCollaboratorPicker = false;
     this.pendingCollaborator = null;
-    this.startPolling();
   }
 
   onPinCancelled() {
@@ -184,6 +188,7 @@ export class TasksComponent implements OnInit, OnDestroy {
   }
 
   ngOnDestroy() {
+    this.subs.unsubscribe();
     this.destroy$.next();
     this.destroy$.complete();
   }

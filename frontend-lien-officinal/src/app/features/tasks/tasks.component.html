@@ -1,29 +1,4 @@
-<div class="flex h-screen bg-gray-50 overflow-hidden" (click)="showCreateDropdown && (showCreateDropdown = false)">
-
-  <!-- ── Sidebar navigation (même style que messagerie) ── -->
-  <aside class="w-16 bg-white border-r border-gray-200 flex flex-col items-center py-4 gap-4 shrink-0 z-20">
-    <div class="w-9 h-9 bg-green-700 rounded-lg flex items-center justify-center text-white font-bold text-sm">L</div>
-    <div class="w-full h-px bg-gray-100"></div>
-
-    <!-- Retour dashboard -->
-    <button (click)="goToDashboard()"
-            class="w-10 h-10 rounded-xl flex items-center justify-center text-gray-400 hover:text-gray-700 hover:bg-gray-100 transition-colors"
-            title="Tableau de bord">
-      <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l9-9 9 9M5 10v10a1 1 0 001 1h4v-5h4v5h4a1 1 0 001-1V10" />
-      </svg>
-    </button>
-
-    <!-- Tâches (actif) -->
-    <button class="w-10 h-10 rounded-xl flex items-center justify-center bg-green-50 text-green-700"
-            title="Tâches">
-      <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" />
-      </svg>
-    </button>
-
-    <div class="flex-1"></div>
-  </aside>
+<div class="flex h-full bg-gray-50 overflow-hidden relative" (click)="showCreateDropdown && (showCreateDropdown = false)">
 
   <!-- ── Sélecteur de collaborateur (overlay) ── -->
   <div *ngIf="showCollaboratorPicker"

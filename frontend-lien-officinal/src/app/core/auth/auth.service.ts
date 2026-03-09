@@ -1,6 +1,7 @@
 import { Injectable, inject } from '@angular/core';
 import { HttpClient, HttpHeaders } from '@angular/common/http';
 import { Router } from '@angular/router';
+import { BehaviorSubject } from 'rxjs';
 import { tap, switchMap } from 'rxjs/operators';
 
 @Injectable({
@@ -13,6 +14,11 @@ export class AuthService {
   private tokenKey = 'access_token';
   private onboardingKey = 'onboarding_completed';
   private collaboratorKey = 'active_collaborator_id';
+
+  private collaboratorSubject = new BehaviorSubject<number | null>(
+    localStorage.getItem('active_collaborator_id') ? Number(localStorage.getItem('active_collaborator_id')) : null
+  );
+  readonly collaborator$ = this.collaboratorSubject.asObservable();
 
   login(credentials: any) {
     return this.http.post<any>(`${this.baseUrl}/token/`, credentials).pipe(
@@ -49,6 +55,7 @@ export class AuthService {
 
   setCurrentCollaboratorId(id: number): void {
     localStorage.setItem(this.collaboratorKey, String(id));
+    this.collaboratorSubject.next(id);
   }
 
   getCurrentCollaboratorId(): number | null {
@@ -58,6 +65,7 @@ export class AuthService {
 
   clearCurrentCollaborator(): void {
     localStorage.removeItem(this.collaboratorKey);
+    this.collaboratorSubject.next(null);
   }
 
   isAuthenticated(): boolean {

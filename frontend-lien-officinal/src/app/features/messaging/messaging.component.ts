@@ -50,8 +50,7 @@ export class MessagingComponent implements OnInit, OnDestroy {
   // ── Cycle de vie ─────────────────────────────────────────────────────────
 
   ngOnInit(): void {
-    const savedId = this.messagingService.getActiveCollaboratorId();
-    this.loadTeam(savedId);
+    this.loadTeam();
 
     // Verrouillage auto après 5 min d'inactivité
     this.inactivityService.startWatching();
@@ -73,19 +72,36 @@ export class MessagingComponent implements OnInit, OnDestroy {
 
   // ── Équipe & collaborateur actif ─────────────────────────────────────────
 
-  loadTeam(restoreId?: number | null): void {
+  loadTeam(): void {
     this.collaboratorService.getTeam().subscribe({
       next: (team) => {
         this.team = team;
-        if (restoreId) {
-          const found = team.find(c => c.id === restoreId) ?? null;
-          if (found) {
-            // Restauration depuis localStorage : pas de PIN redemandé
+        // Abonnement réactif : reagit à tout changement de collaborateur (sidebar, tâches, ici)
+        this.subs.add(
+          this.authService.collaborator$.subscribe(id => {
+            const found = id ? team.find(c => c.id === id) ?? null : null;
+            if (!found) {
+              this.stopListPolling();
+              this.activeCollaborator = null;
+              this.showCollaboratorPicker = true;
+              return;
+            }
+            if (found.id === this.activeCollaborator?.id) {
+              // Même collaborateur — si verrouillé, le déverrouiller (PIN déjà validé ailleurs)
+              if (this.isLocked) {
+                this.isLocked = false;
+                this.startListPolling();
+                this.inactivityService.resetTimer();
+              }
+              return;
+            }
+            // Nouveau collaborateur (depuis sidebar ou ici après PIN)
+            this.isLocked = false;
+            this.showPinModal = false;
+            this.pendingCollaborator = null;
             this.setActiveCollaborator(found);
-            return;
-          }
-        }
-        this.showCollaboratorPicker = true;
+          })
+        );
       },
       error: () => {
         this.showCollaboratorPicker = true;
@@ -105,16 +121,16 @@ export class MessagingComponent implements OnInit, OnDestroy {
     this.showPinModal = false;
 
     if (this.isLocked) {
-      // Mode unlock : on reprend la session du collaborateur actif
+      // Mode unlock : même collaborateur, déverrouiller localement
       this.isLocked = false;
       this.startListPolling();
       this.inactivityService.resetTimer();
       this.pendingCollaborator = null;
     } else if (this.pendingCollaborator) {
-      // Mode switch : on change de collaborateur
+      // Mode switch : émet vers le stream → met à jour sidebar + tâches automatiquement
       this.messagingService.setActiveCollaboratorId(this.pendingCollaborator.id!);
-      this.setActiveCollaborator(this.pendingCollaborator);
       this.pendingCollaborator = null;
+      // setActiveCollaborator sera appelé par le stream
     }
   }
 

@@ -33,7 +33,6 @@ export class CardDetailComponent implements OnInit {
   // Édition de la carte
   editableTitre: string = '';
   editableDescription: string = '';
-  editableLogo: File | null = null;
 
   // États
   isSaving = false;
@@ -88,7 +87,6 @@ export class CardDetailComponent implements OnInit {
 
   cancelEdit() {
     this.isEditMode = false;
-    this.editableLogo = null;
   }
 
   canDeleteItem(item: any): boolean {
@@ -172,13 +170,6 @@ export class CardDetailComponent implements OnInit {
   // SAUVEGARDE DE LA CARTE
   // ============================================
 
-  onLogoSelected(event: Event) {
-    const input = event.target as HTMLInputElement;
-    if (input.files && input.files.length > 0) {
-      this.editableLogo = input.files[0];
-    }
-  }
-
   saveCardChanges() {
     if (this.card.type !== 'PRIVATE') {
       alert('Vous ne pouvez modifier que vos cartes privées.');
@@ -194,9 +185,6 @@ export class CardDetailComponent implements OnInit {
     const formData = new FormData();
     formData.append('titre', this.editableTitre);
     formData.append('description_officielle', this.editableDescription);
-    if (this.editableLogo) {
-      formData.append('logo', this.editableLogo);
-    }
 
     this.http.patch(`${environment.apiUrl}/api/cards/${this.card.id}/`, formData, { headers })
       .subscribe({
@@ -204,10 +192,6 @@ export class CardDetailComponent implements OnInit {
           // ✅ MISE À JOUR IMMÉDIATE
           this.card.titre = updatedCard.titre;
           this.card.description_officielle = updatedCard.description_officielle;
-          if (updatedCard.logo) {
-            this.card.logo = updatedCard.logo;
-          }
-          
           this.isSaving = false;
           this.isEditMode = false;
           this.cardUpdated.emit(this.card);
@@ -284,8 +268,6 @@ export class CardDetailComponent implements OnInit {
   // ============================================
 
   saveNotes() {
-    console.log('🔵 saveNotes() appelée !');
-    
     this.isSaving = true;
     this.saveSuccess = false;
 
@@ -299,34 +281,20 @@ export class CardDetailComponent implements OnInit {
       note_longue: this.editableNoteLongue
     };
 
-    console.log('📤 Envoi PATCH vers:', `${environment.apiUrl}/api/cards/${this.card.id}/`);
-    console.log('📦 Body:', body);
-
-    this.http.patch(`${environment.apiUrl}/api/cards/${this.card.id}/`, body, { headers })
+    this.http.patch(`${environment.apiUrl}/api/cards/${this.card.id}/update-notes/`, body, { headers })
       .subscribe({
-        next: (updatedCard: any) => {
-          console.log('✅ Réponse reçue:', updatedCard);
-          
-          // ✅ MISE À JOUR IMMÉDIATE DE LA CARTE LOCALE
-          this.card.note_courte = updatedCard.note_courte;
-          this.card.note_longue = updatedCard.note_longue;
-          
-          // ✅ MISE À JOUR DES CHAMPS ÉDITABLES (CRITIQUE!)
-          this.editableNoteCourte = updatedCard.note_courte || '';
-          this.editableNoteLongue = updatedCard.note_longue || '';
-          
+        next: (response: any) => {
+          this.card.note_courte = response.note_courte;
+          this.card.note_longue = response.note_longue;
+          this.editableNoteCourte = response.note_courte || '';
+          this.editableNoteLongue = response.note_longue || '';
           this.isSaving = false;
           this.saveSuccess = true;
-          
-          // Émettre l'événement pour rafraîchir le dashboard
-          this.cardUpdated.emit(updatedCard);
-          
+          this.cardUpdated.emit(this.card);
           setTimeout(() => this.saveSuccess = false, 3000);
         },
         error: (err) => {
-          console.error('❌ Erreur lors de la sauvegarde des notes:', err);
-          console.error('Status:', err.status);
-          console.error('Message:', err.message);
+          console.error('Erreur lors de la sauvegarde des notes:', err);
           alert('Erreur lors de la sauvegarde des notes.');
           this.isSaving = false;
         }

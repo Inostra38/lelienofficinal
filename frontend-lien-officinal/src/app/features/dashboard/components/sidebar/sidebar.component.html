@@ -1,78 +1,132 @@
-<aside class="w-64 bg-white border-r border-gray-200 flex flex-col h-full shrink-0 z-20">
+<aside
+  class="bg-white border-r border-gray-200 flex flex-col h-full shrink-0 z-20 transition-all duration-300"
+  [class.w-16]="isCollapsed"
+  [class.w-64]="!isCollapsed">
 
-  <!-- Logo -->
-  <div class="p-6 flex items-center gap-3 shrink-0">
+  <!-- Logo + toggle — collapsed : colonne centrée / expanded : ligne avec espace -->
+  <div *ngIf="isCollapsed" class="shrink-0 flex flex-col items-center py-3 gap-2">
     <div class="w-8 h-8 bg-green-700 rounded-lg flex items-center justify-center text-white font-bold">L</div>
-    <span class="font-bold text-gray-800 text-lg tracking-tight">Le Lien Officinal</span>
+    <button (click)="toggleCollapse()"
+            class="flex items-center justify-center w-8 h-8 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
+            title="Ouvrir le menu">
+      <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"/>
+      </svg>
+    </button>
+  </div>
+
+  <div *ngIf="!isCollapsed" class="shrink-0 flex flex-row items-center h-14 px-3 gap-3 border-b border-gray-100">
+    <div class="w-8 h-8 bg-green-700 rounded-lg flex items-center justify-center text-white font-bold shrink-0">L</div>
+    <span class="font-bold text-gray-800 text-sm tracking-tight flex-1 whitespace-nowrap">Le Lien Officinal</span>
+    <button (click)="toggleCollapse()"
+            class="shrink-0 flex items-center justify-center w-7 h-7 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
+            title="Réduire le menu">
+      <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/>
+      </svg>
+    </button>
   </div>
 
   <!-- Navigation -->
-  <nav class="flex-1 px-4 space-y-1 overflow-y-auto custom-scrollbar">
-    <div *ngFor="let item of menuItems"
-         (click)="onMenuItemNav(item.route)"
-         class="flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-200 group relative"
-         [ngClass]="[
-           item.active ? 'bg-green-50 text-green-700 font-semibold' : 'text-gray-600 hover:bg-gray-100 hover:text-gray-900',
-           item.route ? 'cursor-pointer' : 'cursor-not-allowed opacity-50'
-         ]">
-      <span class="text-xl">{{ item.icon }}</span>
-      <span class="flex-1">{{ item.label }}</span>
-      <!-- Badge non lus Messagerie -->
-      <span *ngIf="item.label === 'Messagerie' && unreadMessagesCount > 0"
-            class="bg-green-600 text-white text-[10px] font-bold min-w-[18px] h-[18px] px-1 rounded-full flex items-center justify-center">
-        {{ unreadMessagesCount > 99 ? '99+' : unreadMessagesCount }}
-      </span>
-      <!-- Badge tâches non vues -->
-      <span *ngIf="item.label === 'Tâches' && unseenTasksCount > 0"
-            class="bg-red-500 text-white text-[10px] font-bold min-w-[18px] h-[18px] px-1 rounded-full flex items-center justify-center">
-        {{ unseenTasksCount > 99 ? '99+' : unseenTasksCount }}
-      </span>
-    </div>
+  <nav class="flex-1 overflow-y-auto py-2 px-2 space-y-0.5 custom-scrollbar">
+
+    <ng-container *ngFor="let item of navItems">
+
+      <!-- Item cliquable -->
+      <a *ngIf="item.route"
+         [routerLink]="item.route"
+         routerLinkActive="bg-green-50 !text-green-700 font-semibold"
+         class="flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all duration-200 text-gray-500 hover:bg-gray-100 hover:text-gray-900 relative"
+         [ngClass]="isCollapsed ? 'justify-center' : ''"
+         [title]="isCollapsed ? item.label : ''">
+
+        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" [attr.d]="item.svgPath"/>
+        </svg>
+
+        <ng-container *ngIf="!isCollapsed">
+          <span class="flex-1 whitespace-nowrap text-sm">{{ item.label }}</span>
+          <span *ngIf="getBadgeCount(item.id) > 0"
+                class="text-white text-[10px] font-bold min-w-[18px] h-[18px] px-1 rounded-full flex items-center justify-center"
+                [ngClass]="item.id === 'taches' ? 'bg-red-500' : 'bg-green-600'">
+            {{ getBadgeCount(item.id) > 99 ? '99+' : getBadgeCount(item.id) }}
+          </span>
+        </ng-container>
+
+        <!-- Point badge quand replié -->
+        <span *ngIf="isCollapsed && getBadgeCount(item.id) > 0"
+              class="absolute top-1.5 right-1.5 w-2 h-2 rounded-full"
+              [ngClass]="item.id === 'taches' ? 'bg-red-500' : 'bg-green-500'">
+        </span>
+      </a>
+
+      <!-- Item désactivé (sans route) -->
+      <div *ngIf="!item.route"
+           class="flex items-center gap-3 px-3 py-2.5 rounded-xl opacity-35 cursor-not-allowed text-gray-500"
+           [ngClass]="isCollapsed ? 'justify-center' : ''"
+           [title]="isCollapsed ? item.label + ' — Bientôt disponible' : ''">
+
+        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" [attr.d]="item.svgPath"/>
+        </svg>
+
+        <ng-container *ngIf="!isCollapsed">
+          <span class="flex-1 whitespace-nowrap text-sm">{{ item.label }}</span>
+          <span class="text-[10px] text-gray-400 bg-gray-100 px-1.5 py-0.5 rounded">Bientôt</span>
+        </ng-container>
+      </div>
+
+    </ng-container>
   </nav>
 
-  <!-- Zone pub -->
-  <div class="px-4 py-4 mt-auto">
+  <!-- Zone pub (uniquement déplié) -->
+  <div *ngIf="!isCollapsed" class="px-4 py-3 shrink-0">
     <div class="h-40 w-full">
       <app-ad-space></app-ad-space>
     </div>
   </div>
 
-  <!-- Session collaborateur + menu pharmacie -->
-  <div class="p-4 border-t border-gray-100 shrink-0 bg-gray-50/50">
+  <!-- Collaborateur + pharmacie -->
+  <div class="border-t border-gray-100 shrink-0 bg-gray-50/50" [ngClass]="isCollapsed ? 'p-2' : 'p-4'">
 
-    <!-- Collaborateur actif -->
-    <div *ngIf="activeCollaborator" class="animate-in fade-in slide-in-from-bottom-2 duration-300">
+    <!-- Collaborateur actif — déplié -->
+    <div *ngIf="activeCollaborator && !isCollapsed" class="animate-in fade-in slide-in-from-bottom-2 duration-300">
       <div class="bg-white p-2 pr-4 rounded-xl border border-green-200 shadow-sm flex items-center gap-3">
-
         <button (click)="logout.emit()"
                 class="w-8 h-8 flex items-center justify-center rounded-lg text-gray-400 hover:text-red-600 hover:bg-red-50 transition-colors"
                 title="Fermer la session">
           <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
           </svg>
         </button>
-
         <div class="w-px h-8 bg-gray-100"></div>
-
         <div class="w-9 h-9 rounded-full text-white flex items-center justify-center font-bold text-xs shadow-sm tracking-widest uppercase shrink-0"
              [ngClass]="getCollaboratorBgClass(activeCollaborator.color)">
           {{ activeCollaborator.first_name.charAt(0) }}{{ activeCollaborator.last_name.charAt(0) }}
         </div>
-
         <div class="overflow-hidden flex-1 min-w-0">
           <p class="text-sm text-gray-800 font-bold truncate">{{ activeCollaborator.first_name }}</p>
-          <p class="text-[10px] text-green-600 font-medium truncate flex items-center gap-1">
+          <p class="text-[10px] text-green-600 font-medium flex items-center gap-1">
             <span class="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse"></span> En ligne
           </p>
         </div>
-
       </div>
     </div>
 
-    <!-- Sélecteur collaborateur -->
-    <div *ngIf="!activeCollaborator" class="animate-in fade-in duration-300">
-      <p class="text-xs font-bold text-gray-400 uppercase tracking-widest mb-3 text-center">Qui êtes-vous ?</p>
+    <!-- Collaborateur actif — replié -->
+    <div *ngIf="activeCollaborator && isCollapsed" class="flex justify-center mb-2">
+      <button (click)="logout.emit()"
+              class="w-9 h-9 rounded-full text-white flex items-center justify-center font-bold text-xs relative"
+              [ngClass]="getCollaboratorBgClass(activeCollaborator.color)"
+              [title]="activeCollaborator.first_name + ' — Fermer la session'">
+        {{ activeCollaborator.first_name.charAt(0) }}{{ activeCollaborator.last_name.charAt(0) }}
+        <span class="absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 bg-green-500 rounded-full border-2 border-white"></span>
+      </button>
+    </div>
 
+    <!-- Sélecteur collaborateur — déplié -->
+    <div *ngIf="!activeCollaborator && !isCollapsed" class="animate-in fade-in duration-300">
+      <p class="text-xs font-bold text-gray-400 uppercase tracking-widest mb-3 text-center">Qui êtes-vous ?</p>
       <div class="grid grid-cols-4 gap-2">
         <button *ngFor="let collab of team"
                 (click)="sessionClick.emit(collab)"
@@ -85,73 +139,89 @@
             {{ collab.civility }} {{ collab.first_name }} {{ collab.last_name }}
           </span>
         </button>
-
         <div class="aspect-square rounded-xl border border-dashed border-gray-300 flex items-center justify-center text-gray-300 cursor-not-allowed">
           <span class="text-xs">+</span>
         </div>
       </div>
     </div>
 
-    <!-- Bouton Menu Pharmacie -->
-    <div class="py-3 mt-3 relative">
+    <!-- Bouton pharmacie — déplié -->
+    <div *ngIf="!isCollapsed" class="mt-3 relative">
       <button (click)="togglePharmacyMenu()"
               class="w-full bg-white hover:bg-gray-50 border border-gray-200 rounded-xl p-3 flex items-center gap-3 transition-all duration-200 shadow-sm hover:shadow-md group">
-        <div class="w-10 h-10 rounded-lg bg-green-700 flex items-center justify-center text-white font-bold text-lg shrink-0">
-          P
-        </div>
+        <div class="w-10 h-10 rounded-lg bg-green-700 flex items-center justify-center text-white font-bold text-lg shrink-0">P</div>
         <div class="flex-1 text-left min-w-0">
           <p class="text-sm font-bold text-gray-800 truncate">{{ pharmacyName }}</p>
           <p class="text-xs text-gray-500">Mon compte</p>
         </div>
         <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-gray-400 group-hover:text-gray-600 transition-colors" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 9l4-4 4 4m0 6l-4 4-4-4" />
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 9l4-4 4 4m0 6l-4 4-4-4"/>
         </svg>
       </button>
 
-      <!-- Menu Contextuel -->
+      <!-- Menu contextuel -->
       <div *ngIf="isPharmacyMenuOpen"
            class="absolute bottom-full left-0 right-0 mb-2 bg-white border border-gray-200 rounded-xl shadow-2xl overflow-hidden animate-in fade-in slide-in-from-bottom-2 duration-200 z-50">
-
-        <!-- En-tête -->
         <div class="px-4 py-3 bg-green-50 border-b border-green-100">
           <p class="text-sm font-bold text-gray-800">{{ pharmacyName }}</p>
         </div>
-
-        <!-- Options -->
         <div class="py-1">
-          <button (click)="onMenuItemClick('account')"
-                  class="w-full px-4 py-2.5 text-left text-sm text-gray-700 hover:bg-green-50 hover:text-green-700 transition-colors flex items-center gap-2">
-            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
-            </svg>
+          <button (click)="onMenuItemClick('account')" class="w-full px-4 py-2.5 text-left text-sm text-gray-700 hover:bg-green-50 hover:text-green-700 transition-colors flex items-center gap-2">
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/></svg>
             Compte
           </button>
-
-          <button (click)="onMenuItemClick('billing')"
-                  class="w-full px-4 py-2.5 text-left text-sm text-gray-700 hover:bg-green-50 hover:text-green-700 transition-colors flex items-center gap-2">
-            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z" />
-            </svg>
+          <button (click)="onMenuItemClick('billing')" class="w-full px-4 py-2.5 text-left text-sm text-gray-700 hover:bg-green-50 hover:text-green-700 transition-colors flex items-center gap-2">
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z"/></svg>
             Facturation
           </button>
-
-          <button (click)="onMenuItemClick('preferences')"
-                  class="w-full px-4 py-2.5 text-left text-sm text-gray-700 hover:bg-green-50 hover:text-green-700 transition-colors flex items-center gap-2">
+          <button (click)="onMenuItemClick('preferences')" class="w-full px-4 py-2.5 text-left text-sm text-gray-700 hover:bg-green-50 hover:text-green-700 transition-colors flex items-center gap-2">
             <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/>
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
             </svg>
             Préférences
           </button>
         </div>
-
-        <!-- Déconnexion -->
         <div class="border-t border-gray-200">
-          <button (click)="onMenuItemClick('logout')"
-                  class="w-full px-4 py-2.5 text-left text-sm text-red-600 hover:bg-red-50 transition-colors flex items-center gap-2 font-medium">
+          <button (click)="onMenuItemClick('logout')" class="w-full px-4 py-2.5 text-left text-sm text-red-600 hover:bg-red-50 transition-colors flex items-center gap-2 font-medium">
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"/></svg>
+            Déconnexion
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Bouton pharmacie — replié -->
+    <div *ngIf="isCollapsed" class="mt-2 flex justify-center relative">
+      <button (click)="togglePharmacyMenu()"
+              class="w-9 h-9 rounded-lg bg-green-700 flex items-center justify-center text-white font-bold text-sm"
+              [title]="pharmacyName + ' — Mon compte'">P</button>
+
+      <div *ngIf="isPharmacyMenuOpen"
+           class="absolute bottom-full left-0 mb-2 w-56 bg-white border border-gray-200 rounded-xl shadow-2xl overflow-hidden animate-in fade-in slide-in-from-bottom-2 duration-200 z-50">
+        <div class="px-4 py-3 bg-green-50 border-b border-green-100">
+          <p class="text-sm font-bold text-gray-800">{{ pharmacyName }}</p>
+        </div>
+        <div class="py-1">
+          <button (click)="onMenuItemClick('account')" class="w-full px-4 py-2.5 text-left text-sm text-gray-700 hover:bg-green-50 hover:text-green-700 transition-colors flex items-center gap-2">
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/></svg>
+            Compte
+          </button>
+          <button (click)="onMenuItemClick('billing')" class="w-full px-4 py-2.5 text-left text-sm text-gray-700 hover:bg-green-50 hover:text-green-700 transition-colors flex items-center gap-2">
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z"/></svg>
+            Facturation
+          </button>
+          <button (click)="onMenuItemClick('preferences')" class="w-full px-4 py-2.5 text-left text-sm text-gray-700 hover:bg-green-50 hover:text-green-700 transition-colors flex items-center gap-2">
             <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/>
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
             </svg>
+            Préférences
+          </button>
+        </div>
+        <div class="border-t border-gray-200">
+          <button (click)="onMenuItemClick('logout')" class="w-full px-4 py-2.5 text-left text-sm text-red-600 hover:bg-red-50 transition-colors flex items-center gap-2 font-medium">
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"/></svg>
             Déconnexion
           </button>
         </div>

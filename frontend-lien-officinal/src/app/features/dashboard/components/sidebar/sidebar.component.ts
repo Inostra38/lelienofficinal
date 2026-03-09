@@ -1,14 +1,22 @@
 import { Component, EventEmitter, Input, Output, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
+import { RouterLink, RouterLinkActive } from '@angular/router';
 import { Router } from '@angular/router';
 import { Collaborator } from '../../../../core/services/collaborator.service';
 import { AdSpaceComponent } from '../../../../shared/ui/ad-space/ad-space.component';
 import { AuthService } from '../../../../core/auth/auth.service';
 
+interface NavItem {
+  id: string;
+  label: string;
+  route: string | null;
+  svgPath: string;
+}
+
 @Component({
   selector: 'app-sidebar',
   standalone: true,
-  imports: [CommonModule, AdSpaceComponent],
+  imports: [CommonModule, RouterLink, RouterLinkActive, AdSpaceComponent],
   templateUrl: './sidebar.component.html',
   styleUrl: './sidebar.component.css'
 })
@@ -17,6 +25,7 @@ export class SidebarComponent {
   @Input() team: Collaborator[] = [];
   @Input() unreadMessagesCount = 0;
   @Input() unseenTasksCount = 0;
+  @Input() pharmacyName = '';
 
   @Output() logout = new EventEmitter<void>();
   @Output() sessionClick = new EventEmitter<Collaborator>();
@@ -24,21 +33,58 @@ export class SidebarComponent {
   private authService = inject(AuthService);
   constructor(private router: Router) {}
 
-  menuItems = [
-    { label: 'Tableau de bord', icon: '🏠', active: true, route: '/dashboard' },
-    { label: 'Messagerie', icon: '💬', active: false, route: '/messagerie' },
-    { label: 'Tâches', icon: '✅', active: false, route: '/taches' },
-    { label: 'Planning', icon: '📅', active: false, route: null },
-    { label: 'Commandes', icon: '📦', active: false, route: null },
+  isCollapsed = false;
+  isPharmacyMenuOpen = false;
+
+  navItems: NavItem[] = [
+    {
+      id: 'dashboard',
+      label: 'Tableau de bord',
+      route: '/dashboard',
+      svgPath: 'M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6'
+    },
+    {
+      id: 'messagerie',
+      label: 'Messagerie',
+      route: '/messagerie',
+      svgPath: 'M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z'
+    },
+    {
+      id: 'taches',
+      label: 'Tâches',
+      route: '/taches',
+      svgPath: 'M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4'
+    },
+    {
+      id: 'raccourcis',
+      label: 'Raccourcis',
+      route: null,
+      svgPath: 'M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z'
+    },
+    {
+      id: 'news',
+      label: 'Actualités',
+      route: null,
+      svgPath: 'M19 20H5a2 2 0 01-2-2V6a2 2 0 012-2h10a2 2 0 012 2v1m2 13a2 2 0 01-2-2V7m2 13a2 2 0 002-2V9a2 2 0 00-2-2h-2m-4-3H9M7 16h6M7 8h6v4H7V8z'
+    },
+    {
+      id: 'qualite',
+      label: 'Qualité',
+      route: null,
+      svgPath: 'M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z'
+    },
+    {
+      id: 'fil',
+      label: 'Fil',
+      route: null,
+      svgPath: 'M4 6h16M4 10h16M4 14h16M4 18h16'
+    }
   ];
 
-  onMenuItemNav(route: string | null): void {
-    if (route) this.router.navigate([route]);
+  toggleCollapse(): void {
+    this.isCollapsed = !this.isCollapsed;
+    if (this.isCollapsed) this.isPharmacyMenuOpen = false;
   }
-
-  // Menu Pharmacie
-  @Input() pharmacyName = '';
-  isPharmacyMenuOpen: boolean = false;
 
   togglePharmacyMenu(): void {
     this.isPharmacyMenuOpen = !this.isPharmacyMenuOpen;
@@ -46,23 +92,18 @@ export class SidebarComponent {
 
   onMenuItemClick(action: string): void {
     this.isPharmacyMenuOpen = false;
-
-    switch(action) {
-      case 'account':
-        this.router.navigate(['/account']);
-        break;
-      case 'billing':
-        console.log('Navigation vers Facturation');
-        // TODO: Implémenter la navigation vers la page facturation
-        break;
-      case 'preferences':
-        console.log('Navigation vers Préférences');
-        // TODO: Implémenter la navigation vers la page préférences
-        break;
-      case 'logout':
-        this.authService.logout();
-        break;
+    switch (action) {
+      case 'account': this.router.navigate(['/account']); break;
+      case 'billing': console.log('TODO: Facturation'); break;
+      case 'preferences': console.log('TODO: Préférences'); break;
+      case 'logout': this.authService.logout(); break;
     }
+  }
+
+  getBadgeCount(id: string): number {
+    if (id === 'messagerie') return this.unreadMessagesCount;
+    if (id === 'taches') return this.unseenTasksCount;
+    return 0;
   }
 
   getCollaboratorBgClass(color: string): string {
