@@ -32,13 +32,16 @@ def _get_collaborator(request):
         return None
 
 
-def _get_conversation_for_user(conversation_id, request):
+def _get_conversation_for_participant(conversation_id, request, collaborator):
     """
-    Récupère une conversation appartenant à la pharmacie connectée.
-    Lève 404 si introuvable ou hors scope.
+    Récupère une conversation appartenant à la pharmacie ET dont
+    le collaborateur actif est participant. Lève 404 sinon.
     """
     return get_object_or_404(
-        Conversation, id=conversation_id, pharmacy=request.user
+        Conversation,
+        id=conversation_id,
+        pharmacy=request.user,
+        participants=collaborator,
     )
 
 
@@ -51,7 +54,16 @@ class ConversationListCreateView(APIView):
 
     def get(self, request):
         collaborator = _get_collaborator(request)
-        conversations = Conversation.objects.filter(pharmacy=request.user)
+        if collaborator is None:
+            return Response(
+                {"detail": "En-tête X-Collaborator-Id manquant ou invalide."},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        # Filtrage par participant : on ne retourne que les conversations
+        # dont le collaborateur actif est membre
+        conversations = Conversation.objects.filter(
+            pharmacy=request.user, participants=collaborator
+        )
         serializer = ConversationSerializer(
             conversations, many=True, context={'request': request, 'collaborator': collaborator}
         )
@@ -78,18 +90,28 @@ class ConversationDetailView(APIView):
     permission_classes = [IsAuthenticated]
 
     def get(self, request, conversation_id):
-        conversation = _get_conversation_for_user(conversation_id, request)
         collaborator = _get_collaborator(request)
+        if collaborator is None:
+            return Response(
+                {"detail": "En-tête X-Collaborator-Id manquant ou invalide."},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        conversation = _get_conversation_for_participant(conversation_id, request, collaborator)
         serializer = ConversationSerializer(
             conversation, context={'request': request, 'collaborator': collaborator}
         )
         return Response(serializer.data)
 
     def delete(self, request, conversation_id):
-        conversation = _get_conversation_for_user(conversation_id, request)
         collaborator = _get_collaborator(request)
+        if collaborator is None:
+            return Response(
+                {"detail": "En-tête X-Collaborator-Id manquant ou invalide."},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        conversation = _get_conversation_for_participant(conversation_id, request, collaborator)
 
-        if collaborator is None or conversation.created_by_id != collaborator.id:
+        if conversation.created_by_id != collaborator.id:
             return Response(
                 {"detail": "Seul le créateur peut supprimer ce fil."},
                 status=status.HTTP_403_FORBIDDEN
@@ -107,7 +129,13 @@ class MessageListCreateView(APIView):
     permission_classes = [IsAuthenticated]
 
     def get(self, request, conversation_id):
-        conversation = _get_conversation_for_user(conversation_id, request)
+        collaborator = _get_collaborator(request)
+        if collaborator is None:
+            return Response(
+                {"detail": "En-tête X-Collaborator-Id manquant ou invalide."},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        conversation = _get_conversation_for_participant(conversation_id, request, collaborator)
         messages = conversation.messages.select_related('sender').prefetch_related(
             'attachments', 'is_read_by'
         )
@@ -115,20 +143,13 @@ class MessageListCreateView(APIView):
         return Response(serializer.data)
 
     def post(self, request, conversation_id):
-        conversation = _get_conversation_for_user(conversation_id, request)
-
         serializer = MessageCreateSerializer(data=request.data, context={'request': request})
         if not serializer.is_valid():
             return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
         collaborator = serializer.context['collaborator']
-
-        # Vérifie que l'expéditeur est bien participant du fil
-        if not conversation.participants.filter(id=collaborator.id).exists():
-            return Response(
-                {"detail": "Vous n'êtes pas participant de cette conversation."},
-                status=status.HTTP_403_FORBIDDEN
-            )
+        # La vérification de participation est intégrée dans la requête
+        conversation = _get_conversation_for_participant(conversation_id, request, collaborator)
 
         message = Message.objects.create(
             conversation=conversation,
@@ -149,14 +170,13 @@ class MarkReadView(APIView):
     permission_classes = [IsAuthenticated]
 
     def post(self, request, conversation_id):
-        conversation = _get_conversation_for_user(conversation_id, request)
         collaborator = _get_collaborator(request)
-
         if collaborator is None:
             return Response(
-                {"detail": "En-tête X-Collaborator-Id manquant."},
+                {"detail": "En-tête X-Collaborator-Id manquant ou invalide."},
                 status=status.HTTP_400_BAD_REQUEST
             )
+        conversation = _get_conversation_for_participant(conversation_id, request, collaborator)
 
         for message in conversation.messages.exclude(sender=collaborator):
             message.is_read_by.add(collaborator)
@@ -172,8 +192,17 @@ class AttachmentUploadView(APIView):
     permission_classes = [IsAuthenticated]
 
     def post(self, request, message_id):
+        collaborator = _get_collaborator(request)
+        if collaborator is None:
+            return Response(
+                {"detail": "En-tête X-Collaborator-Id manquant ou invalide."},
+                status=status.HTTP_400_BAD_REQUEST
+            )
         message = get_object_or_404(
-            Message, id=message_id, conversation__pharmacy=request.user
+            Message,
+            id=message_id,
+            conversation__pharmacy=request.user,
+            conversation__participants=collaborator,
         )
         serializer = AttachmentUploadSerializer(
             data=request.data, context={'message': message}
@@ -195,10 +224,17 @@ class AttachmentDownloadView(APIView):
     permission_classes = [IsAuthenticated]
 
     def get(self, request, attachment_id):
+        collaborator = _get_collaborator(request)
+        if collaborator is None:
+            return Response(
+                {"detail": "En-tête X-Collaborator-Id manquant ou invalide."},
+                status=status.HTTP_400_BAD_REQUEST
+            )
         attachment = get_object_or_404(
             Attachment,
             id=attachment_id,
-            message__conversation__pharmacy=request.user
+            message__conversation__pharmacy=request.user,
+            message__conversation__participants=collaborator,
         )
         response = FileResponse(
             attachment.file.open('rb'),

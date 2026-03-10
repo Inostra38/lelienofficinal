@@ -26,6 +26,7 @@ export interface Task {
   due_date: string | null;
   completed_at: string | null;
   is_completion_seen: boolean;
+  order: number;
   created_at: string;
   updated_at: string;
 }
@@ -88,5 +89,9 @@ export class TaskService {
 
   markAsSeen(collaboratorId: number): Observable<void> {
     return this.http.post<void>(`${this.apiUrl}/mark-seen/`, {}, this.withCollaborator(collaboratorId));
+  }
+
+  reorderTasks(taskIds: string[]): Observable<{ detail: string }> {
+    return this.http.post<{ detail: string }>(`${this.apiUrl}/reorder/`, { task_ids: taskIds });
   }
 }

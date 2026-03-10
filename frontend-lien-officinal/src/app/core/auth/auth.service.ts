@@ -44,11 +44,11 @@ export class AuthService {
     );
   }
 
-  logout() {
+  logout(returnUrl?: string) {
     localStorage.removeItem(this.tokenKey);
     localStorage.removeItem(this.onboardingKey);
-    localStorage.removeItem(this.collaboratorKey);
-    this.router.navigate(['/login']);
+    this.clearCurrentCollaborator(); // reset localStorage + BehaviorSubject en mémoire
+    this.router.navigate(['/login'], returnUrl ? { queryParams: { returnUrl } } : {});
   }
 
   // ── Collaborateur actif (partagé dashboard + messagerie) ─────────────────

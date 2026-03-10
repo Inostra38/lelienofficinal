@@ -3,6 +3,7 @@ import { CommonModule } from '@angular/common';
 import { Router } from '@angular/router';
 import { Subject, Subscription, interval } from 'rxjs';
 import { takeUntil, switchMap, startWith } from 'rxjs/operators';
+import { CdkDragDrop, DragDropModule, moveItemInArray } from '@angular/cdk/drag-drop';
 
 import { TaskService, Task } from '../../core/services/task.service';
 import { CollaboratorService, Collaborator } from '../../core/services/collaborator.service';
@@ -15,7 +16,7 @@ import { TaskDetailDrawerComponent } from './components/task-detail-drawer/task-
 @Component({
   selector: 'app-tasks',
   standalone: true,
-  imports: [CommonModule, PinModalComponent, TaskCardComponent, TaskCreateDialogComponent, TaskDetailDrawerComponent],
+  imports: [CommonModule, DragDropModule, PinModalComponent, TaskCardComponent, TaskCreateDialogComponent, TaskDetailDrawerComponent],
   templateUrl: './tasks.component.html',
   styleUrl: './tasks.component.css'
 })
@@ -181,6 +182,15 @@ export class TasksComponent implements OnInit, OnDestroy {
 
   getBgClass(color: string): string {
     return `bg-${color}-500`;
+  }
+
+  onDrop(event: CdkDragDrop<Task[]>, group: 'personal' | 'assigned_to_me' | 'assigned_by_me') {
+    if (event.previousIndex === event.currentIndex) return;
+    const arr = group === 'personal' ? this.personalTasks
+              : group === 'assigned_to_me' ? this.assignedToMe
+              : this.assignedByMe;
+    moveItemInArray(arr, event.previousIndex, event.currentIndex);
+    this.taskService.reorderTasks(arr.map(t => t.id)).subscribe();
   }
 
   goToDashboard() {

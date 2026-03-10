@@ -4,6 +4,7 @@ from . import views
 urlpatterns = [
     path('tasks/unseen-count/', views.TaskUnseenCountView.as_view(), name='task-unseen-count'),
     path('tasks/mark-seen/', views.TaskMarkSeenView.as_view(), name='task-mark-seen'),
+    path('tasks/reorder/', views.TaskReorderView.as_view(), name='task-reorder'),
     path('tasks/', views.TaskListCreateView.as_view(), name='task-list-create'),
     path('tasks/<uuid:task_id>/', views.TaskDetailView.as_view(), name='task-detail'),
     path('tasks/<uuid:task_id>/start/', views.TaskStartView.as_view(), name='task-start'),

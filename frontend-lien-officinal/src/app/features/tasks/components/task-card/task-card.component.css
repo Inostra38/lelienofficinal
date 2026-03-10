@@ -4,3 +4,12 @@
   -webkit-box-orient: vertical;
   overflow: hidden;
 }
+
+:host {
+  display: block;
+  cursor: grab;
+}
+
+:host(.cdk-drag-dragging) {
+  cursor: grabbing;
+}

@@ -106,7 +106,10 @@
           <h2 class="text-sm font-bold text-gray-700">Mes tâches propres</h2>
           <span class="text-xs bg-gray-100 text-gray-500 px-2 py-0.5 rounded-full font-medium">{{ personalTasks.length }}</span>
         </div>
-        <div class="flex-1 overflow-y-auto">
+        <div class="flex-1 overflow-y-auto"
+             cdkDropList
+             [cdkDropListData]="personalTasks"
+             (cdkDropListDropped)="onDrop($event, 'personal')">
           <div *ngIf="personalTasks.length === 0" class="text-center py-10 text-gray-300">
             <svg xmlns="http://www.w3.org/2000/svg" class="h-10 w-10 mx-auto mb-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
@@ -114,6 +117,8 @@
             <p class="text-xs">Aucune tâche propre</p>
           </div>
           <app-task-card *ngFor="let task of personalTasks"
+                         cdkDrag
+                         [cdkDragData]="task"
                          [task]="task"
                          [currentCollaboratorId]="activeCollaborator?.id ?? null"
                          (action)="onTaskAction($event, task)"
@@ -132,7 +137,10 @@
           <h2 class="text-sm font-bold text-gray-700">Tâches assignées</h2>
           <span class="text-xs bg-gray-100 text-gray-500 px-2 py-0.5 rounded-full font-medium">{{ assignedToMe.length }}</span>
         </div>
-        <div class="flex-1 overflow-y-auto">
+        <div class="flex-1 overflow-y-auto"
+             cdkDropList
+             [cdkDropListData]="assignedToMe"
+             (cdkDropListDropped)="onDrop($event, 'assigned_to_me')">
           <div *ngIf="assignedToMe.length === 0" class="text-center py-10 text-gray-300">
             <svg xmlns="http://www.w3.org/2000/svg" class="h-10 w-10 mx-auto mb-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4" />
@@ -140,6 +148,8 @@
             <p class="text-xs">Aucune tâche assignée</p>
           </div>
           <app-task-card *ngFor="let task of assignedToMe"
+                         cdkDrag
+                         [cdkDragData]="task"
                          [task]="task"
                          [currentCollaboratorId]="activeCollaborator?.id ?? null"
                          (action)="onTaskAction($event, task)"
@@ -162,7 +172,10 @@
             {{ unseenCount }} nouveau{{ unseenCount > 1 ? 'x' : '' }}
           </span>
         </div>
-        <div class="flex-1 overflow-y-auto">
+        <div class="flex-1 overflow-y-auto"
+             cdkDropList
+             [cdkDropListData]="assignedByMe"
+             (cdkDropListDropped)="onDrop($event, 'assigned_by_me')">
           <div *ngIf="assignedByMe.length === 0" class="text-center py-10 text-gray-300">
             <svg xmlns="http://www.w3.org/2000/svg" class="h-10 w-10 mx-auto mb-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z" />
@@ -170,6 +183,8 @@
             <p class="text-xs">Aucune tâche assignée à d'autres</p>
           </div>
           <app-task-card *ngFor="let task of assignedByMe"
+                         cdkDrag
+                         [cdkDragData]="task"
                          [task]="task"
                          [currentCollaboratorId]="activeCollaborator?.id ?? null"
                          (action)="onTaskAction($event, task)"

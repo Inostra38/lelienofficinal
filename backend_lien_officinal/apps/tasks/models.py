@@ -63,6 +63,7 @@ class Task(models.Model):
     due_date = models.DateField(_("Date d'échéance"), null=True, blank=True)
     completed_at = models.DateTimeField(_("Terminée le"), null=True, blank=True)
     is_completion_seen = models.BooleanField(_("Completion vue"), default=False)
+    order = models.PositiveIntegerField(_("Ordre"), default=0)
 
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
@@ -70,7 +71,7 @@ class Task(models.Model):
     class Meta:
         verbose_name = _("Tâche")
         verbose_name_plural = _("Tâches")
-        ordering = ['-created_at']
+        ordering = ['order', '-created_at']
 
     def __str__(self):
         return f"{self.title}"

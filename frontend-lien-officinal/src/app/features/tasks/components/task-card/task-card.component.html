@@ -30,8 +30,8 @@
          [title]="task.assigned_to.first_name + ' ' + task.assigned_to.last_name">
       {{ getInitials(task.assigned_to) }}
     </div>
-    <!-- Badge NEW pour tâches assignées terminées non vues -->
-    <span *ngIf="isDone && !task.is_completion_seen"
+    <!-- Badge NEW : uniquement pour le créateur de la tâche -->
+    <span *ngIf="isDone && !task.is_completion_seen && task.created_by?.id === currentCollaboratorId"
           class="ml-1 text-[9px] bg-red-500 text-white font-bold px-1.5 py-0.5 rounded-full">
       NEW
     </span>

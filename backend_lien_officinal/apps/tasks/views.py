@@ -1,4 +1,5 @@
 from datetime import date
+from django.db.models import Max
 from django.shortcuts import get_object_or_404
 from django.utils import timezone
 from rest_framework import status
@@ -21,15 +22,8 @@ def _get_collaborator(request):
         return None
 
 
-PRIORITY_ORDER = {'HIGH': 0, 'MEDIUM': 1, 'LOW': 2}
-
-
 def _sort_tasks(tasks):
-    return sorted(tasks, key=lambda t: (
-        PRIORITY_ORDER.get(t.priority, 99),
-        t.due_date or date.max,
-        t.created_at,
-    ))
+    return sorted(tasks, key=lambda t: (t.order, -t.created_at.timestamp()))
 
 
 class TaskListCreateView(APIView):
@@ -59,6 +53,9 @@ class TaskListCreateView(APIView):
         serializer = TaskCreateSerializer(data=request.data, context={'request': request})
         if serializer.is_valid():
             task = serializer.save()
+            max_order = Task.objects.filter(pharmacy=request.user).aggregate(Max('order'))['order__max']
+            task.order = (max_order or 0) + 1
+            task.save(update_fields=['order'])
             return Response(TaskSerializer(task).data, status=status.HTTP_201_CREATED)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
@@ -178,3 +175,13 @@ class TaskMarkSeenView(APIView):
             is_completion_seen=False
         ).update(is_completion_seen=True)
         return Response({"detail": "Marqué comme vu."})
+
+
+class TaskReorderView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request):
+        task_ids = request.data.get('task_ids', [])
+        for i, task_id in enumerate(task_ids):
+            Task.objects.filter(id=task_id, pharmacy=request.user).update(order=i)
+        return Response({"detail": "Ordre mis à jour."})
