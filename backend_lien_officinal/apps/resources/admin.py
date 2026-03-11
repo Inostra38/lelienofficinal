@@ -7,7 +7,7 @@ class ResourceItemInline(admin.TabularInline):
 
 @admin.register(Category)
 class CategoryAdmin(admin.ModelAdmin):
-    list_display = ('nom', 'ordre', 'icon_slug')
+    list_display = ('nom', 'ordre')
     list_editable = ('ordre',)
 
 @admin.register(ResourceCard)

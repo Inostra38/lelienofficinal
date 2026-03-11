@@ -1,14 +1,20 @@
 from rest_framework import serializers
 from .models import Collaborator
 
+PERMISSION_FIELDS = ['can_manage_account', 'can_manage_team', 'can_manage_planning', 'can_manage_quality']
+
 
 class CollaboratorSerializer(serializers.ModelSerializer):
-    """Serializer pour lire les collaborateurs"""
+    """Serializer pour lire et mettre à jour les collaborateurs"""
     pin = serializers.CharField(write_only=True, required=False)
 
     class Meta:
         model = Collaborator
-        fields = ['id', 'civility', 'first_name', 'last_name', 'role', 'color', 'is_active', 'created_at', 'pin']
+        fields = [
+            'id', 'civility', 'first_name', 'last_name', 'role', 'email', 'color',
+            'is_active', 'created_at', 'pin',
+            'can_manage_account', 'can_manage_team', 'can_manage_planning', 'can_manage_quality',
+        ]
         read_only_fields = ['id', 'created_at']
 
     def create(self, validated_data):
@@ -35,7 +41,10 @@ class CollaboratorCreateSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Collaborator
-        fields = ['civility', 'first_name', 'last_name', 'role', 'color', 'pin']
+        fields = [
+            'civility', 'first_name', 'last_name', 'role', 'email', 'color', 'pin',
+            'can_manage_account', 'can_manage_team', 'can_manage_planning', 'can_manage_quality',
+        ]
 
     def create(self, validated_data):
         pin = validated_data.pop('pin')
@@ -43,6 +52,14 @@ class CollaboratorCreateSerializer(serializers.ModelSerializer):
         collaborator.set_pin(pin)
         collaborator.save()
         return collaborator
+
+
+class CollaboratorPermissionsSerializer(serializers.ModelSerializer):
+    """Serializer dédié à la modification des permissions (endpoint /permissions/)"""
+
+    class Meta:
+        model = Collaborator
+        fields = PERMISSION_FIELDS
 
 
 class PinVerificationSerializer(serializers.Serializer):

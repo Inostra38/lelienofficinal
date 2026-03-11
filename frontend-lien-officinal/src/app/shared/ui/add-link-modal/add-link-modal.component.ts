@@ -56,12 +56,7 @@ export class AddLinkModalComponent {
   nextItemId = 1;
 
   // Création de catégorie
-  newCategory = {
-    nom: '',
-    icon_slug: '📂'
-  };
-
-  availableIcons = ['📂', '⭐', '🏥', '💊', '📦', '🔧', '📋', '🚨', '💼', '🔬', '📞', '🌐'];
+  newCategory = { nom: '' };
 
   // ✅ Toggle sections
   toggleSection(section: 'info' | 'items' | 'notes') {
@@ -212,13 +207,12 @@ export class AddLinkModalComponent {
     if (!this.newCategory.nom) return;
 
     this.http.post('http://127.0.0.1:8000/api/categories/', {
-      nom: this.newCategory.nom,
-      icon_slug: this.newCategory.icon_slug
+      nom: this.newCategory.nom
     }).subscribe({
       next: () => {
         this.categoryCreated.emit();
         this.close.emit();
-        this.newCategory = { nom: '', icon_slug: '📂' };
+        this.newCategory = { nom: '' };
         this.step = 'CHOICE';
       },
       error: (err) => {

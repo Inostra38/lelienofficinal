@@ -1,26 +1,57 @@
-<div class="min-h-screen bg-gray-50">
+<div class="h-full flex flex-col bg-gray-50">
+
   <!-- En-tête -->
   <div class="bg-white border-b border-gray-200 sticky top-0 z-10">
-    <div class="max-w-7xl mx-auto px-6 py-4">
-      <div class="flex items-center gap-4">
-        <button (click)="goBack()"
-                class="flex items-center gap-2 text-gray-600 hover:text-gray-900 transition-colors">
-          <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
-          </svg>
-          Retour
-        </button>
-        <h1 class="text-2xl font-bold text-gray-900">Mon Compte</h1>
-      </div>
+    <div class="px-6 py-4 flex items-center gap-4">
+      <button (click)="goBack()"
+              class="flex items-center gap-2 text-gray-600 hover:text-gray-900 transition-colors">
+        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
+        </svg>
+        Retour
+      </button>
+      <h1 class="text-2xl font-bold text-gray-900">Mon Compte</h1>
     </div>
   </div>
 
-  <!-- Contenu -->
-  <div class="max-w-7xl mx-auto px-6 py-8 space-y-8">
-    <!-- Section Informations Pharmacie -->
-    <app-pharmacy-info></app-pharmacy-info>
+  <!-- Corps : sidebar + contenu -->
+  <div class="flex flex-1 min-h-0 overflow-hidden">
 
-    <!-- Section Gestion de l'équipe -->
-    <app-team-management></app-team-management>
+    <!-- Sidebar gauche -->
+    <nav class="w-60 bg-white border-r border-gray-200 flex-shrink-0 overflow-y-auto">
+      <ul class="py-4 space-y-1 px-3">
+        @for (item of navItems; track item.id) {
+          <li>
+            <button (click)="activeSection = item.id"
+                    class="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors text-left"
+                    [class.bg-green-50]="activeSection === item.id"
+                    [class.text-green-800]="activeSection === item.id"
+                    [class.text-gray-600]="activeSection !== item.id"
+                    [class.hover:bg-gray-100]="activeSection !== item.id">
+              <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"
+                   [class.text-green-700]="activeSection === item.id"
+                   [class.text-gray-400]="activeSection !== item.id">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" [attr.d]="item.icon" />
+              </svg>
+              {{ item.label }}
+            </button>
+          </li>
+        }
+      </ul>
+    </nav>
+
+    <!-- Contenu principal -->
+    <div class="flex-1 overflow-y-auto p-6">
+      @if (activeSection === 'information') {
+        <app-pharmacy-info></app-pharmacy-info>
+      }
+      @if (activeSection === 'securite') {
+        <app-account-security></app-account-security>
+      }
+      @if (activeSection === 'equipe') {
+        <app-team-management></app-team-management>
+      }
+    </div>
+
   </div>
 </div>

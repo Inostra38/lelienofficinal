@@ -28,16 +28,8 @@ export class PharmacyInfoComponent implements OnInit {
   private pharmacyService = inject(PharmacyService);
 
   pharmacyData: PharmacyFormData = {
-    name: '',
-    address1: '',
-    address2: '',
-    postalCode: '',
-    city: '',
-    region: '',
-    country: 'France',
-    siret: '',
-    vatNumber: '',
-    type: 'urbaine'
+    name: '', address1: '', address2: '', postalCode: '', city: '',
+    region: '', country: 'France', siret: '', vatNumber: '', type: 'urbaine'
   };
 
   pharmacyTypes = [
@@ -48,7 +40,7 @@ export class PharmacyInfoComponent implements OnInit {
   ];
 
   hasUnsavedChanges = false;
-  initialData: string = '';
+  initialData = '';
   isLoading = false;
   errorMessage = '';
 
@@ -61,23 +53,15 @@ export class PharmacyInfoComponent implements OnInit {
     this.pharmacyService.getCurrentPharmacy().subscribe({
       next: (data: PharmacyData) => {
         this.pharmacyData = {
-          name: data.nom_officine,
-          address1: data.address1,
-          address2: data.address2,
-          postalCode: data.postal_code,
-          city: data.city,
-          region: data.region,
-          country: data.country,
-          siret: data.siret,
-          vatNumber: data.vat_number,
-          type: data.pharmacy_type,
-          logo: data.logo
+          name: data.nom_officine, address1: data.address1, address2: data.address2,
+          postalCode: data.postal_code, city: data.city, region: data.region,
+          country: data.country, siret: data.siret, vatNumber: data.vat_number,
+          type: data.pharmacy_type, logo: data.logo
         };
         this.initialData = JSON.stringify(this.pharmacyData);
         this.isLoading = false;
       },
-      error: (error) => {
-        console.error('Erreur lors du chargement des données:', error);
+      error: () => {
         this.errorMessage = 'Impossible de charger les données de la pharmacie';
         this.isLoading = false;
       }
@@ -85,8 +69,7 @@ export class PharmacyInfoComponent implements OnInit {
   }
 
   onDataChange() {
-    const currentData = JSON.stringify(this.pharmacyData);
-    this.hasUnsavedChanges = currentData !== this.initialData;
+    this.hasUnsavedChanges = JSON.stringify(this.pharmacyData) !== this.initialData;
   }
 
   savePharmacyInfo() {
@@ -103,17 +86,14 @@ export class PharmacyInfoComponent implements OnInit {
       vat_number: this.pharmacyData.vatNumber,
       pharmacy_type: this.pharmacyData.type
     };
-
     this.pharmacyService.updatePharmacy(updateData).subscribe({
-      next: (data) => {
-        console.log('Données sauvegardées avec succès:', data);
+      next: () => {
         this.initialData = JSON.stringify(this.pharmacyData);
         this.hasUnsavedChanges = false;
         this.isLoading = false;
       },
-      error: (error) => {
-        console.error('Erreur lors de la sauvegarde:', error);
-        this.errorMessage = 'Erreur lors de la sauvegarde des données';
+      error: () => {
+        this.errorMessage = 'Erreur lors de la sauvegarde';
         this.isLoading = false;
       }
     });
@@ -122,17 +102,11 @@ export class PharmacyInfoComponent implements OnInit {
   onLogoUpload(event: Event) {
     const input = event.target as HTMLInputElement;
     if (input.files && input.files[0]) {
-      const file = input.files[0];
-      this.pharmacyService.uploadLogo(file).subscribe({
-        next: (response) => {
-          console.log('Logo uploadé avec succès:', response);
-          this.loadPharmacyData();
-        },
-        error: (error) => {
-          console.error('Erreur lors de l\'upload du logo:', error);
-          this.errorMessage = 'Erreur lors de l\'upload du logo';
-        }
+      this.pharmacyService.uploadLogo(input.files[0]).subscribe({
+        next: () => this.loadPharmacyData(),
+        error: () => { this.errorMessage = 'Erreur lors de l\'upload du logo'; }
       });
     }
   }
+
 }

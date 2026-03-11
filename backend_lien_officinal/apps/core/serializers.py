@@ -1,5 +1,14 @@
 from rest_framework import serializers
+from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
 from .models import Pharmacy
+
+
+class PharmacyTokenObtainPairSerializer(TokenObtainPairSerializer):
+    @classmethod
+    def get_token(cls, user):
+        token = super().get_token(user)
+        token['auth_type'] = 'pharmacy_account'
+        return token
 
 
 class RegisterSerializer(serializers.ModelSerializer):

@@ -1,5 +1,5 @@
 <div class="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
-  <!-- En-tête de la section -->
+  <!-- En-tête -->
   <div class="px-6 py-4 border-b border-gray-200 bg-gradient-to-r from-green-50 to-green-100">
     <div class="flex items-center justify-between">
       <div class="flex items-center gap-3">
@@ -7,11 +7,12 @@
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
         </svg>
         <h2 class="text-lg font-bold text-gray-900">Gestion de l'équipe</h2>
-        <span class="ml-2 text-xs bg-green-100 text-green-700 px-2 py-1 rounded-full font-medium">
+        <span class="text-xs bg-green-100 text-green-700 px-2 py-1 rounded-full font-medium">
           {{ memberCount }} {{ memberCount > 1 ? 'membres' : 'membre' }}
         </span>
       </div>
-      <button (click)="openAddModal()"
+      <button *ngIf="canManageTeam"
+              (click)="openAddModal()"
               class="px-4 py-2 bg-green-600 hover:bg-green-700 text-white font-medium rounded-lg transition-colors flex items-center gap-2">
         <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
@@ -21,79 +22,114 @@
     </div>
   </div>
 
-  <!-- Liste des membres -->
+  <!-- Message erreur -->
+  <div *ngIf="errorMessage" class="mx-6 mt-4 px-4 py-3 bg-red-50 border border-red-200 rounded-lg text-sm text-red-700">
+    {{ errorMessage }}
+  </div>
+
+  <!-- Grille de cartes -->
   <div class="p-6">
-    <div *ngIf="teamMembers.length === 0" class="text-center py-12">
+
+    <!-- État vide -->
+    <div *ngIf="teamMembers.length === 0 && !isLoading" class="text-center py-16">
       <svg xmlns="http://www.w3.org/2000/svg" class="h-16 w-16 mx-auto text-gray-300 mb-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
       </svg>
-      <p class="text-gray-500 text-sm">Aucun membre dans l'équipe</p>
-      <p class="text-gray-400 text-xs mt-1">Cliquez sur "Ajouter un membre" pour commencer</p>
+      <p class="text-gray-500 text-sm mb-4">Aucun membre dans l'équipe</p>
+      <button *ngIf="canManageTeam" (click)="openAddModal()"
+              class="px-4 py-2 bg-green-600 hover:bg-green-700 text-white text-sm font-medium rounded-lg transition-colors">
+        Ajouter le premier membre
+      </button>
     </div>
 
-    <div *ngIf="teamMembers.length > 0" class="overflow-x-auto">
-      <table class="w-full">
-        <thead>
-          <tr class="border-b border-gray-200">
-            <th class="text-left py-3 px-4 text-xs font-semibold text-gray-600 uppercase tracking-wider">Couleur</th>
-            <th class="text-left py-3 px-4 text-xs font-semibold text-gray-600 uppercase tracking-wider">Civilité</th>
-            <th class="text-left py-3 px-4 text-xs font-semibold text-gray-600 uppercase tracking-wider">Nom</th>
-            <th class="text-left py-3 px-4 text-xs font-semibold text-gray-600 uppercase tracking-wider">Prénom</th>
-            <th class="text-left py-3 px-4 text-xs font-semibold text-gray-600 uppercase tracking-wider">Poste</th>
-            <th class="text-left py-3 px-4 text-xs font-semibold text-gray-600 uppercase tracking-wider">PIN</th>
-            <th class="text-right py-3 px-4 text-xs font-semibold text-gray-600 uppercase tracking-wider">Actions</th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr *ngFor="let member of teamMembers" class="border-b border-gray-100 hover:bg-gray-50 transition-colors">
-            <td class="py-3 px-4">
-              <div [class]="getColorClass(member.color) + ' w-8 h-8 rounded-full'"></div>
-            </td>
-            <td class="py-3 px-4 text-sm text-gray-700">{{ member.civility }}</td>
-            <td class="py-3 px-4 text-sm font-medium text-gray-900">{{ member.lastName }}</td>
-            <td class="py-3 px-4 text-sm text-gray-700">{{ member.firstName }}</td>
-            <td class="py-3 px-4">
-              <span class="text-sm text-gray-700">{{ member.role }}</span>
-            </td>
-            <td class="py-3 px-4">
-              <span class="text-sm font-mono text-gray-500">****</span>
-            </td>
-            <td class="py-3 px-4">
-              <div class="flex items-center justify-end gap-2">
-                <button (click)="openEditModal(member)"
-                        class="p-2 text-green-700 hover:bg-green-50 rounded-lg transition-colors"
-                        title="Modifier">
-                  <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-                  </svg>
-                </button>
-                <button (click)="confirmDelete(member.id)"
-                        class="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
-                        title="Supprimer">
-                  <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                  </svg>
-                </button>
-              </div>
-            </td>
-          </tr>
-        </tbody>
-      </table>
+    <!-- Grille -->
+    <div *ngIf="teamMembers.length > 0"
+         class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+
+      <div *ngFor="let member of teamMembers"
+           class="bg-white border border-gray-200 rounded-xl shadow-sm hover:border-green-400 hover:shadow-md transition-all flex flex-col">
+
+        <!-- Corps de la carte -->
+        <div class="p-5 flex-1">
+
+          <!-- En-tête : couleur + nom + badge "Vous" -->
+          <div class="flex items-start gap-3 mb-3">
+            <div [class]="getColorClass(member.color) + ' w-10 h-10 rounded-full flex-shrink-0 mt-0.5'"></div>
+            <div class="flex-1 min-w-0">
+              <p class="font-semibold text-gray-900 text-sm leading-tight truncate">
+                {{ member.civility }} {{ member.firstName }} {{ member.lastName }}
+              </p>
+              <span class="inline-block mt-1 text-xs px-2 py-0.5 rounded-full font-medium" [ngClass]="getRoleBadgeClass(member.role)">
+                {{ member.role }}
+              </span>
+            </div>
+            <span *ngIf="isCurrentCollaborator(member)"
+                  class="text-[10px] bg-green-100 text-green-700 px-2 py-0.5 rounded-full font-medium flex-shrink-0">
+              Vous
+            </span>
+          </div>
+
+          <!-- Email -->
+          <div *ngIf="member.email" class="flex items-center gap-2 text-xs text-gray-500 mb-2">
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+            </svg>
+            <span class="truncate">{{ member.email }}</span>
+          </div>
+
+          <!-- PIN masqué -->
+          <div class="flex items-center gap-2 text-xs text-gray-400 mb-3">
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+            </svg>
+            <span class="font-mono tracking-widest text-sm">••••</span>
+          </div>
+
+          <!-- Permissions -->
+          <div class="flex flex-wrap gap-1">
+            <span *ngIf="member.can_manage_account"
+                  class="text-[10px] bg-blue-100 text-blue-700 px-1.5 py-0.5 rounded font-medium">Compte</span>
+            <span *ngIf="member.can_manage_team"
+                  class="text-[10px] bg-purple-100 text-purple-700 px-1.5 py-0.5 rounded font-medium">Équipe</span>
+            <span *ngIf="member.can_manage_planning"
+                  class="text-[10px] bg-orange-100 text-orange-700 px-1.5 py-0.5 rounded font-medium">Planning</span>
+            <span *ngIf="member.can_manage_quality"
+                  class="text-[10px] bg-teal-100 text-teal-700 px-1.5 py-0.5 rounded font-medium">Qualité</span>
+            <span *ngIf="!hasAnyPermission(member)"
+                  class="text-[10px] text-gray-400 italic">Aucun droit spécifique</span>
+          </div>
+        </div>
+
+        <!-- Boutons d'action -->
+        <div class="px-5 py-3 border-t border-gray-100 flex items-center justify-end gap-1">
+          <button (click)="openEditModal(member)"
+                  class="p-2 text-green-700 hover:bg-green-50 rounded-lg transition-colors"
+                  title="Modifier">
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+            </svg>
+          </button>
+          <button *ngIf="canManageTeam && !isTitulaire(member) && !isCurrentCollaborator(member)"
+                  (click)="confirmDelete(member.id)"
+                  class="p-2 text-red-500 hover:bg-red-50 rounded-lg transition-colors"
+                  title="Supprimer">
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+            </svg>
+          </button>
+        </div>
+      </div>
     </div>
   </div>
 </div>
 
-<!-- Modal Ajouter/Modifier -->
+<!-- ── Modal Ajouter/Modifier ── -->
 <div *ngIf="showModal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
   <div class="bg-white rounded-xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto">
-    <!-- En-tête du modal -->
-    <div class="px-6 py-4 border-b border-gray-200 bg-gradient-to-r from-green-50 to-green-100">
+    <div class="px-6 py-4 border-b border-gray-200 bg-gradient-to-r from-green-50 to-green-100 sticky top-0">
       <div class="flex items-center justify-between">
-        <h3 class="text-lg font-bold text-gray-900">
-          {{ isEditMode ? 'Modifier un membre' : 'Ajouter un membre' }}
-        </h3>
-        <button (click)="closeModal()"
-                class="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-colors">
+        <h3 class="text-lg font-bold text-gray-900">{{ isEditMode ? 'Modifier un membre' : 'Ajouter un membre' }}</h3>
+        <button (click)="closeModal()" class="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg">
           <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
           </svg>
@@ -101,160 +137,143 @@
       </div>
     </div>
 
-    <!-- Contenu du modal -->
-    <form (ngSubmit)="saveMember()" class="p-6 space-y-4">
-      <!-- Civilité -->
-      <div>
-        <label class="block text-sm font-medium text-gray-700 mb-2">
-          Civilité <span class="text-red-500">*</span>
-        </label>
-        <select [(ngModel)]="formData.civility"
-                name="civility"
-                required
-                class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 outline-none transition-all bg-white">
-          <option *ngFor="let civ of civilities" [value]="civ.value">{{ civ.label }}</option>
-        </select>
+    <form (ngSubmit)="saveMember()" class="p-6 space-y-5">
+
+      <!-- Civilité + Nom + Prénom -->
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-2">Civilité <span class="text-red-500">*</span></label>
+          <select [(ngModel)]="formData.civility" name="civility" required
+                  class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 outline-none bg-white">
+            <option *ngFor="let civ of civilities" [value]="civ.value">{{ civ.label }}</option>
+          </select>
+        </div>
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-2">Nom <span class="text-red-500">*</span></label>
+          <input type="text" [(ngModel)]="formData.lastName" name="lastName" required
+                 class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 outline-none" placeholder="Dupont">
+        </div>
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-2">Prénom <span class="text-red-500">*</span></label>
+          <input type="text" [(ngModel)]="formData.firstName" name="firstName" required
+                 class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 outline-none" placeholder="Jean">
+        </div>
       </div>
 
-      <!-- Nom et Prénom -->
+      <!-- Poste + Email -->
       <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
         <div>
-          <label class="block text-sm font-medium text-gray-700 mb-2">
-            Nom <span class="text-red-500">*</span>
-          </label>
-          <input type="text"
-                 [(ngModel)]="formData.lastName"
-                 name="lastName"
-                 required
-                 class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 outline-none transition-all"
-                 placeholder="Dupont">
+          <label class="block text-sm font-medium text-gray-700 mb-2">Poste <span class="text-red-500">*</span></label>
+          <select [(ngModel)]="formData.role" name="role" required
+                  class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 outline-none bg-white">
+            <option *ngFor="let role of roles" [value]="role.value">{{ role.label }}</option>
+          </select>
         </div>
         <div>
-          <label class="block text-sm font-medium text-gray-700 mb-2">
-            Prénom <span class="text-red-500">*</span>
-          </label>
-          <input type="text"
-                 [(ngModel)]="formData.firstName"
-                 name="firstName"
-                 required
-                 class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 outline-none transition-all"
-                 placeholder="Jean">
+          <label class="block text-sm font-medium text-gray-700 mb-2">Email personnel</label>
+          <input type="email" [(ngModel)]="formData.email" name="email"
+                 class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 outline-none" placeholder="jean.dupont@email.fr">
         </div>
-      </div>
-
-      <!-- Poste -->
-      <div>
-        <label class="block text-sm font-medium text-gray-700 mb-2">
-          Poste <span class="text-red-500">*</span>
-        </label>
-        <select [(ngModel)]="formData.role"
-                name="role"
-                required
-                class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 outline-none transition-all bg-white">
-          <option *ngFor="let role of roles" [value]="role.value">{{ role.label }}</option>
-        </select>
-      </div>
-
-      <!-- Couleur -->
-      <div>
-        <label class="block text-sm font-medium text-gray-700 mb-2">
-          Couleur d'identification <span class="text-red-500">*</span>
-        </label>
-        <div class="grid grid-cols-5 gap-3">
-          <button *ngFor="let color of colors"
-                  type="button"
-                  (click)="formData.color = color.value"
-                  [class]="color.bgClass + ' w-full h-12 rounded-lg transition-all hover:scale-110 ' + (formData.color === color.value ? 'ring-4 ring-offset-2 ring-gray-400 scale-110' : '')"
-                  [title]="color.label">
-          </button>
-        </div>
-        <p class="text-xs text-gray-500 mt-2">
-          Couleur sélectionnée : {{ getColorOption(formData.color)?.label }}
-        </p>
       </div>
 
       <!-- PIN -->
       <div>
         <label class="block text-sm font-medium text-gray-700 mb-2">
           Code PIN <span class="text-red-500">*</span>
+          <span *ngIf="isEditMode" class="text-xs text-gray-500 font-normal ml-1">(laisser vide pour ne pas modifier)</span>
         </label>
         <div class="flex gap-2">
-          <input type="text"
-                 [(ngModel)]="formData.pin"
-                 name="pin"
-                 required
-                 maxlength="4"
-                 pattern="[0-9]{4}"
-                 readonly
+          <input type="text" [(ngModel)]="formData.pin" name="pin"
+                 [required]="!isEditMode" maxlength="4" readonly
                  class="flex-1 px-4 py-2 border border-gray-300 rounded-lg bg-gray-50 font-mono text-lg tracking-widest"
-                 [value]="showGeneratedPin ? formData.pin : '****'">
-          <button type="button"
-                  (click)="generatePin()"
+                 [value]="showGeneratedPin ? formData.pin : '••••'">
+          <button type="button" (click)="generatePin()"
                   class="px-4 py-2 bg-gray-600 hover:bg-gray-700 text-white font-medium rounded-lg transition-colors flex items-center gap-2">
-            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
             </svg>
             Générer
           </button>
         </div>
         <p *ngIf="showGeneratedPin" class="text-xs text-orange-600 mt-1 font-medium">
-          ⚠️ Le PIN sera masqué dans 10 secondes. Notez-le bien !
-        </p>
-        <p *ngIf="!showGeneratedPin && !isEditMode" class="text-xs text-gray-500 mt-1">
-          Cliquez sur "Générer" pour créer un code PIN à 4 chiffres
+          ⚠ Le PIN sera masqué dans 10 secondes — notez-le !
         </p>
       </div>
 
-      <!-- Boutons d'action -->
+      <!-- Couleur -->
+      <div>
+        <label class="block text-sm font-medium text-gray-700 mb-2">Couleur d'identification <span class="text-red-500">*</span></label>
+        <div class="grid grid-cols-10 gap-2">
+          <button *ngFor="let color of colors" type="button" (click)="formData.color = color.value"
+                  [class]="color.bgClass + ' w-full aspect-square rounded-lg transition-all hover:scale-110 ' + (formData.color === color.value ? 'ring-4 ring-offset-2 ring-gray-400 scale-110' : '')"
+                  [title]="color.label">
+          </button>
+        </div>
+        <p class="text-xs text-gray-500 mt-1.5">Couleur : <span class="font-medium">{{ getColorOption(formData.color)?.label }}</span></p>
+      </div>
+
+      <!-- Permissions -->
+      <div *ngIf="canManageTeam" class="border-t border-gray-200 pt-5">
+        <p class="text-sm font-medium text-gray-700 mb-3">Droits d'accès</p>
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
+          <label class="flex items-center gap-3 p-3 rounded-lg border border-gray-200 hover:bg-gray-50 cursor-pointer transition-colors">
+            <input type="checkbox" [(ngModel)]="formData.can_manage_account" name="perm_account"
+                   class="w-4 h-4 text-green-600 border-gray-300 rounded focus:ring-green-500">
+            <div>
+              <p class="text-sm font-medium text-gray-800">Compte</p>
+              <p class="text-xs text-gray-500">Email, mot de passe</p>
+            </div>
+          </label>
+          <label class="flex items-center gap-3 p-3 rounded-lg border border-gray-200 hover:bg-gray-50 cursor-pointer transition-colors">
+            <input type="checkbox" [(ngModel)]="formData.can_manage_team" name="perm_team"
+                   class="w-4 h-4 text-green-600 border-gray-300 rounded focus:ring-green-500">
+            <div>
+              <p class="text-sm font-medium text-gray-800">Équipe</p>
+              <p class="text-xs text-gray-500">Ajouter, supprimer des membres</p>
+            </div>
+          </label>
+          <label class="flex items-center gap-3 p-3 rounded-lg border border-gray-200 hover:bg-gray-50 cursor-pointer transition-colors">
+            <input type="checkbox" [(ngModel)]="formData.can_manage_planning" name="perm_planning"
+                   class="w-4 h-4 text-green-600 border-gray-300 rounded focus:ring-green-500">
+            <div>
+              <p class="text-sm font-medium text-gray-800">Planning</p>
+              <p class="text-xs text-gray-500">Éditer le planning (à venir)</p>
+            </div>
+          </label>
+          <label class="flex items-center gap-3 p-3 rounded-lg border border-gray-200 hover:bg-gray-50 cursor-pointer transition-colors">
+            <input type="checkbox" [(ngModel)]="formData.can_manage_quality" name="perm_quality"
+                   class="w-4 h-4 text-green-600 border-gray-300 rounded focus:ring-green-500">
+            <div>
+              <p class="text-sm font-medium text-gray-800">Qualité</p>
+              <p class="text-xs text-gray-500">Démarche qualité (à venir)</p>
+            </div>
+          </label>
+        </div>
+      </div>
+
+      <!-- Actions -->
       <div class="flex justify-end gap-3 pt-4 border-t border-gray-200">
-        <button type="button"
-                (click)="closeModal()"
-                class="px-6 py-2.5 bg-gray-100 hover:bg-gray-200 text-gray-700 font-medium rounded-lg transition-colors">
-          Annuler
-        </button>
-        <button type="submit"
-                class="px-6 py-2.5 bg-green-600 hover:bg-green-700 text-white font-medium rounded-lg transition-colors flex items-center gap-2">
+        <button type="button" (click)="closeModal()"
+                class="px-6 py-2.5 bg-gray-100 hover:bg-gray-200 text-gray-700 font-medium rounded-lg">Annuler</button>
+        <button type="submit" [disabled]="isLoading"
+                class="px-6 py-2.5 bg-green-600 hover:bg-green-700 text-white font-medium rounded-lg flex items-center gap-2 disabled:opacity-50">
           <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
           </svg>
-          {{ isEditMode ? 'Modifier' : 'Ajouter' }}
+          {{ isEditMode ? 'Enregistrer' : 'Ajouter' }}
         </button>
       </div>
     </form>
   </div>
 </div>
 
-<!-- Modal Confirmation Suppression -->
-<div *ngIf="showDeleteConfirm" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-  <div class="bg-white rounded-xl shadow-2xl w-full max-w-md">
-    <div class="p-6">
-      <div class="flex items-center gap-4 mb-4">
-        <div class="w-12 h-12 rounded-full bg-red-100 flex items-center justify-center shrink-0">
-          <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-red-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-          </svg>
-        </div>
-        <div>
-          <h3 class="text-lg font-bold text-gray-900">Confirmer la suppression</h3>
-          <p class="text-sm text-gray-600 mt-1">Cette action est irréversible</p>
-        </div>
-      </div>
-      <p class="text-gray-700 mb-6">
-        Êtes-vous sûr de vouloir supprimer ce membre de l'équipe ?
-      </p>
-      <div class="flex justify-end gap-3">
-        <button (click)="cancelDelete()"
-                class="px-6 py-2.5 bg-gray-100 hover:bg-gray-200 text-gray-700 font-medium rounded-lg transition-colors">
-          Annuler
-        </button>
-        <button (click)="deleteMember()"
-                class="px-6 py-2.5 bg-red-600 hover:bg-red-700 text-white font-medium rounded-lg transition-colors flex items-center gap-2">
-          <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-          </svg>
-          Supprimer
-        </button>
-      </div>
-    </div>
-  </div>
-</div>
+<!-- ── PIN gate (avant toute action sensible) ── -->
+<app-confirm-sensitive-action-modal
+  *ngIf="showPinGate"
+  [actionLabel]="pinGateLabel"
+  [confirmationType]="'pin'"
+  [hint]="pinGateHint"
+  [errorMessage]="pinGateError"
+  (confirmed)="onPinGateConfirmed($event)"
+  (cancelled)="onPinGateCancelled()">
+</app-confirm-sensitive-action-modal>

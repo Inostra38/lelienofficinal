@@ -39,8 +39,17 @@ class Collaborator(models.Model):
     # Sécurité : On ne stocke JAMAIS le PIN en clair
     pin_hash = models.CharField(_("Hash du PIN"), max_length=128)
 
+    # Email personnel (optionnel, pour contact interne)
+    email = models.EmailField(_("Email personnel"), blank=True, null=True)
+
     # Couleur pour l'identification visuelle
     color = models.CharField(_("Couleur"), max_length=20, default='blue')
+
+    # Permissions fonctionnelles (indépendantes du rôle sauf Titulaire)
+    can_manage_account = models.BooleanField(_("Gérer le compte"), default=False)
+    can_manage_team = models.BooleanField(_("Gérer l'équipe"), default=False)
+    can_manage_planning = models.BooleanField(_("Gérer le planning"), default=False)
+    can_manage_quality = models.BooleanField(_("Gérer la qualité"), default=False)
 
     is_active = models.BooleanField(default=True)
     created_at = models.DateTimeField(auto_now_add=True)
@@ -53,6 +62,15 @@ class Collaborator(models.Model):
 
     def __str__(self):
         return f"{self.first_name} {self.last_name} ({self.get_role_display()})"
+
+    def save(self, *args, **kwargs):
+        # Le Titulaire a toujours tous les droits — inaltérable
+        if self.role == self.Role.TITULAIRE:
+            self.can_manage_account = True
+            self.can_manage_team = True
+            self.can_manage_planning = True
+            self.can_manage_quality = True
+        super().save(*args, **kwargs)
 
     def set_pin(self, raw_pin):
         """Hache le code PIN avant de l'enregistrer."""

@@ -117,9 +117,13 @@ class TaskCompleteView(APIView):
         task = get_object_or_404(Task, id=task_id, pharmacy=request.user)
         if task.status == 'DONE':
             return Response({"detail": "Tâche déjà terminée."}, status=status.HTTP_400_BAD_REQUEST)
+        collaborator = _get_collaborator(request)
         task.status = 'DONE'
         task.completed_at = timezone.now()
-        task.save(update_fields=['status', 'completed_at', 'updated_at'])
+        # Si le créateur lui-même termine la tâche, pas besoin de notification
+        if collaborator and task.created_by_id == collaborator.id:
+            task.is_completion_seen = True
+        task.save(update_fields=['status', 'completed_at', 'is_completion_seen', 'updated_at'])
         return Response(TaskSerializer(task).data)
 
 

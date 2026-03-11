@@ -5,7 +5,6 @@ import { AuthService } from '../auth/auth.service';
 
 export interface OnboardingCategory {
   nom: string;
-  icon_slug: string;
 }
 
 @Injectable({

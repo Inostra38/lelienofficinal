@@ -54,7 +54,7 @@ export class Step3InterestsComponent {
     this.loading = true;
     const selected: OnboardingCategory[] = this.categories
       .filter(c => c.selected)
-      .map(c => ({ nom: c.nom, icon_slug: c.icon_slug }));
+      .map(c => ({ nom: c.nom }));
 
     this.onboarding.initCategories(selected).pipe(
       switchMap(() => this.onboarding.completeOnboarding())

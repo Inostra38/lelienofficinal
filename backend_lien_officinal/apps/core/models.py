@@ -1,3 +1,5 @@
+import uuid
+from datetime import timedelta
 from django.db import models
 from django.contrib.auth.models import AbstractBaseUser, PermissionsMixin, BaseUserManager
 from django.utils.translation import gettext_lazy as _
@@ -69,6 +71,11 @@ class Pharmacy(AbstractBaseUser, PermissionsMixin):
     # Logo (optionnel)
     logo = models.ImageField(_("Logo"), upload_to='pharmacy_logos/', blank=True, null=True)
 
+    # Email en attente de vérification (structure prête pour Mailgun)
+    pending_email = models.EmailField(_("Email en attente"), blank=True, null=True)
+    email_verification_token = models.UUIDField(_("Token de vérification email"), blank=True, null=True)
+    email_verification_expires = models.DateTimeField(_("Expiration du token"), blank=True, null=True)
+
     # Gestion Premium & Statut
     is_premium = models.BooleanField(_("Abonnement Premium"), default=False)
     is_active = models.BooleanField(default=True)
@@ -85,6 +92,18 @@ class Pharmacy(AbstractBaseUser, PermissionsMixin):
     class Meta:
         verbose_name = _("Pharmacie")
         verbose_name_plural = _("Pharmacies")
+
+    def generate_email_verification_token(self):
+        """
+        Génère un token UUID et une date d'expiration (24h) pour la vérification email.
+        TODO: Quand Mailgun sera configuré, envoyer un email de vérification à pending_email
+              avec le token, et ne basculer l'email qu'après vérification via
+              GET /api/account/verify-email/?token=<uuid>
+        """
+        self.email_verification_token = uuid.uuid4()
+        self.email_verification_expires = timezone.now() + timedelta(hours=24)
+        self.save(update_fields=['email_verification_token', 'email_verification_expires'])
+        return self.email_verification_token
 
     def __str__(self):
         return f"{self.nom_officine} ({self.email})"

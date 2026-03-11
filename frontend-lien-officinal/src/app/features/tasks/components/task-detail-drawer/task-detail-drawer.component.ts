@@ -136,7 +136,7 @@ export class TaskDetailDrawerComponent implements OnChanges {
   }
 
   complete() {
-    this.taskService.completeTask(this.task.id).subscribe(() => {
+    this.taskService.completeTask(this.task.id, this.currentCollaboratorId!).subscribe(() => {
       this.taskUpdated.emit();
       this.closed.emit();
     });

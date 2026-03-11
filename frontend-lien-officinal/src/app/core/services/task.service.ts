@@ -75,8 +75,8 @@ export class TaskService {
     return this.http.post<Task>(`${this.apiUrl}/${id}/start/`, {});
   }
 
-  completeTask(id: string): Observable<Task> {
-    return this.http.post<Task>(`${this.apiUrl}/${id}/complete/`, {});
+  completeTask(id: string, collaboratorId: number): Observable<Task> {
+    return this.http.post<Task>(`${this.apiUrl}/${id}/complete/`, {}, this.withCollaborator(collaboratorId));
   }
 
   reopenTask(id: string): Observable<Task> {

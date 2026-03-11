@@ -144,7 +144,7 @@ export class TasksComponent implements OnInit, OnDestroy {
         this.taskService.startTask(task.id).subscribe(() => this.refreshTasks());
         break;
       case 'complete':
-        this.taskService.completeTask(task.id).subscribe(() => this.refreshTasks());
+        this.taskService.completeTask(task.id, this.activeCollaborator!.id!).subscribe(() => this.refreshTasks());
         break;
       case 'reopen':
         this.taskService.reopenTask(task.id).subscribe(() => this.refreshTasks());

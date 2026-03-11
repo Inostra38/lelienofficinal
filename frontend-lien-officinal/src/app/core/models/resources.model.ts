@@ -16,6 +16,5 @@ export interface Link {
 export interface Category {
   id: number;
   nom: string;
-  icon_slug: string;
   links: Link[];
 }

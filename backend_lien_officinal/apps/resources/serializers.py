@@ -50,7 +50,7 @@ class AdoptedCardSerializer(serializers.ModelSerializer):
     
     class Meta:
         model = ResourceCard
-        fields = ['id', 'titre', 'description_officielle', 'logo', 'type', 'items', 'partner']
+        fields = ['id', 'titre', 'description_officielle', 'type', 'items', 'partner']
 
 
 class ResourceCardSerializer(serializers.ModelSerializer):
@@ -73,14 +73,13 @@ class ResourceCardSerializer(serializers.ModelSerializer):
     class Meta:
         model = ResourceCard
         fields = [
-            'id', 'titre', 'description_officielle', 'logo', 'type', 
+            'id', 'titre', 'description_officielle', 'type',
             'items', 'partner', 'is_favorite', 'note_courte', 'note_longue',
             'category'
         ]
         extra_kwargs = {
             'type': {'read_only': True},
             'description_officielle': {'required': False},
-            'logo': {'required': False},
         }
 
     def get_is_favorite(self, obj):
@@ -147,7 +146,7 @@ class CatalogCardSerializer(serializers.ModelSerializer):
     """
     class Meta:
         model = ResourceCard
-        fields = ['id', 'titre', 'logo', 'description_officielle', 'type']
+        fields = ['id', 'titre', 'description_officielle', 'type']
 
 
 # =====================================================
@@ -163,9 +162,8 @@ class CategorySerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Category
-        fields = ['id', 'nom', 'icon_slug', 'ordre', 'cards', 'adopted_cards']
+        fields = ['id', 'nom', 'ordre', 'cards', 'adopted_cards']
         extra_kwargs = {
-            'icon_slug': {'required': False},
             'ordre': {'required': False},
         }
 
@@ -197,8 +195,7 @@ class CategoryCreateSerializer(serializers.ModelSerializer):
     """
     class Meta:
         model = Category
-        fields = ['id', 'nom', 'icon_slug', 'ordre']
+        fields = ['id', 'nom', 'ordre']
         extra_kwargs = {
-            'icon_slug': {'required': False},
             'ordre': {'required': False},
         }

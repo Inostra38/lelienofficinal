@@ -35,7 +35,7 @@
                    [value]="cat.id"
                    [(ngModel)]="selectedCategoryId"
                    class="w-4 h-4 text-green-700">
-            <span class="text-xl">{{ cat.icon_slug || '📂' }}</span>
+            <span class="text-xl">📂</span>
             <span class="flex-1 font-medium text-gray-700">{{ cat.nom }}</span>
             <span *ngIf="cat.id === currentCategoryId" 
                   class="text-xs bg-gray-200 text-gray-600 px-2 py-1 rounded-full">

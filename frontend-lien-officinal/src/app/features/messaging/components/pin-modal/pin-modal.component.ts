@@ -3,7 +3,7 @@ import {
   ViewChildren, QueryList, ElementRef, inject
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { CollaboratorService } from '../../../../core/services/collaborator.service';
+import { AuthService } from '../../../../core/auth/auth.service';
 
 @Component({
   selector: 'app-pin-modal',
@@ -22,7 +22,7 @@ export class PinModalComponent implements AfterViewInit {
 
   @ViewChildren('pinInput') pinInputs!: QueryList<ElementRef<HTMLInputElement>>;
 
-  private collaboratorService = inject(CollaboratorService);
+  private authService = inject(AuthService);
 
   // Tableau uniquement pour *ngFor (les valeurs réelles sont dans le DOM)
   readonly slots = [0, 1, 2, 3];
@@ -106,14 +106,10 @@ export class PinModalComponent implements AfterViewInit {
     this.submitting = true;
     this.error = '';
 
-    this.collaboratorService.verifyPin(this.collaboratorId, pin).subscribe({
-      next: (res) => {
+    this.authService.collaboratorLogin(this.collaboratorId, pin).subscribe({
+      next: () => {
         this.submitting = false;
-        if (res.success) {
-          this.pinValidated.emit();
-        } else {
-          this.handleError();
-        }
+        this.pinValidated.emit();
       },
       error: () => {
         this.submitting = false;

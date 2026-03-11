@@ -43,18 +43,6 @@
             class="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 outline-none">
         </div>
 
-        <div>
-          <label class="block text-sm font-medium text-gray-700 mb-2">Icône (optionnel)</label>
-          <div class="flex flex-wrap gap-2">
-            <button *ngFor="let icon of availableIcons" 
-                    (click)="newCategory.icon_slug = icon"
-                    class="w-10 h-10 rounded-lg border-2 flex items-center justify-center text-xl transition-all"
-                    [ngClass]="newCategory.icon_slug === icon ? 'border-green-500 bg-green-50' : 'border-gray-200 hover:border-gray-400'">
-              {{ icon }}
-            </button>
-          </div>
-        </div>
-
         <div class="flex justify-end gap-3 mt-8 pt-4 border-t border-gray-100">
           <button (click)="step = 'CHOICE'"
             class="px-4 py-2 text-gray-500 hover:bg-gray-100 rounded-lg font-medium">Retour</button>

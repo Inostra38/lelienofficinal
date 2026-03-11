@@ -83,8 +83,8 @@ export class MainLayoutComponent implements OnInit, OnDestroy {
   }
 
   onPinValidated() {
-    if (!this.pendingCollaborator) return;
-    this.authService.setCurrentCollaboratorId(this.pendingCollaborator.id!); // le stream met à jour activeSessionCollaborator
+    // Le token collaborateur est déjà stocké par authService.collaboratorLogin()
+    // et le stream collaborator$ a été mis à jour — il suffit de fermer la modale
     this.showPinModal = false;
     this.pendingCollaborator = null;
   }

@@ -35,7 +35,8 @@ INSTALLED_APPS = [
 
     # --- TIERCE PARTIES ---
     'rest_framework',
-    'rest_framework_simplejwt', # Authentification Token
+    'rest_framework_simplejwt',                   # Authentification Token
+    'rest_framework_simplejwt.token_blacklist',    # Invalidation des tokens après changement de mdp
     'corsheaders',              # Communication Angular <-> Django
 
     # --- NOS APPS (Le Lien Officinal) ---
@@ -185,8 +186,10 @@ REST_FRAMEWORK = {
 
 # --- JWT : Durée de vie du token ---
 SIMPLE_JWT = {
-    'ACCESS_TOKEN_LIFETIME': timedelta(days=1), # 1 jour
-    'REFRESH_TOKEN_LIFETIME': timedelta(days=7), # 7 jours
+    'ACCESS_TOKEN_LIFETIME': timedelta(days=1),   # 1 jour
+    'REFRESH_TOKEN_LIFETIME': timedelta(days=7),  # 7 jours
+    'ROTATE_REFRESH_TOKENS': False,
+    'BLACKLIST_AFTER_ROTATION': False,
 }
 
 # URL de base du backend (pour les fichiers media)

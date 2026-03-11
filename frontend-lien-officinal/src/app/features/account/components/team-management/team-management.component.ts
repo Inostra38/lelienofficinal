@@ -1,7 +1,16 @@
 import { Component, OnInit, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { CollaboratorService, Collaborator, CollaboratorCreate, MemberRole, MemberCivility } from '../../../../core/services/collaborator.service';
+import {
+  CollaboratorService,
+  Collaborator,
+  CollaboratorCreate,
+  MemberRole,
+  MemberCivility,
+  SensitivePayload
+} from '../../../../core/services/collaborator.service';
+import { AuthService } from '../../../../core/auth/auth.service';
+import { ConfirmSensitiveActionModalComponent } from '../../../../shared/ui/confirm-sensitive-action-modal/confirm-sensitive-action-modal.component';
 
 interface TeamMember {
   id: string;
@@ -11,6 +20,25 @@ interface TeamMember {
   role: MemberRole;
   pin: string;
   color: string;
+  email: string;
+  can_manage_account: boolean;
+  can_manage_team: boolean;
+  can_manage_planning: boolean;
+  can_manage_quality: boolean;
+}
+
+interface MemberFormData {
+  civility: MemberCivility;
+  firstName: string;
+  lastName: string;
+  role: MemberRole;
+  pin: string;
+  color: string;
+  email: string;
+  can_manage_account: boolean;
+  can_manage_team: boolean;
+  can_manage_planning: boolean;
+  can_manage_quality: boolean;
 }
 
 interface ColorOption {
@@ -22,12 +50,13 @@ interface ColorOption {
 @Component({
   selector: 'app-team-management',
   standalone: true,
-  imports: [CommonModule, FormsModule],
+  imports: [CommonModule, FormsModule, ConfirmSensitiveActionModalComponent],
   templateUrl: './team-management.component.html',
   styleUrl: './team-management.component.css'
 })
 export class TeamManagementComponent implements OnInit {
   private collaboratorService = inject(CollaboratorService);
+  private authService = inject(AuthService);
 
   teamMembers: TeamMember[] = [];
   isLoading = false;
@@ -70,32 +99,50 @@ export class TeamManagementComponent implements OnInit {
     { value: 'stone', label: 'Pierre', bgClass: 'bg-stone-500' }
   ];
 
-  // Modal state
+  // Modal ajouter/modifier
   showModal = false;
   isEditMode = false;
   currentEditId: string | null = null;
-
-  // Form data
-  formData: Omit<TeamMember, 'id'> = {
-    civility: 'M.',
-    firstName: '',
-    lastName: '',
-    role: 'Préparateur',
-    pin: '',
-    color: 'blue'
-  };
-
-  // PIN visibility
+  formData: MemberFormData = this.emptyForm();
   showGeneratedPin = false;
   generatedPin = '';
 
-  // Delete confirmation
-  showDeleteConfirm = false;
+  // PIN gate (avant action sensible)
+  showPinGate = false;
+  pinGateAction: 'create' | 'edit' | 'delete' | null = null;
+  pinGateLabel = '';
+  pinGateError = '';
+  confirmedPin = '';
+  pendingEditMember: TeamMember | null = null;
+
+  // Cible de suppression
   deleteTargetId: string | null = null;
 
   ngOnInit() {
     this.loadTeamMembers();
   }
+
+  // ── Session collaborateur ──────────────────────────────────────────────────
+
+  get activeCollaboratorId(): number | null {
+    return this.authService.getCurrentCollaboratorId();
+  }
+
+  get activeCollaborator(): TeamMember | null {
+    const id = this.activeCollaboratorId;
+    return id ? this.teamMembers.find(m => m.id === String(id)) ?? null : null;
+  }
+
+  get pinGateHint(): string {
+    return this.activeCollaboratorId ? 'votre code PIN' : 'le PIN du titulaire ou d\'un responsable d\'équipe';
+  }
+
+  get canManageTeam(): boolean {
+    const actor = this.activeCollaborator;
+    return actor ? actor.can_manage_team : true;
+  }
+
+  // ── Chargement ─────────────────────────────────────────────────────────────
 
   loadTeamMembers() {
     this.isLoading = true;
@@ -108,12 +155,16 @@ export class TeamManagementComponent implements OnInit {
           lastName: c.last_name,
           role: c.role,
           pin: '',
-          color: c.color
+          color: c.color,
+          email: c.email || '',
+          can_manage_account: c.can_manage_account,
+          can_manage_team: c.can_manage_team,
+          can_manage_planning: c.can_manage_planning,
+          can_manage_quality: c.can_manage_quality,
         }));
         this.isLoading = false;
       },
-      error: (error) => {
-        console.error('Erreur lors du chargement de l\'équipe:', error);
+      error: () => {
         this.errorMessage = 'Impossible de charger l\'équipe';
         this.isLoading = false;
       }
@@ -124,45 +175,58 @@ export class TeamManagementComponent implements OnInit {
     return this.teamMembers.length;
   }
 
+  // ── Ajouter ────────────────────────────────────────────────────────────────
+
   openAddModal() {
-    this.isEditMode = false;
-    this.currentEditId = null;
-    this.resetForm();
-    this.generatePin();
-    this.showModal = true;
+    if (!this.canManageTeam) return;
+    // Premier collaborateur sans session : pas de PIN requis
+    if (this.teamMembers.length === 0 && !this.activeCollaboratorId) {
+      this.isEditMode = false;
+      this.currentEditId = null;
+      this.formData = this.emptyForm();
+      this.generatePin();
+      this.showModal = true;
+      return;
+    }
+    this.pinGateAction = 'create';
+    this.pinGateLabel = 'Ajouter un membre';
+    this.pinGateError = '';
+    this.showPinGate = true;
   }
 
+  // ── Modifier ───────────────────────────────────────────────────────────────
+
   openEditModal(member: TeamMember) {
-    this.isEditMode = true;
-    this.currentEditId = member.id;
-    this.formData = {
-      civility: member.civility,
-      firstName: member.firstName,
-      lastName: member.lastName,
-      role: member.role,
-      pin: member.pin,
-      color: member.color
-    };
-    this.showGeneratedPin = false;
-    this.showModal = true;
+    this.pendingEditMember = member;
+    this.pinGateAction = 'edit';
+    this.pinGateLabel = `Modifier ${member.firstName} ${member.lastName}`;
+    this.pinGateError = '';
+    this.showPinGate = true;
   }
 
   closeModal() {
     this.showModal = false;
-    this.resetForm();
+    this.isEditMode = false;
+    this.currentEditId = null;
+    this.formData = this.emptyForm();
+    this.showGeneratedPin = false;
+    this.generatedPin = '';
   }
 
-  resetForm() {
-    this.formData = {
+  private emptyForm(): MemberFormData {
+    return {
       civility: 'M.',
       firstName: '',
       lastName: '',
       role: 'Préparateur',
       pin: '',
-      color: 'blue'
+      color: 'blue',
+      email: '',
+      can_manage_account: false,
+      can_manage_team: false,
+      can_manage_planning: false,
+      can_manage_quality: false,
     };
-    this.showGeneratedPin = false;
-    this.generatedPin = '';
   }
 
   generatePin() {
@@ -170,92 +234,171 @@ export class TeamManagementComponent implements OnInit {
     this.generatedPin = pin;
     this.formData.pin = pin;
     this.showGeneratedPin = true;
-
-    // Cache le PIN après 10 secondes
-    setTimeout(() => {
-      this.showGeneratedPin = false;
-    }, 10000);
+    setTimeout(() => { this.showGeneratedPin = false; }, 10000);
   }
 
   saveMember() {
-    this.isLoading = true;
-
     if (this.isEditMode && this.currentEditId) {
-      // Mode édition
+      this.isLoading = true;
       const updateData: Partial<Collaborator> = {
         civility: this.formData.civility,
         first_name: this.formData.firstName,
         last_name: this.formData.lastName,
         role: this.formData.role,
         color: this.formData.color,
+        email: this.formData.email || undefined,
+        can_manage_account: this.formData.can_manage_account,
+        can_manage_team: this.formData.can_manage_team,
+        can_manage_planning: this.formData.can_manage_planning,
+        can_manage_quality: this.formData.can_manage_quality,
         ...(this.formData.pin ? { pin: this.formData.pin } : {})
       };
-
       this.collaboratorService.updateCollaborator(parseInt(this.currentEditId), updateData).subscribe({
-        next: () => {
-          this.loadTeamMembers();
-          this.closeModal();
-          this.isLoading = false;
-        },
-        error: (error) => {
-          console.error('Erreur lors de la mise à jour:', error);
-          this.errorMessage = 'Erreur lors de la mise à jour du collaborateur';
-          this.isLoading = false;
-        }
+        next: () => { this.loadTeamMembers(); this.closeModal(); this.isLoading = false; },
+        error: (err) => { this.errorMessage = err.error?.detail || 'Erreur lors de la mise à jour'; this.isLoading = false; }
       });
     } else {
-      // Mode ajout
-      const createData: CollaboratorCreate = {
-        civility: this.formData.civility,
-        first_name: this.formData.firstName,
-        last_name: this.formData.lastName,
-        role: this.formData.role,
-        color: this.formData.color,
-        pin: this.formData.pin
-      };
-
-      this.collaboratorService.createCollaborator(createData).subscribe({
-        next: () => {
-          this.loadTeamMembers();
-          this.closeModal();
-          this.isLoading = false;
-        },
-        error: (error) => {
-          console.error('Erreur lors de la création:', error);
-          this.errorMessage = 'Erreur lors de la création du collaborateur';
-          this.isLoading = false;
-        }
-      });
+      // PIN déjà validé via le PIN gate — création directe
+      this.executeCreate();
     }
   }
+
+  // ── Suppression ────────────────────────────────────────────────────────────
 
   confirmDelete(id: string) {
+    if (!this.canManageTeam) return;
+    const member = this.teamMembers.find(m => m.id === id);
     this.deleteTargetId = id;
-    this.showDeleteConfirm = true;
+    this.pinGateAction = 'delete';
+    this.pinGateLabel = member
+      ? `Supprimer ${member.firstName} ${member.lastName}`
+      : 'Supprimer ce membre';
+    this.pinGateError = '';
+    this.showPinGate = true;
   }
 
-  cancelDelete() {
-    this.showDeleteConfirm = false;
-    this.deleteTargetId = null;
-  }
+  // ── PIN gate ───────────────────────────────────────────────────────────────
 
-  deleteMember() {
-    if (this.deleteTargetId) {
-      this.isLoading = true;
-      this.collaboratorService.deleteCollaborator(parseInt(this.deleteTargetId)).subscribe({
-        next: () => {
-          this.loadTeamMembers();
-          this.cancelDelete();
-          this.isLoading = false;
-        },
-        error: (error) => {
-          console.error('Erreur lors de la suppression:', error);
-          this.errorMessage = 'Erreur lors de la suppression du collaborateur';
-          this.isLoading = false;
-          this.cancelDelete();
+  onPinGateConfirmed(pin: string) {
+    this.collaboratorService.verifyTeamPin(pin).subscribe({
+      next: () => {
+        this.confirmedPin = pin;
+        this.pinGateError = '';
+        this.showPinGate = false;
+
+        if (this.pinGateAction === 'create') {
+          this.pinGateAction = null;
+          this.isEditMode = false;
+          this.currentEditId = null;
+          this.formData = this.emptyForm();
+          this.generatePin();
+          this.showModal = true;
+        } else if (this.pinGateAction === 'edit') {
+          const member = this.pendingEditMember!;
+          this.pinGateAction = null;
+          this.pendingEditMember = null;
+          this.isEditMode = true;
+          this.currentEditId = member.id;
+          this.formData = {
+            civility: member.civility,
+            firstName: member.firstName,
+            lastName: member.lastName,
+            role: member.role,
+            pin: '',
+            color: member.color,
+            email: member.email,
+            can_manage_account: member.can_manage_account,
+            can_manage_team: member.can_manage_team,
+            can_manage_planning: member.can_manage_planning,
+            can_manage_quality: member.can_manage_quality,
+          };
+          this.showGeneratedPin = false;
+          this.showModal = true;
+        } else if (this.pinGateAction === 'delete') {
+          this.pinGateAction = null;
+          this.executeDelete();
         }
-      });
-    }
+      },
+      error: (err) => {
+        this.pinGateError = err.error?.detail || 'PIN incorrect.';
+      }
+    });
+  }
+
+  onPinGateCancelled() {
+    this.showPinGate = false;
+    this.pinGateAction = null;
+    this.pinGateError = '';
+    this.deleteTargetId = null;
+    this.pendingEditMember = null;
+    this.confirmedPin = '';
+  }
+
+  // ── Exécution ──────────────────────────────────────────────────────────────
+
+  private executeCreate() {
+    this.isLoading = true;
+    const createData: CollaboratorCreate & SensitivePayload = {
+      civility: this.formData.civility,
+      first_name: this.formData.firstName,
+      last_name: this.formData.lastName,
+      role: this.formData.role,
+      color: this.formData.color,
+      pin: this.formData.pin,
+      ...(this.formData.email ? { email: this.formData.email } : {}),
+      can_manage_account: this.formData.can_manage_account,
+      can_manage_team: this.formData.can_manage_team,
+      can_manage_planning: this.formData.can_manage_planning,
+      can_manage_quality: this.formData.can_manage_quality,
+      ...(this.confirmedPin ? { confirmation_pin: this.confirmedPin } : {})
+    };
+
+    this.collaboratorService.createCollaborator(createData).subscribe({
+      next: () => {
+        this.confirmedPin = '';
+        this.closeModal();
+        this.loadTeamMembers();
+        this.isLoading = false;
+      },
+      error: (err) => {
+        this.errorMessage = err.error?.detail || 'Erreur lors de la création';
+        this.isLoading = false;
+      }
+    });
+  }
+
+  private executeDelete() {
+    if (!this.deleteTargetId) return;
+    this.isLoading = true;
+    const confirmation: SensitivePayload = { confirmation_pin: this.confirmedPin };
+    this.collaboratorService.deleteCollaborator(parseInt(this.deleteTargetId), confirmation).subscribe({
+      next: () => {
+        this.confirmedPin = '';
+        this.deleteTargetId = null;
+        this.loadTeamMembers();
+        this.isLoading = false;
+      },
+      error: (err) => {
+        this.errorMessage = err.error?.detail || 'Erreur lors de la suppression';
+        this.confirmedPin = '';
+        this.isLoading = false;
+      }
+    });
+  }
+
+  // ── Utilitaires ────────────────────────────────────────────────────────────
+
+  isTitulaire(member: TeamMember): boolean {
+    return member.role === 'Titulaire';
+  }
+
+  isCurrentCollaborator(member: TeamMember): boolean {
+    return member.id === String(this.activeCollaboratorId);
+  }
+
+  hasAnyPermission(member: TeamMember): boolean {
+    return member.can_manage_account || member.can_manage_team
+      || member.can_manage_planning || member.can_manage_quality;
   }
 
   getColorClass(color: string): string {
@@ -264,5 +407,16 @@ export class TeamManagementComponent implements OnInit {
 
   getColorOption(colorValue: string): ColorOption | undefined {
     return this.colors.find(c => c.value === colorValue);
+  }
+
+  getRoleBadgeClass(role: MemberRole): string {
+    switch (role) {
+      case 'Titulaire':   return 'bg-green-100 text-green-800';
+      case 'Adjoint':     return 'bg-blue-100 text-blue-800';
+      case 'Préparateur': return 'bg-gray-100 text-gray-700';
+      case 'Étudiant':    return 'bg-yellow-100 text-yellow-800';
+      case 'Apprenti':    return 'bg-orange-100 text-orange-800';
+      default:            return 'bg-gray-100 text-gray-700';
+    }
   }
 }

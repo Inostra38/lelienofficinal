@@ -48,7 +48,6 @@ def init_categories(request):
         category = Category.objects.create(
             owner_pharmacy=request.user,
             nom=nom,
-            icon_slug=cat.get('icon_slug', ''),
             ordre=index
         )
         created.append({'id': category.id, 'nom': category.nom})
@@ -414,8 +413,7 @@ def create_full_card(request):
         titre = request.data.get('titre')
         category_id = request.data.get('category')
         description_courte = request.data.get('description_courte', '')
-        logo = request.FILES.get('logo')
-        
+
         # Notes
         note_courte = request.data.get('note_courte', '')
         note_longue = request.data.get('note_longue', '')
@@ -437,7 +435,6 @@ def create_full_card(request):
             titre=titre,
             category=category,
             description_officielle=description_courte,
-            logo=logo,
             owner_pharmacy=request.user,
             type='PRIVATE'
         )

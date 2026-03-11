@@ -4,7 +4,6 @@ from django.utils.translation import gettext_lazy as _
 
 class Category(models.Model):
     nom = models.CharField(_("Nom de la catégorie"), max_length=50)
-    icon_slug = models.CharField(_("Icône"), max_length=50, default="folder")
     ordre = models.PositiveIntegerField(default=0)
     
     owner_pharmacy = models.ForeignKey(
@@ -45,8 +44,6 @@ class ResourceCard(models.Model):
 
     titre = models.CharField(_("Titre de la carte"), max_length=100)
     description_officielle = models.TextField(_("Description officielle"), blank=True)
-    logo = models.ImageField(upload_to='cards/logos/', blank=True, null=True)
-    
     type = models.CharField(_("Type de carte"), max_length=20, choices=TYPE_CHOICES, default='PRIVATE')
     
     owner_partner = models.ForeignKey('partners.Partner', on_delete=models.SET_NULL, null=True, blank=True)
