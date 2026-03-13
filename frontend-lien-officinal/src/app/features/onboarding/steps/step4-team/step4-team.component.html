@@ -1,0 +1,106 @@
+<div>
+  <div class="flex items-center gap-3 mb-1">
+    <h2 class="text-xl font-bold text-gray-900">Mon équipe</h2>
+    <span class="text-xs font-medium text-gray-400 bg-gray-100 px-2 py-0.5 rounded-full">Optionnel</span>
+  </div>
+  <p class="text-sm text-gray-500 mb-5">Ajoutez vos collaborateurs pour qu'ils puissent accéder à votre espace.</p>
+
+  <!-- Message vide -->
+  @if (collaborators.length === 0) {
+    <div class="text-center py-6 text-sm text-gray-400 bg-gray-50 rounded-lg mb-4">
+      Aucun collaborateur ajouté pour l'instant.
+    </div>
+  }
+
+  <!-- Cartes collaborateurs -->
+  <div class="space-y-3 mb-4">
+    @for (collab of collaborators; track $index; let i = $index) {
+      <div class="border border-gray-200 rounded-lg p-4">
+        <div class="flex items-center justify-between mb-3">
+          <span class="text-sm font-semibold text-gray-700">Collaborateur {{ i + 1 }}</span>
+          <button
+            type="button"
+            (click)="removeCollaborator(i)"
+            class="text-gray-300 hover:text-red-400 transition-colors text-lg leading-none"
+          >✕</button>
+        </div>
+
+        <div class="grid grid-cols-2 gap-3 mb-3">
+          <div>
+            <label class="block text-xs font-medium text-gray-600 mb-1">Prénom <span class="text-red-500">*</span></label>
+            <input
+              type="text"
+              [(ngModel)]="collab.first_name"
+              placeholder="Marie"
+              class="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 outline-none transition-all"
+            />
+          </div>
+          <div>
+            <label class="block text-xs font-medium text-gray-600 mb-1">Nom <span class="text-red-500">*</span></label>
+            <input
+              type="text"
+              [(ngModel)]="collab.last_name"
+              placeholder="Dupont"
+              class="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 outline-none transition-all"
+            />
+          </div>
+        </div>
+
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="block text-xs font-medium text-gray-600 mb-1">Rôle</label>
+            <select
+              [(ngModel)]="collab.role"
+              class="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 outline-none transition-all bg-white"
+            >
+              @for (role of roles; track role.value) {
+                <option [value]="role.value">{{ role.label }}</option>
+              }
+            </select>
+          </div>
+          <div>
+            <label class="block text-xs font-medium text-gray-600 mb-1">PIN à 4 chiffres</label>
+            <input
+              type="password"
+              [(ngModel)]="collab.pin"
+              placeholder="••••"
+              maxlength="4"
+              class="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 outline-none transition-all tracking-widest"
+            />
+          </div>
+        </div>
+      </div>
+    }
+  </div>
+
+  <button
+    type="button"
+    (click)="addCollaborator()"
+    class="w-full py-2.5 border-2 border-dashed border-gray-300 hover:border-green-500 text-sm text-gray-500 hover:text-green-700 rounded-lg transition-colors font-medium mb-6"
+  >
+    + Ajouter un collaborateur
+  </button>
+
+  <div class="flex justify-between items-center">
+    <button (click)="onPrev()" class="text-sm text-gray-500 hover:text-gray-700 font-medium transition-colors">
+      ← Précédent
+    </button>
+    <div class="flex items-center gap-3">
+      <button
+        (click)="onSkip()"
+        class="text-sm text-gray-400 hover:text-gray-600 font-medium transition-colors underline underline-offset-2"
+      >
+        Passer cette étape
+      </button>
+      @if (collaborators.length > 0) {
+        <button
+          (click)="onNext()"
+          [disabled]="!allValid"
+          class="bg-green-700 hover:bg-green-800 disabled:bg-gray-300 disabled:cursor-not-allowed text-white font-semibold px-6 py-2.5 rounded-lg transition-colors"
+        >
+          Suivant →
+        </button>
+      }
+    </div>
+  </div>
+</div>

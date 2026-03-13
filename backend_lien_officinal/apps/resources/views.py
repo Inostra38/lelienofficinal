@@ -10,7 +10,7 @@ from django.views.decorators.csrf import csrf_exempt
 from django.shortcuts import get_object_or_404
 from rest_framework import parsers
 
-from .models import Category, ResourceCard, ResourceItem, PharmacyPreference 
+from .models import Category, ResourceCard, ResourceItem, PharmacyPreference, WizardCategory
 from .serializers import (
     CategorySerializer, 
     CategoryCreateSerializer,
@@ -18,6 +18,230 @@ from .serializers import (
     ResourceItemSerializer, 
     CatalogCardSerializer
 )
+
+
+# =====================================================
+# WIZARD ONBOARDING — 4 ENDPOINTS
+# =====================================================
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+@authentication_classes([JWTAuthentication])
+def wizard_categories(request):
+    """
+    Liste les catégories globales de la plateforme (sauf 'Autre').
+    GET /api/wizard/categories/
+    """
+    categories = WizardCategory.objects.filter(is_active=True).exclude(nom='Autre')
+    data = [{'id': c.id, 'nom': c.nom} for c in categories]
+    return Response(data)
+
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+@authentication_classes([JWTAuthentication])
+def wizard_resources(request):
+    """
+    Liste toutes les ressources plateforme disponibles (OFFICIAL + PARTNER).
+    GET /api/wizard/resources/
+    """
+    cards = ResourceCard.objects.filter(
+        type__in=['OFFICIAL', 'PARTNER']
+    ).order_by('titre')
+    data = [
+        {
+            'id': c.id,
+            'titre': c.titre,
+            'description_officielle': c.description_officielle,
+            'type': c.type,
+        }
+        for c in cards
+    ]
+    return Response(data)
+
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+@authentication_classes([JWTAuthentication])
+def wizard_classify(request):
+    """
+    Classifie les ressources sélectionnées dans les catégories choisies via Claude IA.
+    POST /api/wizard/classify/
+    Body: { "categories": [...], "resources": [{id, titre, description}, ...] }
+    """
+    import json
+    import anthropic
+    from django.conf import settings
+    from apps.resources.models import WizardCategory
+
+    selected_categories = request.data.get('categories', [])
+    resources = request.data.get('resources', [])
+
+    if not resources:
+        return Response([])
+
+    # Fallback : tout dans "Autre" si pas de catégories
+    if not selected_categories:
+        return Response([{'resource_id': r['id'], 'category': 'Autre'} for r in resources])
+
+    # Enrichir les catégories avec leurs descriptions depuis la BDD
+    cat_objects = WizardCategory.objects.filter(nom__in=selected_categories)
+    cat_descriptions = {c.nom: c.description for c in cat_objects}
+
+    categories_block = "\n".join(
+        f'- {nom} : {cat_descriptions.get(nom, "")}'.strip(" :")
+        for nom in selected_categories
+    )
+
+    resources_block = json.dumps(
+        [{'id': r['id'], 'titre': r['titre'], 'description': r.get('description_officielle', '')} for r in resources],
+        ensure_ascii=False,
+        indent=2,
+    )
+
+    prompt = f"""Tu es un expert en pharmacie d'officine française chargé de classer des ressources professionnelles.
+
+Une pharmacie a sélectionné les catégories suivantes pour organiser son espace de travail.
+Chaque catégorie est accompagnée d'une description détaillée de ce qu'elle contient :
+
+{categories_block}
+
+Voici les ressources à classer :
+{resources_block}
+
+Consignes :
+- Pour chaque ressource, choisis la catégorie la plus pertinente parmi celles listées ci-dessus.
+- Base-toi sur le titre ET la description de la ressource, ainsi que sur la description de chaque catégorie.
+- Si une ressource peut appartenir à plusieurs catégories, choisis celle qui correspond le mieux à son usage principal.
+- Si vraiment aucune catégorie ne convient, utilise "Autre".
+- Tu DOIS retourner une entrée pour CHAQUE ressource de la liste.
+
+Réponds UNIQUEMENT avec un tableau JSON valide, sans texte avant ni après, sans balises markdown.
+Format attendu :
+[
+  {{"resource_id": 1, "category": "Grossistes-répartiteurs"}},
+  {{"resource_id": 2, "category": "Outils patients"}}
+]"""
+
+    try:
+        client = anthropic.Anthropic(api_key=settings.ANTHROPIC_API_KEY)
+        message = client.messages.create(
+            model='claude-haiku-4-5-20251001',
+            max_tokens=4096,
+            messages=[{'role': 'user', 'content': prompt}]
+        )
+        raw = message.content[0].text.strip()
+        # Supprimer les balises markdown si présentes (```json ... ```)
+        if raw.startswith('```'):
+            raw = raw.split('```', 2)[1]
+            if raw.startswith('json'):
+                raw = raw[4:]
+            raw = raw.strip()
+        result = json.loads(raw)
+        return Response(result)
+    except Exception:
+        # Fallback silencieux : tout dans "Autre"
+        return Response([{'resource_id': r['id'], 'category': 'Autre'} for r in resources])
+
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+@authentication_classes([JWTAuthentication])
+def wizard_complete(request):
+    """
+    Sauvegarde complète du wizard en une transaction atomique.
+    POST /api/wizard/complete/
+    Body: {
+      "pharmacy": { "nom_officine": "...", "city": "..." },
+      "selected_categories": ["Grossistes-répartiteurs", ...],
+      "classified_resources": [{"resource_id": 1, "category": "Grossistes-répartiteurs"}, ...],
+      "collaborators": [{"first_name": "...", "last_name": "...", "role": "...", "pin": "..."}, ...]
+    }
+    """
+    from django.db import transaction
+    from apps.team.models import Collaborator
+
+    pharmacy = request.user
+
+    with transaction.atomic():
+        # 1. Mettre à jour les champs de la pharmacie
+        pharmacy_data = request.data.get('pharmacy', {})
+        if pharmacy_data.get('nom_officine'):
+            pharmacy.nom_officine = pharmacy_data['nom_officine']
+        if pharmacy_data.get('city'):
+            pharmacy.city = pharmacy_data['city']
+        pharmacy.save()
+
+        # 2. Créer les catégories pour la pharmacie
+        selected_categories = request.data.get('selected_categories', [])
+        category_map = {}  # nom → Category instance
+
+        for index, nom in enumerate(selected_categories):
+            cat, _ = Category.objects.get_or_create(
+                owner_pharmacy=pharmacy,
+                nom=nom,
+                defaults={'ordre': index}
+            )
+            category_map[nom] = cat
+
+        # Catégorie "Autre" systématique
+        autre_cat, _ = Category.objects.get_or_create(
+            owner_pharmacy=pharmacy,
+            nom='Autre',
+            defaults={'ordre': 999}
+        )
+        category_map['Autre'] = autre_cat
+
+        # 3. Créer les PharmacyPreference pour les ressources classées
+        classified_resources = request.data.get('classified_resources', [])
+        for item in classified_resources:
+            resource_id = item.get('resource_id')
+            cat_nom = item.get('category', 'Autre')
+            assigned_cat = category_map.get(cat_nom, autre_cat)
+
+            try:
+                card = ResourceCard.objects.get(pk=resource_id)
+                PharmacyPreference.objects.get_or_create(
+                    pharmacy=pharmacy,
+                    card=card,
+                    defaults={'assigned_category': assigned_cat}
+                )
+            except ResourceCard.DoesNotExist:
+                continue
+
+        # 4. Créer les collaborateurs
+        collaborators_data = request.data.get('collaborators', [])
+        for collab_data in collaborators_data:
+            first_name = collab_data.get('first_name', '').strip()
+            last_name = collab_data.get('last_name', '').strip()
+            role = collab_data.get('role', 'Préparateur')
+            pin = collab_data.get('pin', '')
+
+            if not first_name or not last_name:
+                continue
+
+            if not pin:
+                continue
+
+            collab, created = Collaborator.objects.get_or_create(
+                pharmacy=pharmacy,
+                first_name=first_name,
+                last_name=last_name,
+                defaults={
+                    'role': role,
+                    'pin_hash': '',
+                    'is_active': True,
+                }
+            )
+            if created or not collab.pin_hash:
+                collab.set_pin(str(pin))
+                collab.save()
+
+        # 5. Marquer l'onboarding comme complété
+        pharmacy.onboarding_completed = True
+        pharmacy.save()
+
+    return Response({'success': True})
 
 
 # =====================================================
@@ -100,7 +324,8 @@ class CategoryViewSet(viewsets.ModelViewSet):
 
         adopted_preferences = PharmacyPreference.objects.filter(
             pharmacy=user,
-            assigned_category__isnull=False
+            assigned_category__isnull=False,
+            is_hidden=False
         ).select_related('card', 'assigned_category')
 
         # Filtre par pharmacie propriétaire
@@ -363,6 +588,33 @@ def toggle_favorite(request, pk):
         "card_id": card.id,
         "is_favorite": preference.is_favorite
     }, status=status.HTTP_200_OK)
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+@authentication_classes([JWTAuthentication])
+def toggle_visibility(request, pk):
+    """
+    Masque une carte OFFICIAL/PARTNER pour la pharmacie connectée.
+    Crée ou met à jour la PharmacyPreference avec is_hidden=True.
+    Les cartes PRIVATE se suppriment via DELETE /api/cards/{id}/.
+    """
+    card = get_object_or_404(ResourceCard, pk=pk)
+
+    if card.type == 'PRIVATE':
+        return Response(
+            {"detail": "Les ressources personnelles se suppriment via DELETE."},
+            status=status.HTTP_400_BAD_REQUEST
+        )
+
+    preference, _ = PharmacyPreference.objects.get_or_create(
+        pharmacy=request.user,
+        card=card,
+    )
+    preference.is_hidden = True
+    preference.save()
+
+    return Response({"card_id": card.id, "is_hidden": True}, status=status.HTTP_200_OK)
+
 
 @api_view(['PATCH'])
 @permission_classes([IsAuthenticated])

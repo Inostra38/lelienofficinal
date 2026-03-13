@@ -1,0 +1,105 @@
+<div>
+  <h2 class="text-xl font-bold text-gray-900 mb-1">Ressources disponibles</h2>
+  <p class="text-sm text-gray-500 mb-4">Sélectionnez les ressources à importer dans votre espace.</p>
+
+  <!-- Barre d'actions -->
+  <div class="flex items-center gap-3 mb-2">
+    <input
+      type="text"
+      (input)="onSearch($any($event.target).value)"
+      placeholder="Rechercher une ressource..."
+      class="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 outline-none transition-all text-sm"
+    />
+    <button class="btn-select-all" (click)="toggleSelectAll()" [disabled]="loading || filteredResources.length === 0">
+      {{ allVisibleSelected ? 'Tout désélectionner' : 'Tout sélectionner' }}
+    </button>
+    <span class="text-sm text-gray-400 whitespace-nowrap">
+      <span class="font-medium text-green-700">{{ selectedCount }}</span> sélectionnée(s)
+    </span>
+  </div>
+
+  <!-- Chargement -->
+  @if (loading) {
+    <div class="text-sm text-gray-400 py-8 text-center">Chargement des ressources...</div>
+  }
+
+  <!-- Grille de cartes -->
+  @if (!loading) {
+    <div class="resources-grid">
+      @for (resource of filteredResources; track resource.id) {
+        <div
+          class="resource-card"
+          [class.selected]="isSelected(resource.id)"
+          (click)="toggleResource(resource)"
+        >
+          @if (isSelected(resource.id)) {
+            <div class="card-check">
+              <span class="check-icon">✓</span>
+            </div>
+          }
+          <div class="card-body">
+            <span class="card-badge" [ngClass]="typeBadgeClass(resource.type)">
+              {{ typeBadgeLabel(resource.type) }}
+            </span>
+            <h4 class="card-title">{{ resource.titre }}</h4>
+            <p class="card-description">{{ truncate(resource.description_officielle, 90) }}</p>
+          </div>
+        </div>
+      }
+      @if (filteredResources.length === 0) {
+        <p class="col-span-full text-sm text-gray-400 text-center py-8">
+          Aucune ressource ne correspond à votre recherche.
+        </p>
+      }
+    </div>
+  }
+
+  <!-- Spinner IA -->
+  @if (classifying()) {
+    <div class="flex items-center gap-3 bg-green-50 border border-green-200 rounded-lg px-4 py-3 mb-4">
+      <span class="animate-spin h-4 w-4 border-2 border-green-700 border-t-transparent rounded-full shrink-0"></span>
+      <p class="text-sm font-medium text-green-800">Notre IA analyse vos ressources...</p>
+    </div>
+  }
+
+  <!-- Résumé IA -->
+  @if (classifyDone() && !classifying()) {
+    <div class="bg-green-50 border border-green-200 rounded-lg px-4 py-3 mb-4">
+      <p class="text-sm font-semibold text-green-800 mb-2">✓ Classement IA effectué</p>
+      <ul class="space-y-1">
+        @for (item of classifySummary(); track item.category) {
+          <li class="flex justify-between text-sm text-gray-700">
+            <span>{{ item.category }}</span>
+            <span class="font-medium text-green-700">{{ item.count }} ressource(s)</span>
+          </li>
+        }
+      </ul>
+      @if (uncategorizedCount() > 0) {
+        <p class="text-xs text-gray-500 mt-2 border-t border-green-200 pt-2">
+          {{ uncategorizedCount() }} ressource(s) non classée(s) → placées dans <strong>Autre</strong>
+        </p>
+      }
+    </div>
+  }
+
+  <div class="flex justify-between items-center mt-4">
+    <button
+      (click)="onPrev()"
+      [disabled]="classifying()"
+      class="text-sm text-gray-500 hover:text-gray-700 font-medium transition-colors disabled:opacity-40"
+    >
+      ← Précédent
+    </button>
+    <button
+      (click)="onNext()"
+      [disabled]="classifying()"
+      class="bg-green-700 hover:bg-green-800 disabled:bg-gray-300 disabled:cursor-not-allowed text-white font-semibold px-6 py-2.5 rounded-lg transition-colors flex items-center gap-2"
+    >
+      @if (classifying()) {
+        <span class="animate-spin h-4 w-4 border-2 border-white border-t-transparent rounded-full"></span>
+      }
+      @if (selectedCount > 0 && !classifyDone()) { Classer et continuer }
+      @else { Suivant → }
+    </button>
+  </div>
+</div>

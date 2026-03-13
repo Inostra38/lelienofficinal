@@ -2,6 +2,9 @@ from pathlib import Path
 import os
 import sys
 from datetime import timedelta
+from dotenv import load_dotenv
+
+load_dotenv()  # Charge les variables depuis .env
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -199,3 +202,6 @@ BACKEND_BASE_URL = 'http://127.0.0.1:8000'
 # ⚠️  En production : stocker cette clé dans une variable d'environnement,
 #     jamais dans le code source. Exemple : os.environ.get('FIELD_ENCRYPTION_KEY')
 FIELD_ENCRYPTION_KEY = 'PfA94lfuOhJvkLTleaA6wiAO0ovezjSP-h8SJbjPvNU='
+
+# --- API Claude (Anthropic) ---
+ANTHROPIC_API_KEY = os.environ.get('ANTHROPIC_API_KEY', '')

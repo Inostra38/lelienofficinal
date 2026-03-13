@@ -174,7 +174,8 @@ class CategorySerializer(serializers.ModelSerializer):
         
         preferences = PharmacyPreference.objects.filter(
             pharmacy=request.user,
-            assigned_category=obj
+            assigned_category=obj,
+            is_hidden=False
         ).select_related('card__owner_partner').prefetch_related('card__items')
 
         adopted = []

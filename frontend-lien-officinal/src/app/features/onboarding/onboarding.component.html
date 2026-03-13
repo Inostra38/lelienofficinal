@@ -1,24 +1,52 @@
-<div class="min-h-screen bg-gray-50 flex flex-col items-center justify-center p-4">
+<div class="min-h-screen bg-gray-100 flex flex-col items-center justify-center p-4 py-10">
 
-  <!-- Progress bar -->
-  <div class="w-full max-w-md mb-8">
-    <div class="flex items-center justify-between mb-2">
-      <span class="text-sm text-gray-500">Étape {{ onboarding.currentStep() }} sur 3</span>
+  <!-- Logo + titre -->
+  <div class="text-center mb-6">
+    <div class="w-14 h-14 bg-green-700 text-white rounded-full flex items-center justify-center text-2xl mx-auto mb-3">
+      🏥
+    </div>
+    <h1 class="text-xl font-bold text-gray-800">Le Lien Officinal</h1>
+    <p class="text-sm text-gray-500">Configuration de votre espace</p>
+  </div>
+
+  <!-- Barre de progression -->
+  <div class="w-full max-w-2xl mb-6">
+    <div class="flex items-center justify-between mb-1.5">
+      <span class="text-sm text-gray-500">Étape {{ currentStep() }} sur {{ totalSteps }}</span>
+      <span class="text-sm font-medium text-green-700">{{ progressPercent | number:'1.0-0' }}%</span>
     </div>
     <div class="w-full bg-gray-200 rounded-full h-2">
       <div
-        class="bg-green-600 h-2 rounded-full transition-all duration-300"
-        [style.width.%]="(onboarding.currentStep() / 3) * 100">
+        class="bg-green-700 h-2 rounded-full transition-all duration-500"
+        [style.width.%]="progressPercent">
       </div>
+    </div>
+    <!-- Indicateurs d'étapes -->
+    <div class="flex justify-between mt-2 px-0.5">
+      @for (step of [1, 2, 3, 4, 5]; track step) {
+        <div
+          class="w-6 h-6 rounded-full flex items-center justify-center text-xs font-semibold transition-all duration-300"
+          [class.bg-green-700]="currentStep() >= step"
+          [class.text-white]="currentStep() >= step"
+          [class.bg-gray-200]="currentStep() < step"
+          [class.text-gray-400]="currentStep() < step"
+        >{{ step }}</div>
+      }
     </div>
   </div>
 
-  <!-- Steps -->
-  <div class="w-full max-w-md">
-    @switch (onboarding.currentStep()) {
-      @case (1) { <app-step1-account /> }
-      @case (2) { <app-step2-officine /> }
-      @case (3) { <app-step3-interests /> }
+  <!-- Carte de contenu -->
+  <div
+    class="w-full bg-white rounded-xl shadow-lg p-8"
+    [class.max-w-2xl]="currentStep() !== 3"
+    [class.max-w-6xl]="currentStep() === 3"
+  >
+    @switch (currentStep()) {
+      @case (1) { <app-step1-profile (next)="next()" /> }
+      @case (2) { <app-step2-categories (next)="next()" (prev)="prev()" /> }
+      @case (3) { <app-step3-resources (next)="next()" (prev)="prev()" /> }
+      @case (4) { <app-step4-team (next)="next()" (prev)="prev()" (skip)="skipToSummary()" /> }
+      @case (5) { <app-step5-summary (prev)="prev()" /> }
     }
   </div>
 

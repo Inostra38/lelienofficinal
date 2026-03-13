@@ -1,0 +1,121 @@
+.resources-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 16px;
+  padding: 16px 0;
+  max-height: 420px;
+  overflow-y: auto;
+}
+
+@media (min-width: 768px) {
+  .resources-grid {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
+
+@media (min-width: 1200px) {
+  .resources-grid {
+    grid-template-columns: repeat(4, 1fr);
+  }
+}
+
+.resource-card {
+  position: relative;
+  border: 2px solid #E0E0E0;
+  border-radius: 8px;
+  padding: 16px;
+  cursor: pointer;
+  background: #FFFFFF;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+  min-height: 140px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+}
+
+.resource-card:hover {
+  border-color: #A5D6A7;
+  box-shadow: 0 2px 8px rgba(46, 125, 50, 0.12);
+}
+
+.resource-card.selected {
+  border-color: #2E7D32;
+  border-width: 2px;
+  background: #F9FFF9;
+}
+
+.card-check {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  width: 24px;
+  height: 24px;
+  background: #2E7D32;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.check-icon {
+  color: white;
+  font-size: 14px;
+  font-weight: bold;
+}
+
+.card-badge {
+  display: inline-block;
+  font-size: 11px;
+  padding: 2px 8px;
+  border-radius: 12px;
+  margin-bottom: 8px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.badge-official {
+  background: #E3F2FD;
+  color: #1565C0;
+}
+
+.badge-partner {
+  background: #FFF8E1;
+  color: #F57F17;
+}
+
+.badge-private {
+  background: #F3E5F5;
+  color: #6A1B9A;
+}
+
+.card-title {
+  font-size: 14px;
+  font-weight: 600;
+  color: #212121;
+  margin: 0 0 6px 0;
+  padding-right: 28px;
+}
+
+.card-description {
+  font-size: 12px;
+  color: #757575;
+  margin: 0;
+  line-height: 1.4;
+}
+
+.btn-select-all {
+  white-space: nowrap;
+  font-size: 13px;
+  font-weight: 500;
+  padding: 6px 14px;
+  border: 1.5px solid #2E7D32;
+  border-radius: 6px;
+  color: #2E7D32;
+  background: transparent;
+  cursor: pointer;
+  transition: background 0.15s ease;
+}
+
+.btn-select-all:hover {
+  background: #F1F8F1;
+}

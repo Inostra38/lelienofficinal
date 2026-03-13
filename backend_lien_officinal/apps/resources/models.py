@@ -2,6 +2,26 @@ from django.db import models
 from django.conf import settings
 from django.utils.translation import gettext_lazy as _
 
+
+class WizardCategory(models.Model):
+    """
+    Catégories globales de la plateforme, proposées lors de l'onboarding.
+    Non liées à une pharmacie — partagées entre tous les utilisateurs.
+    """
+    nom = models.CharField(max_length=100)
+    description = models.TextField(blank=True, default='')
+    ordre = models.IntegerField(default=0)
+    is_active = models.BooleanField(default=True)
+
+    class Meta:
+        verbose_name = _("Catégorie Wizard")
+        verbose_name_plural = _("Catégories Wizard")
+        ordering = ['ordre']
+
+    def __str__(self):
+        return self.nom
+
+
 class Category(models.Model):
     nom = models.CharField(_("Nom de la catégorie"), max_length=50)
     ordre = models.PositiveIntegerField(default=0)

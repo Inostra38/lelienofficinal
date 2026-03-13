@@ -1,0 +1,54 @@
+<div>
+  <h2 class="text-xl font-bold text-gray-900 mb-1">Mes centres d'intérêt</h2>
+  <p class="text-sm text-gray-500 mb-4">Choisissez les domaines qui correspondent à votre activité.</p>
+
+  <!-- Compteur -->
+  <div class="flex items-center gap-2 mb-4">
+    <span class="text-sm font-medium px-3 py-1 rounded-full bg-green-50 text-green-700">
+      {{ selected.size }} catégorie(s) sélectionnée(s)
+    </span>
+    @if (selected.size < MIN) {
+      <span class="text-xs text-gray-400">Sélectionnez au moins une catégorie</span>
+    }
+  </div>
+
+  <!-- Chargement -->
+  @if (loading) {
+    <div class="text-sm text-gray-400 py-8 text-center">Chargement des catégories...</div>
+  }
+
+  <!-- Grille de chips -->
+  @if (!loading) {
+    <div class="grid grid-cols-3 gap-2 mb-6">
+      @for (cat of categories; track cat.id) {
+        <button
+          type="button"
+          (click)="toggle(cat.nom)"
+          class="px-3 py-2 rounded-lg text-sm font-medium border transition-all text-left leading-snug"
+          [class.bg-green-50]="isSelected(cat.nom)"
+          [class.border-green-600]="isSelected(cat.nom)"
+          [class.text-green-800]="isSelected(cat.nom)"
+          [class.bg-white]="!isSelected(cat.nom)"
+          [class.border-gray-200]="!isSelected(cat.nom)"
+          [class.text-gray-600]="!isSelected(cat.nom)"
+          [class.hover:border-green-400]="true"
+        >
+          {{ cat.nom }}
+        </button>
+      }
+    </div>
+  }
+
+  <div class="flex justify-between items-center">
+    <button (click)="onPrev()" class="text-sm text-gray-500 hover:text-gray-700 font-medium transition-colors">
+      ← Précédent
+    </button>
+    <button
+      (click)="onNext()"
+      [disabled]="!isValid"
+      class="bg-green-700 hover:bg-green-800 disabled:bg-gray-300 disabled:cursor-not-allowed text-white font-semibold px-6 py-2.5 rounded-lg transition-colors"
+    >
+      Suivant →
+    </button>
+  </div>
+</div>
