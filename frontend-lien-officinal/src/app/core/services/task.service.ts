@@ -1,5 +1,5 @@
 import { Injectable, inject } from '@angular/core';
-import { HttpClient, HttpHeaders } from '@angular/common/http';
+import { HttpClient } from '@angular/common/http';
 import { Observable } from 'rxjs';
 import { environment } from '../../../environments/environment';
 
@@ -38,7 +38,6 @@ export interface TasksResponse {
 }
 
 export interface CreateTaskDto {
-  collaborator_id: number;
   assigned_to_id?: number;
   title: string;
   description?: string;
@@ -51,8 +50,8 @@ export class TaskService {
   private http = inject(HttpClient);
   private apiUrl = `${environment.apiUrl}/api/tasks`;
 
-  private withCollaborator(collaboratorId: number): { headers: HttpHeaders } {
-    return { headers: new HttpHeaders({ 'X-Collaborator-Id': String(collaboratorId) }) };
+  private withCollaborator(_collaboratorId: number): object {
+    return {};
   }
 
   getTasks(collaboratorId: number): Observable<TasksResponse> {

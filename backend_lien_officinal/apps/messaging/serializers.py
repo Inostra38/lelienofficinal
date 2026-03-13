@@ -32,20 +32,9 @@ class MessageSerializer(serializers.ModelSerializer):
 
 
 class MessageCreateSerializer(serializers.ModelSerializer):
-    collaborator_id = serializers.IntegerField(write_only=True)
-
     class Meta:
         model = Message
-        fields = ['collaborator_id', 'content']
-
-    def validate_collaborator_id(self, value):
-        request = self.context['request']
-        try:
-            collaborator = Collaborator.objects.get(id=value, pharmacy=request.user, is_active=True)
-        except Collaborator.DoesNotExist:
-            raise serializers.ValidationError("Collaborateur introuvable ou non autorisé.")
-        self.context['collaborator'] = collaborator
-        return value
+        fields = ['content']
 
     def validate_content(self, value):
         if not value or not value.strip():
@@ -88,23 +77,13 @@ class ConversationSerializer(serializers.ModelSerializer):
 
 
 class ConversationCreateSerializer(serializers.ModelSerializer):
-    collaborator_id = serializers.IntegerField(write_only=True)
     participant_ids = serializers.ListField(
         child=serializers.IntegerField(), write_only=True, min_length=1
     )
 
     class Meta:
         model = Conversation
-        fields = ['collaborator_id', 'subject', 'participant_ids']
-
-    def validate_collaborator_id(self, value):
-        request = self.context['request']
-        try:
-            collaborator = Collaborator.objects.get(id=value, pharmacy=request.user, is_active=True)
-        except Collaborator.DoesNotExist:
-            raise serializers.ValidationError("Collaborateur introuvable ou non autorisé.")
-        self.context['collaborator'] = collaborator
-        return value
+        fields = ['subject', 'participant_ids']
 
     def validate_subject(self, value):
         if not value or not value.strip():
@@ -124,7 +103,6 @@ class ConversationCreateSerializer(serializers.ModelSerializer):
         return value
 
     def create(self, validated_data):
-        validated_data.pop('collaborator_id')
         validated_data.pop('participant_ids')
         creator = self.context['collaborator']
         participants = self.context['participants']

@@ -2,6 +2,7 @@ from rest_framework import viewsets, status
 from rest_framework.decorators import action
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated, AllowAny
+from rest_framework.throttling import UserRateThrottle
 from rest_framework.views import APIView
 from rest_framework_simplejwt.tokens import RefreshToken
 from rest_framework_simplejwt.exceptions import TokenError
@@ -10,6 +11,17 @@ from django.core.exceptions import ValidationError
 from .models import Pharmacy
 from .serializers import PharmacySerializer, PharmacyUpdateSerializer, RegisterSerializer, ProfileSetupSerializer
 from apps.team.models import Collaborator
+
+
+class PinVerifyThrottle(UserRateThrottle):
+    """10 tentatives de PIN par 5 minutes par utilisateur authentifié."""
+    scope = 'pin_verify'
+
+    def get_rate(self):
+        return '10/m'  # valeur factice — parse_rate impose la vraie limite
+
+    def parse_rate(self, rate):
+        return (10, 5 * 60)  # 10 requêtes par 300 secondes
 
 
 def _get_collaborator(request):
@@ -188,6 +200,11 @@ class AccountChangePasswordView(APIView):
     permission_classes = [IsAuthenticated]
 
     def post(self, request):
+        actor = _get_collaborator(request)
+        err = _check_permission(actor, 'can_manage_account')
+        if err:
+            return err
+
         old_password = request.data.get('old_password', '')
         new_password = request.data.get('new_password', '')
         new_password_confirm = request.data.get('new_password_confirm', '')
@@ -235,6 +252,11 @@ class AccountChangeEmailView(APIView):
     permission_classes = [IsAuthenticated]
 
     def post(self, request):
+        actor = _get_collaborator(request)
+        err = _check_permission(actor, 'can_manage_account')
+        if err:
+            return err
+
         new_email = request.data.get('new_email', '').strip().lower()
         password = request.data.get('password', '')
 
@@ -259,3 +281,32 @@ class AccountChangeEmailView(APIView):
         request.user.save(update_fields=['email'])
 
         return Response({"detail": "Adresse email mise à jour avec succès.", "new_email": new_email})
+
+
+class AccountVerifySecurityAccessView(APIView):
+    """
+    POST /api/account/verify-security-access/
+    Accepte le PIN de n'importe quel collaborateur actif ayant can_manage_account=True.
+    Indépendant du type de session JWT.
+    """
+    permission_classes = [IsAuthenticated]
+    throttle_classes = [PinVerifyThrottle]
+
+    def post(self, request):
+        pin = request.data.get('confirmation_pin')
+        if not pin:
+            return Response({"detail": "PIN requis."}, status=status.HTTP_403_FORBIDDEN)
+
+        authorized = Collaborator.objects.filter(
+            pharmacy=request.user,
+            can_manage_account=True,
+            is_active=True,
+        )
+        for collab in authorized:
+            if collab.check_pin(str(pin)):
+                return Response({"valid": True})
+
+        return Response(
+            {"detail": "PIN incorrect ou droits insuffisants."},
+            status=status.HTTP_403_FORBIDDEN
+        )

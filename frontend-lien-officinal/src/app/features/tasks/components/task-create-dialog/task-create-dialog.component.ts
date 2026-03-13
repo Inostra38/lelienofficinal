@@ -61,7 +61,6 @@ export class TaskCreateDialogComponent implements OnInit {
     this.errorMessage = '';
 
     const dto: CreateTaskDto = {
-      collaborator_id: this.currentCollaboratorId,
       title: this.form.title.trim(),
       description: this.form.description.trim(),
       priority: this.form.priority,

@@ -13,6 +13,7 @@ from .serializers import (
     CollaboratorPermissionsSerializer,
     PinVerificationSerializer,
 )
+from apps.core.views import PinVerifyThrottle
 
 
 def _get_collaborator(request):
@@ -84,6 +85,11 @@ class CollaboratorViewSet(viewsets.ModelViewSet):
     serializer_class = CollaboratorSerializer
     permission_classes = [IsAuthenticated]
     authentication_classes = [JWTAuthentication]
+
+    def get_throttles(self):
+        if self.action in ('collaborator_login', 'verify_pin', 'verify_team_pin'):
+            return [PinVerifyThrottle()]
+        return super().get_throttles()
 
     def get_queryset(self):
         return Collaborator.objects.filter(pharmacy=self.request.user, is_active=True)
@@ -193,6 +199,7 @@ class CollaboratorViewSet(viewsets.ModelViewSet):
 
         return Response({
             'access': str(refresh.access_token),
+            'refresh': str(refresh),
             'collaborator_id': collaborator.id,
         })
 

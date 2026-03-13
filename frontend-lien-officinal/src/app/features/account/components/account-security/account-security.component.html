@@ -1,84 +1,126 @@
 <div class="space-y-6">
 
-  <!-- Changer le mot de passe -->
-  <div class="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
-    <div class="px-6 py-4 border-b border-gray-200 bg-gradient-to-r from-gray-50 to-gray-100">
-      <div class="flex items-center gap-3">
-        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-gray-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z" />
+  <!-- Gate PIN — pour tous -->
+  @if (!isUnlocked) {
+    <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6 flex flex-col items-center gap-4 text-center">
+      <div class="w-12 h-12 rounded-full bg-orange-100 flex items-center justify-center">
+        <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-orange-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
         </svg>
-        <h3 class="text-sm font-bold text-gray-800">Changer le mot de passe</h3>
       </div>
+      <div>
+        <p class="text-sm font-semibold text-gray-800">Section sécurisée</p>
+        <p class="text-sm text-gray-500 mt-1">Un code PIN est requis pour accéder aux paramètres de sécurité du compte.</p>
+      </div>
+      <button type="button" (click)="requestUnlock()"
+              class="px-5 py-2 bg-green-700 hover:bg-green-800 text-white text-sm font-medium rounded-lg transition-colors">
+        Débloquer avec mon PIN
+      </button>
     </div>
-    <div class="p-6 space-y-4">
-      <div>
-        <label class="block text-sm font-medium text-gray-700 mb-1">Mot de passe actuel</label>
-        <input type="password" [(ngModel)]="oldPassword" name="oldPassword"
-               class="w-full px-4 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-green-500 focus:border-green-500 outline-none"
-               placeholder="Votre mot de passe actuel">
-      </div>
-      <div>
-        <label class="block text-sm font-medium text-gray-700 mb-1">Nouveau mot de passe</label>
-        <input type="password" [(ngModel)]="newPassword" name="newPassword"
-               class="w-full px-4 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-green-500 focus:border-green-500 outline-none"
-               placeholder="8 caractères minimum">
-      </div>
-      <div>
-        <label class="block text-sm font-medium text-gray-700 mb-1">Confirmer le nouveau mot de passe</label>
-        <input type="password" [(ngModel)]="newPasswordConfirm" name="newPasswordConfirm"
-               class="w-full px-4 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-green-500 focus:border-green-500 outline-none"
-               placeholder="Répéter le nouveau mot de passe">
-      </div>
-      <p *ngIf="passwordError" class="text-xs text-red-600">{{ passwordError }}</p>
-      <p class="text-xs text-amber-600 flex items-center gap-1">
-        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z" />
-        </svg>
-        Vous serez déconnecté après le changement de mot de passe.
-      </p>
-      <div class="pt-2">
-        <button type="button" (click)="changePassword()"
-                [disabled]="isChangingPassword"
-                class="px-5 py-2 bg-green-700 hover:bg-green-800 text-white text-sm font-medium rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
-          {{ isChangingPassword ? 'En cours...' : 'Changer le mot de passe' }}
-        </button>
-      </div>
-    </div>
-  </div>
+  }
 
-  <!-- Changer l'email -->
-  <div class="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
-    <div class="px-6 py-4 border-b border-gray-200 bg-gradient-to-r from-gray-50 to-gray-100">
-      <div class="flex items-center gap-3">
-        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-gray-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
-        </svg>
-        <h3 class="text-sm font-bold text-gray-800">Changer l'adresse email</h3>
+  <!-- Formulaires visibles après déverrouillage -->
+  @if (isUnlocked) {
+
+    <!-- Changer le mot de passe -->
+    <div class="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+      <div class="px-6 py-4 border-b border-gray-200 bg-gradient-to-r from-gray-50 to-gray-100">
+        <div class="flex items-center gap-3">
+          <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-gray-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z" />
+          </svg>
+          <h3 class="text-sm font-bold text-gray-800">Changer le mot de passe</h3>
+        </div>
+      </div>
+      <div class="p-6 space-y-4">
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-1">Mot de passe actuel</label>
+          <input type="password" [(ngModel)]="oldPassword" name="oldPassword"
+                 class="w-full px-4 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-green-500 focus:border-green-500 outline-none"
+                 placeholder="Votre mot de passe actuel">
+        </div>
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-1">Nouveau mot de passe</label>
+          <input type="password" [(ngModel)]="newPassword" name="newPassword"
+                 class="w-full px-4 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-green-500 focus:border-green-500 outline-none"
+                 placeholder="8 caractères minimum">
+        </div>
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-1">Confirmer le nouveau mot de passe</label>
+          <input type="password" [(ngModel)]="newPasswordConfirm" name="newPasswordConfirm"
+                 class="w-full px-4 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-green-500 focus:border-green-500 outline-none"
+                 placeholder="Répéter le nouveau mot de passe">
+        </div>
+        @if (passwordError) {
+          <p class="text-xs text-red-600">{{ passwordError }}</p>
+        }
+        <p class="text-xs text-amber-600 flex items-center gap-1">
+          <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z" />
+          </svg>
+          Vous serez déconnecté après le changement de mot de passe.
+        </p>
+        <div class="pt-2">
+          <button type="button" (click)="changePassword()"
+                  [disabled]="isChangingPassword"
+                  class="px-5 py-2 bg-green-700 hover:bg-green-800 text-white text-sm font-medium rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
+            {{ isChangingPassword ? 'En cours...' : 'Changer le mot de passe' }}
+          </button>
+        </div>
       </div>
     </div>
-    <div class="p-6 space-y-4">
-      <div>
-        <label class="block text-sm font-medium text-gray-700 mb-1">Nouvel email de connexion</label>
-        <input type="email" [(ngModel)]="newEmail" name="newEmail"
-               class="w-full px-4 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-green-500 focus:border-green-500 outline-none"
-               placeholder="email@pharmacie.fr">
+
+    <!-- Changer l'email -->
+    <div class="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+      <div class="px-6 py-4 border-b border-gray-200 bg-gradient-to-r from-gray-50 to-gray-100">
+        <div class="flex items-center gap-3">
+          <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-gray-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+          </svg>
+          <h3 class="text-sm font-bold text-gray-800">Changer l'adresse email</h3>
+        </div>
       </div>
-      <div>
-        <label class="block text-sm font-medium text-gray-700 mb-1">Mot de passe actuel</label>
-        <input type="password" [(ngModel)]="emailPassword" name="emailPassword"
-               class="w-full px-4 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-green-500 focus:border-green-500 outline-none"
-               placeholder="Votre mot de passe actuel">
-      </div>
-      <p *ngIf="emailError" class="text-xs text-red-600">{{ emailError }}</p>
-      <p *ngIf="emailSuccess" class="text-xs text-green-600 font-medium">✓ {{ emailSuccess }}</p>
-      <div class="pt-2">
-        <button type="button" (click)="changeEmail()"
-                [disabled]="isChangingEmail"
-                class="px-5 py-2 bg-green-700 hover:bg-green-800 text-white text-sm font-medium rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
-          {{ isChangingEmail ? 'En cours...' : 'Changer l\'email' }}
-        </button>
+      <div class="p-6 space-y-4">
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-1">Nouvel email de connexion</label>
+          <input type="email" [(ngModel)]="newEmail" name="newEmail"
+                 class="w-full px-4 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-green-500 focus:border-green-500 outline-none"
+                 placeholder="email@pharmacie.fr">
+        </div>
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-1">Mot de passe actuel</label>
+          <input type="password" [(ngModel)]="emailPassword" name="emailPassword"
+                 class="w-full px-4 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-green-500 focus:border-green-500 outline-none"
+                 placeholder="Votre mot de passe actuel">
+        </div>
+        @if (emailError) {
+          <p class="text-xs text-red-600">{{ emailError }}</p>
+        }
+        @if (emailSuccess) {
+          <p class="text-xs text-green-600 font-medium">✓ {{ emailSuccess }}</p>
+        }
+        <div class="pt-2">
+          <button type="button" (click)="changeEmail()"
+                  [disabled]="isChangingEmail"
+                  class="px-5 py-2 bg-green-700 hover:bg-green-800 text-white text-sm font-medium rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
+            {{ isChangingEmail ? 'En cours...' : 'Changer l\'email' }}
+          </button>
+        </div>
       </div>
     </div>
-  </div>
+
+  }
 
 </div>
+
+<!-- Modale PIN -->
+@if (showPinGate) {
+  <app-confirm-sensitive-action-modal
+    actionLabel="Accès aux paramètres de sécurité"
+    confirmationType="pin"
+    [hint]="pinGateHint"
+    [errorMessage]="pinGateError"
+    (confirmed)="onPinGateConfirmed($event)"
+    (cancelled)="onPinGateCancelled()"
+  />
+}

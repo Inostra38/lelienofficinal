@@ -17,11 +17,9 @@ sys.path.insert(0, os.path.join(BASE_DIR, 'apps'))
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/5.0/howto/deployment/checklist/
 
-# SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = 'django-insecure-CHANGE-ME-IN-PRODUCTION'
+SECRET_KEY = os.environ.get('SECRET_KEY', 'django-insecure-CHANGE-ME-IN-PRODUCTION')
 
-# SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
+DEBUG = os.environ.get('DEBUG', 'True') == 'True'
 
 ALLOWED_HOSTS = []
 
@@ -185,23 +183,24 @@ REST_FRAMEWORK = {
         # Par défaut, il faut être connecté pour accéder à l'API
         'rest_framework.permissions.IsAuthenticated',
     ),
+    'DEFAULT_THROTTLE_RATES': {
+        'user': '1000/day',  # limite globale par défaut
+    },
 }
 
 # --- JWT : Durée de vie du token ---
 SIMPLE_JWT = {
-    'ACCESS_TOKEN_LIFETIME': timedelta(days=1),   # 1 jour
-    'REFRESH_TOKEN_LIFETIME': timedelta(days=7),  # 7 jours
-    'ROTATE_REFRESH_TOKENS': False,
-    'BLACKLIST_AFTER_ROTATION': False,
+    'ACCESS_TOKEN_LIFETIME': timedelta(hours=1),
+    'REFRESH_TOKEN_LIFETIME': timedelta(days=7),
+    'ROTATE_REFRESH_TOKENS': True,
+    'BLACKLIST_AFTER_ROTATION': True,
 }
 
 # URL de base du backend (pour les fichiers media)
 BACKEND_BASE_URL = 'http://127.0.0.1:8000'
 
 # --- CHIFFREMENT AU REPOS (Messagerie) ---
-# ⚠️  En production : stocker cette clé dans une variable d'environnement,
-#     jamais dans le code source. Exemple : os.environ.get('FIELD_ENCRYPTION_KEY')
-FIELD_ENCRYPTION_KEY = 'PfA94lfuOhJvkLTleaA6wiAO0ovezjSP-h8SJbjPvNU='
+FIELD_ENCRYPTION_KEY = os.environ.get('FIELD_ENCRYPTION_KEY', '')
 
 # --- API Claude (Anthropic) ---
 ANTHROPIC_API_KEY = os.environ.get('ANTHROPIC_API_KEY', '')

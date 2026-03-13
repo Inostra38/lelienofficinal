@@ -81,12 +81,8 @@ export class MessagingService {
     this.authService.clearCurrentCollaborator();
   }
 
-  /** Construit les headers avec X-Collaborator-Id si un collaborateur est actif. */
   private buildHeaders(): HttpHeaders {
-    const collabId = this.getActiveCollaboratorId();
-    return collabId
-      ? new HttpHeaders({ 'X-Collaborator-Id': String(collabId) })
-      : new HttpHeaders();
+    return new HttpHeaders();
   }
 
   // ── Conversations ────────────────────────────────────────────────────────
@@ -106,15 +102,9 @@ export class MessagingService {
   }
 
   createConversation(subject: string, participantIds: number[]): Observable<Conversation> {
-    const collabId = this.getActiveCollaboratorId();
     return this.http.post<Conversation>(
       `${this.apiUrl}/conversations/`,
-      {
-        collaborator_id: collabId,
-        subject,
-        participant_ids: participantIds,
-      },
-      { headers: this.buildHeaders() }
+      { subject, participant_ids: participantIds }
     );
   }
 
@@ -135,11 +125,9 @@ export class MessagingService {
   }
 
   sendMessage(conversationId: string, content: string): Observable<Message> {
-    const collabId = this.getActiveCollaboratorId();
     return this.http.post<Message>(
       `${this.apiUrl}/conversations/${conversationId}/messages/`,
-      { collaborator_id: collabId, content },
-      { headers: this.buildHeaders() }
+      { content }
     );
   }
 

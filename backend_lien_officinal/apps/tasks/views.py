@@ -13,7 +13,12 @@ from .serializers import TaskSerializer, TaskCreateSerializer, TaskUpdateSeriali
 
 
 def _get_collaborator(request):
-    collab_id = request.headers.get('X-Collaborator-Id')
+    token = request.auth
+    if not token:
+        return None
+    if token.get('auth_type') != 'collaborator':
+        return None
+    collab_id = token.get('collaborator_id')
     if not collab_id:
         return None
     try:
@@ -50,7 +55,13 @@ class TaskListCreateView(APIView):
         })
 
     def post(self, request):
-        serializer = TaskCreateSerializer(data=request.data, context={'request': request})
+        collaborator = _get_collaborator(request)
+        if collaborator is None:
+            return Response(
+                {"detail": "Session collaborateur requise."},
+                status=status.HTTP_403_FORBIDDEN
+            )
+        serializer = TaskCreateSerializer(data=request.data, context={'request': request, 'creator': collaborator})
         if serializer.is_valid():
             task = serializer.save()
             max_order = Task.objects.filter(pharmacy=request.user).aggregate(Max('order'))['order__max']

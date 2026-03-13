@@ -23,21 +23,11 @@ class TaskSerializer(serializers.ModelSerializer):
 
 
 class TaskCreateSerializer(serializers.ModelSerializer):
-    collaborator_id = serializers.IntegerField(write_only=True)
     assigned_to_id = serializers.IntegerField(write_only=True, required=False, allow_null=True)
 
     class Meta:
         model = Task
-        fields = ['collaborator_id', 'assigned_to_id', 'title', 'description', 'priority', 'due_date']
-
-    def validate_collaborator_id(self, value):
-        request = self.context['request']
-        try:
-            collaborator = Collaborator.objects.get(id=value, pharmacy=request.user, is_active=True)
-        except Collaborator.DoesNotExist:
-            raise serializers.ValidationError("Collaborateur introuvable ou non autorisé.")
-        self.context['creator'] = collaborator
-        return value
+        fields = ['assigned_to_id', 'title', 'description', 'priority', 'due_date']
 
     def validate_assigned_to_id(self, value):
         if value is None:
@@ -51,7 +41,6 @@ class TaskCreateSerializer(serializers.ModelSerializer):
         return value
 
     def create(self, validated_data):
-        validated_data.pop('collaborator_id')
         validated_data.pop('assigned_to_id', None)
         creator = self.context['creator']
         assignee = self.context.get('assignee')

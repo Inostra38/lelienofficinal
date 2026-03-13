@@ -1,8 +1,8 @@
 import { Injectable, inject } from '@angular/core';
 import { HttpClient, HttpHeaders } from '@angular/common/http';
 import { Router } from '@angular/router';
-import { BehaviorSubject } from 'rxjs';
-import { tap, switchMap } from 'rxjs/operators';
+import { BehaviorSubject, Observable, throwError } from 'rxjs';
+import { tap, switchMap, map } from 'rxjs/operators';
 
 @Injectable({
   providedIn: 'root'
@@ -12,7 +12,9 @@ export class AuthService {
   private router = inject(Router);
   private baseUrl = 'http://127.0.0.1:8000/api';
   private tokenKey = 'access_token';
+  private refreshKey = 'refresh_token';
   private pharmacyTokenKey = 'pharmacy_access_token';
+  private pharmacyRefreshKey = 'pharmacy_refresh_token';
   private onboardingKey = 'onboarding_completed';
   private collaboratorKey = 'active_collaborator_id';
 
@@ -25,8 +27,9 @@ export class AuthService {
     return this.http.post<any>(`${this.baseUrl}/token/`, credentials).pipe(
       tap(response => {
         localStorage.setItem(this.tokenKey, response.access);
-        // Assurer qu'il n'y a pas de session collaborateur résiduelle
+        localStorage.setItem(this.refreshKey, response.refresh);
         localStorage.removeItem(this.pharmacyTokenKey);
+        localStorage.removeItem(this.pharmacyRefreshKey);
         this.collaboratorSubject.next(null);
       }),
       switchMap(() => {
@@ -50,7 +53,9 @@ export class AuthService {
 
   logout(returnUrl?: string) {
     localStorage.removeItem(this.tokenKey);
+    localStorage.removeItem(this.refreshKey);
     localStorage.removeItem(this.pharmacyTokenKey);
+    localStorage.removeItem(this.pharmacyRefreshKey);
     localStorage.removeItem(this.onboardingKey);
     localStorage.removeItem(this.collaboratorKey);
     this.collaboratorSubject.next(null);
@@ -75,9 +80,16 @@ export class AuthService {
           if (currentToken) {
             localStorage.setItem(this.pharmacyTokenKey, currentToken);
           }
+          const currentRefresh = this.getRefreshToken();
+          if (currentRefresh) {
+            localStorage.setItem(this.pharmacyRefreshKey, currentRefresh);
+          }
         }
         // Remplacer le token actif par le token collaborateur
         localStorage.setItem(this.tokenKey, response.access);
+        if (response.refresh) {
+          localStorage.setItem(this.refreshKey, response.refresh);
+        }
         this.collaboratorSubject.next(collaboratorId);
       })
     );
@@ -86,9 +98,14 @@ export class AuthService {
   clearCurrentCollaborator(): void {
     // Restaurer le token pharmacie
     const pharmacyToken = localStorage.getItem(this.pharmacyTokenKey);
+    const pharmacyRefresh = localStorage.getItem(this.pharmacyRefreshKey);
     if (pharmacyToken) {
       localStorage.setItem(this.tokenKey, pharmacyToken);
       localStorage.removeItem(this.pharmacyTokenKey);
+    }
+    if (pharmacyRefresh) {
+      localStorage.setItem(this.refreshKey, pharmacyRefresh);
+      localStorage.removeItem(this.pharmacyRefreshKey);
     }
     localStorage.removeItem(this.collaboratorKey);
     this.collaboratorSubject.next(null);
@@ -107,6 +124,30 @@ export class AuthService {
     // Fallback localStorage (rétrocompatibilité)
     return this._readCollaboratorIdFromStorage();
   }
+
+  // ── Refresh token ─────────────────────────────────────────────────────────
+
+  refreshAccessToken(): Observable<string> {
+    const refreshToken = this.getRefreshToken();
+    if (!refreshToken) {
+      return throwError(() => new Error('No refresh token'));
+    }
+    return this.http.post<any>(`${this.baseUrl}/token/refresh/`, { refresh: refreshToken }).pipe(
+      tap(response => {
+        localStorage.setItem(this.tokenKey, response.access);
+        if (response.refresh) {
+          localStorage.setItem(this.refreshKey, response.refresh);
+        }
+      }),
+      map(response => response.access as string)
+    );
+  }
+
+  getRefreshToken(): string | null {
+    return localStorage.getItem(this.refreshKey);
+  }
+
+  // ── Auth state ────────────────────────────────────────────────────────────
 
   getAuthType(): 'pharmacy_account' | 'collaborator' | null {
     const token = this.getToken();

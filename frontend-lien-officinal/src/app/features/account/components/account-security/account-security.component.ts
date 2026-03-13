@@ -3,18 +3,25 @@ import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { HttpClient, HttpHeaders } from '@angular/common/http';
 import { AuthService } from '../../../../core/auth/auth.service';
+import { ConfirmSensitiveActionModalComponent } from '../../../../shared/ui/confirm-sensitive-action-modal/confirm-sensitive-action-modal.component';
 import { environment } from '../../../../../environments/environment';
 
 @Component({
   selector: 'app-account-security',
   standalone: true,
-  imports: [CommonModule, FormsModule],
+  imports: [CommonModule, FormsModule, ConfirmSensitiveActionModalComponent],
   templateUrl: './account-security.component.html',
   styleUrl: './account-security.component.css'
 })
 export class AccountSecurityComponent {
   private http = inject(HttpClient);
   private authService = inject(AuthService);
+
+  isUnlocked = false;
+  showPinGate = false;
+  pinGateError = '';
+
+  readonly pinGateHint = 'le PIN d\'un membre autorisé';
 
   // Changer mot de passe
   oldPassword = '';
@@ -30,6 +37,34 @@ export class AccountSecurityComponent {
   emailError = '';
   emailSuccess = '';
   isChangingEmail = false;
+
+  requestUnlock() {
+    this.pinGateError = '';
+    this.showPinGate = true;
+  }
+
+  onPinGateConfirmed(pin: string) {
+    const token = localStorage.getItem('access_token');
+    this.http.post(
+      `${environment.apiUrl}/api/account/verify-security-access/`,
+      { confirmation_pin: pin },
+      { headers: new HttpHeaders({ Authorization: `Bearer ${token ?? ''}` }) }
+    ).subscribe({
+      next: () => {
+        this.isUnlocked = true;
+        this.showPinGate = false;
+        this.pinGateError = '';
+      },
+      error: (err) => {
+        this.pinGateError = err.error?.detail || 'PIN incorrect.';
+      }
+    });
+  }
+
+  onPinGateCancelled() {
+    this.showPinGate = false;
+    this.pinGateError = '';
+  }
 
   changePassword() {
     this.passwordError = '';

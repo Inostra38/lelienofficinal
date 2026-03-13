@@ -4,6 +4,7 @@ from .views import (
     PharmacyViewSet, RegisterView, ProfileSetupView, CompleteOnboardingView,
     ChangePasswordView, ChangeEmailView,
     AccountChangePasswordView, AccountChangeEmailView,
+    AccountVerifySecurityAccessView,
 )
 
 router = DefaultRouter()
@@ -18,5 +19,6 @@ urlpatterns = [
     # Formulaires directs (old_password dans le corps de la requête)
     path('account/change-password/', AccountChangePasswordView.as_view(), name='account-change-password'),
     path('account/change-email/', AccountChangeEmailView.as_view(), name='account-change-email'),
+    path('account/verify-security-access/', AccountVerifySecurityAccessView.as_view(), name='account-verify-security-access'),
     path('', include(router.urls)),
 ]

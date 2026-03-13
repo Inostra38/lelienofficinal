@@ -1,7 +1,7 @@
 import { HttpInterceptorFn, HttpErrorResponse } from '@angular/common/http';
 import { inject } from '@angular/core';
 import { Router } from '@angular/router';
-import { catchError, throwError } from 'rxjs';
+import { catchError, switchMap, throwError } from 'rxjs';
 import { AuthService } from './auth.service';
 
 export const authInterceptor: HttpInterceptorFn = (req, next) => {
@@ -15,8 +15,20 @@ export const authInterceptor: HttpInterceptorFn = (req, next) => {
 
   return next(authReq).pipe(
     catchError((err: HttpErrorResponse) => {
+      // Sur 401, tenter un refresh silencieux (sauf si la requête échouée est elle-même un refresh ou un login)
+      if (err.status === 401 && !req.url.includes('/token/')) {
+        return authService.refreshAccessToken().pipe(
+          switchMap(newToken => {
+            const retryReq = req.clone({ setHeaders: { Authorization: `Bearer ${newToken}` } });
+            return next(retryReq);
+          }),
+          catchError(() => {
+            authService.logout(router.url);
+            return throwError(() => err);
+          })
+        );
+      }
       if (err.status === 401) {
-        // logout() gère navigation + nettoyage ; on passe le returnUrl pour revenir après reconnexion
         authService.logout(router.url);
       }
       return throwError(() => err);

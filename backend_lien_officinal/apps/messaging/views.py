@@ -20,10 +20,15 @@ from .serializers import (
 
 def _get_collaborator(request):
     """
-    Récupère le collaborateur actif depuis le header X-Collaborator-Id.
-    Retourne None si absent ou invalide (contexte sans collaborateur identifié).
+    Récupère le collaborateur actif depuis le claim JWT (auth_type='collaborator').
+    Retourne None si absent ou invalide.
     """
-    collab_id = request.headers.get('X-Collaborator-Id')
+    token = request.auth
+    if not token:
+        return None
+    if token.get('auth_type') != 'collaborator':
+        return None
+    collab_id = token.get('collaborator_id')
     if not collab_id:
         return None
     try:
@@ -70,13 +75,19 @@ class ConversationListCreateView(APIView):
         return Response(serializer.data)
 
     def post(self, request):
+        collaborator = _get_collaborator(request)
+        if collaborator is None:
+            return Response(
+                {"detail": "Session collaborateur requise."},
+                status=status.HTTP_403_FORBIDDEN
+            )
         serializer = ConversationCreateSerializer(
-            data=request.data, context={'request': request}
+            data=request.data, context={'request': request, 'collaborator': collaborator}
         )
         if serializer.is_valid():
             conversation = serializer.save()
             return Response(
-                ConversationSerializer(conversation, context={'request': request}).data,
+                ConversationSerializer(conversation, context={'request': request, 'collaborator': collaborator}).data,
                 status=status.HTTP_201_CREATED
             )
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
@@ -143,14 +154,17 @@ class MessageListCreateView(APIView):
         return Response(serializer.data)
 
     def post(self, request, conversation_id):
+        collaborator = _get_collaborator(request)
+        if collaborator is None:
+            return Response(
+                {"detail": "Session collaborateur requise."},
+                status=status.HTTP_403_FORBIDDEN
+            )
         serializer = MessageCreateSerializer(data=request.data, context={'request': request})
         if not serializer.is_valid():
             return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
-        collaborator = serializer.context['collaborator']
-        # La vérification de participation est intégrée dans la requête
         conversation = _get_conversation_for_participant(conversation_id, request, collaborator)
-
         message = Message.objects.create(
             conversation=conversation,
             sender=collaborator,
