@@ -12,10 +12,11 @@ class CollaboratorSerializer(serializers.ModelSerializer):
         model = Collaborator
         fields = [
             'id', 'civility', 'first_name', 'last_name', 'role', 'email', 'color',
-            'is_active', 'created_at', 'pin',
+            'is_active', 'archived_at', 'created_at', 'pin',
             'can_manage_account', 'can_manage_team', 'can_manage_planning', 'can_manage_quality',
+            'contract_type', 'weekly_hours',
         ]
-        read_only_fields = ['id', 'created_at']
+        read_only_fields = ['id', 'created_at', 'archived_at']
 
     def create(self, validated_data):
         pin = validated_data.pop('pin', None)

@@ -51,14 +51,34 @@ class Collaborator(models.Model):
     can_manage_planning = models.BooleanField(_("Gérer le planning"), default=False)
     can_manage_quality = models.BooleanField(_("Gérer la qualité"), default=False)
 
+    # Contrat de travail (utilisé par le planning)
+    class ContractType(models.TextChoices):
+        CDI  = 'cdi',  'CDI'
+        CDD  = 'cdd',  'CDD'
+        APPRENTI = 'apprenti', 'Apprentissage'
+        INTERIM  = 'interim',  'Intérim'
+
+    contract_type  = models.CharField(
+        max_length=10, choices=ContractType.choices, default=ContractType.CDI, blank=True
+    )
+    weekly_hours   = models.DecimalField(
+        max_digits=4, decimal_places=1, default=35.0,
+        verbose_name="Heures hebdomadaires contractuelles"
+    )
+
     is_active = models.BooleanField(default=True)
+    archived_at = models.DateTimeField(null=True, blank=True, verbose_name=_("Date d'archivage"))
     created_at = models.DateTimeField(auto_now_add=True)
+
+    # Ordre d'affichage dans le planning (modifiable par le manager)
+    display_order = models.PositiveIntegerField(default=0, verbose_name="Ordre d'affichage")
 
     class Meta:
         verbose_name = _("Collaborateur")
         verbose_name_plural = _("Collaborateurs")
         # Un collaborateur est unique par pharmacie (évite les doublons de noms)
         unique_together = ('pharmacy', 'first_name', 'last_name')
+        ordering = ['display_order', 'id']
 
     def __str__(self):
         return f"{self.first_name} {self.last_name} ({self.get_role_display()})"

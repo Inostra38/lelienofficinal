@@ -1,0 +1,214 @@
+/* ── En-tête heures ─────────────────────────────────────────────────────── */
+.tpl-hours-header {
+  display: flex;
+  align-items: center;
+  margin-bottom: 4px;
+  min-width: 660px;
+}
+
+.tpl-collab-spacer,
+.tpl-collab-name {
+  width: 148px;
+  min-width: 148px;
+}
+
+.tpl-collab-name {
+  padding-right: 10px;
+  display: flex;
+  align-items: center;
+  gap: 7px;
+}
+
+.tpl-collab-avatar {
+  width: 26px;
+  height: 26px;
+  min-width: 26px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 10px;
+  font-weight: 700;
+  color: #fff;
+  flex-shrink: 0;
+}
+
+.tpl-collab-info {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+
+.tpl-collab-name-text {
+  font-size: 12px;
+  font-weight: 600;
+  color: #374151;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.tpl-collab-role {
+  font-size: 10px;
+  color: #9ca3af;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.tpl-hours-badge {
+  font-size: 9px;
+  padding: 0 4px;
+  border-radius: 4px;
+  font-weight: 600;
+  white-space: nowrap;
+  cursor: default;
+  line-height: 14px;
+  align-self: flex-start;
+}
+
+.tpl-hours-badge.ok   { background: #dcfce7; color: #15803d; }
+.tpl-hours-badge.warn { background: #ffedd5; color: #c2410c; }
+
+.tpl-hours-scale {
+  flex: 1;
+  position: relative;
+  height: 18px;
+}
+
+.tpl-h {
+  position: absolute;
+  font-size: 10px;
+  color: #9ca3af;
+  transform: translateX(-50%);
+  white-space: nowrap;
+}
+
+.tpl-add-spacer {
+  width: 30px;
+  min-width: 30px;
+}
+
+/* ── Bloc jour ───────────────────────────────────────────────────────────── */
+.tpl-day {
+  margin-bottom: 12px;
+}
+
+.tpl-day-label {
+  font-size: 12px;
+  font-weight: 600;
+  color: #374151;
+  padding: 3px 0 5px;
+  border-bottom: 1.5px solid #e5e7eb;
+  margin-bottom: 4px;
+  min-width: 660px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+/* ── Ligne collaborateur ─────────────────────────────────────────────────── */
+.tpl-collab-row {
+  display: flex;
+  align-items: center;
+  height: 48px;
+  margin-bottom: 3px;
+  min-width: 660px;
+}
+
+/* ── Piste horaire ───────────────────────────────────────────────────────── */
+.tpl-row {
+  flex: 1;
+  position: relative;
+  height: 48px;
+  border: 0.5px solid #e5e7eb;
+  border-radius: 4px;
+  overflow: hidden;
+  background: #eef2ff; /* valeur par défaut ; écrasée dynamiquement via [style.background] */
+}
+
+.tpl-row-empty {
+  background: #fafafa;
+}
+
+.tpl-empty-row {
+  opacity: 0.4;
+}
+
+/* ── Repères horaires ────────────────────────────────────────────────────── */
+.tpl-slot {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 1px;
+  border-right: 0.5px solid #e5e7eb;
+}
+
+/* ── Blocs shifts ────────────────────────────────────────────────────────── */
+.tpl-block {
+  position: absolute;
+  top: 8px;
+  height: 32px;
+  border-radius: 3px;
+  padding: 0 5px;
+  display: flex;
+  align-items: center;
+  overflow: hidden;
+  cursor: default;
+  white-space: nowrap;
+  min-width: 32px;
+}
+
+.tpl-block b {
+  font-size: 10px;
+  font-weight: 500;
+  line-height: 1.2;
+}
+
+.tpl-delete-btn {
+  position: absolute;
+  top: 2px;
+  right: 2px;
+  width: 14px;
+  height: 14px;
+  border: none;
+  border-radius: 2px;
+  background: rgba(0, 0, 0, 0.18);
+  color: inherit;
+  cursor: pointer;
+  font-size: 11px;
+  line-height: 14px;
+  padding: 0;
+  text-align: center;
+  opacity: 0;
+  transition: opacity 0.1s;
+}
+
+.tpl-block:hover .tpl-delete-btn {
+  opacity: 1;
+}
+
+.tpl-delete-btn:hover {
+  background: rgba(0, 0, 0, 0.38);
+}
+
+/* ── Bouton ajouter jour ─────────────────────────────────────────────────── */
+.tpl-add-day-btn {
+  font-size: 11px;
+  color: #9ca3af;
+  background: transparent;
+  border: 1px dashed #d1d5db;
+  border-radius: 6px;
+  padding: 3px 10px;
+  cursor: pointer;
+  margin-top: 3px;
+  transition: color 0.15s, border-color 0.15s, background 0.15s;
+}
+
+.tpl-add-day-btn:hover {
+  color: #15803d;
+  border-color: #86efac;
+  background: #f0fdf4;
+}

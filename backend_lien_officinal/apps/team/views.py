@@ -6,6 +6,7 @@ from rest_framework.views import APIView
 from rest_framework_simplejwt.authentication import JWTAuthentication
 from rest_framework_simplejwt.tokens import RefreshToken
 from django.shortcuts import get_object_or_404
+from django.utils import timezone
 from .models import Collaborator
 from .serializers import (
     CollaboratorSerializer,
@@ -92,7 +93,11 @@ class CollaboratorViewSet(viewsets.ModelViewSet):
         return super().get_throttles()
 
     def get_queryset(self):
-        return Collaborator.objects.filter(pharmacy=self.request.user, is_active=True)
+        include_archived = self.request.query_params.get('include_archived', 'false').lower() == 'true'
+        qs = Collaborator.objects.filter(pharmacy=self.request.user).order_by('display_order', 'id')
+        if not include_archived:
+            qs = qs.filter(is_active=True)
+        return qs
 
     def get_serializer_class(self):
         if self.action == 'create':
@@ -140,6 +145,7 @@ class CollaboratorViewSet(viewsets.ModelViewSet):
 
         # Soft delete
         instance.is_active = False
+        instance.archived_at = timezone.now()
         instance.save()
         return Response(status=status.HTTP_204_NO_CONTENT)
 
@@ -171,6 +177,48 @@ class CollaboratorViewSet(viewsets.ModelViewSet):
             instance.refresh_from_db()
             return Response(CollaboratorSerializer(instance).data)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+    @action(detail=True, methods=['patch'], url_path='reactivate')
+    def reactivate(self, request, pk=None):
+        """PATCH /api/team/{id}/reactivate/ — réactive un collaborateur archivé."""
+        try:
+            instance = Collaborator.objects.get(pk=pk, pharmacy=request.user)
+        except Collaborator.DoesNotExist:
+            return Response({"detail": "Collaborateur introuvable."}, status=status.HTTP_404_NOT_FOUND)
+
+        actor = _get_collaborator(request)
+        err = _check_permission(actor, 'can_manage_team')
+        if err:
+            return err
+
+        err = _verify_sensitive_action(request, actor)
+        if err:
+            return err
+
+        instance.is_active = True
+        instance.archived_at = None
+        instance.save()
+        return Response(CollaboratorSerializer(instance).data)
+
+    @action(detail=False, methods=['post'], url_path='reorder')
+    def reorder(self, request):
+        """POST /api/team/reorder/ — {"order": [id1, id2, ...]} — met à jour display_order."""
+        order = request.data.get('order', [])
+        if not isinstance(order, list):
+            return Response({"detail": "order doit être une liste d'ids."}, status=status.HTTP_400_BAD_REQUEST)
+
+        collaborators = Collaborator.objects.filter(pharmacy=request.user, is_active=True)
+        collab_map = {c.id: c for c in collaborators}
+
+        to_update = []
+        for idx, collab_id in enumerate(order):
+            collab = collab_map.get(int(collab_id))
+            if collab:
+                collab.display_order = idx
+                to_update.append(collab)
+
+        Collaborator.objects.bulk_update(to_update, ['display_order'])
+        return Response({'ok': True})
 
     @action(detail=False, methods=['post'], url_path='login')
     def collaborator_login(self, request):

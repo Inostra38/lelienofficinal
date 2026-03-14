@@ -17,6 +17,7 @@ import { PinModalComponent } from './components/pin-modal/pin-modal.component';
   standalone: true,
   imports: [CommonModule, ConversationListComponent, ConversationDetailComponent, NewConversationDialogComponent, PinModalComponent],
   templateUrl: './messaging.component.html',
+  styles: [':host { display: block; height: 100%; }'],
 })
 export class MessagingComponent implements OnInit, OnDestroy {
   private messagingService = inject(MessagingService);

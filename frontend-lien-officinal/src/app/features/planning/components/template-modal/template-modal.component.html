@@ -1,0 +1,275 @@
+<!-- Backdrop -->
+<div class="fixed inset-0 z-50 bg-black/40 backdrop-blur-sm flex items-center justify-center p-4"
+     (click)="closed.emit()">
+
+  <!-- Panneau -->
+  <div class="bg-white rounded-2xl shadow-2xl w-full max-w-4xl max-h-[90vh] flex flex-col overflow-hidden"
+       (click)="$event.stopPropagation()">
+
+    <!-- Header -->
+    <div class="flex items-center justify-between px-6 py-4 border-b border-gray-100 shrink-0">
+      <div>
+        <h2 class="text-base font-bold text-gray-800">📋 Templates de semaine</h2>
+        <p class="text-xs text-gray-400 mt-0.5">Planning type répétable — shifts sans date réelle</p>
+      </div>
+      <button (click)="closed.emit()"
+              class="p-1.5 rounded-lg hover:bg-gray-100 text-gray-400 hover:text-gray-600 transition-colors">
+        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+        </svg>
+      </button>
+    </div>
+
+    <!-- Onglets lettres -->
+    <div class="flex border-b border-gray-100 shrink-0 px-6 gap-1 pt-1">
+      <button *ngFor="let letter of letters"
+              (click)="setLetter(letter)"
+              class="px-4 py-2 text-sm font-semibold rounded-t-lg transition-colors"
+              [class.bg-green-50]="activeLetter === letter"
+              [class.text-green-700]="activeLetter === letter"
+              [class.border-b-2]="activeLetter === letter"
+              [class.border-green-700]="activeLetter === letter"
+              [class.text-gray-400]="activeLetter !== letter"
+              [class.hover:text-gray-600]="activeLetter !== letter">
+        Semaine {{ letter }}
+      </button>
+    </div>
+
+    <!-- Corps -->
+    <div class="flex-1 overflow-y-auto">
+
+      <!-- Loader -->
+      <div *ngIf="loading" class="flex justify-center py-12">
+        <div class="animate-spin rounded-full h-6 w-6 border-2 border-green-700 border-t-transparent"></div>
+      </div>
+
+      <div *ngIf="!loading && template" class="p-6 flex flex-col gap-5">
+
+        <!-- Sélection semaine + Appliquer -->
+        <div class="flex items-center justify-between gap-4 bg-gray-50 rounded-xl px-4 py-3">
+          <div class="flex items-center gap-3 flex-wrap">
+            <label class="text-xs font-semibold text-gray-500 whitespace-nowrap">Appliquer à la semaine</label>
+            <input type="week"
+                   [(ngModel)]="applyWeek"
+                   name="apply_week"
+                   class="border border-gray-200 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-green-300"/>
+            <label class="flex items-center gap-1.5 cursor-pointer">
+              <input type="checkbox" [(ngModel)]="applyForce" name="apply_force"
+                     class="w-3.5 h-3.5 rounded accent-orange-600"/>
+              <span class="text-xs text-gray-500">Écraser les shifts existants</span>
+            </label>
+          </div>
+
+          <div class="flex items-center gap-2">
+            <!-- Résultat apply -->
+            <span *ngIf="applyResult"
+                  class="text-xs text-green-700 bg-green-50 rounded-lg px-3 py-1.5 font-medium">
+              ✓ {{ applyResult.created }} créé{{ applyResult.created > 1 ? 's' : '' }}
+              <ng-container *ngIf="applyResult.replaced">, {{ applyResult.replaced }} remplacé{{ applyResult.replaced > 1 ? 's' : '' }}</ng-container>
+              <ng-container *ngIf="applyResult.skipped">, {{ applyResult.skipped }} ignoré{{ applyResult.skipped > 1 ? 's' : '' }}</ng-container>
+              <ng-container *ngIf="applyResult.absence_protected">, {{ applyResult.absence_protected }} absent{{ applyResult.absence_protected > 1 ? 's' : '' }} protégé{{ applyResult.absence_protected > 1 ? 's' : '' }}</ng-container>
+              <ng-container *ngIf="applyResult.day_protected">, {{ applyResult.day_protected }} jour{{ applyResult.day_protected > 1 ? 's' : '' }} ignoré{{ applyResult.day_protected > 1 ? 's' : '' }} (fermé / garde de jour)</ng-container>
+            </span>
+            <button (click)="applyToWeek()"
+                    [disabled]="applying || !applyWeek"
+                    class="flex items-center gap-1.5 text-sm font-semibold text-white bg-green-700 hover:bg-green-800 rounded-xl px-4 py-2 transition-colors disabled:opacity-60">
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                      d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"/>
+              </svg>
+              {{ applying ? 'Application...' : 'Appliquer' }}
+            </button>
+          </div>
+        </div>
+
+        <!-- En-tête heures -->
+        <div class="tpl-hours-header">
+          <div class="tpl-collab-spacer"></div>
+          <div class="tpl-hours-scale">
+            <span *ngFor="let h of hours"
+                  class="tpl-h"
+                  [style.left.%]="getHourLeft(h)">{{ h }}h</span>
+          </div>
+          <div class="tpl-add-spacer"></div>
+        </div>
+
+        <!-- Jours de la semaine -->
+        <div *ngFor="let dayIdx of [0,1,2,3,4,5,6]" class="tpl-day">
+
+          <!-- Label jour -->
+          <div class="tpl-day-label">
+            {{ DAY_NAMES[dayIdx] }}
+            <span class="text-xs text-gray-400 font-normal">
+              ({{ getShiftsForDay(dayIdx).length }} shift{{ getShiftsForDay(dayIdx).length > 1 ? 's' : '' }})
+            </span>
+          </div>
+
+          <!-- Lignes collaborateurs pour ce jour -->
+          <div *ngFor="let collab of getCollaboratorsForDay(dayIdx)" class="tpl-collab-row">
+            <div class="tpl-collab-name">
+              <div class="tpl-collab-avatar" [style.background]="getColor(collab.color).base">
+                {{ (collab.first_name.charAt(0) + collab.last_name.charAt(0)).toUpperCase() }}
+              </div>
+              <div class="tpl-collab-info">
+                <span class="tpl-collab-name-text" [title]="collab.first_name + ' ' + collab.last_name">
+                  {{ collab.first_name }} {{ collab.last_name }}
+                </span>
+                <span class="tpl-collab-role">{{ collab.role }}</span>
+                <span *ngIf="collab.weekly_hours"
+                      class="tpl-hours-badge"
+                      [class.ok]="getCollabWeekHours(collab.id!) >= collab.weekly_hours!"
+                      [class.warn]="getCollabWeekHours(collab.id!) < collab.weekly_hours!"
+                      [title]="'Template\u00a0: ' + getCollabWeekHours(collab.id!).toFixed(1) + 'h\u00a0/ Contrat\u00a0: ' + collab.weekly_hours + 'h'">
+                  {{ getCollabWeekHours(collab.id!).toFixed(1) }}h / {{ collab.weekly_hours }}h
+                </span>
+              </div>
+            </div>
+            <div class="tpl-row" [style.background]="getRowGradient(dayIdx)">
+              <!-- Repères horaires -->
+              <div *ngFor="let h of hours" class="tpl-slot" [style.left.%]="getHourLeft(h)"></div>
+
+              <!-- Shifts du template (cliquables pour édition) -->
+              <div *ngFor="let shift of getShiftsForCollab(dayIdx, collab.id!)"
+                   class="tpl-block"
+                   [style.left.%]="getTShiftLeft(shift)"
+                   [style.width.%]="getTShiftWidth(shift)"
+                   [style.background]="getColor(collab.color).base"
+                   [style.color]="'#ffffff'"
+                   (click)="openEditForm(shift)">
+                <b>{{ formatTime(shift.start_time) }}–{{ formatTime(shift.end_time) }}</b>
+              </div>
+            </div>
+
+            <!-- Spacer alignement -->
+            <div class="tpl-add-spacer"></div>
+          </div>
+
+          <!-- Ligne vide si aucun collaborateur -->
+          <div *ngIf="getCollaboratorsForDay(dayIdx).length === 0"
+               class="tpl-collab-row tpl-empty-row">
+            <div class="tpl-collab-spacer"></div>
+            <div class="tpl-row tpl-row-empty"></div>
+            <div class="tpl-add-spacer"></div>
+          </div>
+
+          <!-- Bouton + (ajouter un shift ce jour) -->
+          <button (click)="openAddForm(dayIdx)"
+                  class="tpl-add-day-btn">
+            + Ajouter un shift ce jour
+          </button>
+
+        </div>
+
+
+      </div>
+    </div>
+
+  <!-- ── Modale ajout shift template (par-dessus la modale principale) ── -->
+  <div *ngIf="showAddForm"
+       class="fixed inset-0 z-[60] bg-black/40 backdrop-blur-sm flex items-center justify-center p-4"
+       (click)="showAddForm = false">
+    <div class="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden"
+         (click)="$event.stopPropagation()">
+
+      <!-- Header -->
+      <div class="flex items-center justify-between px-6 py-4 border-b border-gray-100">
+        <h2 class="text-base font-bold text-gray-800">
+          {{ isEditing ? 'Modifier le shift' : ('Nouveau shift — ' + DAY_NAMES[addForm.day_of_week]) }}
+        </h2>
+        <button (click)="showAddForm = false"
+                class="p-1.5 rounded-lg hover:bg-gray-100 text-gray-400 hover:text-gray-600 transition-colors">
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+          </svg>
+        </button>
+      </div>
+
+      <!-- Corps -->
+      <div class="px-6 py-5 flex flex-col gap-4">
+
+        <!-- Collaborateur + Jour -->
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="block text-xs font-semibold text-gray-500 mb-1">Collaborateur</label>
+            <select [(ngModel)]="addForm.collaborator_id" name="tpl_collab"
+                    class="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-300">
+              <option *ngFor="let c of team" [value]="c.id">
+                {{ c.first_name }} {{ c.last_name }}
+              </option>
+            </select>
+          </div>
+          <div>
+            <label class="block text-xs font-semibold text-gray-500 mb-1">Jour</label>
+            <select [(ngModel)]="addForm.day_of_week" name="tpl_day"
+                    class="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-300">
+              <option *ngFor="let name of DAY_NAMES; let i = index" [value]="i">
+                {{ name }}
+              </option>
+            </select>
+          </div>
+        </div>
+
+        <!-- Heures -->
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="block text-xs font-semibold text-gray-500 mb-1">Début</label>
+            <div class="flex gap-1">
+              <select [ngModel]="getH('start_time')" (ngModelChange)="setH('start_time', $event)" name="tpl_start_h"
+                      class="flex-1 border border-gray-200 rounded-xl px-2 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-300">
+                <option *ngFor="let h of hoursArr" [value]="h">{{ h }}h</option>
+              </select>
+              <select [ngModel]="getM('start_time')" (ngModelChange)="setM('start_time', $event)" name="tpl_start_m"
+                      class="flex-1 border border-gray-200 rounded-xl px-2 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-300">
+                <option *ngFor="let m of minsArr" [value]="m">{{ m }}</option>
+              </select>
+            </div>
+          </div>
+          <div>
+            <label class="block text-xs font-semibold text-gray-500 mb-1">Fin</label>
+            <div class="flex gap-1">
+              <select [ngModel]="getH('end_time')" (ngModelChange)="setH('end_time', $event)" name="tpl_end_h"
+                      class="flex-1 border border-gray-200 rounded-xl px-2 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-300">
+                <option *ngFor="let h of hoursArr" [value]="h">{{ h }}h</option>
+              </select>
+              <select [ngModel]="getM('end_time')" (ngModelChange)="setM('end_time', $event)" name="tpl_end_m"
+                      class="flex-1 border border-gray-200 rounded-xl px-2 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-300">
+                <option *ngFor="let m of minsArr" [value]="m">{{ m }}</option>
+              </select>
+            </div>
+          </div>
+        </div>
+
+        <!-- Note -->
+        <div>
+          <label class="block text-xs font-semibold text-gray-500 mb-1">Note (optionnelle)</label>
+          <input type="text" [(ngModel)]="addForm.note" name="tpl_note"
+                 placeholder="Optionnel..."
+                 class="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-300 placeholder-gray-300"/>
+        </div>
+
+        <p *ngIf="addError" class="text-xs text-red-500 font-medium">{{ addError }}</p>
+
+        <!-- Actions -->
+        <div class="flex items-center gap-2 pt-1">
+          <!-- Bouton supprimer (mode édition uniquement) -->
+          <button *ngIf="isEditing" type="button"
+                  (click)="deleteShift(editingShift!.id)"
+                  class="px-4 py-2 text-sm font-medium text-red-600 border border-red-200 hover:bg-red-50 rounded-xl transition-colors">
+            Supprimer
+          </button>
+          <div class="flex-1"></div>
+          <button type="button" (click)="showAddForm = false"
+                  class="px-4 py-2 text-sm text-gray-500 hover:text-gray-700 transition-colors">
+            Annuler
+          </button>
+          <button type="button" (click)="submitAdd()" [disabled]="addSubmitting"
+                  class="px-5 py-2 text-sm font-semibold text-white bg-green-700 hover:bg-green-800 rounded-xl transition-colors disabled:opacity-60">
+            {{ addSubmitting ? '...' : (isEditing ? 'Enregistrer' : 'Ajouter') }}
+          </button>
+        </div>
+
+      </div>
+    </div>
+  </div>
+  </div>
+</div>

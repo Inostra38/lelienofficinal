@@ -47,6 +47,7 @@ INSTALLED_APPS = [
     'apps.partners',       # Pubs & Labos
     'apps.messaging',      # Messagerie d'équipe
     'apps.tasks',          # Gestion des tâches
+    'apps.planning',       # Planning d'équipe
     # 'apps.notifications',  # Système de notifs (TEMPORAIREMENT DÉSACTIVÉ)
 ]
 

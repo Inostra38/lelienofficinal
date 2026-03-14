@@ -2,3 +2,39 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+/* ── Print ──────────────────────────────────────────────────────────────────── */
+.print-only { display: none; }
+
+@media print {
+  @page { size: A4 landscape; margin: 1cm 1.5cm; }
+
+  /* Rétablir le flux normal */
+  html, body {
+    height: auto !important;
+    overflow: visible !important;
+  }
+
+  /* Cacher sidebar, modales, barres de navigation */
+  app-sidebar,
+  .no-print {
+    display: none !important;
+  }
+
+  /* Afficher les éléments print-only */
+  .print-only {
+    display: block !important;
+  }
+
+  /* Layout : retirer overflow hidden */
+  .flex.h-screen.overflow-hidden,
+  .flex-1.overflow-hidden.min-w-0,
+  .flex-1.flex.flex-col.overflow-hidden,
+  .flex-1.overflow-auto {
+    overflow: visible !important;
+    height: auto !important;
+  }
+
+  /* Supprimer les ombres */
+  * { box-shadow: none !important; }
+}

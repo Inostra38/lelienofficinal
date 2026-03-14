@@ -25,6 +25,8 @@ interface TeamMember {
   can_manage_team: boolean;
   can_manage_planning: boolean;
   can_manage_quality: boolean;
+  is_active: boolean;
+  archived_at: string | null;
 }
 
 interface MemberFormData {
@@ -109,7 +111,7 @@ export class TeamManagementComponent implements OnInit {
 
   // PIN gate (avant action sensible)
   showPinGate = false;
-  pinGateAction: 'create' | 'edit' | 'delete' | null = null;
+  pinGateAction: 'create' | 'edit' | 'delete' | 'reactivate' | null = null;
   pinGateLabel = '';
   pinGateError = '';
   confirmedPin = '';
@@ -117,6 +119,9 @@ export class TeamManagementComponent implements OnInit {
 
   // Cible de suppression
   deleteTargetId: string | null = null;
+
+  // Archivés
+  showArchived = false;
 
   ngOnInit() {
     this.loadTeamMembers();
@@ -146,7 +151,7 @@ export class TeamManagementComponent implements OnInit {
 
   loadTeamMembers() {
     this.isLoading = true;
-    this.collaboratorService.getTeam().subscribe({
+    this.collaboratorService.getTeam(this.showArchived).subscribe({
       next: (collaborators: Collaborator[]) => {
         this.teamMembers = collaborators.map(c => ({
           id: c.id?.toString() || '',
@@ -161,6 +166,8 @@ export class TeamManagementComponent implements OnInit {
           can_manage_team: c.can_manage_team,
           can_manage_planning: c.can_manage_planning,
           can_manage_quality: c.can_manage_quality,
+          is_active: c.is_active !== false,
+          archived_at: c.archived_at ?? null,
         }));
         this.isLoading = false;
       },
@@ -171,8 +178,48 @@ export class TeamManagementComponent implements OnInit {
     });
   }
 
+  get activeMembers(): TeamMember[] {
+    return this.teamMembers.filter(m => m.is_active);
+  }
+
+  get archivedMembers(): TeamMember[] {
+    return this.teamMembers.filter(m => !m.is_active);
+  }
+
   get memberCount(): number {
-    return this.teamMembers.length;
+    return this.activeMembers.length;
+  }
+
+  toggleShowArchived() {
+    this.showArchived = !this.showArchived;
+    this.loadTeamMembers();
+  }
+
+  reactivate(member: TeamMember) {
+    this.pendingEditMember = member;
+    this.pinGateAction = 'reactivate';
+    this.pinGateLabel = `Réactiver ${member.firstName} ${member.lastName}`;
+    this.pinGateError = '';
+    this.showPinGate = true;
+  }
+
+  private executeReactivate() {
+    if (!this.pendingEditMember) return;
+    this.isLoading = true;
+    const memberId = parseInt(this.pendingEditMember.id);
+    this.collaboratorService.reactivate(memberId, this.confirmedPin).subscribe({
+      next: () => {
+        this.confirmedPin = '';
+        this.pendingEditMember = null;
+        this.loadTeamMembers();
+        this.isLoading = false;
+      },
+      error: (err) => {
+        this.errorMessage = err.error?.detail || 'Erreur lors de la réactivation';
+        this.confirmedPin = '';
+        this.isLoading = false;
+      }
+    });
   }
 
   // ── Ajouter ────────────────────────────────────────────────────────────────
@@ -317,6 +364,9 @@ export class TeamManagementComponent implements OnInit {
         } else if (this.pinGateAction === 'delete') {
           this.pinGateAction = null;
           this.executeDelete();
+        } else if (this.pinGateAction === 'reactivate') {
+          this.pinGateAction = null;
+          this.executeReactivate();
         }
       },
       error: (err) => {

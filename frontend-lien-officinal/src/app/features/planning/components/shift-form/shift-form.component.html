@@ -1,0 +1,107 @@
+<!-- Backdrop -->
+<div class="fixed inset-0 z-50 bg-black/40 backdrop-blur-sm flex items-center justify-center p-4"
+     (click)="closed.emit()">
+
+  <!-- Modale -->
+  <div class="bg-white rounded-2xl shadow-2xl w-full max-w-sm overflow-hidden"
+       (click)="$event.stopPropagation()">
+
+    <!-- Header -->
+    <div class="flex items-center justify-between px-6 py-4 border-b border-gray-100">
+      <h2 class="text-base font-bold text-gray-800">Nouveau shift</h2>
+      <button (click)="closed.emit()"
+              class="p-1.5 rounded-lg hover:bg-gray-100 text-gray-400 hover:text-gray-600 transition-colors">
+        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+        </svg>
+      </button>
+    </div>
+
+    <!-- Corps -->
+    <form (ngSubmit)="submit()" class="px-6 py-5 flex flex-col gap-4">
+
+      <!-- Collaborateur -->
+      <div>
+        <label class="block text-xs font-semibold text-gray-500 mb-1">Collaborateur</label>
+        <select [(ngModel)]="form.collaborator_id" name="collaborator_id"
+                class="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-300">
+          <option *ngFor="let c of collaborators" [value]="c.id">
+            {{ c.full_name }}
+          </option>
+        </select>
+      </div>
+
+      <!-- Jour -->
+      <div>
+        <label class="block text-xs font-semibold text-gray-500 mb-1">Jour</label>
+        <select [(ngModel)]="form.date" name="date"
+                class="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-300">
+          <option *ngFor="let d of weekDays" [value]="getDayIso(d)">
+            {{ getDayLabel(d) }}
+          </option>
+        </select>
+      </div>
+
+      <!-- Horaires -->
+      <div class="grid grid-cols-2 gap-3">
+        <div>
+          <label class="block text-xs font-semibold text-gray-500 mb-1">Début</label>
+          <div class="flex gap-1">
+            <select [ngModel]="getH('start_time')" (ngModelChange)="setH('start_time', $event)" name="start_h"
+                    class="flex-1 border border-gray-200 rounded-xl px-2 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-300">
+              <option *ngFor="let h of hoursArr" [value]="h">{{ h }}h</option>
+            </select>
+            <select [ngModel]="getM('start_time')" (ngModelChange)="setM('start_time', $event)" name="start_m"
+                    class="flex-1 border border-gray-200 rounded-xl px-2 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-300">
+              <option *ngFor="let m of minsArr" [value]="m">{{ m }}</option>
+            </select>
+          </div>
+        </div>
+        <div>
+          <label class="block text-xs font-semibold text-gray-500 mb-1">Fin</label>
+          <div class="flex gap-1">
+            <select [ngModel]="getH('end_time')" (ngModelChange)="setH('end_time', $event)" name="end_h"
+                    class="flex-1 border border-gray-200 rounded-xl px-2 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-300">
+              <option *ngFor="let h of hoursArr" [value]="h">{{ h }}h</option>
+            </select>
+            <select [ngModel]="getM('end_time')" (ngModelChange)="setM('end_time', $event)" name="end_m"
+                    class="flex-1 border border-gray-200 rounded-xl px-2 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-300">
+              <option *ngFor="let m of minsArr" [value]="m">{{ m }}</option>
+            </select>
+          </div>
+        </div>
+      </div>
+
+      <!-- Heure supplémentaire -->
+      <label class="flex items-center gap-2 cursor-pointer">
+        <input type="checkbox" [(ngModel)]="form.is_extra_hour" name="is_extra_hour"
+               class="w-4 h-4 rounded accent-green-700"/>
+        <span class="text-sm text-gray-600">Heure supplémentaire</span>
+      </label>
+
+      <!-- Note -->
+      <div>
+        <label class="block text-xs font-semibold text-gray-500 mb-1">Note (optionnelle)</label>
+        <input type="text" [(ngModel)]="form.note" name="note"
+               placeholder="Précisez si besoin..."
+               class="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-300 placeholder-gray-300"/>
+      </div>
+
+      <!-- Erreur -->
+      <p *ngIf="errorMsg" class="text-xs text-red-500 font-medium">{{ errorMsg }}</p>
+
+      <!-- Actions -->
+      <div class="flex justify-end gap-2 pt-1">
+        <button type="button" (click)="closed.emit()"
+                class="px-4 py-2 text-sm text-gray-500 hover:text-gray-700 transition-colors">
+          Annuler
+        </button>
+        <button type="submit" [disabled]="submitting"
+                class="px-5 py-2 text-sm font-semibold text-white bg-green-700 hover:bg-green-800 rounded-xl transition-colors disabled:opacity-60">
+          {{ submitting ? 'Création...' : 'Créer le shift' }}
+        </button>
+      </div>
+
+    </form>
+  </div>
+</div>

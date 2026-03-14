@@ -1,0 +1,239 @@
+:host {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+.month-grid-wrapper {
+  height: 100%;
+  overflow: auto;
+}
+
+.month-grid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 6px;
+}
+
+.month-cell {
+  min-height: 88px;
+  display: flex;
+  flex-direction: column;
+  position: relative;
+  cursor: pointer;
+}
+
+.month-cell:hover .month-status-btn {
+  opacity: 1 !important;
+}
+
+/* ── Statuts de jour ─────────────────────────────────────────────────────── */
+
+.month-cell-closed {
+  background: #fff1f2;
+  border-color: #fecdd3;
+}
+
+.month-cell-oncall-day {
+  background: #fffbeb;
+  border-color: #fde68a;
+  border-left: 3px solid #f59e0b;
+}
+
+.month-cell-oncall-night {
+  background: #eef2ff;
+  border-color: #c7d2fe;
+  border-left: 3px solid #6366f1;
+}
+
+.month-cell-oncall-both {
+  background: linear-gradient(135deg, #fffbeb 50%, #eef2ff 50%);
+  border-color: #c7d2fe;
+  border-left: 3px solid #6366f1;
+}
+
+/* ── Badges J / N / F ────────────────────────────────────────────────────── */
+
+.month-badge {
+  font-size: 9px;
+  font-weight: 700;
+  width: 15px;
+  height: 15px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.badge-oncall-day   { background: #fef3c7; color: #b45309; }
+.badge-oncall-night { background: #e0e7ff; color: #4338ca; }
+.badge-closed       { background: #fee2e2; color: #b91c1c; }
+
+/* ── Initiales absences ──────────────────────────────────────────────────── */
+
+.absence-initial {
+  font-size: 9px;
+  font-weight: 700;
+  width: 17px;
+  height: 17px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.absence-overflow {
+  font-size: 9px;
+  color: #9ca3af;
+  font-weight: 600;
+}
+
+/* ── Popup statut inline ─────────────────────────────────────────────────── */
+
+.status-popup {
+  position: absolute;
+  top: calc(100% + 4px);
+  right: 0;
+  z-index: 30;
+  background: white;
+  border: 1px solid #e5e7eb;
+  border-radius: 10px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.12);
+  padding: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 170px;
+}
+
+.status-section-label {
+  font-size: 9px;
+  font-weight: 700;
+  color: #9ca3af;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  padding: 0 2px;
+  margin-bottom: 2px;
+}
+
+/* Ouvert / Fermé toggle */
+.status-toggle-btn {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  padding: 4px 6px;
+  font-size: 11px;
+  font-weight: 500;
+  color: #374151;
+  border-radius: 6px;
+  background: #f9fafb;
+  border: 1px solid #e5e7eb;
+  cursor: pointer;
+  transition: background 0.1s, border-color 0.1s, color 0.1s;
+}
+
+.status-toggle-btn.active-open {
+  background: #f0fdf4;
+  border-color: #86efac;
+  color: #15803d;
+}
+
+.status-toggle-btn.active-closed {
+  background: #fff1f2;
+  border-color: #fecdd3;
+  color: #b91c1c;
+}
+
+/* Garde checkboxes */
+.status-check-row {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  padding: 5px 4px;
+  font-size: 11px;
+  color: #374151;
+  border-radius: 6px;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  text-align: left;
+  width: 100%;
+  transition: background 0.1s;
+}
+
+.status-check-row:hover {
+  background: #f9fafb;
+}
+
+.status-check-row.active-guard-day {
+  background: #fffbeb;
+  color: #b45309;
+}
+
+.status-check-row.active-guard-night {
+  background: #eef2ff;
+  color: #4338ca;
+}
+
+.check-box {
+  width: 14px;
+  height: 14px;
+  min-width: 14px;
+  border-radius: 3px;
+  border: 1.5px solid #d1d5db;
+  background: white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #f59e0b;
+  transition: border-color 0.1s, background 0.1s;
+}
+
+.check-box.checked {
+  border-color: #f59e0b;
+  background: #fef3c7;
+}
+
+.check-box.night.checked {
+  border-color: #6366f1;
+  background: #e0e7ff;
+  color: #6366f1;
+}
+
+.check-label {
+  font-size: 11px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.status-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.status-dot.open   { background: #4ade80; }
+.status-dot.closed { background: #f87171; }
+
+.status-cancel {
+  margin-top: 3px;
+  padding: 4px 8px;
+  font-size: 11px;
+  color: #9ca3af;
+  background: transparent;
+  border: none;
+  border-top: 1px solid #f3f4f6;
+  cursor: pointer;
+  text-align: center;
+  transition: color 0.1s;
+}
+
+.status-cancel:hover {
+  color: #6b7280;
+}

@@ -1,0 +1,49 @@
+<div class="shift-card group/card rounded-lg border px-2 py-1.5 cursor-default select-none transition-shadow"
+     [ngClass]="cardClasses">
+
+  <!-- Ligne principale : heure + durée -->
+  <div class="flex items-center justify-between gap-1">
+    <div class="flex items-center gap-1.5">
+      <span class="w-1.5 h-1.5 rounded-full flex-shrink-0" [ngClass]="dotClass"></span>
+      <span class="text-xs font-bold tabular-nums">
+        {{ formatTime(shift.start_datetime) }}–{{ formatTime(shift.end_datetime) }}
+      </span>
+    </div>
+    <span class="text-[10px] opacity-60 font-medium">{{ duration }}</span>
+  </div>
+
+  <!-- Note (si présente, tronquée) -->
+  <p *ngIf="shift.note"
+     class="text-[10px] mt-0.5 opacity-70 truncate leading-tight"
+     [title]="shift.note">
+    {{ shift.note }}
+  </p>
+
+  <!-- Badges -->
+  <div class="flex items-center gap-1 mt-1">
+    <span *ngIf="!shift.is_published"
+          class="text-[9px] font-semibold uppercase tracking-wide text-gray-400">
+      Brouillon
+    </span>
+    <span *ngIf="shift.is_extra_hour"
+          class="text-[9px] font-semibold uppercase tracking-wide text-orange-500">
+      Sup
+    </span>
+  </div>
+
+  <!-- Actions manager (hover) -->
+  <div *ngIf="isManager"
+       class="flex items-center gap-1 mt-1 pt-1 border-t border-current border-opacity-10
+              opacity-0 group-hover/card:opacity-100 transition-opacity">
+    <button *ngIf="!shift.is_published"
+            (click)="onPublish($event)"
+            class="text-[10px] font-semibold text-green-700 hover:text-green-900 transition-colors">
+      Publier
+    </button>
+    <button (click)="onDelete($event)"
+            class="text-[10px] font-semibold text-red-500 hover:text-red-700 transition-colors ml-auto">
+      Supprimer
+    </button>
+  </div>
+
+</div>

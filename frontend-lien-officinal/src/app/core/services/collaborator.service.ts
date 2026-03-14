@@ -23,7 +23,10 @@ export interface Collaborator extends CollaboratorPermissions {
   color: string;
   pin?: string;
   is_active?: boolean;
+  archived_at?: string | null;
   created_at?: string;
+  contract_type?: string;
+  weekly_hours?: number;
 }
 
 export interface CollaboratorCreate {
@@ -52,8 +55,15 @@ export class CollaboratorService {
   private http = inject(HttpClient);
   private apiUrl = `${environment.apiUrl}/api/team`;
 
-  getTeam(): Observable<Collaborator[]> {
-    return this.http.get<Collaborator[]>(`${this.apiUrl}/`);
+  getTeam(includeArchived = false): Observable<Collaborator[]> {
+    const url = includeArchived
+      ? `${this.apiUrl}/?include_archived=true`
+      : `${this.apiUrl}/`;
+    return this.http.get<Collaborator[]>(url);
+  }
+
+  reactivate(id: number, confirmationPin: string): Observable<Collaborator> {
+    return this.http.patch<Collaborator>(`${this.apiUrl}/${id}/reactivate/`, { confirmation_pin: confirmationPin });
   }
 
   createCollaborator(data: CollaboratorCreate & SensitivePayload): Observable<Collaborator> {
@@ -84,5 +94,9 @@ export class CollaboratorService {
 
   verifyTeamPin(pin: string): Observable<any> {
     return this.http.post<any>(`${this.apiUrl}/verify-team-pin/`, { confirmation_pin: pin });
+  }
+
+  reorderCollaborators(order: number[]): Observable<void> {
+    return this.http.post<void>(`${this.apiUrl}/reorder/`, { order });
   }
 }

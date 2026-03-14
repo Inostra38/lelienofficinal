@@ -1,0 +1,344 @@
+<!-- ── Overlay plein écran ── -->
+<div class="fixed inset-0 z-50 bg-black/40 flex items-start justify-center overflow-y-auto p-4">
+  <div class="bg-white rounded-2xl shadow-2xl border border-gray-200 w-full max-w-5xl my-6">
+
+    <!-- ── Header ── -->
+    <div class="flex items-center justify-between px-6 py-4 border-b border-gray-200">
+      <div class="flex items-center gap-3">
+        <div class="w-8 h-8 bg-green-100 rounded-lg flex items-center justify-center">
+          <svg class="w-5 h-5 text-green-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                  d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/>
+          </svg>
+        </div>
+        <div>
+          <h2 class="text-lg font-bold text-gray-800">Analytique planning</h2>
+          <p class="text-xs text-gray-400">Statistiques et indicateurs de l'équipe</p>
+        </div>
+      </div>
+      <button (click)="closed.emit()"
+              class="p-2 rounded-lg hover:bg-gray-100 text-gray-400 hover:text-gray-600 transition-colors">
+        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+        </svg>
+      </button>
+    </div>
+
+    <!-- ── Barre période + navigation ── -->
+    <div class="px-6 py-3 border-b border-gray-100 flex flex-wrap items-center gap-3">
+      <!-- Toggle période -->
+      <div class="flex bg-gray-100 rounded-lg p-0.5 gap-0.5">
+        <button (click)="setPeriod('week')"
+                class="px-3 py-1.5 rounded-md text-xs font-semibold transition-all"
+                [class.bg-white]="period === 'week'"
+                [class.text-gray-800]="period === 'week'"
+                [class.shadow-sm]="period === 'week'"
+                [class.text-gray-500]="period !== 'week'">
+          Semaine
+        </button>
+        <button (click)="setPeriod('month')"
+                class="px-3 py-1.5 rounded-md text-xs font-semibold transition-all"
+                [class.bg-white]="period === 'month'"
+                [class.text-gray-800]="period === 'month'"
+                [class.shadow-sm]="period === 'month'"
+                [class.text-gray-500]="period !== 'month'">
+          Mois
+        </button>
+        <button (click)="setPeriod('year')"
+                class="px-3 py-1.5 rounded-md text-xs font-semibold transition-all"
+                [class.bg-white]="period === 'year'"
+                [class.text-gray-800]="period === 'year'"
+                [class.shadow-sm]="period === 'year'"
+                [class.text-gray-500]="period !== 'year'">
+          Année
+        </button>
+      </div>
+
+      <!-- Navigation -->
+      <div class="flex items-center gap-2">
+        <button (click)="prevPeriod()"
+                class="p-1.5 rounded-lg hover:bg-gray-100 text-gray-500 hover:text-gray-700 transition-colors">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/>
+          </svg>
+        </button>
+        <span class="text-sm font-semibold text-gray-800 min-w-[180px] text-center capitalize">
+          {{ periodLabel }}
+        </span>
+        <button (click)="nextPeriod()"
+                class="p-1.5 rounded-lg hover:bg-gray-100 text-gray-500 hover:text-gray-700 transition-colors">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
+          </svg>
+        </button>
+      </div>
+
+      <button (click)="goToToday()"
+              class="text-xs text-green-700 hover:text-green-800 font-medium border border-green-200 rounded-lg px-2 py-1 hover:bg-green-50 transition-colors">
+        Aujourd'hui
+      </button>
+
+      <!-- Dates effectives -->
+      <span *ngIf="data" class="ml-auto text-xs text-gray-400">
+        Du {{ data.date_from }} au {{ data.date_to }}
+      </span>
+    </div>
+
+    <!-- ── Contenu ── -->
+    <div class="p-6 space-y-6">
+
+      <!-- Loader -->
+      <div *ngIf="loading" class="flex items-center justify-center py-16">
+        <div class="animate-spin rounded-full h-10 w-10 border-2 border-green-700 border-t-transparent"></div>
+      </div>
+
+      <!-- Erreur -->
+      <div *ngIf="!loading && error" class="text-center py-12 text-red-500 text-sm">
+        Impossible de charger les données analytiques.
+      </div>
+
+      <!-- Données -->
+      <ng-container *ngIf="!loading && !error && data">
+
+        <!-- ── 4 metric cards ── -->
+        <div class="analytics-cards">
+
+          <!-- Couverture -->
+          <div class="metric-card">
+            <div class="metric-icon bg-green-100">
+              <svg class="w-5 h-5 text-green-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                      d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
+              </svg>
+            </div>
+            <div>
+              <p class="metric-label">Couverture</p>
+              <p class="metric-value"
+                 [class.text-green-700]="coverageRate >= 80"
+                 [class.text-orange-500]="coverageRate >= 50 && coverageRate < 80"
+                 [class.text-red-500]="coverageRate < 50 && data.coverage !== null">
+                {{ data.coverage ? coverageRate + ' %' : '—' }}
+              </p>
+              <p *ngIf="data.coverage" class="text-xs text-gray-400 mt-0.5">
+                {{ data.coverage.actual_hours | number:'1.0-1' }}h / {{ data.coverage.theoretical_hours | number:'1.0-1' }}h
+              </p>
+            </div>
+          </div>
+
+          <!-- Gardes de jour -->
+          <div class="metric-card">
+            <div class="metric-icon bg-amber-100">
+              <svg class="w-5 h-5 text-amber-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                      d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364-6.364l-.707.707M6.343 17.657l-.707.707M17.657 17.657l-.707-.707M6.343 6.343l-.707-.707"/>
+              </svg>
+            </div>
+            <div>
+              <p class="metric-label">Gardes de jour</p>
+              <p class="metric-value text-amber-600">{{ data.on_call.day_guards }}</p>
+              <p class="text-xs text-gray-400 mt-0.5">jours</p>
+            </div>
+          </div>
+
+          <!-- Gardes de nuit -->
+          <div class="metric-card">
+            <div class="metric-icon bg-indigo-100">
+              <svg class="w-5 h-5 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                      d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z"/>
+              </svg>
+            </div>
+            <div>
+              <p class="metric-label">Gardes de nuit</p>
+              <p class="metric-value text-indigo-600">{{ data.on_call.night_guards }}</p>
+              <p class="text-xs text-gray-400 mt-0.5">nuits</p>
+            </div>
+          </div>
+
+          <!-- Jours d'absence -->
+          <div class="metric-card">
+            <div class="metric-icon bg-red-100">
+              <svg class="w-5 h-5 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                      d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/>
+              </svg>
+            </div>
+            <div>
+              <p class="metric-label">Jours d'absence</p>
+              <p class="metric-value text-red-500">{{ totalAbsenceDays }}</p>
+              <p class="text-xs text-gray-400 mt-0.5">jours approuvés</p>
+            </div>
+          </div>
+
+        </div>
+
+        <!-- ── Tableau heures ── -->
+        <div class="rounded-xl border border-gray-200 overflow-hidden">
+          <div class="px-4 py-3 bg-gray-50 border-b border-gray-200">
+            <h3 class="text-sm font-semibold text-gray-700">Heures planifiées vs contrat</h3>
+          </div>
+          <div class="overflow-x-auto">
+            <table class="analytics-table">
+              <thead>
+                <tr>
+                  <th>Collaborateur</th>
+                  <th>Rôle</th>
+                  <th class="text-right">Heures</th>
+                  <th class="text-right">Contrat</th>
+                  <th class="text-right">Écart</th>
+                  <th class="text-right">Présences</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr *ngFor="let row of data.hours_summary">
+                  <td class="font-medium text-gray-800">{{ row.collaborator_name }}</td>
+                  <td class="text-gray-500">{{ row.role }}</td>
+                  <td class="text-right text-gray-700">{{ formatH(row.total_hours) }}</td>
+                  <td class="text-right text-gray-500">{{ formatH(row.contract_hours) }}</td>
+                  <td class="text-right" [class]="extraClass(row.extra_hours)">
+                    {{ row.extra_hours >= 0 ? '+' : '' }}{{ formatH(row.extra_hours) }}
+                  </td>
+                  <td class="text-right text-gray-600">{{ row.presence_days }}j</td>
+                </tr>
+                <tr *ngIf="data.hours_summary.length === 0">
+                  <td colspan="6" class="text-center text-gray-400 py-6">Aucun shift publié sur la période.</td>
+                </tr>
+              </tbody>
+              <tfoot *ngIf="data.hours_summary.length > 0">
+                <tr class="bg-green-50 font-semibold">
+                  <td colspan="2" class="text-gray-700">Total</td>
+                  <td class="text-right text-gray-800">{{ formatH(totalHours) }}</td>
+                  <td class="text-right text-gray-500">{{ formatH(totalContractHours) }}</td>
+                  <td class="text-right" [class]="extraClass(totalHours - totalContractHours)">
+                    {{ (totalHours - totalContractHours) >= 0 ? '+' : '' }}{{ formatH(totalHours - totalContractHours) }}
+                  </td>
+                  <td></td>
+                </tr>
+              </tfoot>
+            </table>
+          </div>
+        </div>
+
+        <!-- ── 2 colonnes : Absences + CP ── -->
+        <div class="analytics-two-col">
+
+          <!-- Absences par type -->
+          <div class="rounded-xl border border-gray-200 overflow-hidden">
+            <div class="px-4 py-3 bg-gray-50 border-b border-gray-200">
+              <h3 class="text-sm font-semibold text-gray-700">Absences par type</h3>
+            </div>
+            <div class="p-4 space-y-2">
+              <div class="flex justify-between items-center py-1 border-b border-gray-50">
+                <span class="text-sm text-gray-600">Congés payés</span>
+                <span class="text-sm font-semibold text-blue-600">{{ data.absences.by_type.cp }}j</span>
+              </div>
+              <div class="flex justify-between items-center py-1 border-b border-gray-50">
+                <span class="text-sm text-gray-600">Maladie</span>
+                <span class="text-sm font-semibold text-red-500">{{ data.absences.by_type.maladie }}j</span>
+              </div>
+              <div class="flex justify-between items-center py-1 border-b border-gray-50">
+                <span class="text-sm text-gray-600">RCR</span>
+                <span class="text-sm font-semibold text-orange-500">{{ data.absences.by_type.rcr }}j</span>
+              </div>
+              <div class="flex justify-between items-center py-1">
+                <span class="text-sm text-gray-600">Sans solde</span>
+                <span class="text-sm font-semibold text-gray-500">{{ data.absences.by_type.sans_solde }}j</span>
+              </div>
+
+              <!-- Par collaborateur -->
+              <div *ngIf="byCollaboratorEntries.length > 0" class="mt-3 pt-3 border-t border-gray-100">
+                <p class="text-xs text-gray-400 mb-2 font-medium uppercase tracking-wide">Par collaborateur</p>
+                <div *ngFor="let entry of byCollaboratorEntries" class="flex justify-between items-center py-1">
+                  <span class="text-xs text-gray-600">{{ entry.name }}</span>
+                  <span class="text-xs text-gray-500">
+                    CP: {{ entry.cp }}j
+                    <span *ngIf="entry.maladie > 0"> · Mal: {{ entry.maladie }}j</span>
+                    <span *ngIf="entry.rcr > 0"> · RCR: {{ entry.rcr }}j</span>
+                    <span *ngIf="entry.sans_solde > 0"> · SS: {{ entry.sans_solde }}j</span>
+                  </span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Solde CP -->
+          <div class="rounded-xl border border-gray-200 overflow-hidden">
+            <div class="px-4 py-3 bg-gray-50 border-b border-gray-200">
+              <h3 class="text-sm font-semibold text-gray-700">Solde CP par collaborateur</h3>
+              <p class="text-xs text-gray-400 mt-0.5">Estimation 2,5j/mois</p>
+            </div>
+            <div class="overflow-x-auto">
+              <table class="analytics-table">
+                <thead>
+                  <tr>
+                    <th>Collaborateur</th>
+                    <th class="text-right">Acquis</th>
+                    <th class="text-right">Pris</th>
+                    <th class="text-right">Solde</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr *ngFor="let row of data.cp_balance">
+                    <td class="font-medium text-gray-800">{{ row.collaborator_name }}</td>
+                    <td class="text-right text-gray-600">{{ row.cp_acquired }}j</td>
+                    <td class="text-right text-gray-600">{{ row.cp_used }}j</td>
+                    <td class="text-right font-semibold"
+                        [class.text-green-700]="row.cp_balance >= 0"
+                        [class.text-red-500]="row.cp_balance < 0">
+                      {{ row.cp_balance > 0 ? '+' : '' }}{{ row.cp_balance }}j
+                    </td>
+                  </tr>
+                  <tr *ngIf="data.cp_balance.length === 0">
+                    <td colspan="4" class="text-center text-gray-400 py-6">Aucun collaborateur.</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+        </div>
+
+        <!-- ── Graphique annuel (Chart.js si disponible, sinon tableau) ── -->
+        <div *ngIf="period === 'year'" class="rounded-xl border border-gray-200 overflow-hidden">
+          <div class="px-4 py-3 bg-gray-50 border-b border-gray-200">
+            <h3 class="text-sm font-semibold text-gray-700">
+              Evolution mensuelle {{ currentDate.getFullYear() }}
+            </h3>
+          </div>
+          <div class="p-4">
+
+            <!-- Canvas Chart.js -->
+            <canvas *ngIf="chartAvailable"
+                    id="monthlyChart"
+                    class="w-full"
+                    style="max-height: 280px;">
+            </canvas>
+
+            <!-- Tableau de remplacement si Chart.js non disponible -->
+            <div *ngIf="!chartAvailable && data.monthly_evolution">
+              <table class="analytics-table">
+                <thead>
+                  <tr>
+                    <th>Mois</th>
+                    <th class="text-right">Heures planifiées</th>
+                    <th class="text-right">Jours absence</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr *ngFor="let row of data.monthly_evolution">
+                    <td class="font-medium text-gray-700">{{ row.month_label }}</td>
+                    <td class="text-right text-green-700 font-medium">{{ row.total_hours }}h</td>
+                    <td class="text-right text-red-500">{{ row.absences }}j</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+
+          </div>
+        </div>
+
+      </ng-container>
+
+    </div>
+  </div>
+</div>

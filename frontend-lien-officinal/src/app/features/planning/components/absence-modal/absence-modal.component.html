@@ -1,0 +1,194 @@
+<!-- Backdrop -->
+<div class="fixed inset-0 z-50 bg-black/40 backdrop-blur-sm flex items-center justify-center p-4"
+     (click)="closed.emit()">
+
+  <!-- Modale -->
+  <div class="bg-white rounded-2xl shadow-2xl w-full max-w-lg overflow-hidden"
+       (click)="$event.stopPropagation()">
+
+    <!-- Header -->
+    <div class="flex items-center justify-between px-6 py-4 border-b border-gray-100">
+      <h2 class="text-base font-bold text-gray-800">Absences</h2>
+      <button (click)="closed.emit()"
+              class="p-1.5 rounded-lg hover:bg-gray-100 text-gray-400 hover:text-gray-600 transition-colors">
+        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+        </svg>
+      </button>
+    </div>
+
+    <!-- Tabs -->
+    <div class="flex border-b border-gray-100">
+      <button (click)="activeTab = 'list'"
+              class="flex-1 py-2.5 text-sm font-semibold transition-colors"
+              [class.text-green-700]="activeTab === 'list'"
+              [class.border-b-2]="activeTab === 'list'"
+              [class.border-green-700]="activeTab === 'list'"
+              [class.text-gray-400]="activeTab !== 'list'">
+        Demandes
+      </button>
+      <button (click)="activeTab = 'create'"
+              class="flex-1 py-2.5 text-sm font-semibold transition-colors"
+              [class.text-green-700]="activeTab === 'create'"
+              [class.border-b-2]="activeTab === 'create'"
+              [class.border-green-700]="activeTab === 'create'"
+              [class.text-gray-400]="activeTab !== 'create'">
+        {{ isManager ? 'Poser un congé' : 'Nouvelle demande' }}
+      </button>
+    </div>
+
+    <!-- ── Onglet liste ── -->
+    <div *ngIf="activeTab === 'list'" class="overflow-y-auto max-h-96">
+
+      <!-- Message succès avec jours exclus -->
+      <div *ngIf="successMessage"
+           class="mx-4 mt-3 px-4 py-2.5 rounded-lg bg-amber-50 border border-amber-200 text-amber-800 text-sm flex items-start gap-2">
+        <svg class="w-4 h-4 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M12 2a10 10 0 100 20A10 10 0 0012 2z"/>
+        </svg>
+        <span>{{ successMessage }}</span>
+      </div>
+
+      <!-- Loader -->
+      <div *ngIf="loading" class="flex justify-center py-8">
+        <div class="animate-spin rounded-full h-6 w-6 border-2 border-green-700 border-t-transparent"></div>
+      </div>
+
+      <!-- Liste vide -->
+      <div *ngIf="!loading && absences.length === 0"
+           class="flex flex-col items-center py-10 text-gray-400">
+        <svg class="w-10 h-10 mb-2 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"
+                d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/>
+        </svg>
+        <p class="text-sm">Aucune demande d'absence</p>
+      </div>
+
+      <!-- Ligne absence -->
+      <div *ngFor="let absence of absences"
+           class="flex items-start gap-3 px-6 py-4 border-b border-gray-50 last:border-0">
+
+        <!-- Avatar collaborateur -->
+        <div class="w-8 h-8 rounded-full text-white text-xs font-bold flex items-center justify-center flex-shrink-0"
+             [ngClass]="getBgClass(absence.collaborator.color)">
+          {{ getInitials(absence.collaborator) }}
+        </div>
+
+        <div class="flex-1 min-w-0">
+          <div class="flex items-center gap-2 flex-wrap">
+            <span class="text-sm font-semibold text-gray-800">
+              {{ absence.collaborator.first_name }} {{ absence.collaborator.last_name }}
+            </span>
+            <span class="text-xs px-2 py-0.5 rounded-full font-medium"
+                  [ngClass]="STATUS_CLASSES[absence.status]">
+              {{ STATUS_LABELS[absence.status] }}
+            </span>
+            <span *ngIf="absence.posted_by_manager"
+                  class="text-xs px-2 py-0.5 rounded-full bg-purple-50 text-purple-600 font-medium">
+              Posé par manager
+            </span>
+          </div>
+          <p class="text-xs text-gray-500 mt-0.5">
+            {{ getTypeLabel(absence.type) }} —
+            {{ formatDate(absence.start_date) }} → {{ formatDate(absence.end_date) }}
+          </p>
+          <p *ngIf="absence.note" class="text-xs text-gray-400 mt-0.5 italic">{{ absence.note }}</p>
+          <p *ngIf="absence.reviewed_by && absence.status !== 'pending'"
+             class="text-xs text-gray-400 mt-0.5 flex items-center gap-1">
+            <span class="inline-flex items-center justify-center w-4 h-4 rounded-full text-white font-bold text-[9px]"
+                  [ngClass]="getBgClass(absence.reviewed_by.color)">
+              {{ absence.reviewed_by.first_name.charAt(0) }}{{ absence.reviewed_by.last_name.charAt(0) }}
+            </span>
+            {{ absence.status === 'approved' ? 'Approuvé' : 'Refusé' }} par
+            {{ absence.reviewed_by.first_name }} {{ absence.reviewed_by.last_name }}
+          </p>
+        </div>
+
+        <!-- Actions manager pour les demandes en attente -->
+        <div *ngIf="isManager && absence.status === 'pending'"
+             class="flex gap-1 flex-shrink-0">
+          <button (click)="approve(absence.id)"
+                  class="px-2.5 py-1 text-xs font-semibold text-green-700 bg-green-50 hover:bg-green-100 rounded-lg transition-colors">
+            Approuver
+          </button>
+          <button (click)="reject(absence.id)"
+                  class="px-2.5 py-1 text-xs font-semibold text-red-600 bg-red-50 hover:bg-red-100 rounded-lg transition-colors">
+            Refuser
+          </button>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- ── Onglet création ── -->
+    <div *ngIf="activeTab === 'create'" class="px-6 py-5">
+      <form (ngSubmit)="submit()" class="flex flex-col gap-4">
+
+        <!-- Sélecteur collaborateur (manager uniquement) -->
+        <div *ngIf="isManager">
+          <label class="block text-xs font-semibold text-gray-500 mb-1">Collaborateur</label>
+          <select [(ngModel)]="form.collaborator_id" name="collaborator_id"
+                  class="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-300">
+            <option *ngFor="let collab of team" [value]="collab.id">
+              {{ collab.first_name }} {{ collab.last_name }}
+            </option>
+          </select>
+        </div>
+
+        <!-- Type -->
+        <div>
+          <label class="block text-xs font-semibold text-gray-500 mb-1">Type d'absence</label>
+          <select [(ngModel)]="form.type" name="type"
+                  class="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-300">
+            <option *ngFor="let t of TYPES" [value]="t.value">{{ t.label }}</option>
+          </select>
+        </div>
+
+        <!-- Dates -->
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="block text-xs font-semibold text-gray-500 mb-1">Du</label>
+            <input type="date" [(ngModel)]="form.start_date" name="start_date"
+                   class="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-300"/>
+          </div>
+          <div>
+            <label class="block text-xs font-semibold text-gray-500 mb-1">Au</label>
+            <input type="date" [(ngModel)]="form.end_date" name="end_date"
+                   class="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-300"/>
+          </div>
+        </div>
+
+        <!-- Note -->
+        <div>
+          <label class="block text-xs font-semibold text-gray-500 mb-1">Note (optionnelle)</label>
+          <textarea [(ngModel)]="form.note" name="note" rows="2"
+                    placeholder="Précisez si besoin..."
+                    class="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-green-300">
+          </textarea>
+        </div>
+
+        <!-- Message info (staff uniquement) -->
+        <p *ngIf="!isManager" class="text-xs text-amber-600 bg-amber-50 rounded-lg px-3 py-2">
+          Votre demande sera soumise à validation par un responsable.
+        </p>
+
+        <!-- Erreur -->
+        <p *ngIf="errorMessage" class="text-xs text-red-500 font-medium">{{ errorMessage }}</p>
+
+        <!-- Actions -->
+        <div class="flex justify-end gap-2 pt-1">
+          <button type="button" (click)="closed.emit()"
+                  class="px-4 py-2 text-sm text-gray-500 hover:text-gray-700 transition-colors">
+            Annuler
+          </button>
+          <button type="submit" [disabled]="submitting"
+                  class="px-5 py-2 text-sm font-semibold text-white bg-green-700 hover:bg-green-800 rounded-xl transition-colors disabled:opacity-60">
+            {{ submitting ? 'Envoi...' : (isManager ? 'Poser le congé' : 'Envoyer la demande') }}
+          </button>
+        </div>
+
+      </form>
+    </div>
+
+  </div>
+</div>
