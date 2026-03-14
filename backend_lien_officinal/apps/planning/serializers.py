@@ -1,7 +1,7 @@
 from rest_framework import serializers
 from django.utils import timezone
 from apps.team.models import Collaborator
-from .models import Shift, AbsenceRequest, PharmacyDayStatus, PlanningSettings, WeekTemplate, TemplateShift, OpeningHours, TimeAdjustment
+from .models import Shift, AbsenceRequest, PharmacyDayStatus, PlanningSettings, WeekTemplate, TemplateShift, OpeningHours, TimeAdjustment, Constraint
 
 
 class CollaboratorMinimalSerializer(serializers.ModelSerializer):
@@ -175,3 +175,20 @@ class TimeAdjustmentCreateSerializer(serializers.ModelSerializer):
     class Meta:
         model  = TimeAdjustment
         fields = ['date', 'type', 'actual_time', 'reference_time', 'duration_minutes', 'shift', 'note']
+
+
+# ── Contraintes planning ───────────────────────────────────────────────────────
+
+class ConstraintSerializer(serializers.ModelSerializer):
+    collaborator_name = serializers.SerializerMethodField()
+
+    def get_collaborator_name(self, obj):
+        if obj.collaborator:
+            return f"{obj.collaborator.first_name} {obj.collaborator.last_name}"
+        return None
+
+    class Meta:
+        model = Constraint
+        fields = ['id', 'level', 'collaborator', 'collaborator_name',
+                  'description', 'is_active', 'order']
+        read_only_fields = ['id', 'collaborator_name']

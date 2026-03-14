@@ -30,10 +30,20 @@ class PlanningAnalytics:
         nb_days  = (date_to - date_from).days + 1
         nb_weeks = nb_days / 7.0
 
-        collaborators = Collaborator.objects.filter(
+        # Inclut les archivés : leurs heures passées restent dans l'historique
+        active_collabs = list(Collaborator.objects.filter(
+            pharmacy=self.pharmacy, is_active=True,
+        ).order_by('display_order', 'id'))
+
+        archived_with_shifts = list(Collaborator.objects.filter(
             pharmacy=self.pharmacy,
-            is_active=True,
-        ).order_by('display_order', 'id')
+            is_active=False,
+            shifts__is_published=True,
+            shifts__start_datetime__date__gte=date_from,
+            shifts__start_datetime__date__lte=date_to,
+        ).distinct().order_by('display_order', 'id'))
+
+        collaborators = active_collabs + archived_with_shifts
 
         result = []
         for collab in collaborators:
@@ -77,7 +87,6 @@ class PlanningAnalytics:
 
         absences = AbsenceRequest.objects.filter(
             collaborator__pharmacy=self.pharmacy,
-            collaborator__is_active=True,
             status=AbsenceRequest.Status.APPROVED,
             start_date__lte=date_to,
             end_date__gte=date_from,
@@ -123,10 +132,21 @@ class PlanningAnalytics:
         nb_days   = (date_to - date_from).days + 1
         nb_months = nb_days / 30.44
 
-        collaborators = Collaborator.objects.filter(
+        # Inclut les archivés ayant des CP posés sur la période
+        active_collabs = list(Collaborator.objects.filter(
+            pharmacy=self.pharmacy, is_active=True,
+        ).order_by('display_order', 'id'))
+
+        archived_with_cp = list(Collaborator.objects.filter(
             pharmacy=self.pharmacy,
-            is_active=True,
-        ).order_by('display_order', 'id')
+            is_active=False,
+            absence_requests__type=AbsenceRequest.AbsenceType.CP,
+            absence_requests__status=AbsenceRequest.Status.APPROVED,
+            absence_requests__start_date__lte=date_to,
+            absence_requests__end_date__gte=date_from,
+        ).distinct().order_by('display_order', 'id'))
+
+        collaborators = active_collabs + archived_with_cp
 
         result = []
         for collab in collaborators:
@@ -278,7 +298,6 @@ class PlanningAnalytics:
 
             absences = AbsenceRequest.objects.filter(
                 collaborator__pharmacy=self.pharmacy,
-                collaborator__is_active=True,
                 status=AbsenceRequest.Status.APPROVED,
                 start_date__lte=last_day,
                 end_date__gte=first_day,

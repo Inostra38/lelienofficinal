@@ -1,6 +1,9 @@
 from datetime import date, timedelta
 import calendar
+import json
 
+import anthropic as anthropic_sdk
+from django.conf import settings as django_settings
 from django.db.models import Q
 from django.utils import timezone
 from rest_framework import status
@@ -11,9 +14,10 @@ from rest_framework_simplejwt.authentication import JWTAuthentication
 
 from apps.team.models import Collaborator
 from .calculator import pharmacy_week_summary
-from .models import AbsenceRequest, OpeningHours, PharmacyDayStatus, PlanningSettings, Shift, TemplateShift, TimeAdjustment, WeekTemplate, WeekTemplateApplication
+from .models import AbsenceRequest, Constraint, ConstraintSet, OpeningHours, PharmacyDayStatus, PlanningSettings, Shift, TemplateShift, TimeAdjustment, WeekTemplate, WeekTemplateApplication
 from .serializers import (
     AbsenceRequestCreateSerializer,
+    ConstraintSerializer,
     AbsenceRequestSerializer,
     OpeningHoursSerializer,
     PharmacyDayStatusSerializer,
@@ -945,3 +949,260 @@ class AnalyticsView(APIView):
             data['monthly_evolution'] = analytics.monthly_evolution(ref_date.year)
 
         return Response(data)
+
+
+# ── Contraintes planning ───────────────────────────────────────────────────────
+
+REGULATORY_DEFAULTS = [
+    "Repos quotidien minimum de 11 heures entre deux shifts",
+    "Amplitude journalière maximale de 12 heures",
+    "Durée de travail effectif maximale de 10 heures par jour",
+    "Repos hebdomadaire de 35 heures consécutives minimum",
+    "Maximum 48 heures de travail par semaine",
+    "Maximum 44 heures de travail en moyenne sur 12 semaines",
+    "Majoration de 20% pour les heures entre 20h-22h et 5h-8h",
+    "Majoration de 40% pour les heures entre 22h et 5h",
+    "Heures supplémentaires : majoration 25% pour les 8 premières heures, 50% au-delà",
+]
+
+
+def _get_or_create_constraint_set(pharmacy):
+    """Get or create a ConstraintSet for the pharmacy, creating defaults if new."""
+    constraint_set, created = ConstraintSet.objects.get_or_create(pharmacy=pharmacy)
+    if created:
+        for idx, desc in enumerate(REGULATORY_DEFAULTS):
+            Constraint.objects.create(
+                constraint_set=constraint_set,
+                level=Constraint.Level.REGULATORY,
+                description=desc,
+                order=idx,
+                is_active=True,
+            )
+    return constraint_set
+
+
+class ConstraintsView(APIView):
+    """
+    GET  /api/planning/constraints/   → list all constraints for the pharmacy
+    POST /api/planning/constraints/   → add a new constraint (pharmacy or personal)
+    """
+    permission_classes = [IsAuthenticated]
+    authentication_classes = [JWTAuthentication]
+
+    def get(self, request):
+        constraint_set = _get_or_create_constraint_set(request.user)
+        constraints = constraint_set.constraints.all()
+        return Response(ConstraintSerializer(constraints, many=True).data)
+
+    def post(self, request):
+        constraint_set = _get_or_create_constraint_set(request.user)
+        level = request.data.get('level', 'pharmacy')
+        if level == 'regulatory':
+            return Response(
+                {"detail": "Impossible de créer une contrainte réglementaire."},
+                status=status.HTTP_403_FORBIDDEN
+            )
+        collaborator_id = request.data.get('collaborator_id')
+        collaborator = None
+        if collaborator_id:
+            try:
+                collaborator = Collaborator.objects.get(
+                    id=collaborator_id, pharmacy=request.user
+                )
+            except Collaborator.DoesNotExist:
+                return Response({"detail": "Collaborateur introuvable."}, status=status.HTTP_404_NOT_FOUND)
+        constraint = Constraint.objects.create(
+            constraint_set=constraint_set,
+            level=level,
+            collaborator=collaborator,
+            description=request.data.get('description', ''),
+            is_active=True,
+            order=request.data.get('order', 0),
+        )
+        return Response(ConstraintSerializer(constraint).data, status=status.HTTP_201_CREATED)
+
+
+class ConstraintDetailView(APIView):
+    """
+    PATCH  /api/planning/constraints/{id}/  → update description / toggle active
+    DELETE /api/planning/constraints/{id}/  → delete (forbidden for regulatory)
+    """
+    permission_classes = [IsAuthenticated]
+    authentication_classes = [JWTAuthentication]
+
+    def _get_constraint(self, request, pk):
+        try:
+            return Constraint.objects.get(
+                id=pk, constraint_set__pharmacy=request.user
+            )
+        except Constraint.DoesNotExist:
+            return None
+
+    def patch(self, request, pk):
+        constraint = self._get_constraint(request, pk)
+        if not constraint:
+            return Response({"detail": "Introuvable."}, status=status.HTTP_404_NOT_FOUND)
+        if 'description' in request.data:
+            constraint.description = request.data['description']
+        if 'is_active' in request.data:
+            constraint.is_active = request.data['is_active']
+        if 'order' in request.data:
+            constraint.order = request.data['order']
+        constraint.save()
+        return Response(ConstraintSerializer(constraint).data)
+
+    def delete(self, request, pk):
+        constraint = self._get_constraint(request, pk)
+        if not constraint:
+            return Response({"detail": "Introuvable."}, status=status.HTTP_404_NOT_FOUND)
+        if constraint.level == Constraint.Level.REGULATORY:
+            return Response(
+                {"detail": "Les contraintes réglementaires ne peuvent pas être supprimées."},
+                status=status.HTTP_403_FORBIDDEN
+            )
+        constraint.delete()
+        return Response(status=status.HTTP_204_NO_CONTENT)
+
+
+class GenerateTemplateView(APIView):
+    """POST /api/planning/constraints/generate/"""
+    permission_classes = [IsAuthenticated]
+    authentication_classes = [JWTAuthentication]
+
+    def post(self, request):
+        rotation     = int(request.data.get('rotation', 2))
+        conversation = request.data.get('conversation', [])
+
+        constraint_set = _get_or_create_constraint_set(request.user)
+        constraints    = constraint_set.constraints.filter(is_active=True)
+
+        regulatory = [c.description for c in constraints if c.level == 'regulatory']
+        pharmacy_c = [c.description for c in constraints if c.level == 'pharmacy']
+        personal_c = []
+        for c in constraints.filter(level='personal'):
+            name = f"{c.collaborator.first_name} {c.collaborator.last_name}" if c.collaborator else ""
+            personal_c.append(f"{name} : {c.description}" if name else c.description)
+
+        collaborators = [
+            {
+                "id":    c.id,
+                "name":  f"{c.first_name} {c.last_name}",
+                "role":  c.get_role_display(),
+                "hours": float(c.weekly_hours),
+            }
+            for c in Collaborator.objects.filter(pharmacy=request.user, is_active=True)
+        ]
+
+        # Opening hours grouped by day
+        opening_slots = OpeningHours.objects.filter(pharmacy=request.user).order_by('day_of_week', 'start_time')
+        day_names = ['Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi', 'Samedi', 'Dimanche']
+        opening: dict = {}
+        for slot in opening_slots:
+            day = day_names[slot.day_of_week]
+            if day not in opening:
+                opening[day] = []
+            opening[day].append(f"{slot.start_time.strftime('%H:%M')}-{slot.end_time.strftime('%H:%M')}")
+
+        letters = ['A', 'B', 'C', 'D'][:rotation]
+        rotation_label = '/'.join(letters)
+
+        system_prompt = f"""Tu es un assistant expert en planning de pharmacie d'officine française.
+Tu connais parfaitement la Convention Collective Nationale de la Pharmacie.
+
+Tu dois générer un planning template sur une rotation de {rotation} semaine(s) ({rotation_label}).
+
+COLLABORATEURS :
+{json.dumps(collaborators, ensure_ascii=False, indent=2)}
+
+HORAIRES D'OUVERTURE :
+{json.dumps(opening, ensure_ascii=False, indent=2)}
+
+CONTRAINTES PAR ORDRE DE PRIORITÉ :
+
+[NIVEAU 1 - RÉGLEMENTAIRE - Non négociable] :
+{chr(10).join(f"- {r}" for r in regulatory)}
+
+[NIVEAU 2 - PHARMACIE - Respecter sauf conflit niveau 1] :
+{chr(10).join(f"- {p}" for p in pharmacy_c) if pharmacy_c else "- Aucune contrainte pharmacie définie"}
+
+[NIVEAU 3 - PERSONNELLE - Best effort, cédées en dernier recours] :
+{chr(10).join(f"- {p}" for p in personal_c) if personal_c else "- Aucune contrainte personnelle définie"}
+
+RÈGLES DE GÉNÉRATION :
+- Chaque collaborateur doit respecter son volume horaire hebdomadaire contractuel
+- Les shifts doivent être dans les horaires d'ouverture
+- day_of_week : 0=Lundi, 1=Mardi, 2=Mercredi, 3=Jeudi, 4=Vendredi, 5=Samedi, 6=Dimanche
+- Un jour absent dans opening = pharmacie fermée ce jour
+- Indiquer les violations si certaines contraintes ne peuvent pas être respectées simultanément
+
+FORMAT DE RÉPONSE OBLIGATOIRE :
+Réponds avec deux blocs distincts :
+
+1. Un paragraphe court expliquant les choix effectués et les éventuels compromis.
+
+2. Un bloc JSON valide avec exactement cette structure :
+```json
+{{
+  "weeks": {{
+    "A": [
+      {{
+        "collaborator_id": 1,
+        "day_of_week": 0,
+        "start_time": "08:30",
+        "end_time": "13:00",
+        "note": ""
+      }}
+    ]
+  }},
+  "violations": [
+    {{
+      "level": "personal",
+      "description": "La contrainte X n'a pas pu être respectée car..."
+    }}
+  ]
+}}
+```
+Inclure uniquement les semaines {rotation_label}.
+"""
+
+        messages = [{"role": m["role"], "content": m["content"]} for m in conversation]
+        if not messages:
+            messages.append({
+                "role": "user",
+                "content": "Génère un template de planning optimisé en respectant toutes les contraintes."
+            })
+
+        api_key = getattr(django_settings, 'ANTHROPIC_API_KEY', None)
+        if not api_key:
+            return Response(
+                {"detail": "ANTHROPIC_API_KEY non configurée."},
+                status=status.HTTP_503_SERVICE_UNAVAILABLE
+            )
+
+        client = anthropic_sdk.Anthropic(api_key=api_key)
+        ai_response = client.messages.create(
+            model="claude-haiku-4-5-20251001",
+            max_tokens=4000,
+            system=system_prompt,
+            messages=messages,
+        )
+
+        assistant_message = ai_response.content[0].text
+
+        template_json = None
+        try:
+            json_start = assistant_message.find('```json')
+            json_end   = assistant_message.find('```', json_start + 7)
+            if json_start != -1 and json_end != -1:
+                json_str      = assistant_message[json_start + 7:json_end].strip()
+                template_json = json.loads(json_str)
+        except (json.JSONDecodeError, ValueError):
+            pass
+
+        return Response({
+            "message":      assistant_message,
+            "template":     template_json,
+            "conversation": conversation + [
+                {"role": "assistant", "content": assistant_message}
+            ]
+        })

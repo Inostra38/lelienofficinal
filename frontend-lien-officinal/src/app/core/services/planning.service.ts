@@ -197,6 +197,38 @@ export interface CreateTemplateShiftDto {
   note?: string;
 }
 
+// ── Contraintes planning ───────────────────────────────────────────────────────
+
+export interface ConstraintItem {
+  id: number;
+  level: 'regulatory' | 'pharmacy' | 'personal';
+  collaborator?: number | null;
+  collaborator_name?: string | null;
+  description: string;
+  is_active: boolean;
+  order: number;
+}
+
+export interface ChatMessage {
+  role: 'user' | 'assistant';
+  content: string;
+}
+
+export interface GenerateTemplateResponse {
+  message: string;
+  template: {
+    weeks: Record<string, Array<{
+      collaborator_id: number;
+      day_of_week: number;
+      start_time: string;
+      end_time: string;
+      note: string;
+    }>>;
+    violations: Array<{ level: string; description: string }>;
+  } | null;
+  conversation: ChatMessage[];
+}
+
 // ── Analytics interfaces ───────────────────────────────────────────────────────
 
 export interface HoursSummaryRow {
@@ -427,5 +459,27 @@ export class PlanningService {
     return this.http.get<AnalyticsData>(`${this.apiUrl}/analytics/`, {
       params: { period, date },
     });
+  }
+
+  // ── Contraintes planning ───────────────────────────────────────────────────
+
+  getConstraints(): Observable<ConstraintItem[]> {
+    return this.http.get<ConstraintItem[]>(`${this.apiUrl}/constraints/`);
+  }
+
+  addConstraint(data: { level: string; description: string; collaborator_id?: number }): Observable<ConstraintItem> {
+    return this.http.post<ConstraintItem>(`${this.apiUrl}/constraints/`, data);
+  }
+
+  updateConstraint(id: number, data: Partial<ConstraintItem>): Observable<ConstraintItem> {
+    return this.http.patch<ConstraintItem>(`${this.apiUrl}/constraints/${id}/`, data);
+  }
+
+  deleteConstraint(id: number): Observable<void> {
+    return this.http.delete<void>(`${this.apiUrl}/constraints/${id}/`);
+  }
+
+  generateTemplate(rotation: number, conversation: ChatMessage[]): Observable<GenerateTemplateResponse> {
+    return this.http.post<GenerateTemplateResponse>(`${this.apiUrl}/constraints/generate/`, { rotation, conversation });
   }
 }

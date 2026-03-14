@@ -1,0 +1,102 @@
+<div class="flex flex-col h-full">
+
+  <!-- Rotation selector -->
+  <div class="flex items-center gap-3 px-4 py-3 border-b border-gray-100">
+    <span class="text-xs text-gray-500 font-medium">Rotation :</span>
+    <div class="flex gap-1.5">
+      <button *ngFor="let r of rotations"
+              (click)="rotation = r.value"
+              class="text-xs px-3 py-1 rounded-full border transition-colors"
+              [class.bg-green-700]="rotation === r.value"
+              [class.text-white]="rotation === r.value"
+              [class.border-green-700]="rotation === r.value"
+              [class.border-gray-200]="rotation !== r.value"
+              [class.text-gray-600]="rotation !== r.value">
+        {{ r.label }}
+      </button>
+    </div>
+  </div>
+
+  <!-- Chat area -->
+  <div #chatContainer class="flex-1 overflow-y-auto p-4 flex flex-col gap-3 min-h-0">
+
+    <!-- Empty state -->
+    <div *ngIf="conversation.length === 0 && !isLoading" class="flex flex-col items-center justify-center h-full text-center px-6">
+      <div class="w-12 h-12 rounded-full bg-green-50 flex items-center justify-center mb-3">
+        <svg class="w-6 h-6 text-green-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"
+                d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"/>
+        </svg>
+      </div>
+      <p class="text-sm text-gray-500 mb-4">Configurez vos contraintes puis générez un template optimisé par l'IA.</p>
+      <button (click)="generate()"
+              class="px-5 py-2 bg-green-700 text-white text-sm font-semibold rounded-xl hover:bg-green-800 transition-colors">
+        Générer le template
+      </button>
+    </div>
+
+    <!-- Messages -->
+    <ng-container *ngFor="let msg of conversation">
+      <!-- User message -->
+      <div *ngIf="msg.role === 'user'" class="flex justify-end">
+        <div class="max-w-xs bg-green-50 text-green-900 text-xs leading-relaxed px-4 py-2.5 rounded-2xl rounded-br-sm">
+          {{ msg.content }}
+        </div>
+      </div>
+
+      <!-- Assistant message -->
+      <div *ngIf="msg.role === 'assistant'" class="flex justify-start">
+        <div class="max-w-sm bg-gray-50 text-gray-700 text-xs leading-relaxed px-4 py-2.5 rounded-2xl rounded-bl-sm">
+          <p class="whitespace-pre-wrap">{{ extractText(msg.content) }}</p>
+          <!-- Violations -->
+          <div *ngIf="currentTemplate?.violations?.length" class="mt-2 space-y-1">
+            <div *ngFor="let v of currentTemplate.violations"
+                 class="text-xs px-2 py-1 rounded"
+                 [class.bg-orange-50]="v.level === 'personal'"
+                 [class.text-orange-700]="v.level === 'personal'"
+                 [class.bg-red-50]="v.level === 'pharmacy'"
+                 [class.text-red-700]="v.level === 'pharmacy'">
+              ⚠ {{ v.description }}
+            </div>
+          </div>
+        </div>
+      </div>
+    </ng-container>
+
+    <!-- Loading dots -->
+    <div *ngIf="isLoading" class="flex justify-start">
+      <div class="bg-gray-50 px-4 py-3 rounded-2xl rounded-bl-sm flex gap-1.5">
+        <span class="w-1.5 h-1.5 rounded-full bg-gray-400 animate-bounce [animation-delay:-0.3s]"></span>
+        <span class="w-1.5 h-1.5 rounded-full bg-gray-400 animate-bounce [animation-delay:-0.15s]"></span>
+        <span class="w-1.5 h-1.5 rounded-full bg-gray-400 animate-bounce"></span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Input area -->
+  <div *ngIf="conversation.length > 0" class="px-4 py-3 border-t border-gray-100 flex gap-2">
+    <input type="text"
+           [(ngModel)]="userInput"
+           placeholder="Demander un ajustement..."
+           (keyup.enter)="sendAdjustment()"
+           [disabled]="isLoading"
+           class="flex-1 text-xs border border-gray-200 rounded-xl px-3 py-2 focus:outline-none focus:ring-1 focus:ring-green-300 disabled:opacity-50">
+    <button (click)="sendAdjustment()"
+            [disabled]="isLoading || !userInput.trim()"
+            class="px-4 py-2 bg-green-700 text-white text-xs font-semibold rounded-xl hover:bg-green-800 transition-colors disabled:opacity-50">
+      Envoyer
+    </button>
+  </div>
+
+  <!-- Import bar -->
+  <div *ngIf="currentTemplate" class="flex items-center justify-between px-4 py-2.5 bg-green-50 border-t border-green-200">
+    <span class="text-xs text-green-700 font-medium">
+      {{ countShifts() }} shifts · {{ rotation }} semaine(s)
+    </span>
+    <button (click)="importTemplate()"
+            class="px-4 py-1.5 bg-green-700 text-white text-xs font-semibold rounded-lg hover:bg-green-800 transition-colors">
+      Importer
+    </button>
+  </div>
+
+</div>

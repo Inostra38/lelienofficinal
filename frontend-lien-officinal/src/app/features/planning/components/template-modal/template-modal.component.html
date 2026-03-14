@@ -12,12 +12,27 @@
         <h2 class="text-base font-bold text-gray-800">📋 Templates de semaine</h2>
         <p class="text-xs text-gray-400 mt-0.5">Planning type répétable — shifts sans date réelle</p>
       </div>
-      <button (click)="closed.emit()"
-              class="p-1.5 rounded-lg hover:bg-gray-100 text-gray-400 hover:text-gray-600 transition-colors">
-        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
-        </svg>
-      </button>
+      <div class="flex items-center gap-2">
+        <button (click)="showAiPanel = !showAiPanel"
+                class="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold transition-colors"
+                [class.bg-green-700]="showAiPanel"
+                [class.text-white]="showAiPanel"
+                [class.bg-green-50]="!showAiPanel"
+                [class.text-green-700]="!showAiPanel"
+                [class.hover:bg-green-100]="!showAiPanel">
+          <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                  d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"/>
+          </svg>
+          IA
+        </button>
+        <button (click)="closed.emit()"
+                class="p-1.5 rounded-lg hover:bg-gray-100 text-gray-400 hover:text-gray-600 transition-colors">
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+          </svg>
+        </button>
+      </div>
     </div>
 
     <!-- Onglets lettres -->
@@ -35,8 +50,35 @@
       </button>
     </div>
 
-    <!-- Corps -->
-    <div class="flex-1 overflow-y-auto">
+    <!-- Panneau IA (affiché par-dessus le corps quand showAiPanel = true) -->
+    <div *ngIf="showAiPanel" class="flex-1 flex overflow-hidden min-h-0">
+      <!-- Colonne gauche : Contraintes -->
+      <div class="w-80 shrink-0 border-r border-gray-100 flex flex-col overflow-hidden">
+        <div class="px-4 py-3 border-b border-gray-100 shrink-0">
+          <p class="text-xs font-bold text-gray-700">Contraintes</p>
+          <p class="text-xs text-gray-400 mt-0.5">Paramétrez les règles utilisées par l'IA</p>
+        </div>
+        <div class="flex-1 overflow-y-auto p-4">
+          <app-constraint-manager></app-constraint-manager>
+        </div>
+      </div>
+      <!-- Colonne droite : Assistant IA -->
+      <div class="flex-1 flex flex-col overflow-hidden min-w-0">
+        <div class="px-4 py-3 border-b border-gray-100 shrink-0">
+          <p class="text-xs font-bold text-gray-700">Assistant IA — Semaine {{ activeLetter }}</p>
+          <p class="text-xs text-gray-400 mt-0.5">Génération automatique basée sur vos contraintes</p>
+        </div>
+        <app-template-ai-assistant
+          class="flex-1 flex flex-col overflow-hidden min-h-0"
+          [rotation]="2"
+          (templateGenerated)="onTemplateGenerated($event)"
+          (closed)="showAiPanel = false">
+        </app-template-ai-assistant>
+      </div>
+    </div>
+
+    <!-- Corps normal (masqué quand le panneau IA est ouvert) -->
+    <div class="flex-1 overflow-y-auto" [class.hidden]="showAiPanel">
 
       <!-- Loader -->
       <div *ngIf="loading" class="flex justify-center py-12">

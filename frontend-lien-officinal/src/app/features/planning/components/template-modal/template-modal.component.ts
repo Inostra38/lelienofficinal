@@ -1,6 +1,7 @@
 import { Component, Input, Output, EventEmitter, inject, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
+import { forkJoin, of } from 'rxjs';
 import {
   PlanningService,
   WeekTemplate,
@@ -9,11 +10,13 @@ import {
   OpeningHours,
 } from '../../../../core/services/planning.service';
 import { CollaboratorService, Collaborator } from '../../../../core/services/collaborator.service';
+import { ConstraintManagerComponent } from '../constraint-manager/constraint-manager.component';
+import { TemplateAiAssistantComponent } from '../template-ai-assistant/template-ai-assistant.component';
 
 @Component({
   selector: 'app-template-modal',
   standalone: true,
-  imports: [CommonModule, FormsModule],
+  imports: [CommonModule, FormsModule, ConstraintManagerComponent, TemplateAiAssistantComponent],
   templateUrl: './template-modal.component.html',
   styleUrl: './template-modal.component.css',
 })
@@ -39,6 +42,7 @@ export class TemplateModalComponent implements OnInit {
   applyResult: { created: number; skipped: number; replaced: number; absence_protected: number; day_protected: number } | null = null;
 
   showAddForm   = false;
+  showAiPanel   = false;
   editingShift: TemplateShift | null = null;
   addSubmitting = false;
   addError      = '';
@@ -319,6 +323,43 @@ export class TemplateModalComponent implements OnInit {
         const [eh, em] = s.end_time.split(':').map(Number);
         return acc + ((eh * 60 + em) - (sh * 60 + sm)) / 60;
       }, 0);
+  }
+
+  // ── AI template generation ────────────────────────────────────────────────
+
+  onTemplateGenerated(templateData: any) {
+    const weekShifts: Array<{
+      collaborator_id: number;
+      day_of_week: number;
+      start_time: string;
+      end_time: string;
+      note: string;
+    }> = templateData.weeks?.[this.activeLetter] ?? [];
+
+    if (!weekShifts.length) return;
+
+    // Delete all existing shifts for the active letter template, then recreate
+    const existingShifts = this.template?.shifts ?? [];
+    const deleteRequests$ = existingShifts.length
+      ? existingShifts.map(s => this.planningService.deleteTemplateShift(this.activeLetter, s.id))
+      : [of(undefined)];
+
+    forkJoin(deleteRequests$).subscribe(() => {
+      const createRequests$ = weekShifts.map(s =>
+        this.planningService.createTemplateShift(this.activeLetter, {
+          collaborator_id: s.collaborator_id,
+          day_of_week:     s.day_of_week,
+          start_time:      s.start_time.length === 5 ? s.start_time + ':00' : s.start_time,
+          end_time:        s.end_time.length === 5   ? s.end_time   + ':00' : s.end_time,
+          note:            s.note ?? '',
+        })
+      );
+
+      forkJoin(createRequests$).subscribe(() => {
+        this.showAiPanel = false;
+        this.loadTemplate();
+      });
+    });
   }
 
   // ── Helpers ───────────────────────────────────────────────────────────────

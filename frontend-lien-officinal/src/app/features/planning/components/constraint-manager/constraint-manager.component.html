@@ -1,0 +1,115 @@
+<div class="space-y-3">
+
+  <!-- Réglementaire -->
+  <div class="border border-gray-100 rounded-xl overflow-hidden">
+    <button (click)="toggleSection('regulatory')"
+            class="w-full flex items-center justify-between px-4 py-2.5 bg-gray-50 hover:bg-gray-100 transition-colors">
+      <div class="flex items-center gap-2">
+        <span class="text-xs px-2 py-0.5 rounded-full font-medium bg-pink-100 text-pink-800">Réglementaire</span>
+        <span class="text-xs text-gray-400">{{ activeCount('regulatory') }} active(s)</span>
+      </div>
+      <svg class="w-4 h-4 text-gray-400 transition-transform" [class.rotate-180]="expanded.regulatory"
+           fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
+      </svg>
+    </button>
+    <div *ngIf="expanded.regulatory" class="divide-y divide-gray-50">
+      <div *ngFor="let c of getByLevel('regulatory')"
+           class="flex items-start gap-3 px-4 py-2.5">
+        <input type="checkbox" [checked]="c.is_active" (change)="toggleConstraint(c)"
+               class="mt-0.5 rounded accent-green-700 flex-shrink-0">
+        <span class="text-xs text-gray-700 leading-relaxed" [class.line-through]="!c.is_active" [class.text-gray-400]="!c.is_active">
+          {{ c.description }}
+        </span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Pharmacie -->
+  <div class="border border-gray-100 rounded-xl overflow-hidden">
+    <button (click)="toggleSection('pharmacy')"
+            class="w-full flex items-center justify-between px-4 py-2.5 bg-gray-50 hover:bg-gray-100 transition-colors">
+      <div class="flex items-center gap-2">
+        <span class="text-xs px-2 py-0.5 rounded-full font-medium bg-blue-100 text-blue-800">Pharmacie</span>
+        <span class="text-xs text-gray-400">{{ activeCount('pharmacy') }} active(s)</span>
+      </div>
+      <svg class="w-4 h-4 text-gray-400 transition-transform" [class.rotate-180]="expanded.pharmacy"
+           fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
+      </svg>
+    </button>
+    <div *ngIf="expanded.pharmacy" class="divide-y divide-gray-50">
+      <div *ngFor="let c of getByLevel('pharmacy')"
+           class="flex items-start gap-3 px-4 py-2.5">
+        <input type="checkbox" [checked]="c.is_active" (change)="toggleConstraint(c)"
+               class="mt-0.5 rounded accent-green-700 flex-shrink-0">
+        <span class="flex-1 text-xs text-gray-700 leading-relaxed" [class.line-through]="!c.is_active" [class.text-gray-400]="!c.is_active">
+          {{ c.description }}
+        </span>
+        <button (click)="deleteConstraint(c)" class="text-gray-300 hover:text-red-400 transition-colors flex-shrink-0 mt-0.5">
+          <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+          </svg>
+        </button>
+      </div>
+      <div class="px-4 py-2.5 flex gap-2">
+        <input type="text" [(ngModel)]="newPharmacyConstraint"
+               placeholder="Ex: Toujours 2 personnes le samedi matin"
+               (keyup.enter)="addConstraint('pharmacy')"
+               class="flex-1 text-xs border border-gray-200 rounded-lg px-3 py-1.5 focus:outline-none focus:ring-1 focus:ring-green-300">
+        <button (click)="addConstraint('pharmacy')"
+                class="text-xs px-3 py-1.5 bg-green-700 text-white rounded-lg hover:bg-green-800 transition-colors whitespace-nowrap">
+          + Ajouter
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Personnelle -->
+  <div class="border border-gray-100 rounded-xl overflow-hidden">
+    <button (click)="toggleSection('personal')"
+            class="w-full flex items-center justify-between px-4 py-2.5 bg-gray-50 hover:bg-gray-100 transition-colors">
+      <div class="flex items-center gap-2">
+        <span class="text-xs px-2 py-0.5 rounded-full font-medium bg-purple-100 text-purple-800">Personnelle</span>
+        <span class="text-xs text-gray-400">{{ activeCount('personal') }} active(s)</span>
+      </div>
+      <svg class="w-4 h-4 text-gray-400 transition-transform" [class.rotate-180]="expanded.personal"
+           fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
+      </svg>
+    </button>
+    <div *ngIf="expanded.personal" class="divide-y divide-gray-50">
+      <div *ngFor="let c of getByLevel('personal')"
+           class="flex items-start gap-3 px-4 py-2.5">
+        <input type="checkbox" [checked]="c.is_active" (change)="toggleConstraint(c)"
+               class="mt-0.5 rounded accent-green-700 flex-shrink-0">
+        <span class="flex-1 text-xs text-gray-700 leading-relaxed" [class.line-through]="!c.is_active" [class.text-gray-400]="!c.is_active">
+          <span *ngIf="c.collaborator_name" class="font-semibold text-gray-800">{{ c.collaborator_name }} : </span>{{ c.description }}
+        </span>
+        <button (click)="deleteConstraint(c)" class="text-gray-300 hover:text-red-400 transition-colors flex-shrink-0 mt-0.5">
+          <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+          </svg>
+        </button>
+      </div>
+      <div class="px-4 py-2.5 flex gap-2">
+        <select [(ngModel)]="newPersonalCollab"
+                class="text-xs border border-gray-200 rounded-lg px-2 py-1.5 focus:outline-none focus:ring-1 focus:ring-green-300">
+          <option value="">— Collab —</option>
+          <option *ngFor="let c of collaborators" [value]="c.id">
+            {{ c.first_name }} {{ c.last_name }}
+          </option>
+        </select>
+        <input type="text" [(ngModel)]="newPersonalConstraint"
+               placeholder="Ex: ne travaille pas le lundi"
+               (keyup.enter)="addConstraint('personal')"
+               class="flex-1 text-xs border border-gray-200 rounded-lg px-3 py-1.5 focus:outline-none focus:ring-1 focus:ring-green-300">
+        <button (click)="addConstraint('personal')"
+                class="text-xs px-3 py-1.5 bg-green-700 text-white rounded-lg hover:bg-green-800 transition-colors whitespace-nowrap">
+          + Ajouter
+        </button>
+      </div>
+    </div>
+  </div>
+
+</div>

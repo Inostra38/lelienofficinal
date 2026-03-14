@@ -289,3 +289,37 @@ class TimeAdjustment(models.Model):
 
     class Meta:
         ordering = ['-date', '-created_at']
+
+
+# ── Contraintes planning ────────────────────────────────────────────────────────
+
+class ConstraintSet(models.Model):
+    pharmacy   = models.OneToOneField(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name='constraint_set'
+    )
+    updated_at = models.DateTimeField(auto_now=True)
+
+
+class Constraint(models.Model):
+    class Level(models.TextChoices):
+        REGULATORY = 'regulatory', 'Réglementaire'
+        PHARMACY   = 'pharmacy',   'Pharmacie'
+        PERSONAL   = 'personal',   'Personnelle'
+
+    constraint_set = models.ForeignKey(
+        ConstraintSet, on_delete=models.CASCADE, related_name='constraints'
+    )
+    level       = models.CharField(max_length=20, choices=Level.choices)
+    collaborator = models.ForeignKey(
+        'team.Collaborator', null=True, blank=True,
+        on_delete=models.SET_NULL,
+        related_name='personal_constraints'
+    )
+    description = models.TextField()
+    is_active   = models.BooleanField(default=True)
+    order       = models.IntegerField(default=0)
+
+    class Meta:
+        ordering = ['level', 'order']
