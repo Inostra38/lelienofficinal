@@ -1,5 +1,5 @@
 import {
-  Component, Output, EventEmitter, inject, ViewChild, ElementRef, AfterViewChecked
+  Component, Input, Output, EventEmitter, inject, ViewChild, ElementRef, AfterViewChecked
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
@@ -12,7 +12,7 @@ import { PlanningService, ChatMessage } from '../../../../core/services/planning
   templateUrl: './template-ai-assistant.component.html',
 })
 export class TemplateAiAssistantComponent implements AfterViewChecked {
-  readonly rotation = 4;
+  @Input()  rotation = 2;
   @Output() templateGenerated = new EventEmitter<any>();
   @Output() closed = new EventEmitter<void>();
 
@@ -32,6 +32,12 @@ export class TemplateAiAssistantComponent implements AfterViewChecked {
       this.shouldScrollToBottom = false;
     }
   }
+
+  readonly rotations = [
+    { value: 2, label: 'A/B' },
+    { value: 3, label: 'A/B/C' },
+    { value: 4, label: 'A/B/C/D' },
+  ];
 
   generate(userMessage?: string) {
     if (userMessage) {
