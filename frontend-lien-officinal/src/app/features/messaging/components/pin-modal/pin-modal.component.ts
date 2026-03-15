@@ -3,6 +3,7 @@ import {
   ViewChildren, QueryList, ElementRef, inject
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
+import { HttpErrorResponse } from '@angular/common/http';
 import { AuthService } from '../../../../core/auth/auth.service';
 
 @Component({
@@ -111,14 +112,20 @@ export class PinModalComponent implements AfterViewInit {
         this.submitting = false;
         this.pinValidated.emit();
       },
-      error: () => {
+      error: (err: HttpErrorResponse) => {
         this.submitting = false;
-        this.handleError();
+        this.handleError(err);
       }
     });
   }
 
-  private handleError(): void {
+  private handleError(err: HttpErrorResponse): void {
+    if (err.status === 429) {
+      this.error = 'Trop de tentatives, réessayez dans quelques minutes.';
+      this.blocked = true;
+      return;
+    }
+
     this.failureCount++;
 
     if (this.failureCount >= 5) {

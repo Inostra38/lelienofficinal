@@ -2,7 +2,7 @@ import { Injectable, inject } from '@angular/core';
 import { HttpClient, HttpHeaders } from '@angular/common/http';
 import { Router } from '@angular/router';
 import { BehaviorSubject, Observable, throwError } from 'rxjs';
-import { tap, switchMap, map } from 'rxjs/operators';
+import { tap, switchMap, map, filter, take, catchError } from 'rxjs/operators';
 
 @Injectable({
   providedIn: 'root'
@@ -18,10 +18,15 @@ export class AuthService {
   private onboardingKey = 'onboarding_completed';
   private collaboratorKey = 'active_collaborator_id';
 
+  // Initialisation depuis le JWT uniquement — pas de fallback localStorage (évite les sessions fantômes)
   private collaboratorSubject = new BehaviorSubject<number | null>(
-    this._readCollaboratorIdFromToken() ?? this._readCollaboratorIdFromStorage()
+    this._readCollaboratorIdFromToken()
   );
   readonly collaborator$ = this.collaboratorSubject.asObservable();
+
+  // Guard contre les refreshes simultanés (évite le blacklisting du refresh token)
+  private isRefreshing = false;
+  private refreshSubject = new BehaviorSubject<string | null>(null);
 
   login(credentials: any) {
     return this.http.post<any>(`${this.baseUrl}/token/`, credentials).pipe(
@@ -128,18 +133,38 @@ export class AuthService {
   // ── Refresh token ─────────────────────────────────────────────────────────
 
   refreshAccessToken(): Observable<string> {
+    // Si un refresh est déjà en cours, on attend son résultat plutôt que d'en lancer un second
+    // (évite le blacklisting du refresh token avec ROTATE_REFRESH_TOKENS=True)
+    if (this.isRefreshing) {
+      return this.refreshSubject.pipe(
+        filter((token): token is string => token !== null),
+        take(1)
+      );
+    }
+
     const refreshToken = this.getRefreshToken();
     if (!refreshToken) {
       return throwError(() => new Error('No refresh token'));
     }
+
+    this.isRefreshing = true;
+    this.refreshSubject.next(null);
+
     return this.http.post<any>(`${this.baseUrl}/token/refresh/`, { refresh: refreshToken }).pipe(
       tap(response => {
         localStorage.setItem(this.tokenKey, response.access);
         if (response.refresh) {
           localStorage.setItem(this.refreshKey, response.refresh);
         }
+        this.isRefreshing = false;
+        this.refreshSubject.next(response.access);
       }),
-      map(response => response.access as string)
+      map(response => response.access as string),
+      catchError(err => {
+        this.isRefreshing = false;
+        this.refreshSubject.next(null);
+        return throwError(() => err);
+      })
     );
   }
 
