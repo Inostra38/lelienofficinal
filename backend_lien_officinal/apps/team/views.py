@@ -37,11 +37,12 @@ def _get_collaborator(request):
 
 def _check_permission(collaborator, permission_name):
     """
-    Vérifie qu'un collaborateur a la permission requise.
-    Si pas de collaborateur (pharmacie elle-même) → accès total.
+    Vérifie qu'un collaborateur actif a la permission requise.
     Retourne None si OK, sinon un Response d'erreur.
     """
-    if collaborator and not getattr(collaborator, permission_name, False):
+    if not collaborator:
+        return Response({"detail": "Connexion collaborateur requise."}, status=status.HTTP_403_FORBIDDEN)
+    if not getattr(collaborator, permission_name, False):
         return Response({"detail": "Permission insuffisante."}, status=status.HTTP_403_FORBIDDEN)
     return None
 

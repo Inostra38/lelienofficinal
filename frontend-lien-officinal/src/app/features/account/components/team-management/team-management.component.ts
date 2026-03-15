@@ -125,10 +125,10 @@ export class TeamManagementComponent implements OnInit {
     return id ? this.teamMembers.find(m => m.id === String(id)) ?? null : null;
   }
 
-  /** Vrai si la session active a le droit de gérer l'équipe (ou si c'est la pharmacie elle-même). */
+  /** Vrai uniquement si un collaborateur actif avec can_manage_team est connecté. */
   get canManageTeam(): boolean {
     const actor = this.activeCollaborator;
-    return actor ? actor.can_manage_team : true;
+    return actor !== null && actor.can_manage_team;
   }
 
   // ── Chargement ─────────────────────────────────────────────────────────────
