@@ -34,39 +34,6 @@ def _get_collaborator(request):
 
 
 
-def _verify_sensitive_action(request, collaborator):
-    """
-    Vérifie la confirmation de l'action sensible via PIN.
-    - Collaborateur actif en session → son propre PIN
-    - Pas de session collaborateur → PIN du Titulaire (le mot de passe pharmacie
-      est souvent partagé et ne constitue pas une preuve d'identité fiable)
-    Retourne None si OK, sinon un Response d'erreur.
-    """
-    pin = request.data.get('confirmation_pin')
-    if not pin:
-        return Response({"detail": "PIN requis pour confirmer cette action."}, status=status.HTTP_403_FORBIDDEN)
-
-    if collaborator:
-        if not collaborator.check_pin(str(pin)):
-            return Response({"detail": "PIN incorrect."}, status=status.HTTP_403_FORBIDDEN)
-    else:
-        # Connexion directe pharmacie → vérifier le PIN du Titulaire
-        try:
-            titulaire = Collaborator.objects.get(
-                pharmacy=request.user,
-                role=Collaborator.Role.TITULAIRE,
-                is_active=True
-            )
-        except Collaborator.DoesNotExist:
-            return Response(
-                {"detail": "Aucun titulaire configuré. Veuillez d'abord créer un titulaire."},
-                status=status.HTTP_403_FORBIDDEN
-            )
-        if not titulaire.check_pin(str(pin)):
-            return Response({"detail": "PIN du titulaire incorrect."}, status=status.HTTP_403_FORBIDDEN)
-
-    return None
-
 
 def _check_permission(collaborator, permission_name):
     """
@@ -88,7 +55,7 @@ class CollaboratorViewSet(viewsets.ModelViewSet):
     authentication_classes = [JWTAuthentication]
 
     def get_throttles(self):
-        if self.action in ('collaborator_login', 'verify_pin', 'verify_team_pin'):
+        if self.action in ('collaborator_login', 'verify_pin'):
             return [PinVerifyThrottle()]
         return super().get_throttles()
 
@@ -109,18 +76,9 @@ class CollaboratorViewSet(viewsets.ModelViewSet):
 
     def create(self, request, *args, **kwargs):
         actor = _get_collaborator(request)
-
         err = _check_permission(actor, 'can_manage_team')
         if err:
             return err
-
-        # Premier collaborateur : pas de confirmation requise (pharmacie déjà authentifiée via JWT)
-        team_is_empty = not Collaborator.objects.filter(pharmacy=request.user, is_active=True).exists()
-        if not (actor is None and team_is_empty):
-            err = _verify_sensitive_action(request, actor)
-            if err:
-                return err
-
         return super().create(request, *args, **kwargs)
 
     def destroy(self, request, *args, **kwargs):
@@ -131,17 +89,11 @@ class CollaboratorViewSet(viewsets.ModelViewSet):
         if err:
             return err
 
-        # Interdire l'auto-suppression
         if actor and actor.id == instance.id:
             return Response({"detail": "Impossible de se supprimer soi-même."}, status=status.HTTP_403_FORBIDDEN)
 
-        # Protéger le Titulaire
         if instance.role == Collaborator.Role.TITULAIRE:
             return Response({"detail": "Impossible de supprimer le Titulaire."}, status=status.HTTP_403_FORBIDDEN)
-
-        err = _verify_sensitive_action(request, actor)
-        if err:
-            return err
 
         # Soft delete
         instance.is_active = False
@@ -159,17 +111,11 @@ class CollaboratorViewSet(viewsets.ModelViewSet):
         if err:
             return err
 
-        # Interdire l'auto-modification de permissions
         if actor and actor.id == instance.id:
             return Response({"detail": "Impossible de modifier ses propres permissions."}, status=status.HTTP_403_FORBIDDEN)
 
-        # Protéger le Titulaire
         if instance.role == Collaborator.Role.TITULAIRE:
             return Response({"detail": "Les permissions du Titulaire ne peuvent pas être modifiées."}, status=status.HTTP_403_FORBIDDEN)
-
-        err = _verify_sensitive_action(request, actor)
-        if err:
-            return err
 
         serializer = CollaboratorPermissionsSerializer(instance, data=request.data, partial=True)
         if serializer.is_valid():
@@ -188,10 +134,6 @@ class CollaboratorViewSet(viewsets.ModelViewSet):
 
         actor = _get_collaborator(request)
         err = _check_permission(actor, 'can_manage_team')
-        if err:
-            return err
-
-        err = _verify_sensitive_action(request, actor)
         if err:
             return err
 
@@ -250,15 +192,6 @@ class CollaboratorViewSet(viewsets.ModelViewSet):
             'refresh': str(refresh),
             'collaborator_id': collaborator.id,
         })
-
-    @action(detail=False, methods=['post'], url_path='verify-team-pin')
-    def verify_team_pin(self, request):
-        """POST /api/team/verify-team-pin/ — vérifie le PIN avant une action de gestion."""
-        actor = _get_collaborator(request)
-        err = _verify_sensitive_action(request, actor)
-        if err:
-            return err
-        return Response({"valid": True})
 
     @action(detail=False, methods=['post'], url_path='verify-pin')
     def verify_pin(self, request):

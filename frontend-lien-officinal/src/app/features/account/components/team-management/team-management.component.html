@@ -36,6 +36,15 @@
     </div>
   </div>
 
+  <!-- Accès refusé -->
+  <div *ngIf="activeCollaboratorId && !canManageTeam"
+       class="mx-6 mt-4 px-4 py-3 bg-orange-50 border border-orange-200 rounded-lg text-sm text-orange-700 flex items-center gap-2">
+    <svg class="h-4 w-4 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/>
+    </svg>
+    Vous n'avez pas les droits pour modifier l'équipe.
+  </div>
+
   <!-- Message erreur -->
   <div *ngIf="errorMessage" class="mx-6 mt-4 px-4 py-3 bg-red-50 border border-red-200 rounded-lg text-sm text-red-700">
     {{ errorMessage }}
@@ -124,7 +133,7 @@
             </svg>
           </button>
           <button *ngIf="canManageTeam && !isTitulaire(member) && !isCurrentCollaborator(member)"
-                  (click)="confirmDelete(member.id)"
+                  (click)="confirmDelete(member)"
                   class="p-2 text-red-500 hover:bg-red-50 rounded-lg transition-colors"
                   title="Supprimer">
             <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -344,13 +353,3 @@
   </div>
 </div>
 
-<!-- ── PIN gate (avant toute action sensible) ── -->
-<app-confirm-sensitive-action-modal
-  *ngIf="showPinGate"
-  [actionLabel]="pinGateLabel"
-  [confirmationType]="'pin'"
-  [hint]="pinGateHint"
-  [errorMessage]="pinGateError"
-  (confirmed)="onPinGateConfirmed($event)"
-  (cancelled)="onPinGateCancelled()">
-</app-confirm-sensitive-action-modal>

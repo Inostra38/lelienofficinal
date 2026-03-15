@@ -1,5 +1,5 @@
 import { Injectable, inject } from '@angular/core';
-import { HttpClient, HttpHeaders } from '@angular/common/http';
+import { HttpClient } from '@angular/common/http';
 import { Observable } from 'rxjs';
 import { environment } from '../../../environments/environment';
 
@@ -43,11 +43,6 @@ export interface CollaboratorCreate {
   can_manage_quality?: boolean;
 }
 
-export interface SensitivePayload {
-  confirmation_pin?: string;
-  confirmation_password?: string;
-}
-
 @Injectable({
   providedIn: 'root'
 })
@@ -62,11 +57,11 @@ export class CollaboratorService {
     return this.http.get<Collaborator[]>(url);
   }
 
-  reactivate(id: number, confirmationPin: string): Observable<Collaborator> {
-    return this.http.patch<Collaborator>(`${this.apiUrl}/${id}/reactivate/`, { confirmation_pin: confirmationPin });
+  reactivate(id: number): Observable<Collaborator> {
+    return this.http.patch<Collaborator>(`${this.apiUrl}/${id}/reactivate/`, {});
   }
 
-  createCollaborator(data: CollaboratorCreate & SensitivePayload): Observable<Collaborator> {
+  createCollaborator(data: CollaboratorCreate): Observable<Collaborator> {
     return this.http.post<Collaborator>(`${this.apiUrl}/`, data);
   }
 
@@ -74,15 +69,8 @@ export class CollaboratorService {
     return this.http.patch<Collaborator>(`${this.apiUrl}/${id}/`, data);
   }
 
-  updatePermissions(id: number, permissions: Partial<CollaboratorPermissions>, confirmation: SensitivePayload): Observable<Collaborator> {
-    return this.http.patch<Collaborator>(`${this.apiUrl}/${id}/permissions/`, { ...permissions, ...confirmation });
-  }
-
-  deleteCollaborator(id: number, confirmation: SensitivePayload): Observable<void> {
-    return this.http.delete<void>(`${this.apiUrl}/${id}/`, {
-      body: confirmation,
-      headers: new HttpHeaders({ 'Content-Type': 'application/json' })
-    });
+  deleteCollaborator(id: number): Observable<void> {
+    return this.http.delete<void>(`${this.apiUrl}/${id}/`);
   }
 
   verifyPin(collaboratorId: number, pin: string): Observable<any> {
@@ -90,10 +78,6 @@ export class CollaboratorService {
       collaborator_id: collaboratorId,
       pin_code: pin
     });
-  }
-
-  verifyTeamPin(pin: string): Observable<any> {
-    return this.http.post<any>(`${this.apiUrl}/verify-team-pin/`, { confirmation_pin: pin });
   }
 
   reorderCollaborators(order: number[]): Observable<void> {

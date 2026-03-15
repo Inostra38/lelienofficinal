@@ -7,10 +7,8 @@ import {
   CollaboratorCreate,
   MemberRole,
   MemberCivility,
-  SensitivePayload
 } from '../../../../core/services/collaborator.service';
 import { AuthService } from '../../../../core/auth/auth.service';
-import { ConfirmSensitiveActionModalComponent } from '../../../../shared/ui/confirm-sensitive-action-modal/confirm-sensitive-action-modal.component';
 
 interface TeamMember {
   id: string;
@@ -52,7 +50,7 @@ interface ColorOption {
 @Component({
   selector: 'app-team-management',
   standalone: true,
-  imports: [CommonModule, FormsModule, ConfirmSensitiveActionModalComponent],
+  imports: [CommonModule, FormsModule],
   templateUrl: './team-management.component.html',
   styleUrl: './team-management.component.css'
 })
@@ -109,17 +107,6 @@ export class TeamManagementComponent implements OnInit {
   showGeneratedPin = false;
   generatedPin = '';
 
-  // PIN gate (avant action sensible)
-  showPinGate = false;
-  pinGateAction: 'create' | 'edit' | 'delete' | 'reactivate' | null = null;
-  pinGateLabel = '';
-  pinGateError = '';
-  confirmedPin = '';
-  pendingEditMember: TeamMember | null = null;
-
-  // Cible de suppression
-  deleteTargetId: string | null = null;
-
   // Archivés
   showArchived = false;
 
@@ -138,10 +125,7 @@ export class TeamManagementComponent implements OnInit {
     return id ? this.teamMembers.find(m => m.id === String(id)) ?? null : null;
   }
 
-  get pinGateHint(): string {
-    return this.activeCollaboratorId ? 'votre code PIN' : 'le PIN du titulaire ou d\'un responsable d\'équipe';
-  }
-
+  /** Vrai si la session active a le droit de gérer l'équipe (ou si c'est la pharmacie elle-même). */
   get canManageTeam(): boolean {
     const actor = this.activeCollaborator;
     return actor ? actor.can_manage_team : true;
@@ -195,60 +179,38 @@ export class TeamManagementComponent implements OnInit {
     this.loadTeamMembers();
   }
 
-  reactivate(member: TeamMember) {
-    this.pendingEditMember = member;
-    this.pinGateAction = 'reactivate';
-    this.pinGateLabel = `Réactiver ${member.firstName} ${member.lastName}`;
-    this.pinGateError = '';
-    this.showPinGate = true;
-  }
-
-  private executeReactivate() {
-    if (!this.pendingEditMember) return;
-    this.isLoading = true;
-    const memberId = parseInt(this.pendingEditMember.id);
-    this.collaboratorService.reactivate(memberId, this.confirmedPin).subscribe({
-      next: () => {
-        this.confirmedPin = '';
-        this.pendingEditMember = null;
-        this.loadTeamMembers();
-        this.isLoading = false;
-      },
-      error: (err) => {
-        this.errorMessage = err.error?.detail || 'Erreur lors de la réactivation';
-        this.confirmedPin = '';
-        this.isLoading = false;
-      }
-    });
-  }
-
   // ── Ajouter ────────────────────────────────────────────────────────────────
 
   openAddModal() {
     if (!this.canManageTeam) return;
-    // Premier collaborateur sans session : pas de PIN requis
-    if (this.teamMembers.length === 0 && !this.activeCollaboratorId) {
-      this.isEditMode = false;
-      this.currentEditId = null;
-      this.formData = this.emptyForm();
-      this.generatePin();
-      this.showModal = true;
-      return;
-    }
-    this.pinGateAction = 'create';
-    this.pinGateLabel = 'Ajouter un membre';
-    this.pinGateError = '';
-    this.showPinGate = true;
+    this.isEditMode = false;
+    this.currentEditId = null;
+    this.formData = this.emptyForm();
+    this.generatePin();
+    this.showModal = true;
   }
 
   // ── Modifier ───────────────────────────────────────────────────────────────
 
   openEditModal(member: TeamMember) {
-    this.pendingEditMember = member;
-    this.pinGateAction = 'edit';
-    this.pinGateLabel = `Modifier ${member.firstName} ${member.lastName}`;
-    this.pinGateError = '';
-    this.showPinGate = true;
+    if (!this.canManageTeam) return;
+    this.isEditMode = true;
+    this.currentEditId = member.id;
+    this.formData = {
+      civility: member.civility,
+      firstName: member.firstName,
+      lastName: member.lastName,
+      role: member.role,
+      pin: '',
+      color: member.color,
+      email: member.email,
+      can_manage_account: member.can_manage_account,
+      can_manage_team: member.can_manage_team,
+      can_manage_planning: member.can_manage_planning,
+      can_manage_quality: member.can_manage_quality,
+    };
+    this.showGeneratedPin = false;
+    this.showModal = true;
   }
 
   closeModal() {
@@ -285,8 +247,10 @@ export class TeamManagementComponent implements OnInit {
   }
 
   saveMember() {
+    this.isLoading = true;
+    this.errorMessage = '';
+
     if (this.isEditMode && this.currentEditId) {
-      this.isLoading = true;
       const updateData: Partial<Collaborator> = {
         civility: this.formData.civility,
         first_name: this.formData.firstName,
@@ -305,134 +269,46 @@ export class TeamManagementComponent implements OnInit {
         error: (err) => { this.errorMessage = err.error?.detail || 'Erreur lors de la mise à jour'; this.isLoading = false; }
       });
     } else {
-      // PIN déjà validé via le PIN gate — création directe
-      this.executeCreate();
+      const createData: CollaboratorCreate = {
+        civility: this.formData.civility,
+        first_name: this.formData.firstName,
+        last_name: this.formData.lastName,
+        role: this.formData.role,
+        color: this.formData.color,
+        pin: this.formData.pin,
+        ...(this.formData.email ? { email: this.formData.email } : {}),
+        can_manage_account: this.formData.can_manage_account,
+        can_manage_team: this.formData.can_manage_team,
+        can_manage_planning: this.formData.can_manage_planning,
+        can_manage_quality: this.formData.can_manage_quality,
+      };
+      this.collaboratorService.createCollaborator(createData).subscribe({
+        next: () => { this.closeModal(); this.loadTeamMembers(); this.isLoading = false; },
+        error: (err) => { this.errorMessage = err.error?.detail || 'Erreur lors de la création'; this.isLoading = false; }
+      });
     }
   }
 
   // ── Suppression ────────────────────────────────────────────────────────────
 
-  confirmDelete(id: string) {
+  confirmDelete(member: TeamMember) {
     if (!this.canManageTeam) return;
-    const member = this.teamMembers.find(m => m.id === id);
-    this.deleteTargetId = id;
-    this.pinGateAction = 'delete';
-    this.pinGateLabel = member
-      ? `Supprimer ${member.firstName} ${member.lastName}`
-      : 'Supprimer ce membre';
-    this.pinGateError = '';
-    this.showPinGate = true;
-  }
-
-  // ── PIN gate ───────────────────────────────────────────────────────────────
-
-  onPinGateConfirmed(pin: string) {
-    this.collaboratorService.verifyTeamPin(pin).subscribe({
-      next: () => {
-        this.confirmedPin = pin;
-        this.pinGateError = '';
-        this.showPinGate = false;
-
-        if (this.pinGateAction === 'create') {
-          this.pinGateAction = null;
-          this.isEditMode = false;
-          this.currentEditId = null;
-          this.formData = this.emptyForm();
-          this.generatePin();
-          this.showModal = true;
-        } else if (this.pinGateAction === 'edit') {
-          const member = this.pendingEditMember!;
-          this.pinGateAction = null;
-          this.pendingEditMember = null;
-          this.isEditMode = true;
-          this.currentEditId = member.id;
-          this.formData = {
-            civility: member.civility,
-            firstName: member.firstName,
-            lastName: member.lastName,
-            role: member.role,
-            pin: '',
-            color: member.color,
-            email: member.email,
-            can_manage_account: member.can_manage_account,
-            can_manage_team: member.can_manage_team,
-            can_manage_planning: member.can_manage_planning,
-            can_manage_quality: member.can_manage_quality,
-          };
-          this.showGeneratedPin = false;
-          this.showModal = true;
-        } else if (this.pinGateAction === 'delete') {
-          this.pinGateAction = null;
-          this.executeDelete();
-        } else if (this.pinGateAction === 'reactivate') {
-          this.pinGateAction = null;
-          this.executeReactivate();
-        }
-      },
-      error: (err) => {
-        this.pinGateError = err.error?.detail || 'PIN incorrect.';
-      }
+    if (!confirm(`Supprimer ${member.firstName} ${member.lastName} de l'équipe ?`)) return;
+    this.isLoading = true;
+    this.collaboratorService.deleteCollaborator(parseInt(member.id)).subscribe({
+      next: () => { this.loadTeamMembers(); this.isLoading = false; },
+      error: (err) => { this.errorMessage = err.error?.detail || 'Erreur lors de la suppression'; this.isLoading = false; }
     });
   }
 
-  onPinGateCancelled() {
-    this.showPinGate = false;
-    this.pinGateAction = null;
-    this.pinGateError = '';
-    this.deleteTargetId = null;
-    this.pendingEditMember = null;
-    this.confirmedPin = '';
-  }
+  // ── Réactivation ───────────────────────────────────────────────────────────
 
-  // ── Exécution ──────────────────────────────────────────────────────────────
-
-  private executeCreate() {
+  reactivate(member: TeamMember) {
+    if (!this.canManageTeam) return;
     this.isLoading = true;
-    const createData: CollaboratorCreate & SensitivePayload = {
-      civility: this.formData.civility,
-      first_name: this.formData.firstName,
-      last_name: this.formData.lastName,
-      role: this.formData.role,
-      color: this.formData.color,
-      pin: this.formData.pin,
-      ...(this.formData.email ? { email: this.formData.email } : {}),
-      can_manage_account: this.formData.can_manage_account,
-      can_manage_team: this.formData.can_manage_team,
-      can_manage_planning: this.formData.can_manage_planning,
-      can_manage_quality: this.formData.can_manage_quality,
-      ...(this.confirmedPin ? { confirmation_pin: this.confirmedPin } : {})
-    };
-
-    this.collaboratorService.createCollaborator(createData).subscribe({
-      next: () => {
-        this.confirmedPin = '';
-        this.closeModal();
-        this.loadTeamMembers();
-        this.isLoading = false;
-      },
-      error: (err) => {
-        this.errorMessage = err.error?.detail || 'Erreur lors de la création';
-        this.isLoading = false;
-      }
-    });
-  }
-
-  private executeDelete() {
-    if (!this.deleteTargetId) return;
-    this.isLoading = true;
-    const confirmation: SensitivePayload = { confirmation_pin: this.confirmedPin };
-    this.collaboratorService.deleteCollaborator(parseInt(this.deleteTargetId), confirmation).subscribe({
-      next: () => {
-        this.confirmedPin = '';
-        this.deleteTargetId = null;
-        this.loadTeamMembers();
-        this.isLoading = false;
-      },
-      error: (err) => {
-        this.errorMessage = err.error?.detail || 'Erreur lors de la suppression';
-        this.confirmedPin = '';
-        this.isLoading = false;
-      }
+    this.collaboratorService.reactivate(parseInt(member.id)).subscribe({
+      next: () => { this.loadTeamMembers(); this.isLoading = false; },
+      error: (err) => { this.errorMessage = err.error?.detail || 'Erreur lors de la réactivation'; this.isLoading = false; }
     });
   }
 
