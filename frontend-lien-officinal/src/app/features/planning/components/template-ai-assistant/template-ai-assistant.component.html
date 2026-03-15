@@ -90,13 +90,60 @@
 
   <!-- Import bar -->
   <div *ngIf="currentTemplate" class="flex items-center justify-between px-4 py-2.5 bg-green-50 border-t border-green-200">
-    <span class="text-xs text-green-700 font-medium">
-      {{ countShifts() }} shifts · {{ rotation }} semaine(s)
-    </span>
+    <div class="flex items-center gap-3">
+      <span class="text-xs text-green-700 font-medium">
+        {{ countShifts() }} shifts · {{ rotation }} semaine(s)
+      </span>
+      <button (click)="showPreview = !showPreview"
+              class="text-xs font-medium underline transition-colors"
+              [class.text-green-700]="showPreview"
+              [class.text-gray-500]="!showPreview">
+        {{ showPreview ? 'Masquer l\'aperçu' : 'Voir l\'aperçu' }}
+      </button>
+    </div>
     <button (click)="importTemplate()"
             class="px-4 py-1.5 bg-green-700 text-white text-xs font-semibold rounded-lg hover:bg-green-800 transition-colors">
       Importer
     </button>
+  </div>
+
+  <!-- Prévisualisation -->
+  <div *ngIf="currentTemplate && showPreview" class="border-t border-gray-100 bg-white flex flex-col" style="max-height: 320px;">
+
+    <!-- Onglets lettres -->
+    <div class="flex border-b border-gray-100 px-3 shrink-0">
+      <button *ngFor="let l of getPreviewLetters()"
+              (click)="previewLetter = l"
+              class="px-3 py-2 text-xs font-medium border-b-2 transition-colors -mb-px"
+              [class.border-green-700]="previewLetter === l"
+              [class.text-green-700]="previewLetter === l"
+              [class.border-transparent]="previewLetter !== l"
+              [class.text-gray-400]="previewLetter !== l">
+        Sem. {{ l }}
+      </button>
+    </div>
+
+    <!-- Jours -->
+    <div class="overflow-y-auto flex-1 px-3 py-2 space-y-1">
+      <ng-container *ngFor="let dayIdx of [0,1,2,3,4,5,6]">
+        <div *ngIf="getPreviewShiftsForDay(previewLetter, dayIdx).length > 0" class="flex items-start gap-2">
+          <span class="text-xs text-gray-400 w-16 shrink-0 pt-0.5">{{ DAY_NAMES[dayIdx] }}</span>
+          <div class="flex flex-wrap gap-1">
+            <span *ngFor="let s of getPreviewShiftsForDay(previewLetter, dayIdx)"
+                  class="inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full text-white font-medium"
+                  [style.background]="getCollabColor(s.collaborator_id)">
+              {{ getCollabName(s.collaborator_id) }} · {{ formatTime(s.start_time) }}–{{ formatTime(s.end_time) }}
+            </span>
+          </div>
+        </div>
+        <div *ngIf="getPreviewShiftsForDay(previewLetter, dayIdx).length === 0"
+             class="flex items-center gap-2">
+          <span class="text-xs text-gray-300 w-16 shrink-0">{{ DAY_NAMES[dayIdx] }}</span>
+          <span class="text-xs text-gray-300">—</span>
+        </div>
+      </ng-container>
+    </div>
+
   </div>
 
 </div>
