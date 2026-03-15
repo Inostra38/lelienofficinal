@@ -14,6 +14,8 @@ import { CollaboratorService, Collaborator } from '../../../../core/services/col
 import { ConstraintManagerComponent } from '../constraint-manager/constraint-manager.component';
 import { TemplateAiAssistantComponent } from '../template-ai-assistant/template-ai-assistant.component';
 
+type Letter = 'A' | 'B' | 'C' | 'D';
+
 @Component({
   selector: 'app-template-modal',
   standalone: true,
@@ -25,25 +27,31 @@ export class TemplateModalComponent implements OnInit {
   @Input() currentWeekStr   = '';
   @Input() planningSettings: PlanningSettings | null = null;
 
-  applyWeek  = '';   // semaine ISO sélectionnée pour l'application (ex: "2026-W12")
-  applyForce = false;
-
   @Output() closed      = new EventEmitter<void>();
   @Output() weekChanged = new EventEmitter<void>();
 
   private planningService     = inject(PlanningService);
   private collaboratorService = inject(CollaboratorService);
 
-  activeLetter: 'A' | 'B' | 'C' | 'D' = 'A';
-  template: WeekTemplate | null = null;
+  readonly letters: Letter[] = ['A', 'B', 'C', 'D'];
+
+  // Toutes les templates chargées en parallèle
+  templates: Record<Letter, WeekTemplate | null> = { A: null, B: null, C: null, D: null };
+  loading = false;
+
+  // État apply par lettre
+  applyWeeks:   Record<Letter, string>   = { A: '', B: '', C: '', D: '' };
+  applyForces:  Record<Letter, boolean>  = { A: false, B: false, C: false, D: false };
+  applyResults: Record<Letter, { created: number; skipped: number; replaced: number; absence_protected: number; day_protected: number } | null> = { A: null, B: null, C: null, D: null };
+  applyings:    Record<Letter, boolean>  = { A: false, B: false, C: false, D: false };
+
   team: Collaborator[] = [];
   openingHours: OpeningHours[] = [];
-  loading  = false;
-  applying = false;
-  applyResult: { created: number; skipped: number; replaced: number; absence_protected: number; day_protected: number } | null = null;
+  showAiPanel = false;
 
+  // Lettre active pour le formulaire ajout/édition
+  activeLetter: Letter = 'A';
   showAddForm   = false;
-  showAiPanel   = false;
   editingShift: TemplateShift | null = null;
   addSubmitting = false;
   addError      = '';
@@ -89,52 +97,47 @@ export class TemplateModalComponent implements OnInit {
   // ── Lifecycle ─────────────────────────────────────────────────────────────
 
   ngOnInit() {
-    this.applyWeek = this.currentWeekStr;
+    this.letters.forEach(l => { this.applyWeeks[l] = this.currentWeekStr; });
     this.planningService.getOpeningHours().subscribe(h => { this.openingHours = h; });
     this.collaboratorService.getTeam().subscribe(team => {
       this.team = team;
       if (team.length > 0) this.addForm.collaborator_id = team[0].id!;
-      this.loadTemplate();
+      this.loadAllTemplates();
     });
   }
 
-  // ── Lettres disponibles ───────────────────────────────────────────────────
+  // ── Chargement de toutes les templates ────────────────────────────────────
 
-  readonly letters: ('A' | 'B' | 'C' | 'D')[] = ['A', 'B', 'C', 'D'];
-
-  setLetter(letter: 'A' | 'B' | 'C' | 'D') {
-    this.activeLetter  = letter;
-    this.template      = null;
-    this.applyResult   = null;
-    this.showAddForm   = false;
-    this.loadTemplate();
-  }
-
-  loadTemplate() {
+  loadAllTemplates() {
     this.loading = true;
-    this.planningService.getTemplate(this.activeLetter).subscribe({
-      next:  t  => { this.template = t; this.loading = false; },
+    forkJoin(
+      this.letters.reduce((acc, l) => {
+        acc[l] = this.planningService.getTemplate(l);
+        return acc;
+      }, {} as Record<Letter, any>)
+    ).subscribe({
+      next:  result => {
+        this.letters.forEach(l => { this.templates[l] = result[l]; });
+        this.loading = false;
+      },
       error: () => { this.loading = false; },
     });
   }
 
-  // ── apply_from ────────────────────────────────────────────────────────────
-
-  saveApplyFrom(dateStr: string) {
-    if (!dateStr) return;
-    this.planningService.updateTemplate(this.activeLetter, { apply_from: dateStr }).subscribe(t => {
-      if (this.template) this.template.apply_from = t.apply_from;
+  loadTemplate(letter: Letter) {
+    this.planningService.getTemplate(letter).subscribe(t => {
+      this.templates[letter] = t;
     });
   }
 
   // ── Shifts template ───────────────────────────────────────────────────────
 
-  getShiftsForDay(dayOfWeek: number): TemplateShift[] {
-    return this.template?.shifts.filter(s => s.day_of_week === dayOfWeek) ?? [];
+  getShiftsForDay(letter: Letter, dayOfWeek: number): TemplateShift[] {
+    return this.templates[letter]?.shifts.filter(s => s.day_of_week === dayOfWeek) ?? [];
   }
 
-  getCollaboratorsForDay(dayOfWeek: number): Collaborator[] {
-    const shifts = this.getShiftsForDay(dayOfWeek);
+  getCollaboratorsForDay(letter: Letter, dayOfWeek: number): Collaborator[] {
+    const shifts = this.getShiftsForDay(letter, dayOfWeek);
     const seen = new Set<number>();
     const result: Collaborator[] = [];
     for (const s of shifts) {
@@ -147,15 +150,23 @@ export class TemplateModalComponent implements OnInit {
     return result;
   }
 
-  getShiftsForCollab(dayOfWeek: number, collabId: number): TemplateShift[] {
-    return this.getShiftsForDay(dayOfWeek).filter(s => s.collaborator.id === collabId);
+  getShiftsForCollab(letter: Letter, dayOfWeek: number, collabId: number): TemplateShift[] {
+    return this.getShiftsForDay(letter, dayOfWeek).filter(s => s.collaborator.id === collabId);
+  }
+
+  getCollabWeekHours(letter: Letter, collabId: number): number {
+    return (this.templates[letter]?.shifts ?? [])
+      .filter(s => s.collaborator.id === collabId)
+      .reduce((acc, s) => {
+        const [sh, sm] = s.start_time.split(':').map(Number);
+        const [eh, em] = s.end_time.split(':').map(Number);
+        return acc + ((eh * 60 + em) - (sh * 60 + sm)) / 60;
+      }, 0);
   }
 
   // ── Timeline positioning ──────────────────────────────────────────────────
 
-  get hours(): number[] {
-    return [0, 3, 6, 9, 12, 15, 18, 21, 24];
-  }
+  get hours(): number[] { return [0, 3, 6, 9, 12, 15, 18, 21, 24]; }
 
   getHourLeft(hour: number): number {
     return ((hour - this.dayStartHour) / this.totalHours) * 100;
@@ -179,28 +190,22 @@ export class TemplateModalComponent implements OnInit {
     return this.colorPalette[color] ?? this.colorPalette['gray'];
   }
 
-  getShortName(collab: Collaborator): string {
-    return `${collab.first_name} ${collab.last_name.charAt(0)}.`;
-  }
+  // ── Ajout / édition shift template ───────────────────────────────────────
 
-  getBgClass(color: string): string {
-    return `bg-${color}-500`;
-  }
-
-  // ── Ajout shift template ──────────────────────────────────────────────────
-
-  openAddForm(dayOfWeek: number) {
-    this.editingShift        = null;
-    this.addForm.day_of_week = dayOfWeek;
+  openAddForm(letter: Letter, dayOfWeek: number) {
+    this.activeLetter            = letter;
+    this.editingShift            = null;
+    this.addForm.day_of_week     = dayOfWeek;
     this.addForm.collaborator_id = this.team[0]?.id ?? 0;
-    this.addForm.start_time  = '09:00';
-    this.addForm.end_time    = '19:00';
-    this.addForm.note        = '';
-    this.addError            = '';
-    this.showAddForm         = true;
+    this.addForm.start_time      = '09:00';
+    this.addForm.end_time        = '19:00';
+    this.addForm.note            = '';
+    this.addError                = '';
+    this.showAddForm             = true;
   }
 
-  openEditForm(shift: TemplateShift) {
+  openEditForm(letter: Letter, shift: TemplateShift) {
+    this.activeLetter            = letter;
     this.editingShift            = shift;
     this.addForm.collaborator_id = shift.collaborator.id;
     this.addForm.day_of_week     = shift.day_of_week;
@@ -211,25 +216,9 @@ export class TemplateModalComponent implements OnInit {
     this.showAddForm             = true;
   }
 
-  roundTo5(field: 'start_time' | 'end_time') {
-    const val = this.addForm[field];
-    if (!val) return;
-    const [h, m] = val.split(':').map(Number);
-    const r = Math.round(m / 5) * 5;
-    const mins  = r === 60 ? 0 : r;
-    const hours = r === 60 ? (h + 1) % 24 : h;
-    this.addForm[field] = `${String(hours).padStart(2, '0')}:${String(mins).padStart(2, '0')}`;
-  }
-
   submitAdd() {
-    if (!this.addForm.collaborator_id) {
-      this.addError = 'Sélectionnez un collaborateur.';
-      return;
-    }
-    if (this.addForm.end_time <= this.addForm.start_time) {
-      this.addError = 'L\'heure de fin doit être après l\'heure de début.';
-      return;
-    }
+    if (!this.addForm.collaborator_id) { this.addError = 'Sélectionnez un collaborateur.'; return; }
+    if (this.addForm.end_time <= this.addForm.start_time) { this.addError = 'L\'heure de fin doit être après l\'heure de début.'; return; }
     this.addSubmitting = true;
     this.addError      = '';
 
@@ -250,7 +239,7 @@ export class TemplateModalComponent implements OnInit {
         this.addSubmitting = false;
         this.showAddForm   = false;
         this.editingShift  = null;
-        this.loadTemplate();
+        this.loadTemplate(this.activeLetter);
       },
       error: () => {
         this.addSubmitting = false;
@@ -264,32 +253,32 @@ export class TemplateModalComponent implements OnInit {
     this.planningService.deleteTemplateShift(this.activeLetter, shiftId).subscribe(() => {
       this.showAddForm  = false;
       this.editingShift = null;
-      this.loadTemplate();
+      this.loadTemplate(this.activeLetter);
     });
   }
 
   // ── Appliquer le template ─────────────────────────────────────────────────
 
-  applyToWeek() {
-    const week = this.applyWeek || this.currentWeekStr;
+  applyToWeek(letter: Letter) {
+    const week = this.applyWeeks[letter] || this.currentWeekStr;
     if (!week) return;
-    this.applying     = true;
-    this.applyResult  = null;
+    this.applyings[letter]    = true;
+    this.applyResults[letter] = null;
 
-    this.planningService.applyTemplate(this.activeLetter, week, this.applyForce).subscribe({
+    this.planningService.applyTemplate(letter, week, this.applyForces[letter]).subscribe({
       next: res => {
-        this.applying     = false;
-        this.applyResult  = { created: res.created, skipped: res.skipped, replaced: res.replaced ?? 0, absence_protected: res.absence_protected ?? 0, day_protected: res.day_protected ?? 0 };
+        this.applyings[letter]    = false;
+        this.applyResults[letter] = { created: res.created, skipped: res.skipped, replaced: res.replaced ?? 0, absence_protected: res.absence_protected ?? 0, day_protected: res.day_protected ?? 0 };
         this.weekChanged.emit();
       },
-      error: () => { this.applying = false; },
+      error: () => { this.applyings[letter] = false; },
     });
   }
 
   // ── Gradient horaires d'ouverture ─────────────────────────────────────────
 
   getRowGradient(dayOfWeek: number): string {
-    if (dayOfWeek === 6) return '#eef2ff'; // dimanche toujours fermé
+    if (dayOfWeek === 6) return '#eef2ff';
     const slots = this.openingHours
       .filter(h => h.day_of_week === dayOfWeek)
       .map(h => ({ start: this._timeToMins(h.start_time), end: this._timeToMins(h.end_time) }))
@@ -313,27 +302,13 @@ export class TemplateModalComponent implements OnInit {
     return h * 60 + m;
   }
 
-  // ── Heures hebdomadaires par collaborateur (calculées localement) ──────────
-
-  getCollabWeekHours(collabId: number): number {
-    if (!this.template) return 0;
-    return this.template.shifts
-      .filter(s => s.collaborator.id === collabId)
-      .reduce((acc, s) => {
-        const [sh, sm] = s.start_time.split(':').map(Number);
-        const [eh, em] = s.end_time.split(':').map(Number);
-        return acc + ((eh * 60 + em) - (sh * 60 + sm)) / 60;
-      }, 0);
-  }
-
   // ── AI template generation ────────────────────────────────────────────────
 
   onTemplateGenerated(templateData: any) {
     const weeks = templateData.weeks ?? {};
-    const letters = Object.keys(weeks).filter(l => Array.isArray(weeks[l]) && weeks[l].length > 0) as ('A' | 'B' | 'C' | 'D')[];
+    const letters = Object.keys(weeks).filter(l => Array.isArray(weeks[l]) && weeks[l].length > 0) as Letter[];
     if (!letters.length) return;
 
-    // Traiter chaque lettre en séquence : charger existants → supprimer → recréer
     from(letters).pipe(
       concatMap(letter =>
         this.planningService.getTemplate(letter).pipe(
@@ -360,14 +335,12 @@ export class TemplateModalComponent implements OnInit {
     ).subscribe({
       complete: () => {
         this.showAiPanel = false;
-        this.loadTemplate();
+        this.loadAllTemplates();
       }
     });
   }
 
   // ── Helpers ───────────────────────────────────────────────────────────────
 
-  formatTime(timeStr: string): string {
-    return timeStr.substring(0, 5);
-  }
+  formatTime(timeStr: string): string { return timeStr.substring(0, 5); }
 }
