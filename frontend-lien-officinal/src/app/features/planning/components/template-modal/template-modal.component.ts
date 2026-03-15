@@ -117,7 +117,7 @@ export class TemplateModalComponent implements OnInit {
       }, {} as Record<Letter, any>)
     ).subscribe({
       next:  result => {
-        this.letters.forEach(l => { this.templates[l] = result[l]; });
+        this.letters.forEach(l => { this.templates[l] = (result as Record<Letter, WeekTemplate | null>)[l]; });
         this.loading = false;
       },
       error: () => { this.loading = false; },

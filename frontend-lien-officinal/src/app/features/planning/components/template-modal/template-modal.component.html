@@ -3,7 +3,7 @@
      (click)="closed.emit()">
 
   <!-- Panneau -->
-  <div class="bg-white rounded-2xl shadow-2xl w-full max-w-4xl max-h-[90vh] flex flex-col overflow-hidden"
+  <div class="bg-white rounded-2xl shadow-2xl w-full max-w-6xl max-h-[90vh] flex flex-col overflow-hidden"
        (click)="$event.stopPropagation()">
 
     <!-- Header -->
@@ -36,7 +36,7 @@
 
     <!-- Panneau IA -->
     <div *ngIf="showAiPanel" class="flex-1 flex overflow-hidden min-h-0">
-      <div class="w-80 shrink-0 border-r border-gray-100 flex flex-col overflow-hidden">
+      <div class="w-[520px] shrink-0 border-r border-gray-100 flex flex-col overflow-hidden">
         <div class="px-4 py-3 border-b border-gray-100 shrink-0">
           <p class="text-xs font-bold text-gray-700">Contraintes</p>
           <p class="text-xs text-gray-400 mt-0.5">Paramétrez les règles utilisées par l'IA</p>
