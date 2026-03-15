@@ -59,6 +59,19 @@
       </div>
     </div>
 
+    <!-- Onglets semaines (mode normal) -->
+    <div *ngIf="!showAiPanel" class="flex border-b border-gray-100 shrink-0 px-6">
+      <button *ngFor="let l of letters"
+              (click)="activeLetter = l"
+              class="px-4 py-2.5 text-sm font-medium border-b-2 transition-colors -mb-px"
+              [class.border-green-700]="activeLetter === l"
+              [class.text-green-700]="activeLetter === l"
+              [class.border-transparent]="activeLetter !== l"
+              [class.text-gray-400]="activeLetter !== l">
+        Semaine {{ l }}
+      </button>
+    </div>
+
     <!-- Corps normal -->
     <div class="flex-1 overflow-y-auto" [class.hidden]="showAiPanel">
 
@@ -67,134 +80,117 @@
         <div class="animate-spin rounded-full h-6 w-6 border-2 border-green-700 border-t-transparent"></div>
       </div>
 
-      <div *ngIf="!loading" class="divide-y divide-gray-100">
+      <div *ngIf="!loading" class="p-6 flex flex-col gap-4">
 
-        <!-- Section par lettre -->
-        <div *ngFor="let letter of letters" class="p-6 flex flex-col gap-4">
+        <!-- En-tête section -->
+        <div class="flex items-center justify-between gap-4 bg-gray-50 rounded-xl px-4 py-3">
+          <div class="flex items-center gap-3">
+            <span class="w-7 h-7 rounded-lg bg-green-700 text-white text-xs font-bold flex items-center justify-center flex-shrink-0">
+              {{ activeLetter }}
+            </span>
+            <span class="text-sm font-semibold text-gray-700">Semaine {{ activeLetter }}</span>
+            <span class="text-xs text-gray-400">
+              {{ (templates[activeLetter]?.shifts?.length ?? 0) }} shift{{ (templates[activeLetter]?.shifts?.length ?? 0) > 1 ? 's' : '' }}
+            </span>
+          </div>
 
-          <!-- En-tête section -->
-          <div class="flex items-center justify-between gap-4 bg-gray-50 rounded-xl px-4 py-3">
-            <div class="flex items-center gap-3">
-              <span class="w-7 h-7 rounded-lg bg-green-700 text-white text-xs font-bold flex items-center justify-center flex-shrink-0">
-                {{ letter }}
-              </span>
-              <span class="text-sm font-semibold text-gray-700">Semaine {{ letter }}</span>
-              <span class="text-xs text-gray-400">
-                {{ (templates[letter]?.shifts?.length ?? 0) }} shift{{ (templates[letter]?.shifts?.length ?? 0) > 1 ? 's' : '' }}
+          <!-- Appliquer -->
+          <div class="flex items-center gap-2 flex-wrap justify-end">
+            <span *ngIf="applyResults[activeLetter]"
+                  class="text-xs text-green-700 bg-green-50 rounded-lg px-3 py-1.5 font-medium">
+              ✓ {{ applyResults[activeLetter]!.created }} créé{{ applyResults[activeLetter]!.created > 1 ? 's' : '' }}
+              <ng-container *ngIf="applyResults[activeLetter]!.replaced">, {{ applyResults[activeLetter]!.replaced }} remplacé{{ applyResults[activeLetter]!.replaced > 1 ? 's' : '' }}</ng-container>
+              <ng-container *ngIf="applyResults[activeLetter]!.skipped">, {{ applyResults[activeLetter]!.skipped }} ignoré{{ applyResults[activeLetter]!.skipped > 1 ? 's' : '' }}</ng-container>
+            </span>
+            <label class="flex items-center gap-1.5 cursor-pointer">
+              <input type="checkbox" [(ngModel)]="applyForces[activeLetter]"
+                     class="w-3.5 h-3.5 rounded accent-orange-600"/>
+              <span class="text-xs text-gray-500">Écraser</span>
+            </label>
+            <input type="week"
+                   [(ngModel)]="applyWeeks[activeLetter]"
+                   class="border border-gray-200 rounded-lg px-2 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-green-300"/>
+            <button (click)="applyToWeek(activeLetter)"
+                    [disabled]="applyings[activeLetter] || !applyWeeks[activeLetter]"
+                    class="flex items-center gap-1.5 text-xs font-semibold text-white bg-green-700 hover:bg-green-800 rounded-lg px-3 py-1.5 transition-colors disabled:opacity-60">
+              {{ applyings[activeLetter] ? '...' : 'Appliquer' }}
+            </button>
+          </div>
+        </div>
+
+        <!-- Timeline -->
+        <ng-container>
+
+          <!-- En-tête heures -->
+          <div class="tpl-hours-header">
+            <div class="tpl-collab-spacer"></div>
+            <div class="tpl-hours-scale">
+              <span *ngFor="let h of hours"
+                    class="tpl-h"
+                    [style.left.%]="getHourLeft(h)">{{ h }}h</span>
+            </div>
+            <div class="tpl-add-spacer"></div>
+          </div>
+
+          <!-- Jours -->
+          <div *ngFor="let dayIdx of [0,1,2,3,4,5,6]" class="tpl-day">
+
+            <div class="tpl-day-label">
+              {{ DAY_NAMES[dayIdx] }}
+              <span class="text-xs text-gray-400 font-normal">
+                ({{ getShiftsForDay(activeLetter, dayIdx).length }} shift{{ getShiftsForDay(activeLetter, dayIdx).length > 1 ? 's' : '' }})
               </span>
             </div>
 
-            <!-- Appliquer -->
-            <div class="flex items-center gap-2 flex-wrap justify-end">
-              <span *ngIf="applyResults[letter]"
-                    class="text-xs text-green-700 bg-green-50 rounded-lg px-3 py-1.5 font-medium">
-                ✓ {{ applyResults[letter]!.created }} créé{{ applyResults[letter]!.created > 1 ? 's' : '' }}
-                <ng-container *ngIf="applyResults[letter]!.replaced">, {{ applyResults[letter]!.replaced }} remplacé{{ applyResults[letter]!.replaced > 1 ? 's' : '' }}</ng-container>
-                <ng-container *ngIf="applyResults[letter]!.skipped">, {{ applyResults[letter]!.skipped }} ignoré{{ applyResults[letter]!.skipped > 1 ? 's' : '' }}</ng-container>
-              </span>
-              <label class="flex items-center gap-1.5 cursor-pointer">
-                <input type="checkbox" [(ngModel)]="applyForces[letter]"
-                       class="w-3.5 h-3.5 rounded accent-orange-600"/>
-                <span class="text-xs text-gray-500">Écraser</span>
-              </label>
-              <input type="week"
-                     [(ngModel)]="applyWeeks[letter]"
-                     class="border border-gray-200 rounded-lg px-2 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-green-300"/>
-              <button (click)="applyToWeek(letter)"
-                      [disabled]="applyings[letter] || !applyWeeks[letter]"
-                      class="flex items-center gap-1.5 text-xs font-semibold text-white bg-green-700 hover:bg-green-800 rounded-lg px-3 py-1.5 transition-colors disabled:opacity-60">
-                {{ applyings[letter] ? '...' : 'Appliquer' }}
-              </button>
-            </div>
-          </div>
-
-          <!-- Template vide -->
-          <div *ngIf="!templates[letter]?.shifts?.length"
-               class="text-center py-6 text-gray-400 text-sm">
-            Aucun shift — utilisez "+ Ajouter" ou l'assistant IA
-          </div>
-
-          <!-- Timeline (visible si shifts) -->
-          <ng-container *ngIf="templates[letter]?.shifts?.length">
-
-            <!-- En-tête heures -->
-            <div class="tpl-hours-header">
-              <div class="tpl-collab-spacer"></div>
-              <div class="tpl-hours-scale">
-                <span *ngFor="let h of hours"
-                      class="tpl-h"
-                      [style.left.%]="getHourLeft(h)">{{ h }}h</span>
+            <div *ngFor="let collab of getCollaboratorsForDay(activeLetter, dayIdx)" class="tpl-collab-row">
+              <div class="tpl-collab-name">
+                <div class="tpl-collab-avatar" [style.background]="getColor(collab.color).base">
+                  {{ (collab.first_name.charAt(0) + collab.last_name.charAt(0)).toUpperCase() }}
+                </div>
+                <div class="tpl-collab-info">
+                  <span class="tpl-collab-name-text" [title]="collab.first_name + ' ' + collab.last_name">
+                    {{ collab.first_name }} {{ collab.last_name }}
+                  </span>
+                  <span class="tpl-collab-role">{{ collab.role }}</span>
+                  <span *ngIf="collab.weekly_hours"
+                        class="tpl-hours-badge"
+                        [class.ok]="getCollabWeekHours(activeLetter, collab.id!) >= collab.weekly_hours!"
+                        [class.warn]="getCollabWeekHours(activeLetter, collab.id!) < collab.weekly_hours!"
+                        [title]="'Template\u00a0: ' + getCollabWeekHours(activeLetter, collab.id!).toFixed(1) + 'h\u00a0/ Contrat\u00a0: ' + collab.weekly_hours + 'h'">
+                    {{ getCollabWeekHours(activeLetter, collab.id!).toFixed(1) }}h / {{ collab.weekly_hours }}h
+                  </span>
+                </div>
+              </div>
+              <div class="tpl-row" [style.background]="getRowGradient(dayIdx)">
+                <div *ngFor="let h of hours" class="tpl-slot" [style.left.%]="getHourLeft(h)"></div>
+                <div *ngFor="let shift of getShiftsForCollab(activeLetter, dayIdx, collab.id!)"
+                     class="tpl-block"
+                     [style.left.%]="getTShiftLeft(shift)"
+                     [style.width.%]="getTShiftWidth(shift)"
+                     [style.background]="getColor(collab.color).base"
+                     [style.color]="'#ffffff'"
+                     (click)="openEditForm(activeLetter, shift)">
+                  <b>{{ formatTime(shift.start_time) }}–{{ formatTime(shift.end_time) }}</b>
+                </div>
               </div>
               <div class="tpl-add-spacer"></div>
             </div>
 
-            <!-- Jours -->
-            <div *ngFor="let dayIdx of [0,1,2,3,4,5,6]" class="tpl-day">
-
-              <div class="tpl-day-label">
-                {{ DAY_NAMES[dayIdx] }}
-                <span class="text-xs text-gray-400 font-normal">
-                  ({{ getShiftsForDay(letter, dayIdx).length }} shift{{ getShiftsForDay(letter, dayIdx).length > 1 ? 's' : '' }})
-                </span>
-              </div>
-
-              <div *ngFor="let collab of getCollaboratorsForDay(letter, dayIdx)" class="tpl-collab-row">
-                <div class="tpl-collab-name">
-                  <div class="tpl-collab-avatar" [style.background]="getColor(collab.color).base">
-                    {{ (collab.first_name.charAt(0) + collab.last_name.charAt(0)).toUpperCase() }}
-                  </div>
-                  <div class="tpl-collab-info">
-                    <span class="tpl-collab-name-text" [title]="collab.first_name + ' ' + collab.last_name">
-                      {{ collab.first_name }} {{ collab.last_name }}
-                    </span>
-                    <span class="tpl-collab-role">{{ collab.role }}</span>
-                    <span *ngIf="collab.weekly_hours"
-                          class="tpl-hours-badge"
-                          [class.ok]="getCollabWeekHours(letter, collab.id!) >= collab.weekly_hours!"
-                          [class.warn]="getCollabWeekHours(letter, collab.id!) < collab.weekly_hours!"
-                          [title]="'Template\u00a0: ' + getCollabWeekHours(letter, collab.id!).toFixed(1) + 'h\u00a0/ Contrat\u00a0: ' + collab.weekly_hours + 'h'">
-                      {{ getCollabWeekHours(letter, collab.id!).toFixed(1) }}h / {{ collab.weekly_hours }}h
-                    </span>
-                  </div>
-                </div>
-                <div class="tpl-row" [style.background]="getRowGradient(dayIdx)">
-                  <div *ngFor="let h of hours" class="tpl-slot" [style.left.%]="getHourLeft(h)"></div>
-                  <div *ngFor="let shift of getShiftsForCollab(letter, dayIdx, collab.id!)"
-                       class="tpl-block"
-                       [style.left.%]="getTShiftLeft(shift)"
-                       [style.width.%]="getTShiftWidth(shift)"
-                       [style.background]="getColor(collab.color).base"
-                       [style.color]="'#ffffff'"
-                       (click)="openEditForm(letter, shift)">
-                    <b>{{ formatTime(shift.start_time) }}–{{ formatTime(shift.end_time) }}</b>
-                  </div>
-                </div>
-                <div class="tpl-add-spacer"></div>
-              </div>
-
-              <div *ngIf="getCollaboratorsForDay(letter, dayIdx).length === 0"
-                   class="tpl-collab-row tpl-empty-row">
-                <div class="tpl-collab-spacer"></div>
-                <div class="tpl-row tpl-row-empty"></div>
-                <div class="tpl-add-spacer"></div>
-              </div>
-
-              <button (click)="openAddForm(letter, dayIdx)" class="tpl-add-day-btn">
-                + Ajouter un shift ce jour
-              </button>
-
+            <div *ngIf="getCollaboratorsForDay(activeLetter, dayIdx).length === 0"
+                 class="tpl-collab-row tpl-empty-row">
+              <div class="tpl-collab-spacer"></div>
+              <div class="tpl-row tpl-row-empty"></div>
+              <div class="tpl-add-spacer"></div>
             </div>
 
-          </ng-container>
+            <button (click)="openAddForm(activeLetter, dayIdx)" class="tpl-add-day-btn">
+              + Ajouter un shift ce jour
+            </button>
 
-          <!-- Bouton ajout rapide si vide -->
-          <button *ngIf="!templates[letter]?.shifts?.length"
-                  (click)="openAddForm(letter, 0)"
-                  class="self-start text-xs px-3 py-1.5 border border-dashed border-gray-300 text-gray-500 rounded-lg hover:border-green-400 hover:text-green-700 transition-colors">
-            + Ajouter un shift
-          </button>
+          </div>
 
-        </div>
+        </ng-container>
+
 
       </div>
     </div>
