@@ -1,7 +1,8 @@
 import { Component, Input, Output, EventEmitter, inject, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { forkJoin, of } from 'rxjs';
+import { forkJoin, of, from } from 'rxjs';
+import { concatMap } from 'rxjs/operators';
 import {
   PlanningService,
   WeekTemplate,
@@ -328,37 +329,39 @@ export class TemplateModalComponent implements OnInit {
   // ── AI template generation ────────────────────────────────────────────────
 
   onTemplateGenerated(templateData: any) {
-    const weekShifts: Array<{
-      collaborator_id: number;
-      day_of_week: number;
-      start_time: string;
-      end_time: string;
-      note: string;
-    }> = templateData.weeks?.[this.activeLetter] ?? [];
+    const weeks = templateData.weeks ?? {};
+    const letters = Object.keys(weeks).filter(l => Array.isArray(weeks[l]) && weeks[l].length > 0) as ('A' | 'B' | 'C' | 'D')[];
+    if (!letters.length) return;
 
-    if (!weekShifts.length) return;
-
-    // Delete all existing shifts for the active letter template, then recreate
-    const existingShifts = this.template?.shifts ?? [];
-    const deleteRequests$ = existingShifts.length
-      ? existingShifts.map(s => this.planningService.deleteTemplateShift(this.activeLetter, s.id))
-      : [of(undefined)];
-
-    forkJoin(deleteRequests$).subscribe(() => {
-      const createRequests$ = weekShifts.map(s =>
-        this.planningService.createTemplateShift(this.activeLetter, {
-          collaborator_id: s.collaborator_id,
-          day_of_week:     s.day_of_week,
-          start_time:      s.start_time.length === 5 ? s.start_time + ':00' : s.start_time,
-          end_time:        s.end_time.length === 5   ? s.end_time   + ':00' : s.end_time,
-          note:            s.note ?? '',
-        })
-      );
-
-      forkJoin(createRequests$).subscribe(() => {
+    // Traiter chaque lettre en séquence : charger existants → supprimer → recréer
+    from(letters).pipe(
+      concatMap(letter =>
+        this.planningService.getTemplate(letter).pipe(
+          concatMap(tpl => {
+            const deleteOps = tpl.shifts?.length
+              ? tpl.shifts.map(s => this.planningService.deleteTemplateShift(letter, s.id))
+              : [of(undefined)];
+            return forkJoin(deleteOps);
+          }),
+          concatMap(() => {
+            const createOps = weeks[letter].map((s: any) =>
+              this.planningService.createTemplateShift(letter, {
+                collaborator_id: s.collaborator_id,
+                day_of_week:     s.day_of_week,
+                start_time:      s.start_time.length === 5 ? s.start_time + ':00' : s.start_time,
+                end_time:        s.end_time.length === 5   ? s.end_time   + ':00' : s.end_time,
+                note:            s.note ?? '',
+              })
+            );
+            return forkJoin(createOps);
+          })
+        )
+      )
+    ).subscribe({
+      complete: () => {
         this.showAiPanel = false;
         this.loadTemplate();
-      });
+      }
     });
   }
 
