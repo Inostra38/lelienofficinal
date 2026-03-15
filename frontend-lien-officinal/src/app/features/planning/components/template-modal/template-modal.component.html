@@ -55,6 +55,7 @@
           [rotation]="2"
           [team]="team"
           (templateGenerated)="onTemplateGenerated($event)"
+          (previewRequested)="openPreview($event)"
           (closed)="showAiPanel = false">
         </app-template-ai-assistant>
       </div>
@@ -195,6 +196,105 @@
 
       </div>
     </div>
+
+  <!-- ── Modale prévisualisation template IA ── -->
+  <div *ngIf="previewTemplate"
+       class="fixed inset-0 z-[65] bg-black/50 backdrop-blur-sm flex items-center justify-center p-4"
+       (click)="previewTemplate = null">
+    <div class="bg-white rounded-2xl shadow-2xl w-full max-w-5xl max-h-[90vh] flex flex-col overflow-hidden"
+         (click)="$event.stopPropagation()">
+
+      <!-- Header -->
+      <div class="flex items-center justify-between px-6 py-4 border-b border-gray-100 shrink-0">
+        <div>
+          <h3 class="text-base font-bold text-gray-800">Aperçu du template généré</h3>
+          <p class="text-xs text-gray-400 mt-0.5">Vérifiez avant d'importer — vous pouvez encore demander des ajustements</p>
+        </div>
+        <div class="flex items-center gap-2">
+          <button (click)="onTemplateGenerated(previewTemplate); previewTemplate = null"
+                  class="px-4 py-2 bg-green-700 text-white text-sm font-semibold rounded-xl hover:bg-green-800 transition-colors">
+            Importer ce template
+          </button>
+          <button (click)="previewTemplate = null"
+                  class="p-1.5 rounded-lg hover:bg-gray-100 text-gray-400 hover:text-gray-600 transition-colors">
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+            </svg>
+          </button>
+        </div>
+      </div>
+
+      <!-- Onglets semaines -->
+      <div class="flex border-b border-gray-100 shrink-0 px-6">
+        <button *ngFor="let l of getPreviewLetters()"
+                (click)="previewLetter = l"
+                class="px-4 py-2.5 text-sm font-medium border-b-2 transition-colors -mb-px"
+                [class.border-green-700]="previewLetter === l"
+                [class.text-green-700]="previewLetter === l"
+                [class.border-transparent]="previewLetter !== l"
+                [class.text-gray-400]="previewLetter !== l">
+          Semaine {{ l }}
+        </button>
+      </div>
+
+      <!-- Timeline -->
+      <div class="flex-1 overflow-y-auto p-6 flex flex-col gap-4">
+
+        <!-- En-tête heures -->
+        <div class="tpl-hours-header">
+          <div class="tpl-collab-spacer"></div>
+          <div class="tpl-hours-scale">
+            <span *ngFor="let h of hours" class="tpl-h" [style.left.%]="getHourLeft(h)">{{ h }}h</span>
+          </div>
+          <div class="tpl-add-spacer"></div>
+        </div>
+
+        <!-- Jours -->
+        <div *ngFor="let dayIdx of [0,1,2,3,4,5,6]" class="tpl-day">
+
+          <div class="tpl-day-label">
+            {{ DAY_NAMES[dayIdx] }}
+            <span class="text-xs text-gray-400 font-normal">
+              ({{ getPreviewShiftsForDay(previewLetter, dayIdx).length }} shift{{ getPreviewShiftsForDay(previewLetter, dayIdx).length > 1 ? 's' : '' }})
+            </span>
+          </div>
+
+          <div *ngFor="let collab of getPreviewCollaboratorsForDay(previewLetter, dayIdx)" class="tpl-collab-row">
+            <div class="tpl-collab-name">
+              <div class="tpl-collab-avatar" [style.background]="getColor(collab.color).base">
+                {{ (collab.first_name.charAt(0) + collab.last_name.charAt(0)).toUpperCase() }}
+              </div>
+              <div class="tpl-collab-info">
+                <span class="tpl-collab-name-text">{{ collab.first_name }} {{ collab.last_name }}</span>
+                <span class="tpl-collab-role">{{ collab.role }}</span>
+              </div>
+            </div>
+            <div class="tpl-row" [style.background]="getRowGradient(dayIdx)">
+              <div *ngFor="let h of hours" class="tpl-slot" [style.left.%]="getHourLeft(h)"></div>
+              <div *ngFor="let shift of getPreviewShiftsForCollab(previewLetter, dayIdx, collab.id!)"
+                   class="tpl-block"
+                   [style.left.%]="getPreviewShiftLeft(shift)"
+                   [style.width.%]="getPreviewShiftWidth(shift)"
+                   [style.background]="getColor(collab.color).base"
+                   [style.color]="'#ffffff'">
+                <b>{{ formatTime(shift.start_time) }}–{{ formatTime(shift.end_time) }}</b>
+              </div>
+            </div>
+            <div class="tpl-add-spacer"></div>
+          </div>
+
+          <div *ngIf="getPreviewCollaboratorsForDay(previewLetter, dayIdx).length === 0"
+               class="tpl-collab-row tpl-empty-row">
+            <div class="tpl-collab-spacer"></div>
+            <div class="tpl-row tpl-row-empty"></div>
+            <div class="tpl-add-spacer"></div>
+          </div>
+
+        </div>
+
+      </div>
+    </div>
+  </div>
 
   <!-- ── Modale ajout / édition shift ── -->
   <div *ngIf="showAddForm"

@@ -49,6 +49,10 @@ export class TemplateModalComponent implements OnInit {
   openingHours: OpeningHours[] = [];
   showAiPanel = false;
 
+  // Prévisualisation template IA
+  previewTemplate: any = null;
+  previewLetter = 'A';
+
   // Lettre active pour le formulaire ajout/édition
   activeLetter: Letter = 'A';
   showAddForm   = false;
@@ -338,6 +342,57 @@ export class TemplateModalComponent implements OnInit {
         this.loadAllTemplates();
       }
     });
+  }
+
+  // ── Prévisualisation template IA ──────────────────────────────────────────
+
+  openPreview(templateData: any) {
+    const letters = Object.keys(templateData.weeks ?? {})
+      .filter(l => Array.isArray(templateData.weeks[l]) && templateData.weeks[l].length > 0);
+    this.previewTemplate = templateData;
+    this.previewLetter   = letters[0] ?? 'A';
+  }
+
+  getPreviewLetters(): string[] {
+    if (!this.previewTemplate?.weeks) return [];
+    return Object.keys(this.previewTemplate.weeks)
+      .filter(l => Array.isArray(this.previewTemplate.weeks[l]) && this.previewTemplate.weeks[l].length > 0);
+  }
+
+  getPreviewShiftsForDay(letter: string, dayIdx: number): any[] {
+    return (this.previewTemplate?.weeks?.[letter] ?? []).filter((s: any) => s.day_of_week === dayIdx);
+  }
+
+  getPreviewCollaboratorsForDay(letter: string, dayIdx: number): Collaborator[] {
+    const shifts = this.getPreviewShiftsForDay(letter, dayIdx);
+    const seen = new Set<number>();
+    const result: Collaborator[] = [];
+    for (const s of shifts) {
+      if (!seen.has(s.collaborator_id)) {
+        seen.add(s.collaborator_id);
+        const collab = this.team.find(c => c.id === s.collaborator_id);
+        if (collab) result.push(collab);
+      }
+    }
+    return result;
+  }
+
+  getPreviewShiftsForCollab(letter: string, dayIdx: number, collabId: number): any[] {
+    return this.getPreviewShiftsForDay(letter, dayIdx).filter((s: any) => s.collaborator_id === collabId);
+  }
+
+  getPreviewShiftLeft(shift: any): number {
+    const [h, m] = shift.start_time.split(':').map(Number);
+    const minutes = h * 60 + m;
+    return Math.max(0, (minutes / (this.totalHours * 60)) * 100);
+  }
+
+  getPreviewShiftWidth(shift: any): number {
+    const [sh, sm] = shift.start_time.split(':').map(Number);
+    const [eh, em] = shift.end_time.split(':').map(Number);
+    const duration = (eh * 60 + em) - (sh * 60 + sm);
+    const left = this.getPreviewShiftLeft(shift);
+    return Math.min(100 - left, (duration / (this.totalHours * 60)) * 100);
   }
 
   // ── Helpers ───────────────────────────────────────────────────────────────
