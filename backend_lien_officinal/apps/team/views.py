@@ -77,9 +77,16 @@ class CollaboratorViewSet(viewsets.ModelViewSet):
 
     def create(self, request, *args, **kwargs):
         actor = _get_collaborator(request)
-        err = _check_permission(actor, 'can_manage_team')
-        if err:
-            return err
+        
+        # Exception Onboarding : Si l'équipe est vide, on autorise la création du premier collaborateur (Titulaire)
+        # sans vérifier les permissions d'un acteur existant.
+        team_is_empty = not Collaborator.objects.filter(pharmacy=request.user, is_active=True).exists()
+        
+        if not team_is_empty:
+            err = _check_permission(actor, 'can_manage_team')
+            if err:
+                return err
+
         return super().create(request, *args, **kwargs)
 
     def destroy(self, request, *args, **kwargs):

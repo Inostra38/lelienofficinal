@@ -6,7 +6,6 @@ import { interval, Subscription, switchMap } from 'rxjs';
 import { MessagingService, Conversation } from '../../core/services/messaging.service';
 import { AuthService } from '../../core/auth/auth.service';
 import { CollaboratorService, Collaborator } from '../../core/services/collaborator.service';
-import { InactivityService } from '../../core/services/inactivity.service';
 import { ConversationListComponent } from './components/conversation-list/conversation-list.component';
 import { ConversationDetailComponent } from './components/conversation-detail/conversation-detail.component';
 import { NewConversationDialogComponent } from './components/new-conversation-dialog/new-conversation-dialog.component';
@@ -23,7 +22,6 @@ export class MessagingComponent implements OnInit, OnDestroy {
   private messagingService = inject(MessagingService);
   private authService = inject(AuthService);
   private collaboratorService = inject(CollaboratorService);
-  private inactivityService = inject(InactivityService);
   private router = inject(Router);
 
   // ── État ────────────────────────────────────────────────────────────────
@@ -42,9 +40,6 @@ export class MessagingComponent implements OnInit, OnDestroy {
   pendingCollaborator: Collaborator | null = null;
   showPinModal = false;
 
-  // ── Verrouillage auto ────────────────────────────────────────────────────
-  isLocked = false;
-
   private subs = new Subscription();
   private listPollingSub: Subscription | null = null;
 
@@ -52,23 +47,11 @@ export class MessagingComponent implements OnInit, OnDestroy {
 
   ngOnInit(): void {
     this.loadTeam();
-
-    // Verrouillage auto après 5 min d'inactivité
-    this.inactivityService.startWatching();
-    this.subs.add(
-      this.inactivityService.onLocked().subscribe(() => {
-        if (this.activeCollaborator) {
-          this.isLocked = true;
-          this.stopListPolling();
-        }
-      })
-    );
   }
 
   ngOnDestroy(): void {
     this.subs.unsubscribe();
     this.stopListPolling();
-    this.inactivityService.stopWatching();
   }
 
   // ── Équipe & collaborateur actif ─────────────────────────────────────────
@@ -88,16 +71,9 @@ export class MessagingComponent implements OnInit, OnDestroy {
               return;
             }
             if (found.id === this.activeCollaborator?.id) {
-              // Même collaborateur — si verrouillé, le déverrouiller (PIN déjà validé ailleurs)
-              if (this.isLocked) {
-                this.isLocked = false;
-                this.startListPolling();
-                this.inactivityService.resetTimer();
-              }
               return;
             }
             // Nouveau collaborateur (depuis sidebar ou ici après PIN)
-            this.isLocked = false;
             this.showPinModal = false;
             this.pendingCollaborator = null;
             this.setActiveCollaborator(found);
@@ -121,13 +97,7 @@ export class MessagingComponent implements OnInit, OnDestroy {
   onPinValidated(): void {
     this.showPinModal = false;
 
-    if (this.isLocked) {
-      // Mode unlock : même collaborateur, déverrouiller localement
-      this.isLocked = false;
-      this.startListPolling();
-      this.inactivityService.resetTimer();
-      this.pendingCollaborator = null;
-    } else if (this.pendingCollaborator) {
+    if (this.pendingCollaborator) {
       // Mode switch : émet vers le stream → met à jour sidebar + tâches automatiquement
       this.messagingService.setActiveCollaboratorId(this.pendingCollaborator.id!);
       this.pendingCollaborator = null;
@@ -153,7 +123,6 @@ export class MessagingComponent implements OnInit, OnDestroy {
 
   changeCollaborator(): void {
     this.stopListPolling();
-    this.isLocked = false;
     this.activeCollaborator = null;
     this.selectedConversation = null;
     this.conversations = [];

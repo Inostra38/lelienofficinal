@@ -6,6 +6,7 @@ import { startWith, switchMap, takeUntil } from 'rxjs/operators';
 
 import { AuthService } from '../../../core/auth/auth.service';
 import { CollaboratorService, Collaborator } from '../../../core/services/collaborator.service';
+import { InactivityService } from '../../../core/services/inactivity.service';
 import { MessagingService } from '../../../core/services/messaging.service';
 import { PharmacyService } from '../../../core/services/pharmacy.service';
 import { TaskService } from '../../../core/services/task.service';
@@ -22,6 +23,7 @@ import { PinModalComponent } from '../../../features/messaging/components/pin-mo
 export class MainLayoutComponent implements OnInit, OnDestroy {
   private authService = inject(AuthService);
   private collaboratorService = inject(CollaboratorService);
+  private inactivityService = inject(InactivityService);
   private messagingService = inject(MessagingService);
   private pharmacyService = inject(PharmacyService);
   private taskService = inject(TaskService);
@@ -34,6 +36,7 @@ export class MainLayoutComponent implements OnInit, OnDestroy {
   activeSessionCollaborator: Collaborator | null = null;
   pendingCollaborator: Collaborator | null = null;
   showPinModal = false;
+  showInactivityToast = false;
 
   private unreadSub: Subscription | null = null;
   private destroy$ = new Subject<void>();
@@ -47,10 +50,20 @@ export class MainLayoutComponent implements OnInit, OnDestroy {
       count => { this.unreadMessagesCount = count; }
     );
     this.startTaskUnseenPolling();
+
+    this.inactivityService.startWatching();
+    this.inactivityService.onLocked().pipe(takeUntil(this.destroy$)).subscribe(() => {
+      if (this.activeSessionCollaborator) {
+        this.authService.clearCurrentCollaborator();
+        this.showInactivityToast = true;
+        setTimeout(() => { this.showInactivityToast = false; }, 4000);
+      }
+    });
   }
 
   ngOnDestroy() {
     this.unreadSub?.unsubscribe();
+    this.inactivityService.stopWatching();
     this.destroy$.next();
     this.destroy$.complete();
   }

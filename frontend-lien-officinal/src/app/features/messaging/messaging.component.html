@@ -26,38 +26,6 @@
   <!-- ── Layout principal ── -->
   <div class="flex flex-1 overflow-hidden relative">
 
-    <!-- ── Overlay verrouillage automatique ── -->
-    <div *ngIf="isLocked"
-         class="absolute inset-0 z-40 backdrop-blur-xl bg-white/30 flex items-center justify-center">
-      <div class="bg-white rounded-2xl shadow-2xl border border-gray-100 p-8 w-full max-w-sm mx-4 text-center">
-
-        <div class="w-14 h-14 rounded-2xl bg-amber-50 flex items-center justify-center mx-auto mb-5">
-          <svg xmlns="http://www.w3.org/2000/svg" class="h-7 w-7 text-amber-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/>
-          </svg>
-        </div>
-
-        <h2 class="font-bold text-gray-800 text-lg mb-1">Session verrouillée</h2>
-        <p class="text-sm text-gray-400 mb-1">Inactivité détectée</p>
-        <p class="font-semibold text-gray-700 mb-6">
-          {{ activeCollaborator?.first_name }} {{ activeCollaborator?.last_name }}
-          <span class="text-xs font-normal text-gray-400 ml-1">({{ activeCollaborator?.role }})</span>
-        </p>
-
-        <!-- Ouvrir modal PIN pour déverrouiller -->
-        <button (click)="showPinModal = true"
-                class="w-full bg-green-700 hover:bg-green-800 text-white font-semibold py-2.5 rounded-xl transition-colors mb-3">
-          Entrer le PIN
-        </button>
-
-        <!-- Changer d'utilisateur -->
-        <button (click)="changeCollaborator()"
-                class="w-full text-sm text-gray-400 hover:text-gray-600 py-2 transition-colors">
-          Changer d'utilisateur
-        </button>
-      </div>
-    </div>
-
     <!-- Colonne gauche : liste des conversations (30%) -->
     <div class="w-80 shrink-0 bg-white border-r border-gray-100 flex flex-col overflow-hidden">
 
@@ -139,15 +107,13 @@
     (cancelled)="showNewConversationDialog = false">
   </app-new-conversation-dialog>
 
-  <!-- ── Modal PIN (switch ou unlock) ── -->
+  <!-- ── Modal PIN (switch) ── -->
   <app-pin-modal
-    *ngIf="showPinModal && (pendingCollaborator || (isLocked && activeCollaborator))"
-    [collaboratorId]="(isLocked ? activeCollaborator?.id : pendingCollaborator?.id)!"
-    [collaboratorName]="isLocked
-      ? (activeCollaborator?.first_name + ' ' + activeCollaborator?.last_name)
-      : (pendingCollaborator?.first_name + ' ' + pendingCollaborator?.last_name)"
-    [collaboratorRole]="(isLocked ? activeCollaborator?.role : pendingCollaborator?.role) ?? ''"
-    [mode]="isLocked ? 'unlock' : 'switch'"
+    *ngIf="showPinModal && pendingCollaborator"
+    [collaboratorId]="pendingCollaborator.id!"
+    [collaboratorName]="pendingCollaborator.first_name + ' ' + pendingCollaborator.last_name"
+    [collaboratorRole]="pendingCollaborator.role"
+    mode="switch"
     (pinValidated)="onPinValidated()"
     (cancelled)="onPinCancelled()">
   </app-pin-modal>
