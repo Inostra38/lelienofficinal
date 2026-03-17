@@ -19,6 +19,8 @@ export interface PharmacyData {
   logo?: string;
   is_premium?: boolean;
   date_joined?: string;
+  sms_credits?: number;
+  phone?: string;
 }
 
 @Injectable({

@@ -1,0 +1,278 @@
+<div class="p-6 max-w-3xl mx-auto">
+
+  <!-- Chargement -->
+  @if (loading) {
+    <div class="flex justify-center items-center py-12">
+      <div class="w-8 h-8 border-4 border-green-700 border-t-transparent rounded-full animate-spin"></div>
+    </div>
+  }
+
+  <!-- Erreur -->
+  @if (error) {
+    <div class="bg-red-50 border border-red-200 text-red-700 rounded-lg p-4 mb-4">{{ error }}</div>
+  }
+
+  @if (!loading && nc) {
+
+    <!-- En-tête -->
+    <div class="mb-6">
+      <div class="flex items-start justify-between gap-4">
+        <div class="flex-1 min-w-0">
+          <div class="flex items-center gap-2 mb-2 flex-wrap">
+            <span class="inline-flex px-2 py-0.5 rounded-full text-xs font-medium" [class]="severityClass(nc.severity)">
+              {{ severityLabel(nc.severity) }}
+            </span>
+            <span class="inline-flex px-2 py-0.5 rounded-full text-xs font-medium" [class]="statusClass(nc.status)">
+              {{ statusLabel(nc.status) }}
+            </span>
+          </div>
+          <h1 class="text-2xl font-bold text-gray-800">{{ nc.title }}</h1>
+        </div>
+        <a routerLink="/quality/nc"
+           class="text-sm text-gray-500 hover:text-gray-700 transition-colors flex-shrink-0">
+          ← Retour
+        </a>
+      </div>
+    </div>
+
+    <!-- Infos générales -->
+    <div class="bg-gray-50 border border-gray-100 rounded-xl p-4 mb-6">
+      <div class="grid grid-cols-2 md:grid-cols-3 gap-4 mb-4">
+        <div>
+          <p class="text-xs text-gray-500 uppercase tracking-wide mb-1">Déclaré par</p>
+          <p class="text-sm font-medium text-gray-800">
+            {{ nc.reported_by ? nc.reported_by.full_name : '—' }}
+          </p>
+        </div>
+        <div>
+          <p class="text-xs text-gray-500 uppercase tracking-wide mb-1">Date de déclaration</p>
+          <p class="text-sm font-medium text-gray-800">{{ nc.created_at | date:'dd/MM/yyyy' }}</p>
+        </div>
+        @if (nc.assigned_to) {
+          <div>
+            <p class="text-xs text-gray-500 uppercase tracking-wide mb-1">Assigné à</p>
+            <p class="text-sm font-medium text-gray-800">{{ nc.assigned_to.full_name }}</p>
+          </div>
+        }
+        @if (nc.due_date) {
+          <div>
+            <p class="text-xs text-gray-500 uppercase tracking-wide mb-1">Date limite</p>
+            <p class="text-sm font-medium text-gray-800">{{ nc.due_date | date:'dd/MM/yyyy' }}</p>
+          </div>
+        }
+        @if (nc.closed_at) {
+          <div>
+            <p class="text-xs text-gray-500 uppercase tracking-wide mb-1">Clôturé le</p>
+            <p class="text-sm font-medium text-gray-800">{{ nc.closed_at | date:'dd/MM/yyyy' }}</p>
+          </div>
+        }
+      </div>
+
+      @if (nc.procedure) {
+        <div class="pt-3 border-t border-gray-200">
+          <p class="text-xs text-gray-500 uppercase tracking-wide mb-1">Procédure liée</p>
+          <a [routerLink]="['/quality/procedures', nc.procedure.id]"
+             class="text-sm text-green-700 hover:underline font-medium">
+            {{ nc.procedure.title }}
+          </a>
+        </div>
+      }
+    </div>
+
+    <!-- Description -->
+    <div class="bg-white border border-gray-200 rounded-xl p-5 mb-6">
+      <h2 class="text-sm font-semibold text-gray-600 uppercase tracking-wide mb-3">Description</h2>
+      <p class="text-sm text-gray-700 leading-relaxed whitespace-pre-wrap">{{ nc.description }}</p>
+    </div>
+
+    <!-- Workflow -->
+    <div class="bg-white border border-gray-200 rounded-xl p-5 mb-6">
+      <h2 class="text-sm font-semibold text-gray-600 uppercase tracking-wide mb-4">Suivi du traitement</h2>
+
+      <!-- Étapes visuelles -->
+      <div class="flex items-center gap-0 mb-6">
+        <!-- Étape 1 : Ouvert -->
+        <div class="flex-1">
+          <div [class]="nc.status === 'open'
+            ? 'rounded-l-full py-2 px-4 text-center text-xs font-semibold bg-orange-500 text-white'
+            : (nc.status === 'in_progress' || nc.status === 'closed')
+              ? 'rounded-l-full py-2 px-4 text-center text-xs font-medium bg-green-100 text-green-700'
+              : 'rounded-l-full py-2 px-4 text-center text-xs font-medium bg-gray-100 text-gray-400'">
+            Ouvert
+          </div>
+        </div>
+        <!-- Séparateur -->
+        <div class="w-px h-8 bg-gray-200"></div>
+        <!-- Étape 2 : En cours -->
+        <div class="flex-1">
+          <div [class]="nc.status === 'in_progress'
+            ? 'py-2 px-4 text-center text-xs font-semibold bg-blue-500 text-white'
+            : nc.status === 'closed'
+              ? 'py-2 px-4 text-center text-xs font-medium bg-green-100 text-green-700'
+              : 'py-2 px-4 text-center text-xs font-medium bg-gray-100 text-gray-400'">
+            En cours
+          </div>
+        </div>
+        <!-- Séparateur -->
+        <div class="w-px h-8 bg-gray-200"></div>
+        <!-- Étape 3 : Clôturé -->
+        <div class="flex-1">
+          <div [class]="nc.status === 'closed'
+            ? 'rounded-r-full py-2 px-4 text-center text-xs font-semibold bg-green-600 text-white'
+            : 'rounded-r-full py-2 px-4 text-center text-xs font-medium bg-gray-100 text-gray-400'">
+            Clôturé
+          </div>
+        </div>
+      </div>
+
+      <!-- Actions selon statut -->
+      @if (nc.status === 'open') {
+        <!-- Assignation -->
+        @if (!showAssignSelect) {
+          <button (click)="showAssignSelect = true"
+                  class="px-4 py-2 text-sm bg-blue-50 text-blue-700 border border-blue-200 rounded-lg hover:bg-blue-100 transition-colors">
+            Assigner à un collaborateur
+          </button>
+        } @else {
+          <div class="flex items-center gap-2">
+            <select [(ngModel)]="assignedToId"
+                    class="flex-1 border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white">
+              <option [ngValue]="null">Sélectionner un collaborateur</option>
+              @for (col of collaborators; track col.id) {
+                <option [ngValue]="col.id">{{ col.first_name }} {{ col.last_name }}</option>
+              }
+            </select>
+            <button (click)="assign()" [disabled]="!assignedToId"
+                    class="px-3 py-2 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50">
+              Confirmer
+            </button>
+            <button (click)="showAssignSelect = false"
+                    class="px-3 py-2 text-sm text-gray-500 hover:text-gray-700 transition-colors">
+              Annuler
+            </button>
+          </div>
+        }
+      }
+
+      @if (nc.status === 'in_progress') {
+        <!-- Clôture -->
+        @if (!showCloseForm) {
+          <button (click)="showCloseForm = true"
+                  class="px-4 py-2 text-sm bg-green-50 text-green-700 border border-green-200 rounded-lg hover:bg-green-100 transition-colors">
+            Clôturer la non-conformité
+          </button>
+        } @else {
+          <div class="space-y-3">
+            <div>
+              <label class="block text-sm font-medium text-gray-700 mb-1">Note de résolution</label>
+              <textarea [(ngModel)]="resolutionText" rows="3"
+                        placeholder="Décrivez les actions prises pour résoudre cette NC..."
+                        class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-600 resize-y">
+              </textarea>
+            </div>
+            <div class="flex items-center gap-2">
+              <button (click)="close()"
+                      class="px-3 py-2 text-sm bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors">
+                Confirmer la clôture
+              </button>
+              <button (click)="showCloseForm = false"
+                      class="px-3 py-2 text-sm text-gray-500 hover:text-gray-700 transition-colors">
+                Annuler
+              </button>
+            </div>
+          </div>
+        }
+      }
+
+      @if (nc.status === 'closed') {
+        <button (click)="reopen()"
+                class="px-4 py-2 text-sm bg-orange-50 text-orange-700 border border-orange-200 rounded-lg hover:bg-orange-100 transition-colors">
+          Réouvrir
+        </button>
+      }
+    </div>
+
+    <!-- Actions correctives -->
+    <div class="bg-white border border-gray-200 rounded-xl p-5">
+      <h2 class="text-sm font-semibold text-gray-600 uppercase tracking-wide mb-4">Actions correctives</h2>
+
+      <!-- Liste des actions existantes -->
+      @if (nc.corrective_actions && nc.corrective_actions.length > 0) {
+        <div class="space-y-3 mb-5">
+          @for (action of nc.corrective_actions; track action.id) {
+            <div class="flex items-start gap-3 p-3 rounded-lg border"
+                 [class]="action.completed_at ? 'border-green-100 bg-green-50' : 'border-gray-200 bg-gray-50'">
+              <div class="flex-shrink-0 mt-0.5">
+                @if (action.completed_at) {
+                  <svg class="w-5 h-5 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                  </svg>
+                } @else {
+                  <svg class="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                  </svg>
+                }
+              </div>
+              <div class="flex-1 min-w-0">
+                <p class="text-sm text-gray-800" [class.line-through]="action.completed_at" [class.text-gray-500]="action.completed_at">
+                  {{ action.description }}
+                </p>
+                <div class="flex items-center gap-3 mt-1 text-xs text-gray-500">
+                  @if (action.responsible) {
+                    <span>{{ action.responsible.full_name }}</span>
+                  }
+                  @if (action.due_date) {
+                    <span>Échéance : {{ action.due_date | date:'dd/MM/yyyy' }}</span>
+                  }
+                  @if (action.completed_at) {
+                    <span class="text-green-600">Complétée le {{ action.completed_at | date:'dd/MM/yyyy' }}</span>
+                  }
+                </div>
+              </div>
+              @if (!action.completed_at) {
+                <button (click)="markCompleted(action)"
+                        class="flex-shrink-0 px-2 py-1 text-xs text-green-700 border border-green-200 rounded hover:bg-green-50 transition-colors">
+                  Marquer complétée
+                </button>
+              }
+            </div>
+          }
+        </div>
+      } @else {
+        <p class="text-sm text-gray-400 mb-4">Aucune action corrective définie.</p>
+      }
+
+      <!-- Formulaire d'ajout d'action -->
+      <div class="border-t border-gray-100 pt-4">
+        <h3 class="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-3">Ajouter une action</h3>
+        <form [formGroup]="actionForm" (ngSubmit)="addAction()" class="space-y-3">
+          <div>
+            <input formControlName="description" type="text" placeholder="Description de l'action corrective"
+                   class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-600 focus:border-transparent"
+                   [class.border-red-400]="actionForm.get('description')?.invalid && actionForm.get('description')?.touched"/>
+            @if (actionForm.get('description')?.invalid && actionForm.get('description')?.touched) {
+              <p class="text-red-500 text-xs mt-1">La description est requise.</p>
+            }
+          </div>
+          <div class="flex gap-3">
+            <select formControlName="responsible"
+                    class="flex-1 border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-600 bg-white">
+              <option [ngValue]="null">Responsable (optionnel)</option>
+              @for (col of collaborators; track col.id) {
+                <option [ngValue]="col.id">{{ col.first_name }} {{ col.last_name }}</option>
+              }
+            </select>
+            <input formControlName="due_date" type="date"
+                   class="flex-1 border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-600"/>
+          </div>
+          <button type="submit"
+                  class="px-4 py-2 bg-green-700 text-white rounded-lg text-sm font-medium hover:bg-green-800 transition-colors">
+            Ajouter l'action
+          </button>
+        </form>
+      </div>
+    </div>
+
+  }
+
+</div>

@@ -1,0 +1,164 @@
+<div class="p-6 max-w-4xl mx-auto">
+
+  <!-- Chargement -->
+  @if (loading) {
+    <div class="flex justify-center items-center py-12">
+      <div class="w-8 h-8 border-4 border-green-700 border-t-transparent rounded-full animate-spin"></div>
+    </div>
+  }
+
+  <!-- Erreur -->
+  @if (error) {
+    <div class="bg-red-50 border border-red-200 text-red-700 rounded-lg p-4 mb-4">{{ error }}</div>
+  }
+
+  @if (!loading && procedure) {
+    <!-- En-tête -->
+    <div class="mb-6">
+      <div class="flex items-start justify-between gap-4">
+        <div class="min-w-0 flex-1">
+          <div class="flex items-center gap-2 mb-2 flex-wrap">
+            <span class="text-sm font-mono text-gray-500 bg-gray-100 px-2 py-0.5 rounded">{{ procedure.reference }}</span>
+            <span class="inline-flex px-2 py-0.5 rounded-full text-xs font-medium" [class]="statusClass(procedure.status)">
+              {{ statusLabel(procedure.status) }}
+            </span>
+            <span class="inline-flex px-2 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-600">
+              {{ categoryLabel(procedure.category) }}
+            </span>
+            <span class="inline-flex px-2 py-0.5 rounded-full text-xs font-medium bg-gray-50 text-gray-500 border border-gray-200">
+              v{{ procedure.version }}
+            </span>
+          </div>
+          <h1 class="text-2xl font-bold text-gray-800">{{ procedure.title }}</h1>
+        </div>
+
+        <!-- Boutons d'action -->
+        <div class="flex items-center gap-2 flex-shrink-0">
+          <a [routerLink]="['/quality/procedures', procedure.id, 'edit']"
+             class="px-3 py-1.5 text-sm text-gray-600 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors">
+            Modifier
+          </a>
+          @if (procedure.status === 'draft') {
+            <button (click)="publish()"
+                    class="px-3 py-1.5 text-sm text-green-700 border border-green-200 rounded-lg hover:bg-green-50 transition-colors">
+              Publier
+            </button>
+          }
+          @if (procedure.status === 'active') {
+            <button (click)="archive()"
+                    class="px-3 py-1.5 text-sm text-gray-500 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors">
+              Archiver
+            </button>
+          }
+          <a routerLink="/quality/procedures"
+             class="px-3 py-1.5 text-sm text-gray-500 hover:text-gray-700 transition-colors">
+            ← Retour
+          </a>
+        </div>
+      </div>
+    </div>
+
+    <!-- Métadonnées -->
+    <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6 bg-gray-50 rounded-xl p-4 border border-gray-100">
+      <div>
+        <p class="text-xs text-gray-500 uppercase tracking-wide mb-1">Pilote</p>
+        <p class="text-sm font-medium text-gray-800">
+          {{ procedure.pilot ? procedure.pilot.full_name : 'Non défini' }}
+        </p>
+      </div>
+      <div>
+        <p class="text-xs text-gray-500 uppercase tracking-wide mb-1">Créé par</p>
+        <p class="text-sm font-medium text-gray-800">
+          {{ procedure.created_by ? procedure.created_by.full_name : '—' }}
+        </p>
+      </div>
+      <div>
+        <p class="text-xs text-gray-500 uppercase tracking-wide mb-1">Créé le</p>
+        <p class="text-sm font-medium text-gray-800">
+          {{ procedure.created_at ? (procedure.created_at | date:'dd/MM/yyyy') : '—' }}
+        </p>
+      </div>
+      <div>
+        <p class="text-xs text-gray-500 uppercase tracking-wide mb-1">Modifié le</p>
+        <p class="text-sm font-medium text-gray-800">
+          {{ procedure.updated_at ? (procedure.updated_at | date:'dd/MM/yyyy') : '—' }}
+        </p>
+      </div>
+    </div>
+
+    <!-- Contenu HTML -->
+    @if (procedure.content) {
+      <div class="bg-white border border-gray-200 rounded-xl p-6 mb-6">
+        <h2 class="text-sm font-semibold text-gray-600 uppercase tracking-wide mb-4">Contenu</h2>
+        <div class="prose prose-sm max-w-none text-gray-700" [innerHTML]="procedure.content"></div>
+      </div>
+    }
+
+    <!-- Fichier principal -->
+    @if (procedure.file) {
+      <div class="bg-white border border-gray-200 rounded-xl p-4 mb-6">
+        <h2 class="text-sm font-semibold text-gray-600 uppercase tracking-wide mb-3">Fichier principal</h2>
+        <a [href]="procedure.file" target="_blank" download
+           class="inline-flex items-center gap-2 px-3 py-2 text-sm text-green-700 border border-green-200 rounded-lg hover:bg-green-50 transition-colors">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                  d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/>
+          </svg>
+          Télécharger le fichier
+        </a>
+      </div>
+    }
+
+    <!-- Photos -->
+    @if (procedure.images && procedure.images.length > 0) {
+      <div class="bg-white border border-gray-200 rounded-xl p-6 mb-6">
+        <h2 class="text-sm font-semibold text-gray-600 uppercase tracking-wide mb-4">Photos</h2>
+        <div class="grid grid-cols-3 md:grid-cols-4 gap-3">
+          @for (img of procedure.images; track img.id) {
+            <button (click)="openLightbox(img.url)"
+                    class="aspect-square rounded-lg overflow-hidden border border-gray-200 bg-gray-50 hover:opacity-80 transition-opacity cursor-zoom-in">
+              <img [src]="img.url" alt="Photo" class="w-full h-full object-cover"/>
+            </button>
+          }
+        </div>
+      </div>
+    }
+
+    <!-- Pièces jointes -->
+    @if (procedure.attachments && procedure.attachments.length > 0) {
+      <div class="bg-white border border-gray-200 rounded-xl p-6 mb-6">
+        <h2 class="text-sm font-semibold text-gray-600 uppercase tracking-wide mb-4">Pièces jointes</h2>
+        <ul class="space-y-2">
+          @for (att of procedure.attachments; track att.id) {
+            <li class="flex items-center justify-between px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg">
+              <div class="flex items-center gap-2 min-w-0">
+                <svg class="w-4 h-4 text-gray-400 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                        d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
+                </svg>
+                <span class="text-sm text-gray-700 truncate">{{ att.filename }}</span>
+              </div>
+              <a [href]="att.file" target="_blank" download
+                 class="ml-2 flex-shrink-0 text-green-700 hover:text-green-800 transition-colors">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                        d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/>
+                </svg>
+              </a>
+            </li>
+          }
+        </ul>
+      </div>
+    }
+  }
+
+  <!-- Lightbox -->
+  @if (lightboxImage) {
+    <div class="fixed inset-0 bg-black/80 z-50 flex items-center justify-center p-4"
+         (click)="closeLightbox()">
+      <img [src]="lightboxImage" alt="Photo agrandie"
+           class="max-w-full max-h-full rounded-lg shadow-2xl object-contain"/>
+    </div>
+  }
+
+</div>

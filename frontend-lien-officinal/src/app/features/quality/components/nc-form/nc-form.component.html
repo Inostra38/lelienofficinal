@@ -1,0 +1,121 @@
+<div class="p-6 max-w-2xl mx-auto">
+
+  <!-- En-tête -->
+  <div class="mb-6">
+    <h1 class="text-2xl font-bold text-gray-800">Signaler une non-conformité</h1>
+    <p class="text-sm text-gray-500 mt-1">Déclarez un écart qualité constaté dans l'officine</p>
+  </div>
+
+  <!-- Erreur -->
+  @if (error) {
+    <div class="bg-red-50 border border-red-200 text-red-700 rounded-lg p-4 mb-4">{{ error }}</div>
+  }
+
+  <form [formGroup]="form" (ngSubmit)="submit()" class="space-y-5">
+
+    <!-- Titre -->
+    <div>
+      <label class="block text-sm font-medium text-gray-700 mb-1">
+        Titre <span class="text-red-500">*</span>
+      </label>
+      <input formControlName="title" type="text" placeholder="Décrivez brièvement la non-conformité"
+             class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-600 focus:border-transparent"
+             [class.border-red-400]="form.get('title')?.invalid && form.get('title')?.touched"/>
+      @if (form.get('title')?.invalid && form.get('title')?.touched) {
+        <p class="text-red-500 text-xs mt-1">Le titre est requis.</p>
+      }
+    </div>
+
+    <!-- Description -->
+    <div>
+      <label class="block text-sm font-medium text-gray-700 mb-1">
+        Description <span class="text-red-500">*</span>
+      </label>
+      <textarea formControlName="description" rows="5"
+                placeholder="Décrivez en détail la non-conformité observée, le contexte, les faits..."
+                class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-600 focus:border-transparent resize-y"
+                [class.border-red-400]="form.get('description')?.invalid && form.get('description')?.touched">
+      </textarea>
+      @if (form.get('description')?.invalid && form.get('description')?.touched) {
+        <p class="text-red-500 text-xs mt-1">La description est requise.</p>
+      }
+    </div>
+
+    <!-- Gravité -->
+    <div>
+      <label class="block text-sm font-medium text-gray-700 mb-2">
+        Gravité <span class="text-red-500">*</span>
+      </label>
+      <div class="flex gap-3">
+        <label class="flex-1 cursor-pointer">
+          <input type="radio" formControlName="severity" value="minor" class="sr-only peer"/>
+          <div class="border-2 border-gray-200 rounded-lg p-3 text-center transition-all peer-checked:border-blue-400 peer-checked:bg-blue-50 hover:border-blue-200">
+            <div class="text-sm font-medium text-gray-700 peer-checked:text-blue-700">Mineure</div>
+            <div class="text-xs text-gray-400 mt-0.5">Impact faible</div>
+          </div>
+        </label>
+        <label class="flex-1 cursor-pointer">
+          <input type="radio" formControlName="severity" value="major" class="sr-only peer"/>
+          <div class="border-2 border-gray-200 rounded-lg p-3 text-center transition-all peer-checked:border-amber-400 peer-checked:bg-amber-50 hover:border-amber-200">
+            <div class="text-sm font-medium text-gray-700">Majeure</div>
+            <div class="text-xs text-gray-400 mt-0.5">Impact significatif</div>
+          </div>
+        </label>
+        <label class="flex-1 cursor-pointer">
+          <input type="radio" formControlName="severity" value="critical" class="sr-only peer"/>
+          <div class="border-2 border-gray-200 rounded-lg p-3 text-center transition-all peer-checked:border-red-400 peer-checked:bg-red-50 hover:border-red-200">
+            <div class="text-sm font-medium text-gray-700">Critique</div>
+            <div class="text-xs text-gray-400 mt-0.5">Impact majeur</div>
+          </div>
+        </label>
+      </div>
+      @if (form.get('severity')?.invalid && form.get('severity')?.touched) {
+        <p class="text-red-500 text-xs mt-1">Veuillez sélectionner une gravité.</p>
+      }
+    </div>
+
+    <!-- Procédure concernée -->
+    <div>
+      <label class="block text-sm font-medium text-gray-700 mb-1">
+        Procédure concernée <span class="text-gray-400 text-xs">(optionnel)</span>
+      </label>
+      <select formControlName="procedure"
+              class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-600 focus:border-transparent bg-white">
+        <option [ngValue]="null">Aucune procédure liée</option>
+        @for (p of procedures; track p.id) {
+          <option [ngValue]="p.id">{{ p.reference }} — {{ p.title }}</option>
+        }
+      </select>
+    </div>
+
+    <!-- Date limite -->
+    <div>
+      <label class="block text-sm font-medium text-gray-700 mb-1">
+        Date limite de résolution <span class="text-gray-400 text-xs">(optionnel)</span>
+      </label>
+      <input formControlName="due_date" type="date"
+             class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-600 focus:border-transparent"/>
+    </div>
+
+    <!-- Actions -->
+    <div class="flex items-center gap-3 pt-2">
+      <button type="submit" [disabled]="saving"
+              class="px-4 py-2 bg-green-700 text-white rounded-lg text-sm font-medium hover:bg-green-800 transition-colors disabled:opacity-50">
+        @if (saving) {
+          <span class="flex items-center gap-2">
+            <span class="w-4 h-4 border-2 border-white/50 border-t-white rounded-full animate-spin"></span>
+            Enregistrement...
+          </span>
+        } @else {
+          Signaler
+        }
+      </button>
+      <button type="button" (click)="cancel()" [disabled]="saving"
+              class="px-4 py-2 text-gray-500 text-sm hover:text-gray-700 transition-colors">
+        Annuler
+      </button>
+    </div>
+
+  </form>
+
+</div>

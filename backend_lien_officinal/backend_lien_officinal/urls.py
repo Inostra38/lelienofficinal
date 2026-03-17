@@ -22,6 +22,7 @@ urlpatterns = [
     path('api/', include('apps.messaging.urls')),
     path('api/', include('apps.tasks.urls')),
     path('api/', include('apps.planning.urls')),
+    path('api/quality/', include('apps.quality.urls')),
 
     # Auth
     path('api/token/', PharmacyTokenObtainPairView.as_view(), name='token_obtain_pair'),

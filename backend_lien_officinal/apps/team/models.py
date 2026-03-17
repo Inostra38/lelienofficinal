@@ -50,6 +50,9 @@ class Collaborator(models.Model):
     can_manage_team = models.BooleanField(_("Gérer l'équipe"), default=False)
     can_manage_planning = models.BooleanField(_("Gérer le planning"), default=False)
     can_manage_quality = models.BooleanField(_("Gérer la qualité"), default=False)
+    can_manage_procedures = models.BooleanField(_("Gérer les procédures"), default=False)
+    can_publish_procedures = models.BooleanField(_("Publier les procédures"), default=False)
+    can_close_nonconformities = models.BooleanField(_("Clôturer les non-conformités"), default=False)
 
     # Contrat de travail (utilisé par le planning)
     class ContractType(models.TextChoices):
@@ -90,6 +93,9 @@ class Collaborator(models.Model):
             self.can_manage_team = True
             self.can_manage_planning = True
             self.can_manage_quality = True
+            self.can_manage_procedures = True
+            self.can_publish_procedures = True
+            self.can_close_nonconformities = True
         super().save(*args, **kwargs)
 
     def set_pin(self, raw_pin):

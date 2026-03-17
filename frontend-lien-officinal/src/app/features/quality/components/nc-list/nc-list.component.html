@@ -1,0 +1,129 @@
+<div class="p-6 max-w-5xl mx-auto">
+
+  <!-- En-tête -->
+  <div class="flex items-center justify-between mb-6">
+    <div>
+      <h1 class="text-2xl font-bold text-gray-800">Non-conformités</h1>
+      <p class="text-sm text-gray-500 mt-1">Suivi et gestion des non-conformités qualité</p>
+    </div>
+    <a routerLink="/quality/nc/new"
+       class="inline-flex items-center gap-2 px-4 py-2 bg-green-700 text-white rounded-lg text-sm font-medium hover:bg-green-800 transition-colors">
+      <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
+      </svg>
+      Signaler une NC
+    </a>
+  </div>
+
+  <!-- Filtres -->
+  <div class="flex flex-wrap items-center gap-3 mb-6">
+    <!-- Filtre statut -->
+    <div class="flex items-center gap-1.5">
+      <span class="text-xs text-gray-500 font-medium">Statut :</span>
+      @for (f of statusFilters; track f.value) {
+        <button
+          (click)="applyStatusFilter(f.value)"
+          [class]="statusFilter === f.value
+            ? 'px-3 py-1 rounded-full text-xs font-medium bg-green-700 text-white'
+            : 'px-3 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-600 hover:bg-gray-200 transition-colors'">
+          {{ f.label }}
+        </button>
+      }
+    </div>
+
+    <!-- Séparateur -->
+    <span class="text-gray-200">|</span>
+
+    <!-- Filtre gravité -->
+    <div class="flex items-center gap-1.5">
+      <span class="text-xs text-gray-500 font-medium">Gravité :</span>
+      @for (f of severityFilters; track f.value) {
+        <button
+          (click)="applySeverityFilter(f.value)"
+          [class]="severityFilter === f.value
+            ? 'px-3 py-1 rounded-full text-xs font-medium bg-green-700 text-white'
+            : 'px-3 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-600 hover:bg-gray-200 transition-colors'">
+          {{ f.label }}
+        </button>
+      }
+    </div>
+  </div>
+
+  <!-- Chargement -->
+  @if (loading) {
+    <div class="flex justify-center items-center py-12">
+      <div class="w-8 h-8 border-4 border-green-700 border-t-transparent rounded-full animate-spin"></div>
+    </div>
+  }
+
+  <!-- Liste -->
+  @if (!loading) {
+    @if (ncs.length === 0) {
+      <div class="text-center py-12 text-gray-500">
+        <svg class="w-12 h-12 mx-auto mb-4 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"
+                d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/>
+        </svg>
+        @if (hasActiveFilters) {
+          <p class="font-medium text-gray-600">Aucun résultat pour ces filtres.</p>
+        } @else {
+          <p class="font-medium text-gray-600">Aucune non-conformité signalée.</p>
+          <a routerLink="/quality/nc/new" class="text-green-700 hover:underline text-sm mt-1 inline-block">
+            + Signaler une non-conformité
+          </a>
+        }
+      </div>
+    } @else {
+      <div class="space-y-3">
+        @for (nc of ncs; track trackById($index, nc)) {
+          <a [routerLink]="['/quality/nc', nc.id]"
+             class="block bg-white border border-gray-200 rounded-xl p-4 hover:border-green-300 hover:shadow-sm transition-all">
+            <div class="flex items-start justify-between gap-3">
+              <div class="flex-1 min-w-0">
+                <div class="flex items-center gap-2 mb-2 flex-wrap">
+                  <span class="inline-flex px-2 py-0.5 rounded-full text-xs font-medium" [class]="severityClass(nc.severity)">
+                    {{ severityLabel(nc.severity) }}
+                  </span>
+                  <span class="inline-flex px-2 py-0.5 rounded-full text-xs font-medium" [class]="statusClass(nc.status)">
+                    {{ statusLabel(nc.status) }}
+                  </span>
+                  @if (nc.procedure) {
+                    <span class="inline-flex items-center gap-1 text-xs text-gray-500 bg-gray-50 border border-gray-200 px-2 py-0.5 rounded-full">
+                      <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                              d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
+                      </svg>
+                      {{ nc.procedure.title }}
+                    </span>
+                  }
+                </div>
+                <h3 class="font-semibold text-gray-800 text-sm mb-1">{{ nc.title }}</h3>
+                <div class="flex items-center gap-4 text-xs text-gray-500">
+                  @if (nc.reported_by) {
+                    <span>Déclaré par {{ nc.reported_by.full_name }}</span>
+                  }
+                  @if (nc.assigned_to) {
+                    <span>Assigné à {{ nc.assigned_to.full_name }}</span>
+                  }
+                  @if (nc.due_date) {
+                    <span class="flex items-center gap-1">
+                      <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                              d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/>
+                      </svg>
+                      Échéance : {{ nc.due_date | date:'dd/MM/yyyy' }}
+                    </span>
+                  }
+                </div>
+              </div>
+              <div class="text-xs text-gray-400 flex-shrink-0">
+                {{ nc.created_at | date:'dd/MM/yyyy' }}
+              </div>
+            </div>
+          </a>
+        }
+      </div>
+    }
+  }
+
+</div>

@@ -244,7 +244,6 @@ export class SmsDashboardComponent implements OnInit, OnDestroy {
     el.dispatchEvent(new Event('input'));
     el.focus();
     this.updateSmsCount();
-    this.detectCustomVarBadges();
   }
 
   insertVarInTemplate(variable: string) {

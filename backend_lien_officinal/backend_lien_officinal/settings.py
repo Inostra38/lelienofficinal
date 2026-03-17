@@ -48,6 +48,7 @@ INSTALLED_APPS = [
     'apps.messaging',      # Messagerie d'équipe
     'apps.tasks',          # Gestion des tâches
     'apps.planning',       # Planning d'équipe
+    'apps.quality',        # Qualité & procédures
     # 'apps.notifications',  # Système de notifs (TEMPORAIREMENT DÉSACTIVÉ)
 ]
 
@@ -204,3 +205,10 @@ FIELD_ENCRYPTION_KEY = os.environ.get('FIELD_ENCRYPTION_KEY', '')
 
 # --- API Claude (Anthropic) ---
 ANTHROPIC_API_KEY = os.environ.get('ANTHROPIC_API_KEY', '')
+
+# --- OVH SMS ---
+OVH_ENDPOINT = 'ovh-eu'
+OVH_APP_KEY = os.environ.get('OVH_APP_KEY', 'DUMMY_KEY')
+OVH_APP_SECRET = os.environ.get('OVH_APP_SECRET', 'DUMMY_SECRET')
+OVH_CONSUMER_KEY = os.environ.get('OVH_CONSUMER_KEY', 'DUMMY_CONSUMER')
+OVH_SMS_SERVICE = os.environ.get('OVH_SMS_SERVICE', 'sms-XXXX-1')
