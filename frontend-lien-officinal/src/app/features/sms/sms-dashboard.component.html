@@ -1,0 +1,496 @@
+<!-- ── Sélecteur de collaborateur (overlay) ── -->
+<div *ngIf="showCollaboratorPicker"
+     class="fixed inset-0 z-50 bg-white/80 backdrop-blur-sm flex items-center justify-center p-4">
+  <div class="bg-white rounded-2xl shadow-2xl border border-gray-100 p-8 w-full max-w-sm">
+    <h2 class="text-lg font-bold text-gray-800 mb-1">Module SMS</h2>
+    <p class="text-sm text-gray-400 mb-6">Qui êtes-vous pour cette session ?</p>
+    <div class="grid grid-cols-3 gap-3">
+      <button *ngFor="let collab of team"
+              (click)="selectCollaborator(collab)"
+              class="flex flex-col items-center gap-2 p-3 rounded-xl border border-gray-100 hover:border-green-300 hover:bg-green-50 transition-all">
+        <div class="w-10 h-10 rounded-full text-white flex items-center justify-center font-bold text-sm"
+             [ngClass]="getCollaboratorBgClass(collab.color)">
+          {{ getInitials(collab) }}
+        </div>
+        <span class="text-xs text-gray-600 font-medium text-center leading-tight">
+          {{ collab.first_name }}
+        </span>
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- ── PIN modal ── -->
+<app-pin-modal
+  *ngIf="showPinModal && pendingCollaborator"
+  [collaboratorId]="pendingCollaborator.id!"
+  [collaboratorName]="pendingCollaborator.first_name + ' ' + pendingCollaborator.last_name"
+  [collaboratorRole]="pendingCollaborator.role"
+  mode="switch"
+  (pinValidated)="onPinValidated()"
+  (cancelled)="onPinCancelled()">
+</app-pin-modal>
+
+<div class="p-6 max-w-4xl mx-auto">
+
+  <!-- ── En-tête ── -->
+  <div class="flex items-center justify-between mb-6">
+    <div>
+      <h1 class="text-2xl font-bold text-gray-800">SMS</h1>
+      <p class="text-sm text-gray-500 mt-0.5">Envoi de messages aux patients</p>
+    </div>
+    <div class="flex items-center gap-3">
+      <!-- Collaborateur actif -->
+      <div *ngIf="activeCollaborator"
+           class="flex items-center gap-2 bg-green-50 border border-green-100 rounded-xl px-3 py-1.5">
+        <div class="w-6 h-6 rounded-full text-white flex items-center justify-center text-xs font-bold shrink-0"
+             [ngClass]="getCollaboratorBgClass(activeCollaborator.color)">
+          {{ getInitials(activeCollaborator) }}
+        </div>
+        <span class="text-xs font-medium text-gray-700">{{ activeCollaborator.first_name }}</span>
+        <button (click)="changeCollaborator()" title="Changer de collaborateur"
+                class="text-gray-400 hover:text-red-500 transition-colors ml-1">
+          <svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+          </svg>
+        </button>
+      </div>
+      <a routerLink="/sms/settings"
+         class="flex items-center gap-1.5 text-sm text-gray-500 hover:text-green-700 transition-colors">
+        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+            d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/>
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
+        </svg>
+        Paramètres
+      </a>
+    </div>
+  </div>
+
+  <!-- ── Onglets ── -->
+  <div class="flex gap-1 bg-gray-100 rounded-xl p-1 mb-6 w-fit">
+    <button (click)="switchTab('send')"
+            [class]="activeTab === 'send' ? 'bg-white text-green-700 font-semibold shadow-sm' : 'text-gray-500 hover:text-gray-700'"
+            class="px-4 py-2 rounded-lg text-sm transition-all">Envoyer</button>
+    <button (click)="switchTab('templates')"
+            [class]="activeTab === 'templates' ? 'bg-white text-green-700 font-semibold shadow-sm' : 'text-gray-500 hover:text-gray-700'"
+            class="px-4 py-2 rounded-lg text-sm transition-all">Templates</button>
+    <button (click)="switchTab('history')"
+            [class]="activeTab === 'history' ? 'bg-white text-green-700 font-semibold shadow-sm' : 'text-gray-500 hover:text-gray-700'"
+            class="px-4 py-2 rounded-lg text-sm transition-all">Historique</button>
+  </div>
+
+  <!-- ════════════════════════════════════════════
+       ONGLET ENVOYER
+  ════════════════════════════════════════════ -->
+  <div *ngIf="activeTab === 'send'" class="space-y-5">
+
+    <!-- Notifications -->
+    <div *ngIf="successMessage"
+         class="flex items-center gap-2 bg-green-50 border border-green-200 text-green-800 text-sm px-4 py-3 rounded-xl">
+      <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/>
+      </svg>
+      {{ successMessage }}
+    </div>
+    <div *ngIf="errorMessage"
+         class="flex items-center gap-2 bg-red-50 border border-red-200 text-red-700 text-sm px-4 py-3 rounded-xl">
+      <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+      </svg>
+      {{ errorMessage }}
+    </div>
+
+    <!-- Section Destinataire -->
+    <div class="bg-white rounded-2xl border border-gray-100 p-5">
+      <h2 class="text-sm font-semibold text-gray-700 mb-4 flex items-center gap-2">
+        <span class="w-5 h-5 rounded-full bg-green-100 text-green-700 flex items-center justify-center text-xs font-bold">1</span>
+        Destinataire
+      </h2>
+      <div class="grid grid-cols-2 gap-3 mb-3">
+        <div>
+          <label class="block text-xs text-gray-500 mb-1">Civilité</label>
+          <select [(ngModel)]="recipientCivilite" (ngModelChange)="onPatientFieldChange()"
+                  class="w-full text-sm border border-gray-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-green-200">
+            <option value="">—</option>
+            <option value="M.">M.</option>
+            <option value="Mme">Mme</option>
+          </select>
+        </div>
+        <div>
+          <label class="block text-xs text-gray-500 mb-1">Téléphone <span class="text-red-400">*</span></label>
+          <input [(ngModel)]="recipientPhone" type="tel" placeholder="06 12 34 56 78"
+                 [class.border-red-300]="recipientPhone && !isPhoneValid"
+                 class="w-full text-sm border border-gray-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-green-200"/>
+          <p *ngIf="recipientPhone && !isPhoneValid" class="text-xs text-red-500 mt-1">10 chiffres minimum</p>
+        </div>
+      </div>
+      <div class="grid grid-cols-2 gap-3">
+        <div>
+          <label class="block text-xs text-gray-500 mb-1">Prénom</label>
+          <input [(ngModel)]="recipientPrenom" (ngModelChange)="onPatientFieldChange()"
+                 type="text" placeholder="Marie"
+                 class="w-full text-sm border border-gray-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-green-200"/>
+        </div>
+        <div>
+          <label class="block text-xs text-gray-500 mb-1">Nom</label>
+          <input [(ngModel)]="recipientNom" (ngModelChange)="onPatientFieldChange()"
+                 type="text" placeholder="Martin"
+                 class="w-full text-sm border border-gray-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-green-200"/>
+        </div>
+      </div>
+    </div>
+
+    <!-- Section Message -->
+    <div class="bg-white rounded-2xl border border-gray-100 p-5">
+      <h2 class="text-sm font-semibold text-gray-700 mb-4 flex items-center gap-2">
+        <span class="w-5 h-5 rounded-full bg-green-100 text-green-700 flex items-center justify-center text-xs font-bold">2</span>
+        Message
+      </h2>
+
+      <!-- Sélecteur de template -->
+      <div class="mb-4">
+        <label class="block text-xs text-gray-500 mb-1">Template (optionnel)</label>
+        <select [(ngModel)]="selectedTemplateId" (ngModelChange)="onTemplateChange()"
+                class="w-full text-sm border border-gray-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-green-200">
+          <option [ngValue]="null">Message libre</option>
+          <option *ngFor="let t of templates" [ngValue]="t.id">{{ t.title }}</option>
+        </select>
+      </div>
+
+      <!-- Panneau variables (send tab) -->
+      <div class="mb-3 bg-gray-50 border border-gray-100 rounded-xl p-3 space-y-3">
+
+        <!-- Pharmacie → valeur réelle -->
+        <div>
+          <p class="text-xs font-semibold text-green-700 mb-1.5">Pharmacie</p>
+          <div class="flex flex-wrap gap-1.5">
+            <button *ngFor="let v of pharmacieVarsSend"
+                    type="button"
+                    (click)="insertAtCursor(getPharmacyValue(v.field))"
+                    [title]="getPharmacyValue(v.field) || '(non renseigné)'"
+                    [disabled]="!getPharmacyValue(v.field)"
+                    class="text-xs bg-green-50 text-green-700 border border-green-200 hover:bg-green-100 disabled:opacity-40 disabled:cursor-not-allowed px-2 py-0.5 rounded-md transition-colors">
+              {{ v.label }}
+            </button>
+          </div>
+        </div>
+
+        <!-- Expéditeur → valeur réelle depuis JWT -->
+        <div *ngIf="activeCollaborator">
+          <p class="text-xs font-semibold text-blue-700 mb-1.5">Expéditeur</p>
+          <div class="flex flex-wrap gap-1.5">
+            <button type="button" (click)="insertAtCursor(getSenderValue('prenom'))"
+                    class="text-xs bg-blue-50 text-blue-700 border border-blue-200 hover:bg-blue-100 px-2 py-0.5 rounded-md transition-colors">
+              prénom
+            </button>
+            <button type="button" (click)="insertAtCursor(getSenderValue('prenom_nom'))"
+                    class="text-xs bg-blue-50 text-blue-700 border border-blue-200 hover:bg-blue-100 px-2 py-0.5 rounded-md transition-colors">
+              prénom + initiale
+            </button>
+            <button type="button" (click)="insertAtCursor(getSenderValue('role'))"
+                    class="text-xs bg-blue-50 text-blue-700 border border-blue-200 hover:bg-blue-100 px-2 py-0.5 rounded-md transition-colors">
+              poste
+            </button>
+          </div>
+        </div>
+
+        <!-- Patient → valeur des champs du formulaire -->
+        <div>
+          <p class="text-xs font-semibold text-violet-700 mb-1.5">Patient</p>
+          <div class="flex flex-wrap gap-1.5">
+            <button type="button" (click)="insertAtCursor(getPatientValue('civilite'))"
+                    class="text-xs bg-violet-50 text-violet-700 border border-violet-200 hover:bg-violet-100 px-2 py-0.5 rounded-md transition-colors">
+              civilité
+            </button>
+            <button type="button" (click)="insertAtCursor(getPatientValue('prenom'))"
+                    class="text-xs bg-violet-50 text-violet-700 border border-violet-200 hover:bg-violet-100 px-2 py-0.5 rounded-md transition-colors">
+              prénom
+            </button>
+            <button type="button" (click)="insertAtCursor(getPatientValue('nom'))"
+                    class="text-xs bg-violet-50 text-violet-700 border border-violet-200 hover:bg-violet-100 px-2 py-0.5 rounded-md transition-colors">
+              nom
+            </button>
+            <button type="button" (click)="insertAtCursor(getPatientValue('civilite_nom'))"
+                    class="text-xs bg-violet-50 text-violet-700 border border-violet-200 hover:bg-violet-100 px-2 py-0.5 rounded-md transition-colors">
+              civilité + nom
+            </button>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- Textarea -->
+      <textarea #messageTextarea
+                [(ngModel)]="messageText"
+                (ngModelChange)="onMessageChange()"
+                rows="6"
+                maxlength="480"
+                placeholder="Rédigez votre message ou sélectionnez un template…"
+                class="w-full text-sm border border-gray-200 rounded-xl px-3 py-2.5 resize-none focus:outline-none focus:ring-2 focus:ring-green-200 font-mono leading-relaxed">
+      </textarea>
+
+      <!-- Compteur SMS -->
+      <div class="flex items-center gap-3 mt-2">
+        <p class="text-xs text-gray-400">
+          {{ messageText.length }} caractères
+          <span class="mx-1">·</span>
+          <span class="font-medium text-gray-600">{{ smsCount }} SMS</span>
+          <span class="mx-1">·</span>
+          {{ smsCount }} crédit<span *ngIf="smsCount > 1">s</span>
+        </p>
+        <span *ngIf="encoding === 'Unicode'"
+              class="text-xs bg-amber-50 text-amber-700 border border-amber-200 px-2 py-0.5 rounded-md">
+          ⚠ Caractères spéciaux — encodage Unicode (70 car/SMS)
+        </span>
+      </div>
+
+    </div>
+
+    <!-- Motif (optionnel) -->
+    <div class="bg-white rounded-2xl border border-gray-100 p-5">
+      <h2 class="text-sm font-semibold text-gray-700 mb-4 flex items-center gap-2">
+        <span class="w-5 h-5 rounded-full bg-green-100 text-green-700 flex items-center justify-center text-xs font-bold">3</span>
+        Motif <span class="text-xs font-normal text-gray-400 ml-1">(optionnel)</span>
+      </h2>
+      <label class="sr-only">Motif</label>
+      <input [(ngModel)]="motif"
+             type="text"
+             maxlength="255"
+             placeholder="Ex : Suivi ordonnance, Relance..."
+             class="w-full text-sm border border-gray-200 rounded-xl px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-green-200"/>
+    </div>
+
+    <!-- Bouton envoyer -->
+    <div class="flex justify-end">
+      <button (click)="send()" [disabled]="!canSend"
+              class="flex items-center gap-2 bg-green-700 hover:bg-green-800 disabled:bg-gray-200 disabled:text-gray-400 disabled:cursor-not-allowed text-white font-semibold px-6 py-2.5 rounded-xl transition-colors text-sm">
+        <svg *ngIf="!sending" xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"/>
+        </svg>
+        <svg *ngIf="sending" class="h-4 w-4 animate-spin" fill="none" viewBox="0 0 24 24">
+          <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/>
+          <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"/>
+        </svg>
+        {{ sending ? 'Envoi…' : 'Envoyer le SMS' }}
+      </button>
+    </div>
+  </div>
+
+  <!-- ════════════════════════════════════════════
+       ONGLET TEMPLATES
+  ════════════════════════════════════════════ -->
+  <div *ngIf="activeTab === 'templates'">
+
+    <!-- Liste -->
+    <div *ngIf="!showTemplateForm">
+      <div class="flex justify-between items-center mb-4">
+        <p class="text-sm text-gray-500">{{ templates.length }} template<span *ngIf="templates.length > 1">s</span></p>
+        <button (click)="openNewTemplate()"
+                class="flex items-center gap-1.5 bg-green-700 hover:bg-green-800 text-white text-sm font-semibold px-4 py-2 rounded-xl transition-colors">
+          <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 4v16m8-8H4"/>
+          </svg>
+          Nouveau template
+        </button>
+      </div>
+      <div *ngIf="templates.length === 0" class="bg-white rounded-2xl border border-gray-100 py-12 text-center text-sm text-gray-400">
+        Aucun template. Créez-en un !
+      </div>
+      <div class="space-y-3">
+        <div *ngFor="let t of templates"
+             class="bg-white rounded-2xl border border-gray-100 p-4 flex items-start justify-between gap-4 hover:border-green-200 transition-colors">
+          <div class="flex-1 min-w-0">
+            <p class="text-sm font-semibold text-gray-800 mb-1">{{ t.title }}</p>
+            <p class="text-xs text-gray-500 line-clamp-2 leading-relaxed">{{ t.content }}</p>
+          </div>
+          <div class="flex gap-2 shrink-0">
+            <button (click)="openEditTemplate(t)" title="Modifier"
+                    class="p-2 text-gray-400 hover:text-green-700 hover:bg-green-50 rounded-lg transition-colors">
+              <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                  d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/>
+              </svg>
+            </button>
+            <button (click)="deleteTemplate(t)" title="Supprimer"
+                    class="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors">
+              <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                  d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
+              </svg>
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Formulaire créer/modifier -->
+    <div *ngIf="showTemplateForm" class="bg-white rounded-2xl border border-gray-100 p-6">
+      <div class="flex items-center justify-between mb-5">
+        <h2 class="text-sm font-semibold text-gray-700">
+          {{ isNewTemplate ? 'Nouveau template' : 'Modifier le template' }}
+        </h2>
+        <button (click)="closeTemplateForm()" class="text-gray-400 hover:text-gray-600 transition-colors">
+          <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+          </svg>
+        </button>
+      </div>
+
+      <div *ngIf="templateError" class="bg-red-50 border border-red-200 text-red-700 text-sm px-4 py-3 rounded-xl mb-4">
+        {{ templateError }}
+      </div>
+
+      <div class="space-y-4">
+        <div>
+          <label class="block text-xs text-gray-500 mb-1">Titre <span class="text-red-400">*</span></label>
+          <input [(ngModel)]="templateForm.title" type="text" maxlength="50" placeholder="Ex : Commande prête"
+                 class="w-full text-sm border border-gray-200 rounded-xl px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-green-200"/>
+          <p class="text-xs text-gray-400 mt-1 text-right">{{ templateForm.title.length }}/50</p>
+        </div>
+
+        <div>
+          <label class="block text-xs text-gray-500 mb-1.5">Contenu <span class="text-red-400">*</span></label>
+
+          <!-- Panneau variables — éditeur de template (insère {{variable}}) -->
+          <div class="bg-gray-50 border border-gray-100 rounded-xl p-3 mb-3 space-y-3">
+
+            <!-- Pharmacie (vert) -->
+            <div>
+              <p class="text-xs font-semibold text-green-700 mb-1.5">Pharmacie</p>
+              <div class="flex flex-wrap gap-1.5">
+                <button *ngFor="let v of pharmacieVarsTemplate" type="button"
+                        (click)="insertVarInTemplate(v.key)"
+                        class="text-xs bg-green-50 text-green-700 border border-green-200 hover:bg-green-100 px-2 py-0.5 rounded-md transition-colors">
+                  {{ v.label }}
+                </button>
+              </div>
+            </div>
+
+            <!-- Expéditeur (bleu) -->
+            <div>
+              <p class="text-xs font-semibold text-blue-700 mb-1.5">Expéditeur</p>
+              <div class="flex flex-wrap gap-1.5">
+                <button *ngFor="let v of expediteurVarsTemplate" type="button"
+                        (click)="insertVarInTemplate(v.key)"
+                        class="text-xs bg-blue-50 text-blue-700 border border-blue-200 hover:bg-blue-100 px-2 py-0.5 rounded-md transition-colors">
+                  {{ v.label }}
+                </button>
+              </div>
+            </div>
+
+            <!-- Patient (violet) -->
+            <div>
+              <p class="text-xs font-semibold text-violet-700 mb-1.5">Patient</p>
+              <div class="flex flex-wrap gap-1.5">
+                <button *ngFor="let v of patientVarsTemplate" type="button"
+                        (click)="insertVarInTemplate(v.key)"
+                        class="text-xs bg-violet-50 text-violet-700 border border-violet-200 hover:bg-violet-100 px-2 py-0.5 rounded-md transition-colors">
+                  {{ v.label }}
+                </button>
+              </div>
+            </div>
+
+          </div>
+
+          <textarea #templateContentTextarea
+                    [(ngModel)]="templateForm.content" rows="5" maxlength="480"
+                    [placeholder]="templateContentPlaceholder"
+                    class="w-full text-sm border border-gray-200 rounded-xl px-3 py-2.5 resize-none focus:outline-none focus:ring-2 focus:ring-green-200 font-mono leading-relaxed">
+          </textarea>
+          <p class="text-xs text-gray-400 mt-1 text-right">{{ templateForm.content.length }}/480</p>
+        </div>
+      </div>
+
+      <div class="flex justify-end gap-3 mt-5">
+        <button (click)="closeTemplateForm()" class="px-4 py-2 text-sm text-gray-500 hover:text-gray-700 transition-colors">
+          Annuler
+        </button>
+        <button (click)="saveTemplate()" [disabled]="templateSaving"
+                class="flex items-center gap-2 bg-green-700 hover:bg-green-800 disabled:bg-gray-200 disabled:text-gray-400 text-white font-semibold px-5 py-2 rounded-xl transition-colors text-sm">
+          <svg *ngIf="templateSaving" class="h-4 w-4 animate-spin" fill="none" viewBox="0 0 24 24">
+            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/>
+            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"/>
+          </svg>
+          {{ templateSaving ? 'Sauvegarde…' : 'Enregistrer' }}
+        </button>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- ════════════════════════════════════════════
+       ONGLET HISTORIQUE
+  ════════════════════════════════════════════ -->
+  <div *ngIf="activeTab === 'history'">
+    <div class="flex justify-between items-center mb-4">
+      <p class="text-sm text-gray-500">50 derniers envois</p>
+      <button (click)="loadLogs()"
+              class="flex items-center gap-1.5 text-sm text-gray-500 hover:text-green-700 transition-colors">
+        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
+        </svg>
+        Rafraîchir
+      </button>
+    </div>
+    <div *ngIf="loadingLogs" class="flex justify-center py-12">
+      <svg class="h-6 w-6 animate-spin text-green-600" fill="none" viewBox="0 0 24 24">
+        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/>
+        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"/>
+      </svg>
+    </div>
+    <div *ngIf="!loadingLogs" class="bg-white rounded-2xl border border-gray-100 overflow-hidden">
+      <div *ngIf="logs.length === 0" class="py-12 text-center text-sm text-gray-400">
+        Aucun SMS envoyé pour le moment.
+      </div>
+      <table *ngIf="logs.length > 0" class="w-full text-sm">
+        <thead>
+          <tr class="bg-gray-50 border-b border-gray-100">
+            <th class="text-left text-xs font-medium text-gray-500 px-4 py-3">Date</th>
+            <th class="text-left text-xs font-medium text-gray-500 px-4 py-3">Template</th>
+            <th class="text-left text-xs font-medium text-gray-500 px-4 py-3">Motif</th>
+            <th class="text-left text-xs font-medium text-gray-500 px-4 py-3">Destinataire</th>
+            <th class="text-left text-xs font-medium text-gray-500 px-4 py-3">Envoyé par</th>
+            <th class="text-left text-xs font-medium text-gray-500 px-4 py-3">Statut</th>
+            <th class="text-right text-xs font-medium text-gray-500 px-4 py-3">Crédits</th>
+          </tr>
+        </thead>
+        <tbody>
+          <ng-container *ngFor="let log of logs">
+            <tr class="border-b border-gray-50 hover:bg-gray-50/50 transition-colors">
+              <td class="px-4 py-3 text-gray-600 whitespace-nowrap">{{ formatDate(log.sent_at) }}</td>
+              <td class="px-4 py-3 text-gray-700 font-medium">{{ log.template_title }}</td>
+              <td class="px-4 py-3 text-gray-500">{{ log.motif || '—' }}</td>
+              <td class="px-4 py-3 text-gray-600">{{ log.recipient_civilite }} {{ log.recipient_name || '—' }}</td>
+              <td class="px-4 py-3 text-gray-500 text-xs">{{ log.sent_by_display }}</td>
+              <td class="px-4 py-3">
+                <button *ngIf="log.status === 'FAILED'" (click)="toggleLogError(log.id)"
+                        class="inline-flex items-center gap-1 bg-red-100 text-red-700 text-xs font-semibold px-2 py-0.5 rounded-full hover:bg-red-200 transition-colors">
+                  FAILED
+                  <svg xmlns="http://www.w3.org/2000/svg" class="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                  </svg>
+                </button>
+                <span *ngIf="log.status === 'SUCCESS'"
+                      class="inline-flex bg-green-100 text-green-700 text-xs font-semibold px-2 py-0.5 rounded-full">
+                  SUCCESS
+                </span>
+              </td>
+              <td class="px-4 py-3 text-right text-gray-600">{{ log.credits_used }}</td>
+            </tr>
+            <tr *ngIf="expandedLogId === log.id" class="bg-red-50">
+              <td colspan="7" class="px-4 py-3">
+                <p class="text-xs font-medium text-red-700 mb-1">Détail de l'erreur :</p>
+                <code class="text-xs text-red-600 break-all">{{ log.error_message }}</code>
+              </td>
+            </tr>
+          </ng-container>
+        </tbody>
+      </table>
+    </div>
+    <p class="text-xs text-gray-400 mt-3 text-center">
+      Les numéros de téléphone ne sont jamais affichés ni stockés.
+    </p>
+  </div>
+
+</div>

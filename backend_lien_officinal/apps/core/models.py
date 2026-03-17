@@ -53,6 +53,12 @@ class Pharmacy(AbstractBaseUser, PermissionsMixin):
     # Informations légales
     vat_number = models.CharField(_("Numéro de TVA"), max_length=20, blank=True)
 
+    # Contact
+    phone = models.CharField(_("Téléphone"), max_length=20, blank=True)
+
+    # Crédits SMS
+    sms_credits = models.PositiveIntegerField(_("Crédits SMS"), default=0)
+
     # Type de pharmacie
     class PharmacyType(models.TextChoices):
         URBAINE = 'urbaine', _('Urbaine')
@@ -107,3 +113,54 @@ class Pharmacy(AbstractBaseUser, PermissionsMixin):
 
     def __str__(self):
         return f"{self.nom_officine} ({self.email})"
+
+
+class SMSTemplate(models.Model):
+    pharmacy = models.ForeignKey(
+        'Pharmacy', on_delete=models.CASCADE, related_name='sms_templates'
+    )
+    title = models.CharField(max_length=50)
+    content = models.TextField()
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        unique_together = ('pharmacy', 'title')
+        verbose_name = "Template SMS"
+        verbose_name_plural = "Templates SMS"
+
+    def __str__(self):
+        return self.title
+
+
+class SMSLog(models.Model):
+    class Status(models.TextChoices):
+        SUCCESS = 'SUCCESS', 'SUCCESS'
+        FAILED = 'FAILED', 'FAILED'
+
+    pharmacy = models.ForeignKey(
+        'Pharmacy', on_delete=models.CASCADE, related_name='sms_logs'
+    )
+    template = models.ForeignKey(
+        SMSTemplate, on_delete=models.SET_NULL, null=True, blank=True
+    )
+    sent_by = models.ForeignKey(
+        'Pharmacy', on_delete=models.SET_NULL, null=True, related_name='sms_sent'
+    )
+    to_hash = models.CharField(max_length=64)
+    recipient_civilite = models.CharField(max_length=3, blank=True)
+    recipient_name = models.CharField(max_length=200, blank=True)
+    motif = models.CharField(max_length=255, blank=True, default='')
+    status = models.CharField(max_length=10, choices=Status.choices)
+    credits_used = models.PositiveIntegerField(default=0)
+    sent_at = models.DateTimeField(auto_now_add=True)
+    error_message = models.TextField(blank=True, default='')
+
+    class Meta:
+        verbose_name = "Log SMS"
+        verbose_name_plural = "Logs SMS"
+        ordering = ['-sent_at']
+
+    def __str__(self):
+        return f"{self.pharmacy} → {self.recipient_name} {self.status} ({self.sent_at:%Y-%m-%d})"
+
