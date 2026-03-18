@@ -74,7 +74,7 @@
             (drop)="onDrop($event, item)"
             (dragend)="onDragEnd()"
             class="grid grid-cols-12 gap-2 px-4 py-3 border-b border-gray-100 items-center group transition-all select-none"
-            [class]="rowBg(item.level)
+            [class]="(item.proc.is_group ? 'bg-green-50/50' : rowBg(item.level))
               + ' ' + dropClass(item)
               + (draggingId === item.proc.id ? ' opacity-30' : ' hover:bg-green-50/20')">
 
@@ -104,10 +104,16 @@
               }
 
               <a [routerLink]="['/quality/procedures', item.proc.id]"
-                 class="font-medium hover:text-green-700 transition-colors text-sm truncate"
-                 [class]="item.level === 0 ? 'text-gray-800' : 'text-gray-700'"
+                 class="hover:text-green-700 transition-colors text-sm truncate"
+                 [class]="item.proc.is_group ? 'font-semibold text-gray-800' : (item.level === 0 ? 'font-medium text-gray-800' : 'font-medium text-gray-700')"
                  (click)="$event.stopPropagation()">
-                <span class="text-gray-400 mr-1 text-xs font-mono">{{ item.proc.reference }}</span>
+                @if (item.proc.is_group) {
+                  <svg class="w-3.5 h-3.5 inline mr-1 text-green-600 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
+                    <path d="M2 6a2 2 0 012-2h5l2 2h5a2 2 0 012 2v6a2 2 0 01-2 2H4a2 2 0 01-2-2V6z"/>
+                  </svg>
+                } @else {
+                  <span class="text-gray-400 mr-1 text-xs font-mono">{{ item.proc.reference }}</span>
+                }
                 {{ item.proc.title }}
               </a>
             </div>

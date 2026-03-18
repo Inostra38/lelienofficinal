@@ -23,7 +23,8 @@ class Procedure(models.Model):
         related_name='procedures',
     )
     title = models.CharField(max_length=200)
-    reference = models.CharField(max_length=20)
+    reference = models.CharField(max_length=20, null=True, blank=True, default=None)
+    is_group = models.BooleanField(default=False)
     category = models.CharField(max_length=50, choices=Category.choices)
     status = models.CharField(max_length=20, choices=Status.choices, default=Status.DRAFT)
     content = models.TextField(blank=True)
@@ -58,7 +59,8 @@ class Procedure(models.Model):
         ordering = ['position', 'id']
 
     def __str__(self):
-        return f"[{self.reference}] {self.title}"
+        ref = f"[{self.reference}] " if self.reference else ""
+        return f"{ref}{self.title}"
 
     def get_depth(self):
         depth = 0

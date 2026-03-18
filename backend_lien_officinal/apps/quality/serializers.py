@@ -45,7 +45,7 @@ class ProcedureListSerializer(serializers.ModelSerializer):
     class Meta:
         model = Procedure
         fields = [
-            'id', 'title', 'reference', 'category', 'status',
+            'id', 'title', 'reference', 'is_group', 'category', 'status',
             'version', 'position', 'parent', 'pilot', 'updated_at',
         ]
 
@@ -56,6 +56,7 @@ class ProcedureListSerializer(serializers.ModelSerializer):
 # ── Procedure — Detail (complet) ─────────────────────────────────────────────
 
 class ProcedureDetailSerializer(serializers.ModelSerializer):
+    reference = serializers.CharField(max_length=20, allow_null=True, allow_blank=True, required=False, default=None)
     pilot = serializers.SerializerMethodField()
     pilot_id = serializers.PrimaryKeyRelatedField(
         source='pilot',
@@ -72,15 +73,17 @@ class ProcedureDetailSerializer(serializers.ModelSerializer):
     )
     attachments = ProcedureAttachmentSerializer(many=True, read_only=True)
     images = ProcedureImageSerializer(many=True, read_only=True)
+    children = serializers.SerializerMethodField()
 
     class Meta:
         model = Procedure
         fields = [
-            'id', 'title', 'reference', 'category', 'status',
+            'id', 'title', 'reference', 'is_group', 'category', 'status',
             'version', 'position', 'parent', 'pilot', 'pilot_id', 'updated_at',
             'content', 'file', 'created_by', 'created_at',
-            'attachments', 'images',
+            'attachments', 'images', 'children',
         ]
+        validators = []  # Gestion manuelle pour référence optionnelle (groupes)
 
     def get_pilot(self, obj):
         return _collab_repr(obj.pilot)
@@ -88,7 +91,31 @@ class ProcedureDetailSerializer(serializers.ModelSerializer):
     def get_created_by(self, obj):
         return _collab_repr(obj.created_by)
 
+    def get_children(self, obj):
+        qs = obj.children.order_by('position').select_related('pilot')
+        return ProcedureListSerializer(qs, many=True, context=self.context).data
+
     def validate(self, data):
+        is_group = data.get('is_group', getattr(self.instance, 'is_group', False))
+        reference = data.get('reference', getattr(self.instance, 'reference', None))
+
+        # Référence obligatoire pour les procédures standard
+        if not is_group and not reference:
+            raise serializers.ValidationError(
+                {'reference': 'La référence est obligatoire pour une procédure standard.'}
+            )
+
+        # Unicité de la référence (uniquement si elle est fournie)
+        if reference:
+            pharmacy = self.context['request'].user
+            qs = Procedure.objects.filter(pharmacy=pharmacy, reference=reference)
+            if self.instance:
+                qs = qs.exclude(pk=self.instance.pk)
+            if qs.exists():
+                raise serializers.ValidationError(
+                    {'reference': 'Une procédure avec cette référence existe déjà.'}
+                )
+
         parent = data.get('parent', getattr(self.instance, 'parent', None))
         instance = self.instance
 
@@ -122,7 +149,7 @@ class ProcedureTreeSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Procedure
-        fields = ['id', 'title', 'reference', 'category', 'status', 'version', 'position', 'pilot', 'children']
+        fields = ['id', 'title', 'reference', 'is_group', 'category', 'status', 'version', 'position', 'pilot', 'children']
 
     def get_pilot(self, obj):
         return _collab_repr(obj.pilot)

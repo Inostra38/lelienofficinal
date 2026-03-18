@@ -1,7 +1,8 @@
 export interface Procedure {
   id: number;
   title: string;
-  reference: string;
+  reference: string | null;
+  is_group?: boolean;
   category: ProcedureCategory;
   status: ProcedureStatus;
   content?: string;

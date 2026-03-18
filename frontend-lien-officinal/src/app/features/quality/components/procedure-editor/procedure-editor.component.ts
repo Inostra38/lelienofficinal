@@ -36,6 +36,7 @@ export class ProcedureEditorComponent implements OnInit {
   images: ProcedureImage[] = [];
 
   form = this.fb.group({
+    is_group: [false],
     title: ['', Validators.required],
     reference: ['', Validators.required],
     category: ['', Validators.required],
@@ -43,6 +44,10 @@ export class ProcedureEditorComponent implements OnInit {
     parent: [null as number | null],
     content: [''],
   });
+
+  get isGroup(): boolean {
+    return this.form.get('is_group')?.value ?? false;
+  }
 
   readonly categories = [
     { value: 'dispensation', label: 'Dispensation' },
@@ -56,8 +61,14 @@ export class ProcedureEditorComponent implements OnInit {
     const id = this.route.snapshot.paramMap.get('id');
     if (id) { this.procedureId = +id; this.isEditMode = true; }
     this.collaboratorService.getTeam().subscribe({ next: (t) => { this.collaborators = t; } });
-    this.qualityService.getProcedures().subscribe({ next: (p) => { this.procedures = p.filter(x => x.status === 'active'); } });
+    this.qualityService.getProcedures().subscribe({ next: (p) => { this.procedures = p.filter(x => x.status === 'active' || x.is_group); } });
     if (this.isEditMode && this.procedureId) { this.loadProcedure(); }
+    this.form.get('is_group')!.valueChanges.subscribe(isGroup => {
+      const ref = this.form.get('reference')!;
+      if (isGroup) { ref.clearValidators(); ref.setValue(''); }
+      else { ref.setValidators(Validators.required); }
+      ref.updateValueAndValidity();
+    });
   }
 
   loadProcedure() {
@@ -68,13 +79,19 @@ export class ProcedureEditorComponent implements OnInit {
         this.attachments = p.attachments || [];
         this.images = p.images || [];
         this.form.patchValue({
+          is_group: p.is_group ?? false,
           title: p.title,
-          reference: p.reference,
+          reference: p.reference ?? '',
           category: p.category,
           pilot: p.pilot?.id ?? null,
           parent: p.parent ?? null,
           content: p.content || '',
         });
+        if (p.is_group) {
+          const ref = this.form.get('reference')!;
+          ref.clearValidators();
+          ref.updateValueAndValidity();
+        }
         this.loading = false;
       },
       error: () => { this.error = 'Erreur lors du chargement.'; this.loading = false; },
@@ -85,8 +102,9 @@ export class ProcedureEditorComponent implements OnInit {
     if (this.form.invalid) { this.form.markAllAsTouched(); return; }
     this.saving = true;
     const payload: any = {
+      is_group: this.form.value.is_group,
       title: this.form.value.title!,
-      reference: this.form.value.reference!,
+      reference: this.isGroup ? null : (this.form.value.reference || null),
       category: this.form.value.category,
       content: this.form.value.content || '',
       pilot_id: this.form.value.pilot,

@@ -56,7 +56,8 @@ export class ProcedureListComponent implements OnInit {
   setFilter(f: ProcedureStatus | 'all') { this.statusFilter = f; this.updateFlatList(); }
 
   get filteredTree(): Procedure[] {
-    return this.statusFilter === 'all' ? this.tree : this.tree.filter(p => p.status === this.statusFilter);
+    if (this.statusFilter === 'all') return this.tree;
+    return this.tree.filter(p => p.is_group || p.status === this.statusFilter);
   }
 
   updateFlatList() {
