@@ -1,13 +1,21 @@
 from django.contrib import admin
-from .models import Procedure, ProcedureAttachment, ProcedureImage, NonConformity, CorrectiveAction
+from .models import Procedure, ProcedureAttachment, ProcedureImage, NonConformity, CorrectiveAction, ProcedureGroup
+
+
+@admin.register(ProcedureGroup)
+class ProcedureGroupAdmin(admin.ModelAdmin):
+    list_display = ['name', 'pharmacy', 'created_by', 'created_at']
+    list_filter = ['pharmacy']
+    search_fields = ['name']
 
 
 @admin.register(Procedure)
 class ProcedureAdmin(admin.ModelAdmin):
-    list_display = ('title', 'reference', 'category', 'status', 'version', 'pharmacy', 'pilot')
+    list_display = ('title', 'reference', 'category', 'status', 'version', 'pharmacy')
     list_filter = ('status', 'category', 'pharmacy')
     search_fields = ('title', 'reference')
-    raw_id_fields = ('pilot', 'created_by', 'parent')
+    raw_id_fields = ('created_by', 'parent')
+    filter_horizontal = ('pilots',)
 
 
 @admin.register(ProcedureAttachment)

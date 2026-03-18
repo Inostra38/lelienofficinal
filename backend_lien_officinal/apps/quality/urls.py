@@ -4,10 +4,12 @@ from rest_framework.routers import DefaultRouter
 from .views import (
     ProcedureViewSet, ProcedureAttachmentViewSet,
     NonConformityViewSet, CorrectiveActionViewSet,
+    ProcedureGroupViewSet,
 )
 from .views_ai import generate_procedure_content, suggest_corrective_actions
 
 router = DefaultRouter()
+router.register(r'groups', ProcedureGroupViewSet, basename='procedure-group')
 router.register(r'procedures', ProcedureViewSet, basename='procedure')
 router.register(r'attachments', ProcedureAttachmentViewSet, basename='attachment')
 router.register(r'nonconformities', NonConformityViewSet, basename='nonconformity')

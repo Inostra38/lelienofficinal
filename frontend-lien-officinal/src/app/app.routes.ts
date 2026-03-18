@@ -13,12 +13,12 @@ import { MainLayoutComponent } from './shared/layouts/main-layout/main-layout.co
 import { authGuard } from './core/auth/auth.guard';
 import { noAuthGuard } from './core/auth/no-auth.guard';
 import { onboardingGuard } from './core/auth/onboarding.guard';
-import { ProcedureListComponent } from './features/quality/components/procedure-list/procedure-list.component';
 import { ProcedureEditorComponent } from './features/quality/components/procedure-editor/procedure-editor.component';
 import { ProcedureDetailComponent } from './features/quality/components/procedure-detail/procedure-detail.component';
 import { NcListComponent } from './features/quality/components/nc-list/nc-list.component';
 import { NcFormComponent } from './features/quality/components/nc-form/nc-form.component';
 import { NcDetailComponent } from './features/quality/components/nc-detail/nc-detail.component';
+import { ProcedureBoardsComponent } from './features/quality/components/procedure-boards/procedure-boards.component';
 
 export const routes: Routes = [
   { path: 'login', component: LoginComponent, canActivate: [noAuthGuard] },
@@ -37,7 +37,7 @@ export const routes: Routes = [
       { path: 'account', component: AccountComponent },
       { path: 'sms', component: SmsDashboardComponent },
       { path: 'sms/settings', component: SmsSettingsComponent },
-      { path: 'quality/procedures', component: ProcedureListComponent },
+      { path: 'quality', component: ProcedureBoardsComponent },
       { path: 'quality/procedures/new', component: ProcedureEditorComponent },
       { path: 'quality/procedures/:id/edit', component: ProcedureEditorComponent },
       { path: 'quality/procedures/:id', component: ProcedureDetailComponent },

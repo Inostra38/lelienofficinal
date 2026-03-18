@@ -3,6 +3,35 @@ from django.core.exceptions import ValidationError
 from django.conf import settings
 
 
+class ProcedureGroup(models.Model):
+    """Tableau de procédures — espace de travail indépendant de la bibliothèque."""
+    name = models.CharField(max_length=200)
+    description = models.TextField(blank=True)
+    color = models.CharField(max_length=7, default='#2E7D32')
+    pharmacy = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name='procedure_groups',
+    )
+    created_by = models.ForeignKey(
+        'team.Collaborator',
+        null=True, blank=True,
+        on_delete=models.SET_NULL,
+        related_name='created_procedure_groups',
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ['name']
+        unique_together = [['name', 'pharmacy']]
+        verbose_name = 'Tableau de procédures'
+        verbose_name_plural = 'Tableaux de procédures'
+
+    def __str__(self):
+        return self.name
+
+
 class Procedure(models.Model):
 
     class Category(models.TextChoices):
@@ -37,10 +66,15 @@ class Procedure(models.Model):
         related_name='children',
     )
     position = models.PositiveIntegerField(default=0)
-    pilot = models.ForeignKey(
-        'team.Collaborator',
+    group = models.ForeignKey(
+        'ProcedureGroup',
         null=True, blank=True,
         on_delete=models.SET_NULL,
+        related_name='procedures',
+    )
+    pilots = models.ManyToManyField(
+        'team.Collaborator',
+        blank=True,
         related_name='piloted_procedures',
     )
     created_by = models.ForeignKey(
@@ -107,6 +141,36 @@ class ProcedureImage(models.Model):
     class Meta:
         verbose_name = 'Image'
         verbose_name_plural = 'Images'
+
+
+class ProcedureVersion(models.Model):
+    """Historique des versions d'une procédure (Audit Trail)."""
+    procedure = models.ForeignKey(
+        Procedure,
+        on_delete=models.CASCADE,
+        related_name='history',
+        verbose_name='Procédure'
+    )
+    version_number = models.PositiveIntegerField('Numéro de version')
+    content = models.TextField('Contenu')
+    change_summary = models.CharField('Résumé des modifications', max_length=255, blank=True)
+    created_by = models.ForeignKey(
+        'team.Collaborator',
+        null=True, blank=True,
+        on_delete=models.SET_NULL,
+        related_name='authored_versions',
+        verbose_name='Auteur'
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['-version_number']
+        unique_together = ('procedure', 'version_number')
+        verbose_name = 'Version de procédure'
+        verbose_name_plural = 'Versions de procédure'
+
+    def __str__(self):
+        return f"{self.procedure.title} - v{self.version_number}"
 
 
 class NonConformity(models.Model):

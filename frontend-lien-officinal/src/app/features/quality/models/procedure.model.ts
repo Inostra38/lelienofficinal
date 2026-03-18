@@ -1,3 +1,14 @@
+export interface ProcedureGroup {
+  id: number;
+  name: string;
+  description?: string;
+  color: string;
+  procedure_count: number;
+  created_by?: { id: number; full_name: string };
+  created_at?: string;
+  updated_at?: string;
+}
+
 export interface Procedure {
   id: number;
   title: string;
@@ -10,7 +21,8 @@ export interface Procedure {
   version: number;
   position: number;
   parent?: number;
-  pilot?: { id: number; full_name: string };
+  group?: number | null;
+  pilots?: { id: number; full_name: string }[];
   created_by?: { id: number; full_name: string };
   created_at?: string;
   updated_at?: string;
@@ -39,4 +51,5 @@ export interface ReorderPayload {
   id: number;
   parent_id: number | null;
   position: number;
+  group_id?: number | null;
 }

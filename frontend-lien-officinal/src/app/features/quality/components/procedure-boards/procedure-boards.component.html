@@ -1,0 +1,64 @@
+<div class="p-6 max-w-5xl mx-auto">
+
+  <!-- Header -->
+  <div class="flex items-center justify-between mb-6">
+    <div>
+      <h1 class="text-2xl font-bold text-gray-800">Procédures qualité</h1>
+      <p class="text-sm text-gray-500 mt-1">Vue d'ensemble de tous vos tableaux</p>
+    </div>
+    <div class="flex items-center gap-2">
+      <button (click)="openNewGroupForm()"
+              class="inline-flex items-center gap-2 px-4 py-2 rounded-lg border border-gray-200 text-sm text-gray-600 hover:border-gray-300 hover:bg-gray-50 transition-colors">
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
+        </svg>
+        + Nouveau groupe de procédures
+      </button>
+    </div>
+  </div>
+
+  @if (error) {
+    <div class="bg-red-50 border border-red-200 text-red-700 rounded-lg p-4 mb-4">{{ error }}</div>
+  }
+
+  <!-- Formulaire création inline -->
+  @if (showNewGroupForm) {
+    <div class="bg-white border border-green-200 rounded-xl px-5 py-4 mb-3 flex items-center gap-3 shadow-sm">
+      <input type="color" [(ngModel)]="newGroupColor"
+             class="w-8 h-8 rounded cursor-pointer border border-gray-200 flex-shrink-0" />
+      <input [(ngModel)]="newGroupName" placeholder="Nom du tableau *"
+             class="flex-1 min-w-0 text-sm font-semibold border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent"
+             (keydown.enter)="createGroup()" (keydown.escape)="cancelNewGroup()" />
+      <input [(ngModel)]="newGroupDescription" placeholder="Description (optionnelle)"
+             class="flex-1 min-w-0 text-sm border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent" />
+      <button (click)="createGroup()" [disabled]="!newGroupName.trim() || creating"
+              class="px-4 py-2 text-sm font-medium bg-green-700 text-white rounded-lg hover:bg-green-800 disabled:opacity-50 transition-colors flex-shrink-0">
+        Créer
+      </button>
+      <button (click)="cancelNewGroup()"
+              class="px-3 py-2 text-sm text-gray-500 hover:bg-gray-100 rounded-lg transition-colors flex-shrink-0">
+        Annuler
+      </button>
+    </div>
+  }
+
+  @if (loading) {
+    <div class="flex justify-center items-center py-12">
+      <div class="w-8 h-8 border-4 border-green-700 border-t-transparent rounded-full animate-spin"></div>
+    </div>
+  }
+
+  @if (!loading && !error) {
+    <!-- Tableaux (groupes) en premier -->
+    @for (group of groups; track group.id) {
+      <app-board-section
+        [group]="group"
+        (groupDeleted)="onGroupDeleted($event)"
+        (groupUpdated)="onGroupUpdated($event)" />
+    }
+
+    <!-- Bibliothèque générale en dernier -->
+    <app-board-section [group]="null" />
+  }
+
+</div>

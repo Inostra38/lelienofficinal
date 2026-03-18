@@ -1,0 +1,73 @@
+<div class="p-6 max-w-xl mx-auto">
+
+  <div class="mb-6">
+    <h1 class="text-xl font-semibold text-gray-800">
+      {{ isEdit ? 'Modifier le tableau' : 'Nouveau tableau' }}
+    </h1>
+  </div>
+
+  @if (loading) {
+    <div class="flex justify-center py-12">
+      <div class="w-6 h-6 border-2 border-green-600 border-t-transparent rounded-full animate-spin"></div>
+    </div>
+  }
+
+  @if (!loading) {
+    <form [formGroup]="form" (ngSubmit)="save()" class="space-y-5">
+
+      @if (error) {
+        <div class="bg-red-50 border border-red-200 text-red-700 rounded-lg px-4 py-3 text-sm">{{ error }}</div>
+      }
+
+      <!-- Nom -->
+      <div>
+        <label class="block text-sm font-medium text-gray-700 mb-1">
+          Nom du tableau <span class="text-red-500">*</span>
+        </label>
+        <input formControlName="name" type="text" placeholder="Ex : Procédures BPP"
+               class="w-full px-3 py-2 rounded-lg border border-gray-300 text-sm focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent"
+               [class.border-red-400]="form.get('name')?.invalid && form.get('name')?.touched"/>
+        @if (form.get('name')?.invalid && form.get('name')?.touched) {
+          <p class="text-xs text-red-500 mt-1">Le nom est obligatoire.</p>
+        }
+      </div>
+
+      <!-- Description -->
+      <div>
+        <label class="block text-sm font-medium text-gray-700 mb-1">Description</label>
+        <textarea formControlName="description" rows="3" placeholder="Décrivez ce tableau…"
+                  class="w-full px-3 py-2 rounded-lg border border-gray-300 text-sm focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent resize-none"></textarea>
+      </div>
+
+      <!-- Couleur -->
+      <div>
+        <label class="block text-sm font-medium text-gray-700 mb-2">Couleur d'identification</label>
+        <div class="flex gap-2 flex-wrap">
+          @for (c of colorOptions; track c) {
+            <button type="button" (click)="setColor(c)"
+                    class="w-8 h-8 rounded-full border-2 transition-all"
+                    [style.background-color]="c"
+                    [class.border-gray-800]="form.get('color')?.value === c"
+                    [class.border-transparent]="form.get('color')?.value !== c"
+                    [class.scale-110]="form.get('color')?.value === c">
+            </button>
+          }
+        </div>
+      </div>
+
+      <!-- Actions -->
+      <div class="flex justify-end gap-3 pt-2">
+        <button type="button" (click)="cancel()"
+                class="px-4 py-2 rounded-lg border border-gray-300 text-sm text-gray-700 hover:bg-gray-50 transition-colors">
+          Annuler
+        </button>
+        <button type="submit" [disabled]="saving"
+                class="px-4 py-2 rounded-lg bg-green-700 text-white text-sm font-medium hover:bg-green-800 disabled:opacity-50 transition-colors">
+          {{ saving ? 'Enregistrement…' : (isEdit ? 'Enregistrer' : 'Créer le tableau') }}
+        </button>
+      </div>
+
+    </form>
+  }
+
+</div>

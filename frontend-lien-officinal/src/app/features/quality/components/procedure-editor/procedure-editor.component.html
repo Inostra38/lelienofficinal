@@ -95,16 +95,26 @@
         }
       </div>
 
-      <!-- Pilote -->
+      <!-- Pilotes -->
       <div>
-        <label class="block text-sm font-medium text-gray-700 mb-1">Pilote</label>
-        <select formControlName="pilot"
-                class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-600 focus:border-transparent bg-white">
-          <option [ngValue]="null">Aucun pilote assigné</option>
-          @for (col of collaborators; track col.id) {
-            <option [ngValue]="col.id">{{ col.first_name }} {{ col.last_name }}</option>
-          }
-        </select>
+        <label class="block text-sm font-medium text-gray-700 mb-2">Pilotes</label>
+        @if (collaborators.length === 0) {
+          <p class="text-sm text-gray-400 italic">Aucun collaborateur disponible.</p>
+        } @else {
+          <div class="flex flex-wrap gap-2">
+            @for (col of collaborators; track col.id) {
+              @if (col.id) {
+                <button type="button" (click)="togglePilot(col.id)"
+                        class="px-3 py-1.5 rounded-full text-sm border transition-colors"
+                        [class]="isPilotSelected(col.id)
+                          ? 'bg-green-700 text-white border-green-700'
+                          : 'bg-white text-gray-600 border-gray-300 hover:border-green-400 hover:text-green-700'">
+                  {{ col.first_name }} {{ col.last_name }}
+                </button>
+              }
+            }
+          </div>
+        }
       </div>
 
       <!-- Procédure parente -->

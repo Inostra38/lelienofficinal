@@ -22,6 +22,7 @@ export class ProcedureEditorComponent implements OnInit {
   private aiService = inject(AiService);
 
   procedureId: number | null = null;
+  groupId: number | null = null;
   isEditMode = false;
   loading = false;
   saving = false;
@@ -32,6 +33,7 @@ export class ProcedureEditorComponent implements OnInit {
   procedure: Procedure | null = null;
   procedures: Procedure[] = [];
   collaborators: Collaborator[] = [];
+  selectedPilotIds: number[] = [];
   attachments: ProcedureAttachment[] = [];
   images: ProcedureImage[] = [];
 
@@ -40,7 +42,6 @@ export class ProcedureEditorComponent implements OnInit {
     title: ['', Validators.required],
     reference: ['', Validators.required],
     category: ['', Validators.required],
-    pilot: [null as number | null],
     parent: [null as number | null],
     content: [''],
   });
@@ -60,6 +61,10 @@ export class ProcedureEditorComponent implements OnInit {
   ngOnInit() {
     const id = this.route.snapshot.paramMap.get('id');
     if (id) { this.procedureId = +id; this.isEditMode = true; }
+    const groupParam = this.route.snapshot.queryParamMap.get('group');
+    if (groupParam) { this.groupId = +groupParam; }
+    const folderParam = this.route.snapshot.queryParamMap.get('folder');
+    if (folderParam === 'true') { this.form.get('is_group')!.setValue(true); }
     this.collaboratorService.getTeam().subscribe({ next: (t) => { this.collaborators = t; } });
     this.qualityService.getProcedures().subscribe({ next: (p) => { this.procedures = p.filter(x => x.status === 'active' || x.is_group); } });
     if (this.isEditMode && this.procedureId) { this.loadProcedure(); }
@@ -83,7 +88,6 @@ export class ProcedureEditorComponent implements OnInit {
           title: p.title,
           reference: p.reference ?? '',
           category: p.category,
-          pilot: p.pilot?.id ?? null,
           parent: p.parent ?? null,
           content: p.content || '',
         });
@@ -92,10 +96,21 @@ export class ProcedureEditorComponent implements OnInit {
           ref.clearValidators();
           ref.updateValueAndValidity();
         }
+        this.selectedPilotIds = p.pilots?.map(c => c.id) ?? [];
         this.loading = false;
       },
       error: () => { this.error = 'Erreur lors du chargement.'; this.loading = false; },
     });
+  }
+
+  togglePilot(id: number) {
+    const idx = this.selectedPilotIds.indexOf(id);
+    if (idx === -1) { this.selectedPilotIds = [...this.selectedPilotIds, id]; }
+    else { this.selectedPilotIds = this.selectedPilotIds.filter(x => x !== id); }
+  }
+
+  isPilotSelected(id: number): boolean {
+    return this.selectedPilotIds.includes(id);
   }
 
   save(publish = false) {
@@ -107,8 +122,9 @@ export class ProcedureEditorComponent implements OnInit {
       reference: this.isGroup ? null : (this.form.value.reference || null),
       category: this.form.value.category,
       content: this.form.value.content || '',
-      pilot_id: this.form.value.pilot,
+      pilot_ids: this.selectedPilotIds,
       parent: this.form.value.parent,
+      group: this.groupId ?? (this.procedure?.group ?? null),
     };
     const obs$ = this.isEditMode
       ? this.qualityService.updateProcedure(this.procedureId!, payload)
@@ -178,5 +194,7 @@ export class ProcedureEditorComponent implements OnInit {
     });
   }
 
-  cancel() { this.router.navigate(['/quality/procedures']); }
+  cancel() {
+    this.router.navigate(['/quality']);
+  }
 }

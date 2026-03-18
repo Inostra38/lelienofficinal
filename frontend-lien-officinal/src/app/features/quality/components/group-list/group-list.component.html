@@ -1,0 +1,105 @@
+<div class="p-6 max-w-5xl mx-auto">
+
+  <!-- Header -->
+  <div class="flex items-center justify-between mb-6">
+    <div>
+      <h1 class="text-xl font-semibold text-gray-800">Tableaux de procédures</h1>
+      <p class="text-sm text-gray-500 mt-0.5">Espaces de travail thématiques pour organiser vos procédures</p>
+    </div>
+    <a routerLink="/quality/groups/new"
+       class="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-green-700 text-white text-sm font-medium hover:bg-green-800 transition-colors">
+      <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
+      </svg>
+      Nouveau tableau
+    </a>
+  </div>
+
+  <!-- Back to library -->
+  <div class="mb-4">
+    <a routerLink="/quality/procedures"
+       class="inline-flex items-center gap-1.5 text-sm text-gray-500 hover:text-green-700 transition-colors">
+      <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/>
+      </svg>
+      Bibliothèque principale
+    </a>
+  </div>
+
+  <!-- Loading -->
+  @if (loading) {
+    <div class="flex justify-center py-12">
+      <div class="w-6 h-6 border-2 border-green-600 border-t-transparent rounded-full animate-spin"></div>
+    </div>
+  }
+
+  <!-- Error -->
+  @if (error) {
+    <div class="bg-red-50 border border-red-200 text-red-700 rounded-lg px-4 py-3 text-sm">{{ error }}</div>
+  }
+
+  <!-- Empty -->
+  @if (!loading && !error && groups.length === 0) {
+    <div class="text-center py-16 bg-gray-50 rounded-xl border border-dashed border-gray-200">
+      <div class="text-4xl mb-3">📋</div>
+      <p class="text-gray-600 font-medium">Aucun tableau pour l'instant</p>
+      <p class="text-sm text-gray-400 mt-1 mb-4">Créez des espaces thématiques pour organiser vos procédures</p>
+      <a routerLink="/quality/groups/new"
+         class="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-green-700 text-white text-sm font-medium hover:bg-green-800 transition-colors">
+        Créer un tableau
+      </a>
+    </div>
+  }
+
+  <!-- Grid -->
+  @if (!loading && groups.length > 0) {
+    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+      @for (group of groups; track trackById($index, group)) {
+        <a [routerLink]="['/quality/groups', group.id]"
+           class="group relative flex flex-col bg-white rounded-xl border border-gray-200 hover:border-green-300 hover:shadow-md transition-all p-5">
+
+          <!-- Color strip -->
+          <div class="absolute top-0 left-0 right-0 h-1 rounded-t-xl"
+               [style.background-color]="group.color"></div>
+
+          <!-- Title & description -->
+          <div class="mt-1 flex-1">
+            <h2 class="font-semibold text-gray-800 group-hover:text-green-700 transition-colors truncate">
+              {{ group.name }}
+            </h2>
+            @if (group.description) {
+              <p class="text-sm text-gray-500 mt-1 line-clamp-2">{{ group.description }}</p>
+            }
+          </div>
+
+          <!-- Footer -->
+          <div class="mt-4 flex items-center justify-between">
+            <span class="text-xs text-gray-400">
+              {{ group.procedure_count }} procédure{{ group.procedure_count !== 1 ? 's' : '' }}
+            </span>
+            <div class="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+              <a [routerLink]="['/quality/groups', group.id, 'edit']"
+                 class="p-1.5 rounded hover:bg-gray-100 text-gray-400 hover:text-gray-600 transition-colors"
+                 title="Modifier"
+                 (click)="$event.stopPropagation()">
+                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                        d="M15.232 5.232l3.536 3.536M9 13l6.5-6.5a2 2 0 112.828 2.828L11.828 15.828A2 2 0 0110 16.414V19h2.586a2 2 0 001.414-.586L18 14"/>
+                </svg>
+              </a>
+              <button (click)="delete(group, $event)"
+                      class="p-1.5 rounded hover:bg-red-50 text-gray-400 hover:text-red-600 transition-colors"
+                      title="Supprimer">
+                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                        d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
+                </svg>
+              </button>
+            </div>
+          </div>
+        </a>
+      }
+    </div>
+  }
+
+</div>

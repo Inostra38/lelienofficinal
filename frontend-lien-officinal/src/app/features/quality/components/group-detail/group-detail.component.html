@@ -1,21 +1,41 @@
 <div class="p-6 max-w-5xl mx-auto">
 
-  <!-- En-tête -->
-  <div class="flex items-center justify-between mb-4">
+  <!-- Header -->
+  <div class="flex items-center justify-between mb-6">
     <div>
-      <h1 class="text-2xl font-bold text-gray-800">Procédures qualité</h1>
-      <p class="text-sm text-gray-500 mt-1">Bibliothèque principale de l'officine</p>
+      <div class="flex items-center gap-2 mb-1">
+        <a routerLink="/quality/groups" class="text-sm text-gray-500 hover:text-green-700 transition-colors">
+          Tableaux
+        </a>
+        <svg class="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
+        </svg>
+        @if (group) {
+          <span class="text-sm font-medium text-gray-700">{{ group.name }}</span>
+        }
+      </div>
+      <h1 class="text-xl font-semibold text-gray-800 flex items-center gap-2">
+        @if (group) {
+          <span class="w-3 h-3 rounded-full flex-shrink-0" [style.background-color]="group.color"></span>
+          {{ group.name }}
+        }
+      </h1>
+      @if (group?.description) {
+        <p class="text-sm text-gray-500 mt-0.5">{{ group!.description }}</p>
+      }
     </div>
     <div class="flex items-center gap-2">
-      <a routerLink="/quality/groups"
-         class="inline-flex items-center gap-2 px-4 py-2 rounded-lg border border-gray-200 text-sm text-gray-600 hover:border-gray-300 hover:bg-gray-50 transition-colors">
-        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                d="M3 7a2 2 0 012-2h4l2 2h8a2 2 0 012 2v8a2 2 0 01-2 2H5a2 2 0 01-2-2V7z"/>
-        </svg>
-        Tableaux
-      </a>
-      <a routerLink="/quality/procedures/new"
+      @if (group) {
+        <a [routerLink]="['/quality/groups', groupId, 'edit']"
+           class="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg border border-gray-200 text-sm text-gray-600 hover:border-gray-300 hover:bg-gray-50 transition-colors">
+          <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                  d="M15.232 5.232l3.536 3.536M9 13l6.5-6.5a2 2 0 112.828 2.828L11.828 15.828A2 2 0 0110 16.414V19h2.586a2 2 0 001.414-.586L18 14"/>
+          </svg>
+          Modifier le tableau
+        </a>
+      }
+      <a [routerLink]="['/quality/procedures/new']" [queryParams]="{ group: groupId }"
          class="inline-flex items-center gap-2 px-4 py-2 bg-green-700 text-white rounded-lg text-sm font-medium hover:bg-green-800 transition-colors">
         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
@@ -38,35 +58,32 @@
     }
   </div>
 
-  <!-- Erreur -->
   @if (error) {
     <div class="bg-red-50 border border-red-200 text-red-700 rounded-lg p-4 mb-4">{{ error }}</div>
   }
 
-  <!-- Chargement -->
   @if (loading) {
     <div class="flex justify-center items-center py-12">
       <div class="w-8 h-8 border-4 border-green-700 border-t-transparent rounded-full animate-spin"></div>
     </div>
   }
 
-  <!-- Liste arborescente flat avec DnD -->
   @if (!loading && !error) {
     @if (flatList.length === 0) {
-      <div class="text-center py-12 text-gray-500">
+      <div class="text-center py-16 bg-gray-50 rounded-xl border border-dashed border-gray-200">
         <svg class="w-12 h-12 mx-auto mb-4 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"
                 d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
         </svg>
-        <p class="font-medium text-gray-600">Aucune procédure.</p>
-        <a routerLink="/quality/procedures/new" class="text-green-700 hover:underline text-sm mt-1 inline-block">
+        <p class="font-medium text-gray-600">Aucune procédure dans ce tableau.</p>
+        <a [routerLink]="['/quality/procedures/new']" [queryParams]="{ group: groupId }"
+           class="text-green-700 hover:underline text-sm mt-1 inline-block">
           + Ajouter une procédure
         </a>
       </div>
     } @else {
       <div class="bg-white border border-gray-200 rounded-xl overflow-hidden">
 
-        <!-- En-têtes de colonnes -->
         <div class="grid grid-cols-12 gap-2 px-4 py-2 bg-gray-50 border-b border-gray-200 text-xs font-medium text-gray-500 uppercase tracking-wide">
           <div class="col-span-5">Titre</div>
           <div class="col-span-2">Statut</div>
@@ -88,19 +105,14 @@
               + ' ' + dropClass(item)
               + (draggingId === item.proc.id ? ' opacity-30' : ' hover:bg-green-50/20')">
 
-            <!-- Titre + handle -->
             <div class="col-span-5 flex items-center gap-1" [class]="indentClass(item.level)">
-
-              <!-- Drag handle -->
               <span class="cursor-grab active:cursor-grabbing text-gray-300 hover:text-gray-500 flex-shrink-0
-                           opacity-0 group-hover:opacity-100 transition-opacity"
-                    title="Glisser pour réorganiser">
+                           opacity-0 group-hover:opacity-100 transition-opacity">
                 <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
                   <path d="M8 6a2 2 0 100-4 2 2 0 000 4zm0 6a2 2 0 100-4 2 2 0 000 4zm0 6a2 2 0 100-4 2 2 0 000 4zm8-12a2 2 0 100-4 2 2 0 000 4zm0 6a2 2 0 100-4 2 2 0 000 4zm0 6a2 2 0 100-4 2 2 0 000 4z"/>
                 </svg>
               </span>
 
-              <!-- Chevron expand -->
               @if (item.proc.children && item.proc.children.length > 0) {
                 <button (click)="toggleExpand(item.proc.id); $event.stopPropagation()"
                         class="text-gray-400 hover:text-gray-600 flex-shrink-0">
@@ -128,24 +140,20 @@
               </a>
             </div>
 
-            <!-- Statut -->
             <div class="col-span-2">
               <span class="inline-flex px-2 py-0.5 rounded-full text-xs font-medium" [class]="statusClass(item.proc.status)">
                 {{ statusLabel(item.proc.status) }}
               </span>
             </div>
 
-            <!-- Catégorie -->
             <div class="col-span-2">
               <span class="inline-flex px-2 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-600">
                 {{ categoryLabels[item.proc.category] || item.proc.category }}
               </span>
             </div>
 
-            <!-- Version -->
             <div class="col-span-1 text-xs text-gray-500">v{{ item.proc.version }}</div>
 
-            <!-- Actions -->
             <div class="col-span-2 flex items-center justify-end gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
               <a [routerLink]="['/quality/procedures', item.proc.id, 'edit']"
                  (click)="$event.stopPropagation()"
@@ -176,4 +184,5 @@
       </div>
     }
   }
+
 </div>

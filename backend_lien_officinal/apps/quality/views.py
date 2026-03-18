@@ -5,8 +5,9 @@ from rest_framework.decorators import action
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 
-from .models import Procedure, ProcedureAttachment, ProcedureImage, NonConformity, CorrectiveAction
+from .models import Procedure, ProcedureAttachment, ProcedureImage, NonConformity, CorrectiveAction, ProcedureGroup
 from .serializers import (
+    ProcedureGroupSerializer,
     ProcedureListSerializer, ProcedureDetailSerializer, ProcedureTreeSerializer,
     ProcedureAttachmentSerializer, ProcedureImageSerializer,
     NonConformityListSerializer, NonConformityDetailSerializer,
@@ -24,12 +25,18 @@ class ProcedureViewSet(viewsets.ModelViewSet):
     permission_classes = [IsAuthenticated]
 
     def get_queryset(self):
-        return (
+        qs = (
             Procedure.objects
             .filter(pharmacy=self.request.user)
-            .select_related('pilot', 'created_by', 'parent')
-            .prefetch_related('attachments', 'images')
+            .select_related('created_by', 'parent', 'group')
+            .prefetch_related('pilots', 'attachments', 'images')
         )
+        group_param = self.request.query_params.get('group')
+        if group_param == 'none':
+            qs = qs.filter(group__isnull=True)
+        elif group_param:
+            qs = qs.filter(group__id=group_param)
+        return qs
 
     def get_serializer_class(self):
         if self.action == 'list':
@@ -61,7 +68,7 @@ class ProcedureViewSet(viewsets.ModelViewSet):
             self.get_queryset()
             .filter(parent=None)
             .order_by('position')
-            .prefetch_related('children__pilot', 'children__children__pilot')
+            .prefetch_related('pilots', 'children__pilots', 'children__children__pilots')
         )
         serializer = ProcedureTreeSerializer(roots, many=True, context={'request': request})
         return Response(serializer.data)
@@ -74,11 +81,25 @@ class ProcedureViewSet(viewsets.ModelViewSet):
                 {'detail': 'Seul un brouillon peut être publié.'},
                 status=status.HTTP_400_BAD_REQUEST,
             )
-        # Incrémente la version si la procédure a déjà été publiée (version > 1)
-        if procedure.version > 1:
+        
+        collaborator = _get_collaborator(request, request.user)
+        change_summary = request.data.get('change_summary', '')
+
+        with transaction.atomic():
+            # Créer une entrée dans l'historique avant de publier (Audit Trail)
+            ProcedureVersion.objects.create(
+                procedure=procedure,
+                version_number=procedure.version,
+                content=procedure.content,
+                change_summary=change_summary or (f"Publication initiale" if procedure.version == 1 else f"Mise à jour v{procedure.version}"),
+                created_by=collaborator
+            )
+
+            # Incrémente la version pour le prochain brouillon après publication
             procedure.version += 1
-        procedure.status = Procedure.Status.ACTIVE
-        procedure.save(update_fields=['status', 'version'])
+            procedure.status = Procedure.Status.ACTIVE
+            procedure.save(update_fields=['status', 'version'])
+            
         return Response(ProcedureDetailSerializer(procedure, context={'request': request}).data)
 
     @action(detail=True, methods=['post'])
@@ -125,7 +146,11 @@ class ProcedureViewSet(viewsets.ModelViewSet):
                 p = procedures[item['id']]
                 p.parent_id = item.get('parent_id')
                 p.position = item.get('position', 0)
-                p.save(update_fields=['parent_id', 'position'])
+                fields = ['parent_id', 'position']
+                if 'group_id' in item:
+                    p.group_id = item.get('group_id')
+                    fields.append('group_id')
+                p.save(update_fields=fields)
 
         return Response({'status': 'ok', 'updated': len(items)})
 
@@ -158,6 +183,36 @@ class ProcedureViewSet(viewsets.ModelViewSet):
             ProcedureAttachmentSerializer(attachment).data,
             status=status.HTTP_201_CREATED,
         )
+
+
+# ── ProcedureGroup ────────────────────────────────────────────────────────────
+
+class ProcedureGroupViewSet(viewsets.ModelViewSet):
+    serializer_class = ProcedureGroupSerializer
+
+    def get_queryset(self):
+        return ProcedureGroup.objects.filter(pharmacy=self.request.user)
+
+    def get_permissions(self):
+        if self.action in ['list', 'retrieve', 'tree']:
+            return [IsAuthenticated()]
+        return [IsAuthenticated(), CanManageProcedures()]
+
+    def perform_create(self, serializer):
+        collaborator = _get_collaborator(self.request, self.request.user)
+        serializer.save(pharmacy=self.request.user, created_by=collaborator)
+
+    @action(detail=True, methods=['get'], url_path='tree')
+    def tree(self, request, pk=None):
+        group = self.get_object()
+        roots = (
+            Procedure.objects
+            .filter(group=group, parent=None, pharmacy=request.user)
+            .order_by('position')
+            .prefetch_related('pilots', 'children__pilots', 'children__children__pilots')
+        )
+        serializer = ProcedureTreeSerializer(roots, many=True, context={'request': request})
+        return Response(serializer.data)
 
 
 # ── ProcedureAttachment (suppression seule) ───────────────────────────────────

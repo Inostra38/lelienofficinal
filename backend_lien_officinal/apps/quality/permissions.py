@@ -23,10 +23,21 @@ def _get_collaborator(request, pharmacy):
         return None
 
 
+def _is_direct_pharmacy_access(request):
+    """
+    Vrai si la requête provient directement du compte pharmacie (sans session collaborateur).
+    Dans ce cas, l'utilisateur dispose des droits titulaire implicites.
+    """
+    token = request.auth
+    return token is not None and not token.get('collaborator_id')
+
+
 class IsPharmacyTitulaire(BasePermission):
     """Accès réservé au titulaire de la pharmacie."""
 
     def has_permission(self, request, view):
+        if _is_direct_pharmacy_access(request):
+            return True
         collaborator = _get_collaborator(request, request.user)
         if collaborator is None:
             return False
@@ -37,6 +48,8 @@ class CanManageProcedures(BasePermission):
     """Titulaire, ou adjoint avec can_manage_procedures=True."""
 
     def has_permission(self, request, view):
+        if _is_direct_pharmacy_access(request):
+            return True
         collaborator = _get_collaborator(request, request.user)
         if collaborator is None:
             return False
@@ -49,6 +62,8 @@ class CanPublishProcedures(BasePermission):
     """Titulaire, ou adjoint avec can_publish_procedures=True."""
 
     def has_permission(self, request, view):
+        if _is_direct_pharmacy_access(request):
+            return True
         collaborator = _get_collaborator(request, request.user)
         if collaborator is None:
             return False
@@ -61,6 +76,8 @@ class CanCloseNonConformities(BasePermission):
     """Titulaire, ou adjoint avec can_close_nonconformities=True."""
 
     def has_permission(self, request, view):
+        if _is_direct_pharmacy_access(request):
+            return True
         collaborator = _get_collaborator(request, request.user)
         if collaborator is None:
             return False
@@ -79,4 +96,4 @@ class IsProcedurePilot(BasePermission):
         collaborator = _get_collaborator(request, request.user)
         if collaborator is None:
             return False
-        return obj.pilot_id == collaborator.id
+        return obj.pilots.filter(id=collaborator.id).exists()

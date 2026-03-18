@@ -2,15 +2,46 @@ import { Injectable, inject } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { Observable } from 'rxjs';
 import { environment } from '../../../../environments/environment';
-import { Procedure, ProcedureAttachment, ProcedureImage, ReorderPayload } from '../models/procedure.model';
+import { Procedure, ProcedureGroup, ProcedureAttachment, ProcedureImage, ReorderPayload } from '../models/procedure.model';
 
 @Injectable({ providedIn: 'root' })
 export class QualityService {
   private http = inject(HttpClient);
   private api = `${environment.apiUrl}/api/quality`;
 
-  getProcedureTree(): Observable<Procedure[]> {
-    return this.http.get<Procedure[]>(`${this.api}/procedures/tree/`);
+  // ── ProcedureGroups ──────────────────────────────────────────────────────
+
+  getGroups(): Observable<ProcedureGroup[]> {
+    return this.http.get<ProcedureGroup[]>(`${this.api}/groups/`);
+  }
+
+  getGroup(id: number): Observable<ProcedureGroup> {
+    return this.http.get<ProcedureGroup>(`${this.api}/groups/${id}/`);
+  }
+
+  createGroup(data: Partial<ProcedureGroup>): Observable<ProcedureGroup> {
+    return this.http.post<ProcedureGroup>(`${this.api}/groups/`, data);
+  }
+
+  updateGroup(id: number, data: Partial<ProcedureGroup>): Observable<ProcedureGroup> {
+    return this.http.patch<ProcedureGroup>(`${this.api}/groups/${id}/`, data);
+  }
+
+  deleteGroup(id: number): Observable<void> {
+    return this.http.delete<void>(`${this.api}/groups/${id}/`);
+  }
+
+  getGroupTree(groupId: number): Observable<Procedure[]> {
+    return this.http.get<Procedure[]>(`${this.api}/groups/${groupId}/tree/`);
+  }
+
+  // ── Procedures ───────────────────────────────────────────────────────────
+
+  getProcedureTree(groupId?: number): Observable<Procedure[]> {
+    if (groupId != null) {
+      return this.getGroupTree(groupId);
+    }
+    return this.http.get<Procedure[]>(`${this.api}/procedures/tree/?group=none`);
   }
 
   getProcedures(): Observable<Procedure[]> {
