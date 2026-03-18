@@ -9,6 +9,14 @@ export interface ProcedureGroup {
   updated_at?: string;
 }
 
+export interface ProcedureVersion {
+  id: number;
+  version_number: number;
+  change_summary: string;
+  created_by: { id: number; full_name: string } | null;
+  created_at: string;
+}
+
 export interface Procedure {
   id: number;
   title: string;
@@ -28,6 +36,7 @@ export interface Procedure {
   updated_at?: string;
   attachments?: ProcedureAttachment[];
   images?: ProcedureImage[];
+  history?: ProcedureVersion[];
   children?: Procedure[];
 }
 

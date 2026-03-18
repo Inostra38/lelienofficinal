@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from .models import Procedure, ProcedureAttachment, ProcedureImage, NonConformity, CorrectiveAction, ProcedureGroup
+from .models import Procedure, ProcedureAttachment, ProcedureImage, NonConformity, CorrectiveAction, ProcedureGroup, ProcedureVersion
 from apps.team.models import Collaborator
 
 

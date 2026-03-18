@@ -221,6 +221,40 @@
         </ul>
       </div>
     }
+
+    <!-- Historique des versions -->
+    <div class="bg-white border border-gray-200 rounded-xl overflow-hidden mb-6">
+      <div class="px-4 py-3 bg-gray-50 border-b border-gray-200">
+        <h2 class="text-sm font-semibold text-gray-600 uppercase tracking-wide">Historique des versions</h2>
+      </div>
+      
+      @if (procedure.history && procedure.history.length > 0) {
+        <div class="divide-y divide-gray-100">
+          @for (version of procedure.history; track version.id) {
+            <div class="px-4 py-3 hover:bg-gray-50 transition-colors">
+              <div class="flex items-center justify-between mb-1">
+                <div class="flex items-center gap-2">
+                  <span class="px-1.5 py-0.5 rounded bg-gray-100 text-gray-600 text-xs font-bold font-mono">
+                    v{{ version.version_number }}
+                  </span>
+                  <span class="text-sm font-medium text-gray-800">{{ version.created_by?.full_name || 'Système' }}</span>
+                </div>
+                <span class="text-xs text-gray-400 italic">
+                  {{ version.created_at | date:'dd/MM/yyyy HH:mm' }}
+                </span>
+              </div>
+              <p class="text-xs text-gray-500 leading-relaxed">
+                {{ version.change_summary || 'Aucun résumé fourni.' }}
+              </p>
+            </div>
+          }
+        </div>
+      } @else {
+        <div class="px-4 py-8 text-center text-gray-400 text-sm italic">
+          Aucun historique archivé pour le moment.
+        </div>
+      }
+    </div>
   }
   }
 

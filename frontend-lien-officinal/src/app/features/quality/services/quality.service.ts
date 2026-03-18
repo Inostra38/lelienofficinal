@@ -64,8 +64,8 @@ export class QualityService {
     return this.http.delete<void>(`${this.api}/procedures/${id}/`);
   }
 
-  publishProcedure(id: number): Observable<Procedure> {
-    return this.http.post<Procedure>(`${this.api}/procedures/${id}/publish/`, {});
+  publishProcedure(id: number, changeSummary?: string): Observable<Procedure> {
+    return this.http.post<Procedure>(`${this.api}/procedures/${id}/publish/`, { change_summary: changeSummary });
   }
 
   archiveProcedure(id: number): Observable<Procedure> {

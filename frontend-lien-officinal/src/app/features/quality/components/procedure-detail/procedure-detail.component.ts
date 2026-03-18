@@ -30,7 +30,8 @@ export class ProcedureDetailComponent implements OnInit {
 
   publish() {
     if (!this.procedure) return;
-    this.qualityService.publishProcedure(this.procedure.id).subscribe({
+    const summary = prompt('Résumé des modifications apportées (facultatif) :', '');
+    this.qualityService.publishProcedure(this.procedure.id, summary || undefined).subscribe({
       next: (p) => { this.procedure = p; },
     });
   }

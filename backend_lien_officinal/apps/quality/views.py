@@ -5,7 +5,7 @@ from rest_framework.decorators import action
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 
-from .models import Procedure, ProcedureAttachment, ProcedureImage, NonConformity, CorrectiveAction, ProcedureGroup
+from .models import Procedure, ProcedureAttachment, ProcedureImage, NonConformity, CorrectiveAction, ProcedureGroup, ProcedureVersion
 from .serializers import (
     ProcedureGroupSerializer,
     ProcedureListSerializer, ProcedureDetailSerializer, ProcedureTreeSerializer,
@@ -60,6 +60,14 @@ class ProcedureViewSet(viewsets.ModelViewSet):
         collaborator = _get_collaborator(self.request, self.request.user)
         serializer.save(pharmacy=self.request.user, created_by=collaborator)
 
+    def perform_update(self, serializer):
+        # Si on modifie une procédure active, elle repasse automatiquement en brouillon
+        instance = self.get_object()
+        if instance.status == Procedure.Status.ACTIVE:
+            serializer.save(status=Procedure.Status.DRAFT)
+        else:
+            serializer.save()
+
     # ── Actions custom ──────────────────────────────────────────────────────
 
     @action(detail=False, methods=['get'])
@@ -82,22 +90,23 @@ class ProcedureViewSet(viewsets.ModelViewSet):
                 status=status.HTTP_400_BAD_REQUEST,
             )
         
+        # On récupère le collaborateur s'il y en a un, sinon None
         collaborator = _get_collaborator(request, request.user)
         change_summary = request.data.get('change_summary', '')
 
         with transaction.atomic():
-            # Créer une entrée dans l'historique avant de publier (Audit Trail)
+            # Sécurité : On archive la version actuelle
             ProcedureVersion.objects.create(
                 procedure=procedure,
                 version_number=procedure.version,
-                content=procedure.content,
+                content=procedure.content or "",
                 change_summary=change_summary or (f"Publication initiale" if procedure.version == 1 else f"Mise à jour v{procedure.version}"),
                 created_by=collaborator
             )
 
-            # Incrémente la version pour le prochain brouillon après publication
-            procedure.version += 1
+            # Passage en actif et incrémentation de la version pour le futur
             procedure.status = Procedure.Status.ACTIVE
+            procedure.version += 1
             procedure.save(update_fields=['status', 'version'])
             
         return Response(ProcedureDetailSerializer(procedure, context={'request': request}).data)
