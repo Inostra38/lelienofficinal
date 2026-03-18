@@ -5,6 +5,7 @@ import { ActivatedRoute, Router } from '@angular/router';
 import { QualityService } from '../../services/quality.service';
 import { Procedure, ProcedureAttachment, ProcedureImage } from '../../models/procedure.model';
 import { CollaboratorService, Collaborator } from '../../../../core/services/collaborator.service';
+import { AiService } from '../../../../core/services/ai.service';
 
 @Component({
   selector: 'app-procedure-editor',
@@ -18,12 +19,15 @@ export class ProcedureEditorComponent implements OnInit {
   private router = inject(Router);
   private qualityService = inject(QualityService);
   private collaboratorService = inject(CollaboratorService);
+  private aiService = inject(AiService);
 
   procedureId: number | null = null;
   isEditMode = false;
   loading = false;
   saving = false;
+  generating = false;
   error = '';
+  aiError = '';
 
   procedure: Procedure | null = null;
   procedures: Procedure[] = [];
@@ -80,13 +84,13 @@ export class ProcedureEditorComponent implements OnInit {
   save(publish = false) {
     if (this.form.invalid) { this.form.markAllAsTouched(); return; }
     this.saving = true;
-    const payload: Partial<Procedure> = {
+    const payload: any = {
       title: this.form.value.title!,
       reference: this.form.value.reference!,
-      category: this.form.value.category as any,
+      category: this.form.value.category,
       content: this.form.value.content || '',
-      pilot: this.form.value.pilot as any,
-      parent: this.form.value.parent as any,
+      pilot_id: this.form.value.pilot,
+      parent: this.form.value.parent,
     };
     const obs$ = this.isEditMode
       ? this.qualityService.updateProcedure(this.procedureId!, payload)
@@ -103,7 +107,13 @@ export class ProcedureEditorComponent implements OnInit {
           this.router.navigate(['/quality/procedures', saved.id]);
         }
       },
-      error: () => { this.saving = false; this.error = 'Erreur lors de la sauvegarde.'; },
+      error: (err: any) => {
+        this.saving = false;
+        console.error('SAVE ERROR body:', JSON.stringify(err?.error));
+        const detail = err?.error?.detail || err?.error?.non_field_errors?.[0]
+          || JSON.stringify(err?.error || 'Erreur inconnue');
+        this.error = `Erreur (${err?.status}) : ${detail}`;
+      },
     });
   }
 
@@ -128,6 +138,25 @@ export class ProcedureEditorComponent implements OnInit {
     if (!confirm('Supprimer cette pièce jointe ?')) return;
     this.qualityService.deleteAttachment(id).subscribe({
       next: () => { this.attachments = this.attachments.filter(a => a.id !== id); },
+    });
+  }
+
+  generateContent() {
+    const title = this.form.value.title?.trim();
+    const category = this.form.value.category?.trim();
+    const reference = this.form.value.reference?.trim() || '';
+    if (!title || !category) return;
+    this.generating = true;
+    this.aiError = '';
+    this.aiService.generateProcedureContent({ title, category, reference }).subscribe({
+      next: (res) => {
+        this.form.patchValue({ content: res.content });
+        this.generating = false;
+      },
+      error: (err: any) => {
+        this.aiError = err?.error?.error || 'Erreur lors de la génération IA.';
+        this.generating = false;
+      },
     });
   }
 

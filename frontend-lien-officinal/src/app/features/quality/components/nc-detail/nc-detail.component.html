@@ -244,7 +244,40 @@
 
       <!-- Formulaire d'ajout d'action -->
       <div class="border-t border-gray-100 pt-4">
-        <h3 class="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-3">Ajouter une action</h3>
+        <div class="flex items-center justify-between mb-3">
+          <h3 class="text-xs font-semibold text-gray-500 uppercase tracking-wide">Ajouter une action</h3>
+          <button type="button" (click)="suggestActions()" [disabled]="suggestingActions"
+                  class="inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-medium text-green-700 border border-green-200 rounded-lg hover:bg-green-50 transition-colors disabled:opacity-40 disabled:cursor-not-allowed">
+            @if (suggestingActions) {
+              <span class="w-3 h-3 border-2 border-green-500 border-t-transparent rounded-full animate-spin"></span>
+              Génération...
+            } @else {
+              <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                      d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.347.346a3.02 3.02 0 00-.822 1.567l-.22 1.098A1 1 0 0114.013 20H9.987a1 1 0 01-.98-.803l-.22-1.098a3.02 3.02 0 00-.822-1.567l-.347-.346z"/>
+              </svg>
+              Suggérer via l'IA
+            }
+          </button>
+        </div>
+
+        @if (aiSuggestError) {
+          <div class="bg-amber-50 border border-amber-200 text-amber-700 rounded-lg px-3 py-2 text-xs mb-3">{{ aiSuggestError }}</div>
+        }
+
+        @if (aiSuggestions.length > 0) {
+          <div class="bg-green-50 border border-green-100 rounded-lg p-3 mb-3 space-y-2">
+            <p class="text-xs font-medium text-green-700 mb-2">Suggestions IA — cliquez pour appliquer :</p>
+            @for (s of aiSuggestions; track $index) {
+              <button type="button" (click)="applyAiSuggestion(s)"
+                      class="w-full text-left px-3 py-2 bg-white border border-green-200 rounded-lg hover:border-green-400 hover:bg-green-50 transition-colors group">
+                <p class="text-sm text-gray-800 group-hover:text-green-800">{{ s.description }}</p>
+                <p class="text-xs text-gray-400 mt-0.5">Délai suggéré : {{ s.delai }}</p>
+              </button>
+            }
+          </div>
+        }
+
         <form [formGroup]="actionForm" (ngSubmit)="addAction()" class="space-y-3">
           <div>
             <input formControlName="description" type="text" placeholder="Description de l'action corrective"

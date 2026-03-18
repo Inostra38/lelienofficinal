@@ -6,6 +6,7 @@ import { QualityNcService } from '../../services/quality-nc.service';
 import { CollaboratorService, Collaborator } from '../../../../core/services/collaborator.service';
 import { NonConformity, CorrectiveAction } from '../../models/nonconformity.model';
 import { AuthService } from '../../../../core/auth/auth.service';
+import { AiService, CorrectiveActionSuggestion } from '../../../../core/services/ai.service';
 
 @Component({
   selector: 'app-nc-detail',
@@ -19,6 +20,7 @@ export class NcDetailComponent implements OnInit {
   private collaboratorService = inject(CollaboratorService);
   private authService = inject(AuthService);
   private fb = inject(FormBuilder);
+  private aiService = inject(AiService);
 
   nc: NonConformity | null = null;
   loading = true;
@@ -28,6 +30,9 @@ export class NcDetailComponent implements OnInit {
   showCloseForm = false;
   assignedToId: number | null = null;
   resolutionText = '';
+  suggestingActions = false;
+  aiSuggestions: CorrectiveActionSuggestion[] = [];
+  aiSuggestError = '';
 
   actionForm = this.fb.group({
     description: ['', Validators.required],
@@ -91,6 +96,32 @@ export class NcDetailComponent implements OnInit {
         this.nc!.corrective_actions = this.nc!.corrective_actions!.map(a => a.id === updated.id ? updated : a);
       },
     });
+  }
+
+  suggestActions() {
+    if (!this.nc) return;
+    this.suggestingActions = true;
+    this.aiSuggestError = '';
+    this.aiSuggestions = [];
+    this.aiService.suggestCorrectiveActions({
+      nc_title: this.nc.title,
+      nc_description: this.nc.description,
+      severity: this.nc.severity,
+    }).subscribe({
+      next: (res) => {
+        this.aiSuggestions = res.actions;
+        this.suggestingActions = false;
+      },
+      error: (err: any) => {
+        this.aiSuggestError = err?.error?.error || 'Erreur lors de la génération IA.';
+        this.suggestingActions = false;
+      },
+    });
+  }
+
+  applyAiSuggestion(suggestion: CorrectiveActionSuggestion) {
+    this.actionForm.patchValue({ description: suggestion.description });
+    this.aiSuggestions = [];
   }
 
   severityLabel(s: string): string {

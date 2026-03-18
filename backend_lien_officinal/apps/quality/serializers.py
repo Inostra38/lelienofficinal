@@ -1,5 +1,6 @@
 from rest_framework import serializers
 from .models import Procedure, ProcedureAttachment, ProcedureImage, NonConformity, CorrectiveAction
+from apps.team.models import Collaborator
 
 
 # ── Helpers ────────────────────────────────────────────────────────────────────
@@ -56,6 +57,13 @@ class ProcedureListSerializer(serializers.ModelSerializer):
 
 class ProcedureDetailSerializer(serializers.ModelSerializer):
     pilot = serializers.SerializerMethodField()
+    pilot_id = serializers.PrimaryKeyRelatedField(
+        source='pilot',
+        queryset=Collaborator.objects.all(),
+        allow_null=True,
+        required=False,
+        write_only=True,
+    )
     created_by = serializers.SerializerMethodField()
     parent = serializers.PrimaryKeyRelatedField(
         queryset=Procedure.objects.all(),
@@ -69,7 +77,7 @@ class ProcedureDetailSerializer(serializers.ModelSerializer):
         model = Procedure
         fields = [
             'id', 'title', 'reference', 'category', 'status',
-            'version', 'position', 'parent', 'pilot', 'updated_at',
+            'version', 'position', 'parent', 'pilot', 'pilot_id', 'updated_at',
             'content', 'file', 'created_by', 'created_at',
             'attachments', 'images',
         ]

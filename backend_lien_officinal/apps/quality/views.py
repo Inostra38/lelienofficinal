@@ -40,7 +40,7 @@ class ProcedureViewSet(viewsets.ModelViewSet):
 
     def get_permissions(self):
         if self.action in ('create', 'update', 'partial_update'):
-            return [IsAuthenticated(), CanManageProcedures() | IsProcedurePilot()]
+            return [IsAuthenticated(), (CanManageProcedures | IsProcedurePilot)()]
         if self.action == 'destroy':
             return [IsAuthenticated(), CanManageProcedures()]
         if self.action == 'publish':
