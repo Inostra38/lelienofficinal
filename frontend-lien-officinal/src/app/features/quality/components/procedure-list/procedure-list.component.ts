@@ -1,6 +1,6 @@
 import { Component, OnInit, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { RouterLink, Router } from '@angular/router';
+import { RouterLink } from '@angular/router';
 import { QualityService } from '../../services/quality.service';
 import { Procedure, ProcedureStatus, ReorderPayload } from '../../models/procedure.model';
 
@@ -10,6 +10,8 @@ interface FlatProc {
   parentId: number | null;
 }
 
+type DropPos = 'before' | 'inside' | 'after';
+
 @Component({
   selector: 'app-procedure-list',
   standalone: true,
@@ -18,7 +20,6 @@ interface FlatProc {
 })
 export class ProcedureListComponent implements OnInit {
   private qualityService = inject(QualityService);
-  private router = inject(Router);
 
   tree: Procedure[] = [];
   flatList: FlatProc[] = [];
@@ -28,7 +29,7 @@ export class ProcedureListComponent implements OnInit {
   expandedIds = new Set<number>();
 
   draggingId: number | null = null;
-  dragOverId: number | null = null;
+  dropTarget: { id: number; pos: DropPos } | null = null;
 
   readonly statusFilters: { value: ProcedureStatus | 'all'; label: string }[] = [
     { value: 'all', label: 'Tous' },
@@ -38,11 +39,8 @@ export class ProcedureListComponent implements OnInit {
   ];
 
   readonly categoryLabels: Record<string, string> = {
-    dispensation: 'Dispensation',
-    hygiene: 'Hygiène',
-    stock: 'Stock',
-    administratif: 'Administratif',
-    autre: 'Autre',
+    dispensation: 'Dispensation', hygiene: 'Hygiène', stock: 'Stock',
+    administratif: 'Administratif', autre: 'Autre',
   };
 
   ngOnInit() { this.load(); }
@@ -50,23 +48,15 @@ export class ProcedureListComponent implements OnInit {
   load() {
     this.loading = true;
     this.qualityService.getProcedureTree().subscribe({
-      next: (data) => {
-        this.tree = data;
-        this.updateFlatList();
-        this.loading = false;
-      },
+      next: (data) => { this.tree = data; this.updateFlatList(); this.loading = false; },
       error: () => { this.error = 'Erreur lors du chargement.'; this.loading = false; },
     });
   }
 
-  setFilter(f: ProcedureStatus | 'all') {
-    this.statusFilter = f;
-    this.updateFlatList();
-  }
+  setFilter(f: ProcedureStatus | 'all') { this.statusFilter = f; this.updateFlatList(); }
 
   get filteredTree(): Procedure[] {
-    if (this.statusFilter === 'all') return this.tree;
-    return this.tree.filter(p => p.status === this.statusFilter);
+    return this.statusFilter === 'all' ? this.tree : this.tree.filter(p => p.status === this.statusFilter);
   }
 
   updateFlatList() {
@@ -85,19 +75,27 @@ export class ProcedureListComponent implements OnInit {
   }
 
   toggleExpand(id: number) {
-    if (this.expandedIds.has(id)) this.expandedIds.delete(id);
-    else this.expandedIds.add(id);
+    this.expandedIds.has(id) ? this.expandedIds.delete(id) : this.expandedIds.add(id);
     this.updateFlatList();
   }
 
-  isExpanded(id: number): boolean { return this.expandedIds.has(id); }
+  isExpanded(id: number) { return this.expandedIds.has(id); }
 
-  // Retourne la référence au tableau de frères dans l'arbre
+  // ─── Helpers arbre ───────────────────────────────────────────────
+
+  findProc(id: number, nodes = this.tree): Procedure | null {
+    for (const n of nodes) {
+      if (n.id === id) return n;
+      if (n.children) { const r = this.findProc(id, n.children); if (r) return r; }
+    }
+    return null;
+  }
+
   getSiblings(parentId: number | null): Procedure[] {
     if (parentId === null) return this.tree;
     const find = (nodes: Procedure[]): Procedure[] | null => {
       for (const n of nodes) {
-        if (n.id === parentId) return n.children ?? [];
+        if (n.id === parentId) return n.children ?? (n.children = []);
         if (n.children) { const r = find(n.children); if (r) return r; }
       }
       return null;
@@ -105,64 +103,120 @@ export class ProcedureListComponent implements OnInit {
     return find(this.tree) ?? [];
   }
 
-  canDrag(item: FlatProc): boolean {
-    return item.level > 0 || this.statusFilter === 'all';
+  isDescendant(candidateId: number, ancestorId: number): boolean {
+    const src = this.findProc(ancestorId);
+    const check = (nodes: Procedure[]): boolean =>
+      nodes.some(n => n.id === candidateId || (n.children ? check(n.children) : false));
+    return src?.children ? check(src.children) : false;
   }
+
+  /** Profondeur maximale du sous-arbre d'un item (0 = feuille) */
+  subtreeDepth(proc: Procedure): number {
+    if (!proc.children?.length) return 0;
+    return 1 + Math.max(...proc.children.map(c => this.subtreeDepth(c)));
+  }
+
+  /** "inside" autorisé seulement si target.level + 1 + subtree ≤ 2 */
+  canDropInside(target: FlatProc): boolean {
+    if (target.level >= 2) return false;
+    const dragged = this.findProc(this.draggingId!);
+    if (!dragged) return false;
+    return target.level + 1 + this.subtreeDepth(dragged) <= 2;
+  }
+
+  // ─── Drag & Drop ─────────────────────────────────────────────────
 
   onDragStart(event: DragEvent, id: number) {
     this.draggingId = id;
     event.dataTransfer!.effectAllowed = 'move';
   }
 
-  onDragOver(event: DragEvent, id: number) {
+  onDragOver(event: DragEvent, item: FlatProc) {
     event.preventDefault();
+    if (!this.draggingId || item.proc.id === this.draggingId) return;
+    if (this.isDescendant(item.proc.id, this.draggingId)) return;
+
+    const el = event.currentTarget as HTMLElement;
+    const pct = (event.clientY - el.getBoundingClientRect().top) / el.offsetHeight;
+
+    let pos: DropPos;
+    if (pct < 0.28) {
+      pos = 'before';
+    } else if (pct > 0.72) {
+      pos = 'after';
+    } else {
+      pos = this.canDropInside(item) ? 'inside' : (pct < 0.5 ? 'before' : 'after');
+    }
+
+    this.dropTarget = { id: item.proc.id, pos };
     event.dataTransfer!.dropEffect = 'move';
-    this.dragOverId = id;
   }
 
-  onDragLeave(id: number) {
-    if (this.dragOverId === id) this.dragOverId = null;
+  onDragLeave(event: DragEvent, id: number) {
+    const related = event.relatedTarget as Node | null;
+    const el = event.currentTarget as HTMLElement;
+    if (!related || !el.contains(related)) {
+      if (this.dropTarget?.id === id) this.dropTarget = null;
+    }
   }
 
   onDrop(event: DragEvent, target: FlatProc) {
     event.preventDefault();
-    this.dragOverId = null;
-
-    if (!this.draggingId || this.draggingId === target.proc.id) {
-      this.draggingId = null;
-      return;
+    if (!this.dropTarget || !this.draggingId || this.dropTarget.id !== target.proc.id) {
+      this.resetDrag(); return;
     }
 
-    const src = this.flatList.find(f => f.proc.id === this.draggingId);
-    if (!src || src.parentId !== target.parentId) {
-      this.draggingId = null;
-      return;
+    const pos = this.dropTarget.pos;
+    const srcFlat = this.flatList.find(f => f.proc.id === this.draggingId)!;
+    const movedProc = this.findProc(this.draggingId)!;
+    const payload: ReorderPayload[] = [];
+
+    // 1. Retirer l'item de son ancien parent
+    const oldSiblings = this.getSiblings(srcFlat.parentId);
+    oldSiblings.splice(oldSiblings.indexOf(movedProc), 1);
+
+    if (pos === 'inside') {
+      // 2a. Devenir dernier enfant de target
+      if (!target.proc.children) target.proc.children = [];
+      target.proc.children.push(movedProc);
+      target.proc.children.forEach((p, i) =>
+        payload.push({ id: p.id, parent_id: target.proc.id, position: i }));
+    } else {
+      // 2b. Insérer comme frère de target
+      const newParentId = target.parentId;
+      const newSiblings = this.getSiblings(newParentId);
+      const idx = newSiblings.indexOf(target.proc);
+      newSiblings.splice(pos === 'after' ? idx + 1 : idx, 0, movedProc);
+      newSiblings.forEach((p, i) =>
+        payload.push({ id: p.id, parent_id: newParentId, position: i }));
     }
 
-    const siblings = this.getSiblings(target.parentId);
-    const fromIdx = siblings.findIndex(p => p.id === this.draggingId);
-    const toIdx = siblings.findIndex(p => p.id === target.proc.id);
+    // 3. Renumber ancien parent si différent
+    if (srcFlat.parentId !== (pos === 'inside' ? target.proc.id : target.parentId)) {
+      oldSiblings.forEach((p, i) => {
+        if (!payload.find(x => x.id === p.id))
+          payload.push({ id: p.id, parent_id: srcFlat.parentId, position: i });
+      });
+    }
 
-    if (fromIdx === -1 || toIdx === -1) { this.draggingId = null; return; }
-
-    // Réordonner en place
-    siblings.splice(toIdx, 0, siblings.splice(fromIdx, 1)[0]);
-
-    const payload: ReorderPayload[] = siblings.map((p, i) => ({
-      id: p.id,
-      parent_id: target.parentId,
-      position: i,
-    }));
-
-    this.qualityService.reorderProcedures(payload).subscribe();
-    this.draggingId = null;
-    this.updateFlatList();
+    this.qualityService.reorderProcedures(payload).subscribe({ next: () => this.load() });
+    this.resetDrag();
   }
 
-  onDragEnd() {
-    this.draggingId = null;
-    this.dragOverId = null;
+  onDragEnd() { this.resetDrag(); }
+
+  resetDrag() { this.draggingId = null; this.dropTarget = null; }
+
+  dropClass(item: FlatProc): string {
+    if (!this.dropTarget || this.dropTarget.id !== item.proc.id) return '';
+    switch (this.dropTarget.pos) {
+      case 'before': return 'border-t-2 border-t-green-400';
+      case 'after':  return 'border-b-2 border-b-green-400';
+      case 'inside': return 'ring-2 ring-inset ring-green-400 bg-green-50/60';
+    }
   }
+
+  // ─── Labels / styles ─────────────────────────────────────────────
 
   statusLabel(s: ProcedureStatus): string {
     return ({ draft: 'Brouillon', active: 'Actif', archived: 'Archivé' } as Record<string, string>)[s] || s;

@@ -26,9 +26,6 @@
         {{ f.label }}
       </button>
     }
-    @if (statusFilter !== 'all') {
-      <span class="text-xs text-gray-400 ml-1">— Glisser-déposer désactivé sur le filtre actif</span>
-    }
   </div>
 
   <!-- Erreur -->
@@ -43,7 +40,7 @@
     </div>
   }
 
-  <!-- Liste arborescente flat -->
+  <!-- Liste arborescente flat avec DnD -->
   @if (!loading && !error) {
     @if (flatList.length === 0) {
       <div class="text-center py-12 text-gray-500">
@@ -70,35 +67,33 @@
 
         @for (item of flatList; track trackById($index, item)) {
           <div
-            [draggable]="canDrag(item)"
+            draggable="true"
             (dragstart)="onDragStart($event, item.proc.id)"
-            (dragover)="onDragOver($event, item.proc.id)"
-            (dragleave)="onDragLeave(item.proc.id)"
+            (dragover)="onDragOver($event, item)"
+            (dragleave)="onDragLeave($event, item.proc.id)"
             (drop)="onDrop($event, item)"
             (dragend)="onDragEnd()"
-            [class]="'grid grid-cols-12 gap-2 px-4 py-3 border-b border-gray-100 items-center group transition-colors '
-              + rowBg(item.level)
-              + (draggingId === item.proc.id ? ' opacity-40' : '')
-              + (dragOverId === item.proc.id && draggingId !== item.proc.id ? ' border-t-2 border-t-green-500 bg-green-50/40' : ' hover:bg-green-50/20')">
+            class="grid grid-cols-12 gap-2 px-4 py-3 border-b border-gray-100 items-center group transition-all select-none"
+            [class]="rowBg(item.level)
+              + ' ' + dropClass(item)
+              + (draggingId === item.proc.id ? ' opacity-30' : ' hover:bg-green-50/20')">
 
             <!-- Titre + handle -->
             <div class="col-span-5 flex items-center gap-1" [class]="indentClass(item.level)">
 
               <!-- Drag handle -->
-              @if (canDrag(item)) {
-                <span class="cursor-grab active:cursor-grabbing text-gray-300 hover:text-gray-400 flex-shrink-0 opacity-0 group-hover:opacity-100 transition-opacity"
-                      title="Glisser pour réordonner">
-                  <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
-                    <path d="M8 6a2 2 0 100-4 2 2 0 000 4zm0 6a2 2 0 100-4 2 2 0 000 4zm0 6a2 2 0 100-4 2 2 0 000 4zm8-12a2 2 0 100-4 2 2 0 000 4zm0 6a2 2 0 100-4 2 2 0 000 4zm0 6a2 2 0 100-4 2 2 0 000 4z"/>
-                  </svg>
-                </span>
-              } @else {
-                <span class="w-4 flex-shrink-0"></span>
-              }
+              <span class="cursor-grab active:cursor-grabbing text-gray-300 hover:text-gray-500 flex-shrink-0
+                           opacity-0 group-hover:opacity-100 transition-opacity"
+                    title="Glisser pour réorganiser">
+                <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
+                  <path d="M8 6a2 2 0 100-4 2 2 0 000 4zm0 6a2 2 0 100-4 2 2 0 000 4zm0 6a2 2 0 100-4 2 2 0 000 4zm8-12a2 2 0 100-4 2 2 0 000 4zm0 6a2 2 0 100-4 2 2 0 000 4zm0 6a2 2 0 100-4 2 2 0 000 4z"/>
+                </svg>
+              </span>
 
               <!-- Chevron expand -->
               @if (item.proc.children && item.proc.children.length > 0) {
-                <button (click)="toggleExpand(item.proc.id)" class="text-gray-400 hover:text-gray-600 flex-shrink-0">
+                <button (click)="toggleExpand(item.proc.id); $event.stopPropagation()"
+                        class="text-gray-400 hover:text-gray-600 flex-shrink-0">
                   <svg class="w-4 h-4 transition-transform" [class.rotate-90]="isExpanded(item.proc.id)"
                        fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
@@ -110,7 +105,8 @@
 
               <a [routerLink]="['/quality/procedures', item.proc.id]"
                  class="font-medium hover:text-green-700 transition-colors text-sm truncate"
-                 [class]="item.level === 0 ? 'text-gray-800' : 'text-gray-700'">
+                 [class]="item.level === 0 ? 'text-gray-800' : 'text-gray-700'"
+                 (click)="$event.stopPropagation()">
                 <span class="text-gray-400 mr-1 text-xs font-mono">{{ item.proc.reference }}</span>
                 {{ item.proc.title }}
               </a>
@@ -136,6 +132,7 @@
             <!-- Actions -->
             <div class="col-span-2 flex items-center justify-end gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
               <a [routerLink]="['/quality/procedures', item.proc.id, 'edit']"
+                 (click)="$event.stopPropagation()"
                  class="px-2 py-1 text-xs text-gray-600 hover:text-green-700 hover:bg-green-50 rounded transition-colors">
                 Modifier
               </a>
