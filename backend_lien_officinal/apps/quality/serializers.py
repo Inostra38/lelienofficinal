@@ -1,5 +1,9 @@
 from rest_framework import serializers
-from .models import Procedure, ProcedureAttachment, ProcedureImage, NonConformity, CorrectiveAction, ProcedureGroup, ProcedureVersion
+from .utils import sanitize_quill_html
+from .models import (
+    Procedure, ProcedureAttachment, ProcedureImage, NonConformity,
+    CorrectiveAction, ProcedureGroup, ProcedureVersion, ProcedureCategory,
+)
 from apps.team.models import Collaborator
 
 
@@ -13,8 +17,28 @@ def _collab_repr(collab):
 
 
 def _collab_list_repr(collabs):
-    """Retourne une liste de dicts {id, full_name}."""
-    return [{'id': c.id, 'full_name': f"{c.first_name} {c.last_name}"} for c in collabs.all()]
+    """Retourne une liste de dicts {id, full_name, initials}."""
+    result = []
+    for c in collabs.all():
+        initials = (
+            (c.first_name[:1] if c.first_name else '') +
+            (c.last_name[:1] if c.last_name else '')
+        ).upper()
+        result.append({
+            'id': c.id,
+            'full_name': f"{c.first_name} {c.last_name}",
+            'initials': initials,
+        })
+    return result
+
+
+# ── ProcedureCategory ─────────────────────────────────────────────────────────
+
+class ProcedureCategorySerializer(serializers.ModelSerializer):
+    class Meta:
+        model = ProcedureCategory
+        fields = ['id', 'name', 'color']
+        read_only_fields = ['id']
 
 
 # ── Attachments & Images ──────────────────────────────────────────────────────
@@ -22,7 +46,7 @@ def _collab_list_repr(collabs):
 class ProcedureAttachmentSerializer(serializers.ModelSerializer):
     class Meta:
         model = ProcedureAttachment
-        fields = ['id', 'filename', 'file', 'uploaded_at']
+        fields = ['id', 'filename', 'original_name', 'file', 'file_type', 'uploaded_at']
         read_only_fields = ['id', 'uploaded_at']
 
 
@@ -74,18 +98,22 @@ class ProcedureGroupSerializer(serializers.ModelSerializer):
 
 class ProcedureListSerializer(serializers.ModelSerializer):
     pilots = serializers.SerializerMethodField()
+    categories = serializers.SerializerMethodField()
     parent = serializers.PrimaryKeyRelatedField(read_only=True)
     group = serializers.PrimaryKeyRelatedField(read_only=True)
 
     class Meta:
         model = Procedure
         fields = [
-            'id', 'title', 'reference', 'is_group', 'category', 'status',
+            'id', 'title', 'reference', 'is_group', 'categories', 'status',
             'version', 'position', 'parent', 'group', 'pilots', 'updated_at',
         ]
 
     def get_pilots(self, obj):
         return _collab_list_repr(obj.pilots)
+
+    def get_categories(self, obj):
+        return ProcedureCategorySerializer(obj.categories.all(), many=True).data
 
 
 # ── Procedure — Detail (complet) ─────────────────────────────────────────────
@@ -96,6 +124,15 @@ class ProcedureDetailSerializer(serializers.ModelSerializer):
     pilot_ids = serializers.PrimaryKeyRelatedField(
         source='pilots',
         queryset=Collaborator.objects.all(),
+        many=True,
+        write_only=True,
+        required=False,
+        default=list,
+    )
+    categories = serializers.SerializerMethodField()
+    category_ids = serializers.PrimaryKeyRelatedField(
+        source='categories',
+        queryset=ProcedureCategory.objects.all(),
         many=True,
         write_only=True,
         required=False,
@@ -120,7 +157,7 @@ class ProcedureDetailSerializer(serializers.ModelSerializer):
     class Meta:
         model = Procedure
         fields = [
-            'id', 'title', 'reference', 'is_group', 'category', 'status',
+            'id', 'title', 'reference', 'is_group', 'categories', 'category_ids', 'status',
             'version', 'position', 'parent', 'group', 'pilots', 'pilot_ids', 'updated_at',
             'content', 'file', 'created_by', 'created_at',
             'attachments', 'images', 'history', 'children',
@@ -130,24 +167,32 @@ class ProcedureDetailSerializer(serializers.ModelSerializer):
     def get_pilots(self, obj):
         return _collab_list_repr(obj.pilots)
 
+    def get_categories(self, obj):
+        return ProcedureCategorySerializer(obj.categories.all(), many=True).data
+
     def get_created_by(self, obj):
         return _collab_repr(obj.created_by)
 
     def get_children(self, obj):
-        qs = obj.children.order_by('position').prefetch_related('pilots')
+        qs = obj.children.order_by('position').prefetch_related('pilots', 'categories')
         return ProcedureListSerializer(qs, many=True, context=self.context).data
 
     def create(self, validated_data):
         pilots = validated_data.pop('pilots', [])
+        categories = validated_data.pop('categories', [])
         instance = super().create(validated_data)
         instance.pilots.set(pilots)
+        instance.categories.set(categories)
         return instance
 
     def update(self, instance, validated_data):
         pilots = validated_data.pop('pilots', None)
+        categories = validated_data.pop('categories', None)
         instance = super().update(instance, validated_data)
         if pilots is not None:
             instance.pilots.set(pilots)
+        if categories is not None:
+            instance.categories.set(categories)
         return instance
 
     def validate(self, data):
@@ -195,22 +240,29 @@ class ProcedureDetailSerializer(serializers.ModelSerializer):
 
         return data
 
+    def validate_content(self, value):
+        return sanitize_quill_html(value)
+
 
 # ── Procedure — Tree (récursif) ───────────────────────────────────────────────
 
 class ProcedureTreeSerializer(serializers.ModelSerializer):
     pilots = serializers.SerializerMethodField()
+    categories = serializers.SerializerMethodField()
     children = serializers.SerializerMethodField()
 
     class Meta:
         model = Procedure
-        fields = ['id', 'title', 'reference', 'is_group', 'category', 'status', 'version', 'position', 'group', 'pilots', 'children']
+        fields = ['id', 'title', 'reference', 'is_group', 'categories', 'status', 'version', 'position', 'group', 'pilots', 'children']
 
     def get_pilots(self, obj):
         return _collab_list_repr(obj.pilots)
 
+    def get_categories(self, obj):
+        return ProcedureCategorySerializer(obj.categories.all(), many=True).data
+
     def get_children(self, obj):
-        qs = obj.children.order_by('position').prefetch_related('pilots')
+        qs = obj.children.order_by('position').prefetch_related('pilots', 'categories')
         return ProcedureTreeSerializer(qs, many=True, context=self.context).data
 
 

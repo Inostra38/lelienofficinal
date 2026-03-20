@@ -5,9 +5,12 @@ from rest_framework.decorators import action
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 
-from .models import Procedure, ProcedureAttachment, ProcedureImage, NonConformity, CorrectiveAction, ProcedureGroup, ProcedureVersion
+from .models import (
+    Procedure, ProcedureAttachment, ProcedureImage, NonConformity,
+    CorrectiveAction, ProcedureGroup, ProcedureVersion, ProcedureCategory,
+)
 from .serializers import (
-    ProcedureGroupSerializer,
+    ProcedureGroupSerializer, ProcedureCategorySerializer,
     ProcedureListSerializer, ProcedureDetailSerializer, ProcedureTreeSerializer,
     ProcedureAttachmentSerializer, ProcedureImageSerializer,
     NonConformityListSerializer, NonConformityDetailSerializer,
@@ -29,7 +32,7 @@ class ProcedureViewSet(viewsets.ModelViewSet):
             Procedure.objects
             .filter(pharmacy=self.request.user)
             .select_related('created_by', 'parent', 'group')
-            .prefetch_related('pilots', 'attachments', 'images')
+            .prefetch_related('pilots', 'categories', 'attachments', 'images')
         )
         group_param = self.request.query_params.get('group')
         if group_param == 'none':
@@ -184,14 +187,46 @@ class ProcedureViewSet(viewsets.ModelViewSet):
         file = request.FILES.get('file')
         if not file:
             return Response({'detail': 'Champ file manquant.'}, status=status.HTTP_400_BAD_REQUEST)
-        filename = request.data.get('filename', '') or file.name
+        if file.size > 10 * 1024 * 1024:
+            return Response(
+                {'detail': 'Le fichier dépasse la limite de 10 Mo.'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        original_name = file.name
+        filename = request.data.get('filename', '') or original_name
+        ext = original_name.rsplit('.', 1)[-1].lower() if '.' in original_name else ''
+        file_type = 'image' if ext in ('jpg', 'jpeg', 'png', 'gif', 'webp') else 'document'
+        collaborator = _get_collaborator(request, request.user)
         attachment = ProcedureAttachment.objects.create(
-            procedure=procedure, file=file, filename=filename,
+            procedure=procedure,
+            file=file,
+            filename=filename,
+            original_name=original_name,
+            file_type=file_type,
+            uploaded_by=collaborator,
         )
         return Response(
             ProcedureAttachmentSerializer(attachment).data,
             status=status.HTTP_201_CREATED,
         )
+
+
+# ── ProcedureCategory ─────────────────────────────────────────────────────────
+
+class ProcedureCategoryViewSet(viewsets.ModelViewSet):
+    serializer_class = ProcedureCategorySerializer
+
+    def get_queryset(self):
+        return ProcedureCategory.objects.filter(pharmacy=self.request.user)
+
+    def get_permissions(self):
+        if self.action in ('list', 'retrieve'):
+            return [IsAuthenticated()]
+        return [IsAuthenticated(), CanManageProcedures()]
+
+    def perform_create(self, serializer):
+        collaborator = _get_collaborator(self.request, self.request.user)
+        serializer.save(pharmacy=self.request.user, created_by=collaborator)
 
 
 # ── ProcedureGroup ────────────────────────────────────────────────────────────
@@ -222,6 +257,21 @@ class ProcedureGroupViewSet(viewsets.ModelViewSet):
         )
         serializer = ProcedureTreeSerializer(roots, many=True, context={'request': request})
         return Response(serializer.data)
+
+
+# ── ProcedureImage (suppression seule) ───────────────────────────────────────
+
+class ProcedureImageViewSet(viewsets.GenericViewSet):
+    permission_classes = [IsAuthenticated]
+    serializer_class = ProcedureImageSerializer
+
+    def get_queryset(self):
+        return ProcedureImage.objects.filter(procedure__pharmacy=self.request.user)
+
+    def destroy(self, request, *args, **kwargs):
+        image = self.get_object()
+        image.delete()
+        return Response(status=status.HTTP_204_NO_CONTENT)
 
 
 # ── ProcedureAttachment (suppression seule) ───────────────────────────────────

@@ -22,6 +22,13 @@ export class AiService {
     return this.http.post<{ content: string }>(`${this.api}/generate-procedure/`, payload);
   }
 
+  refactorText(payload: {
+    text: string;
+    mode: 'selection' | 'full';
+  }): Observable<{ result: string }> {
+    return this.http.post<{ result: string }>(`${this.api}/refactor-text/`, payload);
+  }
+
   suggestCorrectiveActions(payload: {
     nc_title: string;
     nc_description: string;

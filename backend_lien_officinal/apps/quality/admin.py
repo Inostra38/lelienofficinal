@@ -1,5 +1,8 @@
 from django.contrib import admin
-from .models import Procedure, ProcedureAttachment, ProcedureImage, NonConformity, CorrectiveAction, ProcedureGroup
+from .models import (
+    Procedure, ProcedureAttachment, ProcedureImage, NonConformity,
+    CorrectiveAction, ProcedureGroup, ProcedureCategory,
+)
 
 
 @admin.register(ProcedureGroup)
@@ -9,13 +12,20 @@ class ProcedureGroupAdmin(admin.ModelAdmin):
     search_fields = ['name']
 
 
+@admin.register(ProcedureCategory)
+class ProcedureCategoryAdmin(admin.ModelAdmin):
+    list_display = ('name', 'color', 'pharmacy', 'created_by')
+    list_filter = ('pharmacy',)
+    search_fields = ('name',)
+
+
 @admin.register(Procedure)
 class ProcedureAdmin(admin.ModelAdmin):
-    list_display = ('title', 'reference', 'category', 'status', 'version', 'pharmacy')
-    list_filter = ('status', 'category', 'pharmacy')
+    list_display = ('title', 'reference', 'status', 'version', 'pharmacy')
+    list_filter = ('status', 'pharmacy')
     search_fields = ('title', 'reference')
     raw_id_fields = ('created_by', 'parent')
-    filter_horizontal = ('pilots',)
+    filter_horizontal = ('pilots', 'categories')
 
 
 @admin.register(ProcedureAttachment)

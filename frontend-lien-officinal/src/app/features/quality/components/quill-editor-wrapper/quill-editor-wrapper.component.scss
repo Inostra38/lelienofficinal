@@ -1,0 +1,39 @@
+:host {
+  display: block;
+  width: 100%;
+}
+
+:host ::ng-deep {
+  quill-editor {
+    display: block;
+    width: 100%;
+  }
+
+  .ql-toolbar {
+    border-radius: 6px 6px 0 0;
+    border-color: #d1d5db;
+    background: #f9fafb;
+  }
+
+  .ql-container {
+    border-radius: 0 0 6px 6px;
+    border-color: #d1d5db;
+    font-size: 0.9375rem;
+    min-height: 220px;
+  }
+
+  .ql-editor {
+    min-height: 220px;
+
+    &.ql-blank::before {
+      color: #9ca3af;
+      font-style: normal;
+    }
+  }
+
+  /* Focus */
+  .ql-container.ql-snow:focus-within,
+  .ql-toolbar.ql-snow:focus-within {
+    border-color: #15803d;
+  }
+}

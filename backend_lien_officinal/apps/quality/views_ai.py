@@ -92,6 +92,52 @@ Rédige en français, de manière professionnelle et précise."""
 
 @api_view(['POST'])
 @permission_classes([IsAuthenticated])
+def refactor_text(request):
+    """
+    Reformule ou améliore un texte de procédure avec Claude.
+    Body: { text: str, mode: 'selection' | 'full' }
+    """
+    text = request.data.get('text', '').strip()
+    mode = request.data.get('mode', 'full')
+
+    if not text:
+        return Response(
+            {'error': 'Le champ text est requis.'},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+    system_prompt = (
+        "Tu es un assistant de rédaction pour des procédures pharmaceutiques officinales françaises. "
+        "Corrige l'orthographe, améliore la clarté et structure le texte fourni. "
+        "Ne modifie pas le sens ni le contenu médical. Ne génère pas de contenu nouveau. "
+        "Réponds uniquement avec le texte corrigé, sans introduction ni commentaire. "
+        "Si le texte est en HTML, conserve les balises HTML."
+    )
+
+    try:
+        client = _get_client()
+        message = client.messages.create(
+            model='claude-opus-4-6',
+            max_tokens=2048,
+            system=system_prompt,
+            messages=[{'role': 'user', 'content': text}],
+        )
+        result = next(
+            (block.text for block in message.content if block.type == 'text'),
+            '',
+        )
+        return Response({'result': result})
+    except ValueError as e:
+        return Response({'error': str(e)}, status=status.HTTP_503_SERVICE_UNAVAILABLE)
+    except anthropic.APIError as e:
+        return Response(
+            {'error': f'Erreur API Claude : {str(e)}'},
+            status=status.HTTP_502_BAD_GATEWAY,
+        )
+
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
 def suggest_corrective_actions(request):
     """
     Suggère des actions correctives pour une non-conformité.

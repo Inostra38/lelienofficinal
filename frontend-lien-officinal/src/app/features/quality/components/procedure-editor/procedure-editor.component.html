@@ -65,68 +65,51 @@
       <!-- Référence (masquée pour les groupes) -->
       @if (!isGroup) {
         <div>
-          <label class="block text-sm font-medium text-gray-700 mb-1">
-            Référence <span class="text-red-500">*</span>
-          </label>
+          <label class="block text-sm font-medium text-gray-700 mb-1">Référence</label>
           <input formControlName="reference" type="text" placeholder="Ex : PRO-DISP-001"
-                 class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-green-600 focus:border-transparent"
-                 [class.border-red-400]="form.get('reference')?.invalid && form.get('reference')?.touched"/>
-          @if (form.get('reference')?.invalid && form.get('reference')?.touched) {
-            <p class="text-red-500 text-xs mt-1">La référence est requise.</p>
-          }
+                 class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-green-600 focus:border-transparent"/>
         </div>
       }
 
-      <!-- Catégorie -->
+      <!-- Catégories -->
       <div>
-        <label class="block text-sm font-medium text-gray-700 mb-1">
-          Catégorie <span class="text-red-500">*</span>
-        </label>
-        <select formControlName="category"
-                class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-600 focus:border-transparent bg-white"
-                [class.border-red-400]="form.get('category')?.invalid && form.get('category')?.touched">
-          <option value="">Sélectionner une catégorie</option>
-          @for (cat of categories; track cat.value) {
-            <option [value]="cat.value">{{ cat.label }}</option>
-          }
-        </select>
-        @if (form.get('category')?.invalid && form.get('category')?.touched) {
-          <p class="text-red-500 text-xs mt-1">La catégorie est requise.</p>
-        }
+        <label class="block text-sm font-medium text-gray-700 mb-2">Catégories</label>
+        <app-badge-selector formControlName="category_ids" [canCreate]="true" />
       </div>
 
       <!-- Pilotes -->
       <div>
         <label class="block text-sm font-medium text-gray-700 mb-2">Pilotes</label>
+
         @if (collaborators.length === 0) {
           <p class="text-sm text-gray-400 italic">Aucun collaborateur disponible.</p>
         } @else {
-          <div class="flex flex-wrap gap-2">
+          <ul class="divide-y divide-gray-100 border border-gray-200 rounded-lg overflow-hidden">
             @for (col of collaborators; track col.id) {
               @if (col.id) {
-                <button type="button" (click)="togglePilot(col.id)"
-                        class="px-3 py-1.5 rounded-full text-sm border transition-colors"
-                        [class]="isPilotSelected(col.id)
-                          ? 'bg-green-700 text-white border-green-700'
-                          : 'bg-white text-gray-600 border-gray-300 hover:border-green-400 hover:text-green-700'">
-                  {{ col.first_name }} {{ col.last_name }}
-                </button>
+                <li class="flex items-center gap-3 px-3 py-2.5 cursor-pointer select-none transition-colors"
+                    [class]="isPilotSelected(col.id)
+                      ? 'bg-green-50 pilot-row--active'
+                      : 'bg-white hover:bg-gray-50'"
+                    (click)="togglePilot(col.id)">
+                  <span class="w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold text-white flex-shrink-0"
+                        [style.background-color]="getAvatarColor(col.first_name + ' ' + col.last_name)">
+                    {{ getInitials(col) }}
+                  </span>
+                  <span class="text-sm flex-1"
+                        [class]="isPilotSelected(col.id) ? 'font-medium text-green-800' : 'text-gray-700'">
+                    {{ col.first_name }} {{ col.last_name }}
+                  </span>
+                  <svg class="w-4 h-4 text-green-600 flex-shrink-0 transition-opacity"
+                       [style.opacity]="isPilotSelected(col.id) ? 1 : 0"
+                       fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"/>
+                  </svg>
+                </li>
               }
             }
-          </div>
+          </ul>
         }
-      </div>
-
-      <!-- Procédure parente -->
-      <div>
-        <label class="block text-sm font-medium text-gray-700 mb-1">Procédure parente</label>
-        <select formControlName="parent"
-                class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-600 focus:border-transparent bg-white">
-          <option [ngValue]="null">Aucune (procédure racine)</option>
-          @for (p of procedures; track p.id) {
-            <option [ngValue]="p.id">{{ p.is_group ? '📁 ' + p.title : (p.reference ? p.reference + ' — ' + p.title : p.title) }}</option>
-          }
-        </select>
       </div>
 
       <!-- Contenu / Description -->
@@ -136,107 +119,95 @@
             @if (isGroup) { Description } @else { Contenu }
           </label>
           @if (!isGroup) {
-            <button type="button"
-                    (click)="generateContent()"
-                    [disabled]="generating || !form.get('title')?.value || !form.get('category')?.value"
-                    class="inline-flex items-center gap-1.5 px-3 py-1 text-xs font-medium text-green-700 border border-green-200 rounded-lg hover:bg-green-50 transition-colors disabled:opacity-40 disabled:cursor-not-allowed">
-              @if (generating) {
-                <span class="w-3 h-3 border-2 border-green-500 border-t-transparent rounded-full animate-spin"></span>
-                Génération en cours...
-              } @else {
-                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                        d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.347.346a3.02 3.02 0 00-.822 1.567l-.22 1.098A1 1 0 0114.013 20H9.987a1 1 0 01-.98-.803l-.22-1.098a3.02 3.02 0 00-.822-1.567l-.347-.346z"/>
-                </svg>
-                Générer avec l'IA
-              }
-            </button>
+            <div [title]="quillSelection ? '' : 'Sélectionnez du texte dans l\'éditeur pour activer'">
+              <button type="button"
+                      (click)="openRefactorConfirm()"
+                      [disabled]="!quillSelection || refactoring"
+                      class="inline-flex items-center gap-1.5 px-3 py-1 text-xs font-medium text-purple-700 border border-purple-200 rounded-lg hover:bg-purple-50 transition-colors disabled:opacity-40 disabled:cursor-not-allowed">
+                @if (refactoring) {
+                  <span class="w-3 h-3 border-2 border-purple-400 border-t-transparent rounded-full animate-spin"></span>
+                  Correction en cours…
+                } @else {
+                  ✦ Corriger et structurer
+                }
+              </button>
+            </div>
           }
         </div>
-        @if (aiError) {
-          <div class="bg-amber-50 border border-amber-200 text-amber-700 rounded-lg px-3 py-2 text-xs mb-2">{{ aiError }}</div>
+
+        @if (refactorError) {
+          <div class="bg-red-50 border border-red-200 text-red-600 rounded-lg px-3 py-2 text-xs mb-2">{{ refactorError }}</div>
         }
-        <textarea formControlName="content"
-                  [rows]="isGroup ? 4 : 12"
-                  [placeholder]="isGroup ? 'Description optionnelle du groupe...' : 'Décrivez le contenu de la procédure (HTML supporté)...'"
-                  class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-green-600 focus:border-transparent resize-y">
-        </textarea>
+
+        <!-- Quill pour les procédures, textarea simple pour les groupes -->
         @if (!isGroup) {
-          <p class="text-xs text-gray-400 mt-1">Le contenu HTML sera rendu dans la vue détail.</p>
+          <app-quill-editor-wrapper
+            formControlName="content"
+            [placeholder]="'Rédigez le contenu de la procédure…'"
+            (selectionChange)="onQuillSelectionChange($event)">
+          </app-quill-editor-wrapper>
+        } @else {
+          <textarea formControlName="content" rows="4"
+                    placeholder="Description optionnelle du groupe..."
+                    class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-600 focus:border-transparent resize-y">
+          </textarea>
         }
       </div>
 
-      <!-- Section Photos & PJ (uniquement en mode édition, pas pour les groupes) -->
-      @if (isEditMode && procedureId && !isGroup) {
+      <!-- Section Photos & PJ -->
+      @if (!isGroup) {
         <div>
-          <div class="flex items-center justify-between mb-3">
-            <h3 class="text-sm font-medium text-gray-700">Photos</h3>
-            <label class="cursor-pointer inline-flex items-center gap-1.5 px-3 py-1.5 text-xs text-green-700 border border-green-200 rounded-lg hover:bg-green-50 transition-colors">
-              <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
-              </svg>
-              Ajouter une photo
-              <input type="file" accept="image/*" class="hidden" (change)="onImageSelected($event)"/>
-            </label>
-          </div>
-          @if (images.length > 0) {
-            <div class="grid grid-cols-4 gap-3">
-              @for (img of images; track img.id) {
-                <div class="aspect-square rounded-lg overflow-hidden border border-gray-200 bg-gray-50">
-                  <img [src]="img.url" alt="Photo procédure" class="w-full h-full object-cover"/>
-                </div>
-              }
+          <!-- Photos -->
+          <div class="mb-5">
+            <div class="flex items-center justify-between mb-3">
+              <h3 class="text-sm font-medium text-gray-700">Photos</h3>
+              <label class="cursor-pointer inline-flex items-center gap-1.5 px-3 py-1.5 text-xs text-green-700 border border-green-200 rounded-lg hover:bg-green-50 transition-colors">
+                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
+                </svg>
+                Ajouter une photo
+                <input type="file" accept="image/*" class="hidden" (change)="onImageSelected($event)"/>
+              </label>
             </div>
-          } @else {
-            <p class="text-sm text-gray-400 py-3 text-center border border-dashed border-gray-200 rounded-lg">
-              Aucune photo ajoutée.
-            </p>
-          }
-        </div>
-
-        <!-- Section Pièces jointes -->
-        <div>
-          <div class="flex items-center justify-between mb-3">
-            <h3 class="text-sm font-medium text-gray-700">Pièces jointes</h3>
-            <label class="cursor-pointer inline-flex items-center gap-1.5 px-3 py-1.5 text-xs text-green-700 border border-green-200 rounded-lg hover:bg-green-50 transition-colors">
-              <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13"/>
-              </svg>
-              Ajouter une pièce jointe
-              <input type="file" class="hidden" (change)="onAttachmentSelected($event)"/>
-            </label>
-          </div>
-          @if (attachments.length > 0) {
-            <ul class="space-y-2">
-              @for (att of attachments; track att.id) {
-                <li class="flex items-center justify-between px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg">
-                  <div class="flex items-center gap-2 min-w-0">
-                    <svg class="w-4 h-4 text-gray-400 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
-                    </svg>
-                    <span class="text-sm text-gray-700 truncate">{{ att.filename }}</span>
+            @if (images.length > 0 || pendingImagePreviews.length > 0) {
+              <div class="grid grid-cols-4 gap-3">
+                @for (img of images; track img.id) {
+                  <div class="aspect-square rounded-lg overflow-hidden border border-gray-200 bg-gray-50 relative group">
+                    <img [src]="img.url" alt="Photo procédure" class="w-full h-full object-cover"/>
+                    <button type="button" (click)="removeImage(img)"
+                            class="absolute top-1 right-1 w-6 h-6 bg-red-500 text-white rounded-full items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity flex">
+                      <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M6 18L18 6M6 6l12 12"/>
+                      </svg>
+                    </button>
                   </div>
-                  <button type="button" (click)="deleteAttachment(att.id)"
-                          class="ml-2 text-red-400 hover:text-red-600 flex-shrink-0 transition-colors">
-                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
-                    </svg>
-                  </button>
-                </li>
-              }
-            </ul>
-          } @else {
-            <p class="text-sm text-gray-400 py-3 text-center border border-dashed border-gray-200 rounded-lg">
-              Aucune pièce jointe.
-            </p>
-          }
-        </div>
-      }
+                }
+                @for (preview of pendingImagePreviews; track $index) {
+                  <div class="aspect-square rounded-lg overflow-hidden border border-amber-200 bg-amber-50 relative group">
+                    <img [src]="preview" alt="Photo en attente" class="w-full h-full object-cover opacity-80"/>
+                    <button type="button" (click)="removePendingImage($index)"
+                            class="absolute top-1 right-1 w-6 h-6 bg-red-500 text-white rounded-full items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity flex">
+                      <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M6 18L18 6M6 6l12 12"/>
+                      </svg>
+                    </button>
+                    <span class="absolute bottom-1 right-1 text-[10px] bg-amber-500 text-white rounded px-1">En attente</span>
+                  </div>
+                }
+              </div>
+            } @else {
+              <p class="text-sm text-gray-400 py-3 text-center border border-dashed border-gray-200 rounded-lg">
+                Aucune photo ajoutée.
+              </p>
+            }
+          </div>
 
-      @if (isEditMode && !procedureId) {
-        <p class="text-xs text-gray-400 bg-amber-50 border border-amber-100 rounded-lg px-3 py-2">
-          Les photos et pièces jointes seront disponibles après la première sauvegarde.
-        </p>
+          <!-- Pièces jointes -->
+          <div>
+            <h3 class="text-sm font-medium text-gray-700 mb-2">Pièces jointes</h3>
+            <app-attachment-uploader [procedureId]="procedureId" [initialAttachments]="attachments" />
+          </div>
+        </div>
       }
 
       <!-- Actions -->
@@ -266,3 +237,30 @@
   }
 
 </div>
+
+<!-- Modale confirmation IA -->
+@if (showConfirmModal) {
+  <div class="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm"
+       (click)="cancelRefactor()">
+    <div class="bg-white rounded-xl shadow-xl w-full max-w-md mx-4 p-6"
+         (click)="$event.stopPropagation()">
+      <h2 class="text-base font-semibold text-gray-800 mb-2">
+        Corriger et structurer le texte sélectionné
+      </h2>
+      <p class="text-sm text-gray-600 mb-6">
+        L'IA va reformuler ce passage pour en améliorer la clarté et la structure.
+        Vous restez responsable du contenu de la procédure.
+      </p>
+      <div class="flex justify-end gap-3">
+        <button type="button" (click)="cancelRefactor()"
+                class="px-4 py-2 text-sm text-gray-600 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors">
+          Annuler
+        </button>
+        <button type="button" (click)="refactorSelection()"
+                class="px-4 py-2 text-sm font-medium text-white bg-purple-700 rounded-lg hover:bg-purple-800 transition-colors">
+          Confirmer
+        </button>
+      </div>
+    </div>
+  </div>
+}

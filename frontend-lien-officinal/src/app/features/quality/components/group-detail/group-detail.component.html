@@ -148,7 +148,7 @@
 
             <div class="col-span-2">
               <span class="inline-flex px-2 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-600">
-                {{ categoryLabels[item.proc.category] || item.proc.category }}
+                {{ item.proc.categories[0]?.name || '—' }}
               </span>
             </div>
 

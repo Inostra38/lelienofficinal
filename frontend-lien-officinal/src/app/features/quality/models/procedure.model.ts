@@ -9,6 +9,12 @@ export interface ProcedureGroup {
   updated_at?: string;
 }
 
+export interface ProcedureCategory {
+  id: number;
+  name: string;
+  color: string;
+}
+
 export interface ProcedureVersion {
   id: number;
   version_number: number;
@@ -22,7 +28,7 @@ export interface Procedure {
   title: string;
   reference: string | null;
   is_group?: boolean;
-  category: ProcedureCategory;
+  categories: ProcedureCategory[];
   status: ProcedureStatus;
   content?: string;
   file?: string;
@@ -30,7 +36,7 @@ export interface Procedure {
   position: number;
   parent?: number;
   group?: number | null;
-  pilots?: { id: number; full_name: string }[];
+  pilots?: { id: number; full_name: string; initials: string }[];
   created_by?: { id: number; full_name: string };
   created_at?: string;
   updated_at?: string;
@@ -41,12 +47,13 @@ export interface Procedure {
 }
 
 export type ProcedureStatus = 'draft' | 'active' | 'archived';
-export type ProcedureCategory = 'dispensation' | 'hygiene' | 'stock' | 'administratif' | 'autre';
 
 export interface ProcedureAttachment {
   id: number;
   filename: string;
+  original_name: string;
   file: string;
+  file_type: 'image' | 'document';
   uploaded_at: string;
 }
 

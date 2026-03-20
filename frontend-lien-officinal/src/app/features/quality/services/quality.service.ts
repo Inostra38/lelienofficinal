@@ -2,12 +2,22 @@ import { Injectable, inject } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { Observable } from 'rxjs';
 import { environment } from '../../../../environments/environment';
-import { Procedure, ProcedureGroup, ProcedureAttachment, ProcedureImage, ReorderPayload } from '../models/procedure.model';
+import { Procedure, ProcedureGroup, ProcedureCategory, ProcedureAttachment, ProcedureImage, ReorderPayload } from '../models/procedure.model';
 
 @Injectable({ providedIn: 'root' })
 export class QualityService {
   private http = inject(HttpClient);
   private api = `${environment.apiUrl}/api/quality`;
+
+  // ── ProcedureCategories ──────────────────────────────────────────────────
+
+  getCategories(): Observable<ProcedureCategory[]> {
+    return this.http.get<ProcedureCategory[]>(`${this.api}/categories/`);
+  }
+
+  createCategory(data: { name: string; color: string }): Observable<ProcedureCategory> {
+    return this.http.post<ProcedureCategory>(`${this.api}/categories/`, data);
+  }
 
   // ── ProcedureGroups ──────────────────────────────────────────────────────
 
@@ -80,6 +90,10 @@ export class QualityService {
     const fd = new FormData();
     fd.append('image', file);
     return this.http.post<ProcedureImage>(`${this.api}/procedures/${procedureId}/images/`, fd);
+  }
+
+  deleteImage(imageId: number): Observable<void> {
+    return this.http.delete<void>(`${this.api}/images/${imageId}/`);
   }
 
   getAttachments(procedureId: number): Observable<ProcedureAttachment[]> {

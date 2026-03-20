@@ -1,6 +1,7 @@
-import { Component, OnInit, inject } from '@angular/core';
+import { Component, OnInit, HostListener, ElementRef, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { ActivatedRoute, Router, RouterLink } from '@angular/router';
+import { ActivatedRoute, RouterLink } from '@angular/router';
+import { DomSanitizer, SafeHtml } from '@angular/platform-browser';
 import { QualityService } from '../../services/quality.service';
 import { Procedure } from '../../models/procedure.model';
 
@@ -9,11 +10,28 @@ import { Procedure } from '../../models/procedure.model';
   standalone: true,
   imports: [CommonModule, RouterLink],
   templateUrl: './procedure-detail.component.html',
+  styleUrl: './procedure-detail.component.scss',
 })
 export class ProcedureDetailComponent implements OnInit {
   private route = inject(ActivatedRoute);
-  private router = inject(Router);
   private qualityService = inject(QualityService);
+  private sanitizer = inject(DomSanitizer);
+  private el = inject(ElementRef);
+
+  readProgress = 0;
+
+  @HostListener('window:scroll')
+  onWindowScroll() {
+    const hostHeight = (this.el.nativeElement as HTMLElement).scrollHeight;
+    if (hostHeight < 600) { this.readProgress = 0; return; }
+    const scrolled = window.scrollY || document.documentElement.scrollTop;
+    const total = document.documentElement.scrollHeight - window.innerHeight;
+    this.readProgress = total > 0 ? Math.min(100, (scrolled / total) * 100) : 0;
+  }
+
+  safeHtml(content: string): SafeHtml {
+    return this.sanitizer.bypassSecurityTrustHtml(content);
+  }
 
   procedure: Procedure | null = null;
   loading = true;
@@ -55,16 +73,24 @@ export class ProcedureDetailComponent implements OnInit {
     } as Record<string, string>)[s] || '';
   }
 
-  categoryLabel(c: string): string {
-    return ({
-      dispensation: 'Dispensation',
-      hygiene: 'Hygiène',
-      stock: 'Stock',
-      administratif: 'Administratif',
-      autre: 'Autre',
-    } as Record<string, string>)[c] || c;
+  pilotNames(p: Procedure): string {
+    return p.pilots?.length ? p.pilots.map(c => c.full_name).join(', ') : 'Non défini';
   }
 
   openLightbox(url: string) { this.lightboxImage = url; }
   closeLightbox() { this.lightboxImage = null; }
+
+  getInitials(fullName: string): string {
+    const parts = fullName.trim().split(/\s+/);
+    return ((parts[0]?.[0] ?? '') + (parts[1]?.[0] ?? '')).toUpperCase();
+  }
+
+  getAvatarColor(name: string): string {
+    const colors = ['#1B5E20', '#0D47A1', '#4A148C', '#E65100', '#880E4F', '#006064', '#37474F'];
+    let hash = 0;
+    for (let i = 0; i < name.length; i++) {
+      hash = name.charCodeAt(i) + ((hash << 5) - hash);
+    }
+    return colors[Math.abs(hash) % colors.length];
+  }
 }

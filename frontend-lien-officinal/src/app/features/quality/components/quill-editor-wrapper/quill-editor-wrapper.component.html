@@ -1,0 +1,10 @@
+<quill-editor class="w-full"
+  [modules]="modules"
+  [placeholder]="placeholder"
+  [readOnly]="disabled"
+  [ngModel]="value"
+  (onContentChanged)="onEditorChange($event)"
+  (onSelectionChanged)="onSelectionChanged($event)"
+  (onBlur)="onBlur()"
+  format="html"
+/>

@@ -32,14 +32,33 @@ class ProcedureGroup(models.Model):
         return self.name
 
 
-class Procedure(models.Model):
+class ProcedureCategory(models.Model):
+    """Étiquette libre de catégorisation des procédures, par pharmacie."""
+    name = models.CharField(max_length=100)
+    color = models.CharField(max_length=7, default='#2E7D32')
+    pharmacy = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name='procedure_categories',
+    )
+    created_by = models.ForeignKey(
+        'team.Collaborator',
+        null=True, blank=True,
+        on_delete=models.SET_NULL,
+        related_name='created_procedure_categories',
+    )
 
-    class Category(models.TextChoices):
-        DISPENSATION   = 'dispensation',   'Dispensation'
-        HYGIENE        = 'hygiene',        'Hygiène'
-        STOCK          = 'stock',          'Stock'
-        ADMINISTRATIF  = 'administratif',  'Administratif'
-        AUTRE          = 'autre',          'Autre'
+    class Meta:
+        unique_together = ('name', 'pharmacy')
+        ordering = ['name']
+        verbose_name = 'Catégorie de procédure'
+        verbose_name_plural = 'Catégories de procédure'
+
+    def __str__(self):
+        return self.name
+
+
+class Procedure(models.Model):
 
     class Status(models.TextChoices):
         DRAFT    = 'draft',    'Brouillon'
@@ -54,7 +73,11 @@ class Procedure(models.Model):
     title = models.CharField(max_length=200)
     reference = models.CharField(max_length=20, null=True, blank=True, default=None)
     is_group = models.BooleanField(default=False)
-    category = models.CharField(max_length=50, choices=Category.choices)
+    categories = models.ManyToManyField(
+        'ProcedureCategory',
+        blank=True,
+        related_name='procedures',
+    )
     status = models.CharField(max_length=20, choices=Status.choices, default=Status.DRAFT)
     content = models.TextField(blank=True)
     file = models.FileField(upload_to='quality/procedures/', null=True, blank=True)
@@ -117,8 +140,20 @@ class ProcedureAttachment(models.Model):
         on_delete=models.CASCADE,
         related_name='attachments',
     )
-    file = models.FileField(upload_to='quality/attachments/')
+    file = models.FileField(upload_to='quality/attachments/%Y/%m/')
     filename = models.CharField(max_length=255)
+    original_name = models.CharField(max_length=255, blank=True)
+    file_type = models.CharField(
+        max_length=20,
+        choices=[('image', 'Image'), ('document', 'Document')],
+        default='document',
+    )
+    uploaded_by = models.ForeignKey(
+        'team.Collaborator',
+        null=True, blank=True,
+        on_delete=models.SET_NULL,
+        related_name='uploaded_attachments',
+    )
     uploaded_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
