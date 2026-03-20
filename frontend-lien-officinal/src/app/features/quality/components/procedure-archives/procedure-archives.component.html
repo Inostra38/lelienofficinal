@@ -1,0 +1,84 @@
+<div class="p-6 max-w-4xl mx-auto">
+
+  <!-- En-tête -->
+  <div class="flex items-center justify-between mb-6">
+    <div>
+      <h1 class="text-2xl font-bold text-gray-800">Procédures archivées</h1>
+      @if (!loading) {
+        <p class="text-sm text-gray-500 mt-1">{{ procedures.length }} procédure{{ procedures.length !== 1 ? 's' : '' }} archivée{{ procedures.length !== 1 ? 's' : '' }}</p>
+      }
+    </div>
+    <a routerLink="/quality" class="px-3 py-1.5 text-sm text-gray-500 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors">
+      ← Retour au tableau
+    </a>
+  </div>
+
+  <!-- Chargement -->
+  @if (loading) {
+    <div class="flex justify-center items-center py-12">
+      <div class="w-8 h-8 border-4 border-green-700 border-t-transparent rounded-full animate-spin"></div>
+    </div>
+  }
+
+  <!-- Erreur -->
+  @if (error) {
+    <div class="bg-red-50 border border-red-200 text-red-700 rounded-lg p-4">{{ error }}</div>
+  }
+
+  <!-- Liste -->
+  @if (!loading && !error) {
+    @if (procedures.length === 0) {
+      <div class="text-center py-16 text-gray-400">
+        <p class="text-sm">Aucune procédure archivée.</p>
+      </div>
+    } @else {
+      <div class="bg-white border border-gray-200 rounded-xl overflow-hidden">
+        <table class="w-full text-sm">
+          <thead>
+            <tr class="text-xs font-medium text-gray-500 uppercase tracking-wide border-b border-gray-100 bg-gray-50">
+              <th class="px-4 py-3 text-left">Procédure</th>
+              <th class="px-4 py-3 text-left">Tableau</th>
+              <th class="px-4 py-3 text-left">Réf.</th>
+              <th class="px-4 py-3 text-left">Archivé le</th>
+              <th class="px-4 py-3 text-left">Archivé par</th>
+              <th class="px-4 py-3"></th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (p of procedures; track p.id) {
+              <tr class="border-t border-gray-100 hover:bg-gray-50 transition-colors group">
+                <td class="px-4 py-3">
+                  <a [routerLink]="['/quality/procedures', p.id]"
+                     class="font-medium text-gray-800 hover:text-green-700 transition-colors">
+                    {{ p.title }}
+                  </a>
+                </td>
+                <td class="px-4 py-3 text-gray-500 text-xs">{{ groupName(p) }}</td>
+                <td class="px-4 py-3">
+                  @if (p.reference) {
+                    <span class="font-mono text-xs text-gray-400">{{ p.reference }}</span>
+                  } @else {
+                    <span class="text-gray-300">—</span>
+                  }
+                </td>
+                <td class="px-4 py-3 text-gray-500 text-xs">
+                  {{ p.archived_at ? (p.archived_at | date:'dd/MM/yyyy') : '—' }}
+                </td>
+                <td class="px-4 py-3 text-gray-500 text-xs">
+                  {{ p.archived_by?.full_name || '—' }}
+                </td>
+                <td class="px-4 py-3 text-right">
+                  <button (click)="unarchive(p)"
+                          class="opacity-0 group-hover:opacity-100 transition-opacity px-2 py-1 text-xs text-green-700 border border-green-200 rounded hover:bg-green-50">
+                    Désarchiver
+                  </button>
+                </td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+    }
+  }
+
+</div>

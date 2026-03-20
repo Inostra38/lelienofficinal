@@ -25,6 +25,7 @@ export class SidebarComponent {
   @Input() team: Collaborator[] = [];
   @Input() unreadMessagesCount = 0;
   @Input() unseenTasksCount = 0;
+  @Input() unreadQualityCount = 0;
   @Input() pharmacyName = '';
 
   @Output() logout = new EventEmitter<void>();
@@ -97,6 +98,7 @@ export class SidebarComponent {
   getBadgeCount(id: string): number {
     if (id === 'messagerie') return this.unreadMessagesCount;
     if (id === 'taches') return this.unseenTasksCount;
+    if (id === 'qualite') return this.unreadQualityCount;
     return 0;
   }
 

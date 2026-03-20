@@ -5,6 +5,7 @@ from .views import (
     ProcedureViewSet, ProcedureAttachmentViewSet, ProcedureImageViewSet,
     NonConformityViewSet, CorrectiveActionViewSet,
     ProcedureGroupViewSet, ProcedureCategoryViewSet,
+    ProcedureNotificationViewSet,
 )
 from .views_ai import generate_procedure_content, suggest_corrective_actions, refactor_text
 
@@ -16,6 +17,7 @@ router.register(r'images', ProcedureImageViewSet, basename='image')
 router.register(r'attachments', ProcedureAttachmentViewSet, basename='attachment')
 router.register(r'nonconformities', NonConformityViewSet, basename='nonconformity')
 router.register(r'actions', CorrectiveActionViewSet, basename='corrective-action')
+router.register(r'notifications', ProcedureNotificationViewSet, basename='procedure-notification')
 
 urlpatterns = [
     path('', include(router.urls)),

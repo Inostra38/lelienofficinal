@@ -10,33 +10,42 @@ import { InactivityService } from '../../../core/services/inactivity.service';
 import { MessagingService } from '../../../core/services/messaging.service';
 import { PharmacyService } from '../../../core/services/pharmacy.service';
 import { TaskService } from '../../../core/services/task.service';
+import { QualityNotificationsService } from '../../../features/quality/services/quality-notifications.service';
 
 import { SidebarComponent } from '../../../features/dashboard/components/sidebar/sidebar.component';
 import { PinModalComponent } from '../../../features/messaging/components/pin-modal/pin-modal.component';
+import { ToastComponent } from '../../components/toast/toast.component';
 
 @Component({
   selector: 'app-main-layout',
   standalone: true,
-  imports: [CommonModule, RouterOutlet, SidebarComponent, PinModalComponent],
+  imports: [CommonModule, RouterOutlet, SidebarComponent, PinModalComponent, ToastComponent],
   templateUrl: './main-layout.component.html'
 })
 export class MainLayoutComponent implements OnInit, OnDestroy {
-  private authService = inject(AuthService);
+  authService = inject(AuthService);
   private collaboratorService = inject(CollaboratorService);
   private inactivityService = inject(InactivityService);
   private messagingService = inject(MessagingService);
   private pharmacyService = inject(PharmacyService);
   private taskService = inject(TaskService);
+  private qualityNotifService = inject(QualityNotificationsService);
 
   team: Collaborator[] = [];
+  teamLoaded = false;
   pharmacyName = '';
   unreadMessagesCount = 0;
   unseenTasksCount = 0;
+  unreadQualityCount = 0;
 
   activeSessionCollaborator: Collaborator | null = null;
   pendingCollaborator: Collaborator | null = null;
   showPinModal = false;
   showInactivityToast = false;
+
+  get isLocked(): boolean {
+    return this.activeSessionCollaborator === null;
+  }
 
   private unreadSub: Subscription | null = null;
   private destroy$ = new Subject<void>();
@@ -50,6 +59,10 @@ export class MainLayoutComponent implements OnInit, OnDestroy {
       count => { this.unreadMessagesCount = count; }
     );
     this.startTaskUnseenPolling();
+    this.qualityNotifService.unreadCount$.pipe(takeUntil(this.destroy$)).subscribe(
+      count => { this.unreadQualityCount = count; }
+    );
+    this.startQualityNotifPolling();
 
     this.inactivityService.startWatching();
     this.inactivityService.onLocked().pipe(takeUntil(this.destroy$)).subscribe(() => {
@@ -72,12 +85,37 @@ export class MainLayoutComponent implements OnInit, OnDestroy {
     this.collaboratorService.getTeam().subscribe({
       next: (data: any) => {
         this.team = Array.isArray(data) ? data : data.results || [];
+        this.teamLoaded = true;
         // Abonnement réactif : se met à jour quel que soit l'endroit qui change le collaborateur
         this.authService.collaborator$.pipe(takeUntil(this.destroy$)).subscribe(id => {
           this.activeSessionCollaborator = id ? (this.team.find(c => c.id === id) ?? null) : null;
         });
       }
     });
+  }
+
+  getCollaboratorInitials(c: Collaborator): string {
+    return ((c.first_name?.[0] ?? '') + (c.last_name?.[0] ?? '')).toUpperCase();
+  }
+
+  getCollaboratorColor(c: Collaborator): string {
+    const colors = ['#1B5E20', '#0D47A1', '#4A148C', '#E65100', '#880E4F', '#006064', '#37474F'];
+    const name = (c.first_name ?? '') + (c.last_name ?? '');
+    let hash = 0;
+    for (let i = 0; i < name.length; i++) {
+      hash = name.charCodeAt(i) + ((hash << 5) - hash);
+    }
+    return colors[Math.abs(hash) % colors.length];
+  }
+
+  private startQualityNotifPolling() {
+    const collabId = this.authService.getCurrentCollaboratorId();
+    if (!collabId) return;
+    interval(60000).pipe(
+      startWith(0),
+      takeUntil(this.destroy$),
+      switchMap(() => this.qualityNotifService.load())
+    ).subscribe();
   }
 
   private startTaskUnseenPolling() {

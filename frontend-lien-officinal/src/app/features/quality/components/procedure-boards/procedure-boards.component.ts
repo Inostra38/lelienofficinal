@@ -1,6 +1,7 @@
 import { Component, OnInit, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
+import { CdkDragDrop, DragDropModule, moveItemInArray } from '@angular/cdk/drag-drop';
 import { RouterLink } from '@angular/router';
 import { QualityService } from '../../services/quality.service';
 import { ProcedureGroup } from '../../models/procedure.model';
@@ -9,8 +10,9 @@ import { BoardSectionComponent } from '../board-section/board-section.component'
 @Component({
   selector: 'app-procedure-boards',
   standalone: true,
-  imports: [CommonModule, FormsModule, RouterLink, BoardSectionComponent],
+  imports: [CommonModule, FormsModule, DragDropModule, RouterLink, BoardSectionComponent],
   templateUrl: './procedure-boards.component.html',
+  styleUrl: './procedure-boards.component.scss',
 })
 export class ProcedureBoardsComponent implements OnInit {
   private qualityService = inject(QualityService);
@@ -18,6 +20,8 @@ export class ProcedureBoardsComponent implements OnInit {
   groups: ProcedureGroup[] = [];
   loading = true;
   error = '';
+
+  searchQuery = '';
 
   showNewGroupForm = false;
   newGroupName = '';
@@ -67,5 +71,11 @@ export class ProcedureBoardsComponent implements OnInit {
   onGroupUpdated(updated: ProcedureGroup) {
     const idx = this.groups.findIndex(g => g.id === updated.id);
     if (idx !== -1) this.groups[idx] = updated;
+  }
+
+  onGroupDrop(event: CdkDragDrop<ProcedureGroup[]>) {
+    moveItemInArray(this.groups, event.previousIndex, event.currentIndex);
+    const orderedIds = this.groups.map(g => g.id);
+    this.qualityService.reorderGroups(orderedIds).subscribe();
   }
 }

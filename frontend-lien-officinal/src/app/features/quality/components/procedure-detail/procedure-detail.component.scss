@@ -167,6 +167,36 @@
   border-radius: 0 1px 1px 0;
 }
 
+/* ── Impression / PDF ─────────────────────────────────────────────────────── */
+
+@media print {
+  :host {
+    display: block;
+  }
+
+  .read-progress,
+  .proc-actions {
+    display: none !important;
+  }
+
+  .proc-meta {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  /* Masquer sidebar, header, etc. via le DOM global */
+  app-sidebar,
+  app-header,
+  nav,
+  aside {
+    display: none !important;
+  }
+
+  * {
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+}
+
 /* Conteneur de rendu Quill — lecture seule */
 ::ng-deep .procedure-content {
   max-width: 100%;

@@ -18,6 +18,7 @@ export interface ProcedureCategory {
 export interface ProcedureVersion {
   id: number;
   version_number: number;
+  content: string;
   change_summary: string;
   created_by: { id: number; full_name: string } | null;
   created_at: string;
@@ -27,23 +28,26 @@ export interface Procedure {
   id: number;
   title: string;
   reference: string | null;
-  is_group?: boolean;
   categories: ProcedureCategory[];
   status: ProcedureStatus;
   content?: string;
   file?: string;
   version: number;
   position: number;
-  parent?: number;
+  parent_id?: number | null;
+  last_published_version?: number | null;
+  next_review_date?: string | null;
   group?: number | null;
   pilots?: { id: number; full_name: string; initials: string }[];
   created_by?: { id: number; full_name: string };
+  archived_by?: { id: number; full_name: string } | null;
   created_at?: string;
   updated_at?: string;
+  archived_at?: string | null;
+  group_name?: string;
   attachments?: ProcedureAttachment[];
   images?: ProcedureImage[];
   history?: ProcedureVersion[];
-  children?: Procedure[];
 }
 
 export type ProcedureStatus = 'draft' | 'active' | 'archived';
@@ -65,7 +69,7 @@ export interface ProcedureImage {
 
 export interface ReorderPayload {
   id: number;
-  parent_id: number | null;
   position: number;
   group_id?: number | null;
+  parent_id?: number | null;
 }

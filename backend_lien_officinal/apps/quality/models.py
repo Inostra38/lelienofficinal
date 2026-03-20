@@ -1,5 +1,4 @@
 from django.db import models
-from django.core.exceptions import ValidationError
 from django.conf import settings
 
 
@@ -8,6 +7,7 @@ class ProcedureGroup(models.Model):
     name = models.CharField(max_length=200)
     description = models.TextField(blank=True)
     color = models.CharField(max_length=7, default='#2E7D32')
+    order = models.PositiveIntegerField(default=0)
     pharmacy = models.ForeignKey(
         settings.AUTH_USER_MODEL,
         on_delete=models.CASCADE,
@@ -23,7 +23,7 @@ class ProcedureGroup(models.Model):
     updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
-        ordering = ['name']
+        ordering = ['order', 'name']
         unique_together = [['name', 'pharmacy']]
         verbose_name = 'Tableau de procédures'
         verbose_name_plural = 'Tableaux de procédures'
@@ -72,7 +72,6 @@ class Procedure(models.Model):
     )
     title = models.CharField(max_length=200)
     reference = models.CharField(max_length=20, null=True, blank=True, default=None)
-    is_group = models.BooleanField(default=False)
     categories = models.ManyToManyField(
         'ProcedureCategory',
         blank=True,
@@ -82,18 +81,18 @@ class Procedure(models.Model):
     content = models.TextField(blank=True)
     file = models.FileField(upload_to='quality/procedures/', null=True, blank=True)
     version = models.PositiveIntegerField(default=1)
-    parent = models.ForeignKey(
-        'self',
-        null=True, blank=True,
-        on_delete=models.CASCADE,
-        related_name='children',
-    )
     position = models.PositiveIntegerField(default=0)
     group = models.ForeignKey(
         'ProcedureGroup',
         null=True, blank=True,
         on_delete=models.SET_NULL,
         related_name='procedures',
+    )
+    parent = models.ForeignKey(
+        'self',
+        null=True, blank=True,
+        on_delete=models.SET_NULL,
+        related_name='children',
     )
     pilots = models.ManyToManyField(
         'team.Collaborator',
@@ -106,8 +105,16 @@ class Procedure(models.Model):
         on_delete=models.SET_NULL,
         related_name='created_procedures',
     )
+    archived_by = models.ForeignKey(
+        'team.Collaborator',
+        null=True, blank=True,
+        on_delete=models.SET_NULL,
+        related_name='archived_procedures',
+    )
+    next_review_date = models.DateField(null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
+    archived_at = models.DateTimeField(null=True, blank=True)
 
     class Meta:
         unique_together = ('pharmacy', 'reference')
@@ -118,20 +125,6 @@ class Procedure(models.Model):
     def __str__(self):
         ref = f"[{self.reference}] " if self.reference else ""
         return f"{ref}{self.title}"
-
-    def get_depth(self):
-        depth = 0
-        node = self
-        while node.parent_id is not None:
-            depth += 1
-            node = node.parent
-        return depth
-
-    def clean(self):
-        if self.get_depth() > 2:
-            raise ValidationError(
-                "La profondeur maximale de l'arborescence est de 3 niveaux (0, 1, 2)."
-            )
 
 
 class ProcedureAttachment(models.Model):
@@ -206,6 +199,31 @@ class ProcedureVersion(models.Model):
 
     def __str__(self):
         return f"{self.procedure.title} - v{self.version_number}"
+
+
+class ProcedureNotification(models.Model):
+    """Notification envoyée à un pilote lors de la publication d'une procédure."""
+    recipient = models.ForeignKey(
+        'team.Collaborator',
+        on_delete=models.CASCADE,
+        related_name='procedure_notifications',
+    )
+    procedure = models.ForeignKey(
+        Procedure,
+        on_delete=models.CASCADE,
+        related_name='notifications',
+    )
+    version_number = models.PositiveIntegerField()
+    is_read = models.BooleanField(default=False)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['-created_at']
+        verbose_name = 'Notification procédure'
+        verbose_name_plural = 'Notifications procédures'
+
+    def __str__(self):
+        return f"Notif {self.recipient} — {self.procedure}"
 
 
 class NonConformity(models.Model):

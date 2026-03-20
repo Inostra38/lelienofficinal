@@ -5,15 +5,10 @@ import { RouterLink } from '@angular/router';
 import { Subscription } from 'rxjs';
 import { QualityService } from '../../services/quality.service';
 import { DragDropService } from '../../services/drag-drop.service';
+import { AuthService } from '../../../../core/auth/auth.service';
 import { Procedure, ProcedureGroup, ProcedureStatus, ReorderPayload } from '../../models/procedure.model';
 
-interface FlatProc {
-  proc: Procedure;
-  level: number;
-  parentId: number | null;
-}
-
-type DropPos = 'before' | 'inside' | 'after';
+type DropPos = 'before' | 'after';
 
 @Component({
   selector: 'app-board-section',
@@ -24,9 +19,11 @@ type DropPos = 'before' | 'inside' | 'after';
 export class BoardSectionComponent implements OnInit, OnDestroy {
   private qualityService = inject(QualityService);
   private dnd = inject(DragDropService);
+  private authService = inject(AuthService);
   private reloadSub?: Subscription;
 
   @Input() group: ProcedureGroup | null = null;
+  @Input() filterQuery = '';
   @Output() groupDeleted = new EventEmitter<number>();
   @Output() groupUpdated = new EventEmitter<ProcedureGroup>();
 
@@ -36,22 +33,95 @@ export class BoardSectionComponent implements OnInit, OnDestroy {
   editDescription = '';
   editColor = '';
   loaded = false;
-  tree: Procedure[] = [];
-  flatList: FlatProc[] = [];
+  procedures: Procedure[] = [];
   loading = false;
   error = '';
-  expandedIds = new Set<number>();
 
   draggingId: number | null = null;
   dropTarget: { id: number; pos: DropPos } | null = null;
   emptyDrop = false;
 
-  readonly categoryLabels: Record<string, string> = {
-    dispensation: 'Dispensation', hygiene: 'Hygiène', stock: 'Stock',
-    administratif: 'Administratif', autre: 'Autre',
-  };
-
   get groupId(): number | null { return this.group?.id ?? null; }
+
+  canManageQuality(): boolean { return this.authService.canManageQuality(); }
+
+  canEdit(proc: Procedure): boolean {
+    if (this.authService.canManageQuality()) return true;
+    const collabId = this.authService.getCurrentCollaboratorId();
+    if (collabId === null) return false;
+    return proc.pilots?.some(p => p.id === collabId) ?? false;
+  }
+
+  // ── Tree helpers ────────────────────────────────────────────────────────────
+
+  private matchesQuery(proc: Procedure): boolean {
+    if (!this.filterQuery) return true;
+    const q = this.filterQuery.toLowerCase();
+    return proc.title.toLowerCase().includes(q)
+      || (proc.reference?.toLowerCase().includes(q) ?? false);
+  }
+
+  get roots(): Procedure[] {
+    return this.procedures
+      .filter(p => !p.parent_id)
+      .filter(p => {
+        if (!this.filterQuery) return true;
+        return this.matchesQuery(p) || this.childrenOf(p.id).some(c => this.matchesQuery(c));
+      })
+      .sort((a, b) => a.position - b.position);
+  }
+
+  childrenOf(parentId: number): Procedure[] {
+    return this.procedures
+      .filter(p => p.parent_id === parentId)
+      .filter(p => this.matchesQuery(p))
+      .sort((a, b) => a.position - b.position);
+  }
+
+  // ── Indent / Unindent ───────────────────────────────────────────────────────
+
+  indent(proc: Procedure, event: Event) {
+    event.stopPropagation();
+    const roots = this.roots;
+    const idx = roots.findIndex(p => p.id === proc.id);
+    if (idx <= 0) return;
+    const newParent = roots[idx - 1];
+    const payload: ReorderPayload[] = [{
+      id: proc.id,
+      position: this.childrenOf(newParent.id).length,
+      parent_id: newParent.id,
+    }];
+    this.qualityService.reorderProcedures(payload).subscribe({ next: () => this.load() });
+  }
+
+  unindent(proc: Procedure, event: Event) {
+    event.stopPropagation();
+    const roots = this.roots;
+    const parentIdx = roots.findIndex(p => p.id === proc.parent_id);
+    const newRoots = [...roots];
+    newRoots.splice(parentIdx + 1, 0, proc);
+    const payload: ReorderPayload[] = newRoots.map((p, i) => ({
+      id: p.id,
+      position: i,
+      ...(p.id === proc.id ? { parent_id: null } : {}),
+    }));
+    this.qualityService.reorderProcedures(payload).subscribe({ next: () => this.load() });
+  }
+
+  moveChild(proc: Procedure, dir: 'up' | 'down', event: Event) {
+    event.stopPropagation();
+    const siblings = this.childrenOf(proc.parent_id!);
+    const idx = siblings.findIndex(p => p.id === proc.id);
+    if (dir === 'up' && idx <= 0) return;
+    if (dir === 'down' && idx >= siblings.length - 1) return;
+    const newSiblings = [...siblings];
+    const swapIdx = dir === 'up' ? idx - 1 : idx + 1;
+    [newSiblings[idx], newSiblings[swapIdx]] = [newSiblings[swapIdx], newSiblings[idx]];
+    const payload: ReorderPayload[] = newSiblings.map((p, i) => ({ id: p.id, position: i }));
+    this.qualityService.reorderProcedures(payload).subscribe({ next: () => this.load() });
+  }
+
+  // ── Group edit ──────────────────────────────────────────────────────────────
 
   startEdit(event: Event) {
     event.stopPropagation();
@@ -70,10 +140,7 @@ export class BoardSectionComponent implements OnInit, OnDestroy {
       description: this.editDescription,
       color: this.editColor,
     }).subscribe({
-      next: (updated) => {
-        this.groupUpdated.emit(updated);
-        this.isEditing = false;
-      },
+      next: (updated) => { this.groupUpdated.emit(updated); this.isEditing = false; },
     });
   }
 
@@ -94,17 +161,13 @@ export class BoardSectionComponent implements OnInit, OnDestroy {
   get sectionTitle(): string { return this.group?.name ?? 'Bibliothèque générale'; }
 
   get procedureCountLabel(): string {
-    const count = this.loaded ? this.tree.length : (this.group?.procedure_count ?? 0);
+    const count = this.loaded ? this.procedures.length : (this.group?.procedure_count ?? 0);
     const s = count !== 1 ? 's' : '';
     return this.group ? `${count} procédure${s}` : `${count} procédure${s} sans tableau`;
   }
 
   get newProcedureQueryParams(): Record<string, any> {
     return this.groupId != null ? { group: this.groupId } : {};
-  }
-
-  get newFolderQueryParams(): Record<string, any> {
-    return this.groupId != null ? { group: this.groupId, folder: 'true' } : { folder: 'true' };
   }
 
   ngOnInit() {
@@ -120,70 +183,13 @@ export class BoardSectionComponent implements OnInit, OnDestroy {
 
   load() {
     this.loading = true;
-    this.qualityService.getProcedureTree(this.groupId ?? undefined).subscribe({
-      next: (data) => { this.tree = data; this.updateFlatList(); this.loading = false; this.loaded = true; },
+    this.qualityService.getProceduresForGroup(this.groupId ?? undefined).subscribe({
+      next: (data) => { this.procedures = data; this.loading = false; this.loaded = true; },
       error: () => { this.error = 'Erreur lors du chargement.'; this.loading = false; },
     });
   }
 
-  updateFlatList() { this.flatList = this.buildFlat(this.tree, 0, null); }
-
-  buildFlat(nodes: Procedure[], level: number, parentId: number | null): FlatProc[] {
-    const result: FlatProc[] = [];
-    for (const proc of nodes) {
-      result.push({ proc, level, parentId });
-      if (this.expandedIds.has(proc.id) && proc.children?.length) {
-        result.push(...this.buildFlat(proc.children, level + 1, proc.id));
-      }
-    }
-    return result;
-  }
-
-  toggleExpand(id: number) {
-    this.expandedIds.has(id) ? this.expandedIds.delete(id) : this.expandedIds.add(id);
-    this.updateFlatList();
-  }
-
-  isExpanded(id: number) { return this.expandedIds.has(id); }
-
-  findProc(id: number, nodes = this.tree): Procedure | null {
-    for (const n of nodes) {
-      if (n.id === id) return n;
-      if (n.children) { const r = this.findProc(id, n.children); if (r) return r; }
-    }
-    return null;
-  }
-
-  getSiblings(parentId: number | null): Procedure[] {
-    if (parentId === null) return this.tree;
-    const find = (nodes: Procedure[]): Procedure[] | null => {
-      for (const n of nodes) {
-        if (n.id === parentId) return n.children ?? (n.children = []);
-        if (n.children) { const r = find(n.children); if (r) return r; }
-      }
-      return null;
-    };
-    return find(this.tree) ?? [];
-  }
-
-  isDescendant(candidateId: number, ancestorId: number): boolean {
-    const src = this.findProc(ancestorId);
-    const check = (nodes: Procedure[]): boolean =>
-      nodes.some(n => n.id === candidateId || (n.children ? check(n.children) : false));
-    return src?.children ? check(src.children) : false;
-  }
-
-  subtreeDepth(proc: Procedure): number {
-    if (!proc.children?.length) return 0;
-    return 1 + Math.max(...proc.children.map(c => this.subtreeDepth(c)));
-  }
-
-  canDropInside(target: FlatProc): boolean {
-    if (target.level >= 2) return false;
-    const dragged = this.findProc(this.draggingId!);
-    if (!dragged) return false;
-    return target.level + 1 + this.subtreeDepth(dragged) <= 2;
-  }
+  // ── DnD (racines uniquement) ────────────────────────────────────────────────
 
   onDragStart(event: DragEvent, id: number) {
     this.draggingId = id;
@@ -193,28 +199,13 @@ export class BoardSectionComponent implements OnInit, OnDestroy {
     event.dataTransfer!.setData('text/plain', String(id));
   }
 
-  onDragOver(event: DragEvent, item: FlatProc) {
+  onDragOver(event: DragEvent, proc: Procedure) {
     event.preventDefault();
     const activeDragId = this.draggingId ?? this.dnd.currentDragId;
-    if (!activeDragId) return;
-    const isCross = this.dnd.sourceGroupId !== this.groupId;
-    // Cross-section: only allow drop at root level (before/after, not inside)
-    if (isCross) {
-      const el = event.currentTarget as HTMLElement;
-      const pct = (event.clientY - el.getBoundingClientRect().top) / el.offsetHeight;
-      this.dropTarget = { id: item.proc.id, pos: pct < 0.5 ? 'before' : 'after' };
-      event.dataTransfer!.dropEffect = 'move';
-      return;
-    }
-    if (item.proc.id === activeDragId) return;
-    if (this.isDescendant(item.proc.id, activeDragId)) return;
+    if (!activeDragId || activeDragId === proc.id) return;
     const el = event.currentTarget as HTMLElement;
     const pct = (event.clientY - el.getBoundingClientRect().top) / el.offsetHeight;
-    let pos: DropPos;
-    if (pct < 0.28) { pos = 'before'; }
-    else if (pct > 0.72) { pos = 'after'; }
-    else { pos = this.canDropInside(item) ? 'inside' : (pct < 0.5 ? 'before' : 'after'); }
-    this.dropTarget = { id: item.proc.id, pos };
+    this.dropTarget = { id: proc.id, pos: pct < 0.5 ? 'before' : 'after' };
     event.dataTransfer!.dropEffect = 'move';
   }
 
@@ -226,73 +217,34 @@ export class BoardSectionComponent implements OnInit, OnDestroy {
     }
   }
 
-  onDrop(event: DragEvent, target: FlatProc) {
+  onDrop(event: DragEvent, target: Procedure) {
     event.preventDefault();
-    if (!this.dropTarget || this.dropTarget.id !== target.proc.id) {
+    if (!this.dropTarget || this.dropTarget.id !== target.id) {
       this.resetDrag(); return;
     }
 
-    const isCross = this.dnd.sourceGroupId !== this.groupId;
     const activeDragId = this.draggingId ?? this.dnd.currentDragId;
     if (!activeDragId) { this.resetDrag(); return; }
 
-    if (isCross) {
-      this.handleCrossDrop(activeDragId, target);
-      return;
-    }
-
     const pos = this.dropTarget.pos;
-    const srcFlat = this.flatList.find(f => f.proc.id === activeDragId)!;
-    const movedProc = this.findProc(activeDragId)!;
-    const payload: ReorderPayload[] = [];
+    const isCross = this.dnd.sourceGroupId !== this.groupId;
 
-    const oldSiblings = this.getSiblings(srcFlat.parentId);
-    oldSiblings.splice(oldSiblings.indexOf(movedProc), 1);
+    // DnD ne concerne que les racines
+    const siblings = this.roots.filter(p => p.id !== activeDragId);
+    const targetIdx = siblings.findIndex(p => p.id === target.id);
+    const insertIdx = pos === 'after' ? targetIdx + 1 : targetIdx;
+    siblings.splice(insertIdx, 0, { id: activeDragId } as Procedure);
 
-    if (pos === 'inside') {
-      if (!target.proc.children) target.proc.children = [];
-      target.proc.children.push(movedProc);
-      target.proc.children.forEach((p, i) =>
-        payload.push({ id: p.id, parent_id: target.proc.id, position: i, group_id: this.groupId }));
-    } else {
-      const newParentId = target.parentId;
-      const newSiblings = this.getSiblings(newParentId);
-      const idx = newSiblings.indexOf(target.proc);
-      newSiblings.splice(pos === 'after' ? idx + 1 : idx, 0, movedProc);
-      newSiblings.forEach((p, i) =>
-        payload.push({ id: p.id, parent_id: newParentId, position: i, group_id: this.groupId }));
-    }
-
-    if (srcFlat.parentId !== (pos === 'inside' ? target.proc.id : target.parentId)) {
-      oldSiblings.forEach((p, i) => {
-        if (!payload.find(x => x.id === p.id))
-          payload.push({ id: p.id, parent_id: srcFlat.parentId, position: i, group_id: this.groupId });
-      });
-    }
-
-    this.qualityService.reorderProcedures(payload).subscribe({ next: () => this.load() });
-    this.resetDrag();
-  }
-
-  private handleCrossDrop(dragId: number, target: FlatProc) {
-    const pos = this.dropTarget!.pos;
-    const siblings = this.getSiblings(null); // always root-level for cross-section
-    const idx = siblings.indexOf(target.proc);
-    // Payload: move the dragged item to this group, place it before/after target
-    // The moved proc is not yet in this.tree, so we just tell the backend its new position
-    const insertIdx = pos === 'after' ? idx + 1 : idx;
-    const payload: ReorderPayload[] = [];
-    // Insert a placeholder to compute positions
-    const fakeSiblings = [...siblings];
-    fakeSiblings.splice(insertIdx, 0, { id: dragId } as Procedure);
-    fakeSiblings.forEach((p, i) =>
-      payload.push({ id: p.id, parent_id: null, position: i, group_id: this.groupId }));
+    const payload: ReorderPayload[] = siblings.map((p, i) => ({
+      id: p.id, position: i, group_id: this.groupId,
+      ...(isCross && p.id === activeDragId ? { parent_id: null } : {}),
+    }));
 
     const sourceGroupId = this.dnd.sourceGroupId;
     this.qualityService.reorderProcedures(payload).subscribe({
       next: () => {
         this.load();
-        this.dnd.reload$.next(sourceGroupId);
+        if (isCross) this.dnd.reload$.next(sourceGroupId);
       },
     });
     this.resetDrag();
@@ -313,19 +265,17 @@ export class BoardSectionComponent implements OnInit, OnDestroy {
     const dragId = this.dnd.currentDragId;
     if (!dragId || this.dnd.sourceGroupId === this.groupId) return;
     const payload: ReorderPayload[] = [
-      { id: dragId, parent_id: null, position: 0, group_id: this.groupId },
+      { id: dragId, position: 0, group_id: this.groupId, parent_id: null },
     ];
     const sourceGroupId = this.dnd.sourceGroupId;
     this.qualityService.reorderProcedures(payload).subscribe({
-      next: () => {
-        this.load();
-        this.dnd.reload$.next(sourceGroupId);
-      },
+      next: () => { this.load(); this.dnd.reload$.next(sourceGroupId); },
     });
     this.resetDrag();
   }
 
   onDragEnd() { this.resetDrag(); }
+
   resetDrag() {
     this.draggingId = null;
     this.dropTarget = null;
@@ -334,17 +284,50 @@ export class BoardSectionComponent implements OnInit, OnDestroy {
     this.dnd.sourceGroupId = null;
   }
 
-  dropClass(item: FlatProc): string {
-    if (!this.dropTarget || this.dropTarget.id !== item.proc.id) return '';
-    switch (this.dropTarget.pos) {
-      case 'before': return 'border-t-2 border-t-green-400';
-      case 'after':  return 'border-b-2 border-b-green-400';
-      case 'inside': return 'ring-2 ring-inset ring-green-400 bg-green-50/60';
-    }
+  dropClass(proc: Procedure): string {
+    if (!this.dropTarget || this.dropTarget.id !== proc.id) return '';
+    return this.dropTarget.pos === 'before' ? 'border-t-2 border-t-green-400' : 'border-b-2 border-b-green-400';
+  }
+
+  // ── Actions ─────────────────────────────────────────────────────────────────
+
+  pendingPublishProc: Procedure | null = null;
+  publishSummary = '';
+
+  openPublishModal(p: Procedure, event: Event) {
+    event.stopPropagation(); event.preventDefault();
+    this.pendingPublishProc = p;
+    this.publishSummary = '';
+  }
+
+  confirmPublish() {
+    if (!this.pendingPublishProc) return;
+    const id = this.pendingPublishProc.id;
+    this.pendingPublishProc = null;
+    this.qualityService.publishProcedure(id, this.publishSummary || undefined).subscribe({ next: () => this.load() });
+  }
+
+  cancelPublish() {
+    this.pendingPublishProc = null;
+  }
+
+  archive(p: Procedure, event: Event) {
+    event.stopPropagation(); event.preventDefault();
+    if (!confirm(`Archiver "${p.title}" ?\n\nElle n'apparaîtra plus dans le tableau principal. Vous pourrez la retrouver dans les archives.`)) return;
+    this.qualityService.archiveProcedure(p.id).subscribe({
+      next: () => this.load(),
+    });
+  }
+
+  // ── Helpers ─────────────────────────────────────────────────────────────────
+
+  /** Version affichée : pour une proc active, la version publiée est version-1. */
+  displayVersion(proc: Procedure): number {
+    return proc.status === 'active' ? proc.version - 1 : proc.version;
   }
 
   statusLabel(s: ProcedureStatus): string {
-    return ({ draft: 'Brouillon', active: 'Actif', archived: 'Archivé' } as Record<string, string>)[s] || s;
+    return ({ draft: 'Révision en cours', active: 'Actif', archived: 'Archivé' } as Record<string, string>)[s] || s;
   }
 
   statusClass(s: ProcedureStatus): string {
@@ -355,23 +338,5 @@ export class BoardSectionComponent implements OnInit, OnDestroy {
     } as Record<string, string>)[s] || '';
   }
 
-  publish(p: Procedure, event: Event) {
-    event.stopPropagation(); event.preventDefault();
-    this.qualityService.publishProcedure(p.id).subscribe({ next: () => this.load() });
-  }
-
-  archive(p: Procedure, event: Event) {
-    event.stopPropagation(); event.preventDefault();
-    if (!confirm(`Archiver "${p.title}" ?`)) return;
-    this.qualityService.archiveProcedure(p.id).subscribe({ next: () => this.load() });
-  }
-
-  delete(p: Procedure, event: Event) {
-    event.stopPropagation(); event.preventDefault();
-    if (!confirm(`Supprimer "${p.title}" ?`)) return;
-    this.qualityService.deleteProcedure(p.id).subscribe({ next: () => this.load() });
-  }
-
-  trackById(_: number, item: FlatProc) { return item.proc.id; }
-  indentClass(level: number): string { return ['', 'pl-6', 'pl-12'][level] ?? ''; }
+  trackById(_: number, proc: Procedure) { return proc.id; }
 }

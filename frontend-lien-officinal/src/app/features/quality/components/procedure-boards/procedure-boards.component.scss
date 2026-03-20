@@ -1,0 +1,44 @@
+.cdk-drag-group {
+  position: relative;
+  display: flex;
+  align-items: flex-start;
+  gap: 4px;
+
+  app-board-section {
+    flex: 1;
+    min-width: 0;
+  }
+}
+
+.drag-handle {
+  cursor: grab;
+  color: #d1d5db;
+  padding: 14px 2px;
+  flex-shrink: 0;
+  transition: color 0.15s;
+
+  &:hover { color: #6b7280; }
+  &:active { cursor: grabbing; }
+}
+
+.cdk-drag-preview {
+  opacity: 0.85;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.12);
+  border-radius: 12px;
+}
+
+.cdk-drag-placeholder-block {
+  height: 48px;
+  border: 2px dashed #d1d5db;
+  border-radius: 12px;
+  margin-bottom: 8px;
+  background: #f9fafb;
+}
+
+.cdk-drag-animating {
+  transition: transform 200ms ease;
+}
+
+.groups-list.cdk-drop-list-dragging .cdk-drag-group:not(.cdk-drag-placeholder) {
+  transition: transform 200ms ease;
+}

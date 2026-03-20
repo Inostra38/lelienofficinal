@@ -84,11 +84,11 @@ class ProcedureGroupSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = ProcedureGroup
-        fields = ['id', 'name', 'description', 'color', 'procedure_count', 'created_by', 'created_at', 'updated_at']
+        fields = ['id', 'name', 'description', 'color', 'order', 'procedure_count', 'created_by', 'created_at', 'updated_at']
         read_only_fields = ['id', 'created_by', 'created_at', 'updated_at']
 
     def get_procedure_count(self, obj):
-        return obj.procedures.filter(parent=None).count()
+        return obj.procedures.count()
 
     def get_created_by(self, obj):
         return _collab_repr(obj.created_by)
@@ -99,14 +99,17 @@ class ProcedureGroupSerializer(serializers.ModelSerializer):
 class ProcedureListSerializer(serializers.ModelSerializer):
     pilots = serializers.SerializerMethodField()
     categories = serializers.SerializerMethodField()
-    parent = serializers.PrimaryKeyRelatedField(read_only=True)
+    archived_by = serializers.SerializerMethodField()
     group = serializers.PrimaryKeyRelatedField(read_only=True)
+    group_name = serializers.SerializerMethodField()
+    last_published_version = serializers.IntegerField(read_only=True, allow_null=True)
 
     class Meta:
         model = Procedure
         fields = [
-            'id', 'title', 'reference', 'is_group', 'categories', 'status',
-            'version', 'position', 'parent', 'group', 'pilots', 'updated_at',
+            'id', 'title', 'reference', 'categories', 'status',
+            'version', 'position', 'parent_id', 'group', 'group_name', 'pilots',
+            'updated_at', 'archived_at', 'archived_by', 'last_published_version', 'next_review_date',
         ]
 
     def get_pilots(self, obj):
@@ -114,6 +117,12 @@ class ProcedureListSerializer(serializers.ModelSerializer):
 
     def get_categories(self, obj):
         return ProcedureCategorySerializer(obj.categories.all(), many=True).data
+
+    def get_archived_by(self, obj):
+        return _collab_repr(obj.archived_by)
+
+    def get_group_name(self, obj):
+        return obj.group.name if obj.group_id else None
 
 
 # ── Procedure — Detail (complet) ─────────────────────────────────────────────
@@ -139,11 +148,7 @@ class ProcedureDetailSerializer(serializers.ModelSerializer):
         default=list,
     )
     created_by = serializers.SerializerMethodField()
-    parent = serializers.PrimaryKeyRelatedField(
-        queryset=Procedure.objects.all(),
-        allow_null=True,
-        required=False,
-    )
+    archived_by = serializers.SerializerMethodField()
     group = serializers.PrimaryKeyRelatedField(
         queryset=ProcedureGroup.objects.all(),
         allow_null=True,
@@ -152,17 +157,16 @@ class ProcedureDetailSerializer(serializers.ModelSerializer):
     attachments = ProcedureAttachmentSerializer(many=True, read_only=True)
     images = ProcedureImageSerializer(many=True, read_only=True)
     history = ProcedureVersionSerializer(many=True, read_only=True)
-    children = serializers.SerializerMethodField()
 
     class Meta:
         model = Procedure
         fields = [
-            'id', 'title', 'reference', 'is_group', 'categories', 'category_ids', 'status',
-            'version', 'position', 'parent', 'group', 'pilots', 'pilot_ids', 'updated_at',
-            'content', 'file', 'created_by', 'created_at',
-            'attachments', 'images', 'history', 'children',
+            'id', 'title', 'reference', 'categories', 'category_ids', 'status',
+            'version', 'position', 'group', 'pilots', 'pilot_ids', 'updated_at',
+            'content', 'file', 'created_by', 'created_at', 'archived_by', 'archived_at',
+            'next_review_date', 'attachments', 'images', 'history',
         ]
-        validators = []  # Gestion manuelle pour référence optionnelle (groupes)
+        validators = []  # Gestion manuelle pour l'unicité de la référence
 
     def get_pilots(self, obj):
         return _collab_list_repr(obj.pilots)
@@ -173,9 +177,8 @@ class ProcedureDetailSerializer(serializers.ModelSerializer):
     def get_created_by(self, obj):
         return _collab_repr(obj.created_by)
 
-    def get_children(self, obj):
-        qs = obj.children.order_by('position').prefetch_related('pilots', 'categories')
-        return ProcedureListSerializer(qs, many=True, context=self.context).data
+    def get_archived_by(self, obj):
+        return _collab_repr(obj.archived_by)
 
     def create(self, validated_data):
         pilots = validated_data.pop('pilots', [])
@@ -196,14 +199,7 @@ class ProcedureDetailSerializer(serializers.ModelSerializer):
         return instance
 
     def validate(self, data):
-        is_group = data.get('is_group', getattr(self.instance, 'is_group', False))
         reference = data.get('reference', getattr(self.instance, 'reference', None))
-
-        # Référence obligatoire pour les procédures standard
-        if not is_group and not reference:
-            raise serializers.ValidationError(
-                {'reference': 'La référence est obligatoire pour une procédure standard.'}
-            )
 
         # Unicité de la référence (uniquement si elle est fournie)
         if reference:
@@ -216,54 +212,11 @@ class ProcedureDetailSerializer(serializers.ModelSerializer):
                     {'reference': 'Une procédure avec cette référence existe déjà.'}
                 )
 
-        parent = data.get('parent', getattr(self.instance, 'parent', None))
-        instance = self.instance
-
-        if parent is None:
-            return data
-
-        # Anti-cycle : le parent ne doit pas être un descendant de l'instance
-        if instance is not None:
-            node = parent
-            while node is not None:
-                if node.id == instance.id:
-                    raise serializers.ValidationError(
-                        "Le parent ne peut pas être un descendant de cette procédure (cycle)."
-                    )
-                node = node.parent
-
-        # Vérification profondeur : parent.get_depth() + 1 <= 2
-        if parent.get_depth() + 1 > 2:
-            raise serializers.ValidationError(
-                "La profondeur maximale de l'arborescence est de 3 niveaux."
-            )
-
         return data
 
     def validate_content(self, value):
         return sanitize_quill_html(value)
 
-
-# ── Procedure — Tree (récursif) ───────────────────────────────────────────────
-
-class ProcedureTreeSerializer(serializers.ModelSerializer):
-    pilots = serializers.SerializerMethodField()
-    categories = serializers.SerializerMethodField()
-    children = serializers.SerializerMethodField()
-
-    class Meta:
-        model = Procedure
-        fields = ['id', 'title', 'reference', 'is_group', 'categories', 'status', 'version', 'position', 'group', 'pilots', 'children']
-
-    def get_pilots(self, obj):
-        return _collab_list_repr(obj.pilots)
-
-    def get_categories(self, obj):
-        return ProcedureCategorySerializer(obj.categories.all(), many=True).data
-
-    def get_children(self, obj):
-        qs = obj.children.order_by('position').prefetch_related('pilots', 'categories')
-        return ProcedureTreeSerializer(qs, many=True, context=self.context).data
 
 
 # ── CorrectiveAction ──────────────────────────────────────────────────────────

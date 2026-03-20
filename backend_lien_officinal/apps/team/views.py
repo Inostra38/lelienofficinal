@@ -194,6 +194,7 @@ class CollaboratorViewSet(viewsets.ModelViewSet):
         refresh = RefreshToken.for_user(request.user)
         refresh['auth_type'] = 'collaborator'
         refresh['collaborator_id'] = collaborator.id
+        refresh['can_manage_quality'] = collaborator.can_manage_quality
 
         return Response({
             'access': str(refresh.access_token),

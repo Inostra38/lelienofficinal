@@ -5,18 +5,12 @@
     <h1 class="text-2xl font-bold text-gray-800">
       @if (isEditMode && procedure) {
         Modifier — {{ procedure.title }}
-      } @else if (isGroup) {
-        Nouveau groupe
       } @else {
         Nouvelle procédure
       }
     </h1>
     <p class="text-sm text-gray-500 mt-1">
-      @if (isEditMode) {
-        @if (isGroup) { Modification du groupe } @else { Modification de la procédure }
-      } @else {
-        @if (isGroup) { Création d'un groupe de procédures } @else { Création d'une nouvelle procédure }
-      }
+      {{ isEditMode ? 'Modification de la procédure' : 'Création d\'une nouvelle procédure' }}
     </p>
   </div>
 
@@ -35,20 +29,6 @@
   @if (!loading) {
     <form [formGroup]="form" (ngSubmit)="save(false)" class="space-y-6">
 
-      <!-- Toggle groupe -->
-      @if (!isEditMode) {
-        <div class="flex items-center gap-3 p-4 bg-gray-50 border border-gray-200 rounded-xl">
-          <label class="relative inline-flex items-center cursor-pointer">
-            <input formControlName="is_group" type="checkbox" class="sr-only peer"/>
-            <div class="w-10 h-5 bg-gray-300 rounded-full peer peer-checked:bg-green-600 transition-colors after:content-[''] after:absolute after:top-0.5 after:left-0.5 after:bg-white after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:after:translate-x-5"></div>
-          </label>
-          <div>
-            <p class="text-sm font-medium text-gray-700">Super procédure (groupe)</p>
-            <p class="text-xs text-gray-500">Un groupe organise un ensemble de procédures dans un tableau.</p>
-          </div>
-        </div>
-      }
-
       <!-- Titre -->
       <div>
         <label class="block text-sm font-medium text-gray-700 mb-1">
@@ -62,14 +42,19 @@
         }
       </div>
 
-      <!-- Référence (masquée pour les groupes) -->
-      @if (!isGroup) {
-        <div>
-          <label class="block text-sm font-medium text-gray-700 mb-1">Référence</label>
-          <input formControlName="reference" type="text" placeholder="Ex : PRO-DISP-001"
-                 class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-green-600 focus:border-transparent"/>
-        </div>
-      }
+      <!-- Référence -->
+      <div>
+        <label class="block text-sm font-medium text-gray-700 mb-1">Référence</label>
+        <input formControlName="reference" type="text" placeholder="Ex : PRO-DISP-001"
+               class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-green-600 focus:border-transparent"/>
+      </div>
+
+      <!-- Date de révision planifiée -->
+      <div>
+        <label class="block text-sm font-medium text-gray-700 mb-1">Date de révision planifiée</label>
+        <input formControlName="next_review_date" type="date"
+               class="w-48 border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-600 focus:border-transparent"/>
+      </div>
 
       <!-- Catégories -->
       <div>
@@ -115,49 +100,36 @@
       <!-- Contenu / Description -->
       <div>
         <div class="flex items-center justify-between mb-1">
-          <label class="block text-sm font-medium text-gray-700">
-            @if (isGroup) { Description } @else { Contenu }
-          </label>
-          @if (!isGroup) {
-            <div [title]="quillSelection ? '' : 'Sélectionnez du texte dans l\'éditeur pour activer'">
-              <button type="button"
-                      (click)="openRefactorConfirm()"
-                      [disabled]="!quillSelection || refactoring"
-                      class="inline-flex items-center gap-1.5 px-3 py-1 text-xs font-medium text-purple-700 border border-purple-200 rounded-lg hover:bg-purple-50 transition-colors disabled:opacity-40 disabled:cursor-not-allowed">
-                @if (refactoring) {
-                  <span class="w-3 h-3 border-2 border-purple-400 border-t-transparent rounded-full animate-spin"></span>
-                  Correction en cours…
-                } @else {
-                  ✦ Corriger et structurer
-                }
-              </button>
-            </div>
-          }
+          <label class="block text-sm font-medium text-gray-700">Contenu</label>
+          <div [title]="quillSelection ? '' : 'Sélectionnez du texte dans l\'éditeur pour activer'">
+            <button type="button"
+                    (click)="openRefactorConfirm()"
+                    [disabled]="!quillSelection || refactoring"
+                    class="inline-flex items-center gap-1.5 px-3 py-1 text-xs font-medium text-purple-700 border border-purple-200 rounded-lg hover:bg-purple-50 transition-colors disabled:opacity-40 disabled:cursor-not-allowed">
+              @if (refactoring) {
+                <span class="w-3 h-3 border-2 border-purple-400 border-t-transparent rounded-full animate-spin"></span>
+                Correction en cours…
+              } @else {
+                ✦ Corriger et structurer
+              }
+            </button>
+          </div>
         </div>
 
         @if (refactorError) {
           <div class="bg-red-50 border border-red-200 text-red-600 rounded-lg px-3 py-2 text-xs mb-2">{{ refactorError }}</div>
         }
 
-        <!-- Quill pour les procédures, textarea simple pour les groupes -->
-        @if (!isGroup) {
-          <app-quill-editor-wrapper
-            formControlName="content"
-            [placeholder]="'Rédigez le contenu de la procédure…'"
-            (selectionChange)="onQuillSelectionChange($event)">
-          </app-quill-editor-wrapper>
-        } @else {
-          <textarea formControlName="content" rows="4"
-                    placeholder="Description optionnelle du groupe..."
-                    class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-600 focus:border-transparent resize-y">
-          </textarea>
-        }
+        <app-quill-editor-wrapper
+          formControlName="content"
+          [placeholder]="'Rédigez le contenu de la procédure…'"
+          (selectionChange)="onQuillSelectionChange($event)">
+        </app-quill-editor-wrapper>
       </div>
 
       <!-- Section Photos & PJ -->
-      @if (!isGroup) {
-        <div>
-          <!-- Photos -->
+      <div>
+        <!-- Photos -->
           <div class="mb-5">
             <div class="flex items-center justify-between mb-3">
               <h3 class="text-sm font-medium text-gray-700">Photos</h3>
@@ -208,7 +180,6 @@
             <app-attachment-uploader [procedureId]="procedureId" [initialAttachments]="attachments" />
           </div>
         </div>
-      }
 
       <!-- Actions -->
       <div class="flex items-center gap-3 pt-2">
@@ -223,7 +194,7 @@
             Enregistrer brouillon
           }
         </button>
-        <button type="button" (click)="save(true)" [disabled]="saving"
+        <button type="button" (click)="openPublishModal()" [disabled]="saving"
                 class="px-4 py-2 bg-green-700 text-white rounded-lg text-sm font-medium hover:bg-green-800 transition-colors disabled:opacity-50">
           Publier
         </button>
@@ -237,6 +208,36 @@
   }
 
 </div>
+
+<!-- Modale publication -->
+@if (showPublishModal) {
+  <div class="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm"
+       (click)="cancelPublish()">
+    <div class="bg-white rounded-xl shadow-xl w-full max-w-md mx-4 p-6"
+         (click)="$event.stopPropagation()">
+      <h2 class="text-base font-semibold text-gray-800 mb-1">Publier la procédure</h2>
+      <p class="text-sm text-gray-500 mb-4">
+        Résumez brièvement les modifications apportées. Ce résumé apparaîtra dans l'historique des versions.
+      </p>
+      <textarea
+        [(ngModel)]="publishSummary"
+        rows="3"
+        placeholder="Ex : Mise à jour du protocole de désinfection, ajout de l'étape 4…"
+        class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm text-gray-700 resize-none focus:outline-none focus:ring-2 focus:ring-green-600 focus:border-transparent placeholder-gray-400">
+      </textarea>
+      <div class="flex justify-end gap-3 mt-4">
+        <button type="button" (click)="cancelPublish()"
+                class="px-4 py-2 text-sm text-gray-600 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors">
+          Annuler
+        </button>
+        <button type="button" (click)="confirmPublish()"
+                class="px-4 py-2 text-sm font-medium text-white bg-green-700 rounded-lg hover:bg-green-800 transition-colors">
+          Publier
+        </button>
+      </div>
+    </div>
+  </div>
+}
 
 <!-- Modale confirmation IA -->
 @if (showConfirmModal) {

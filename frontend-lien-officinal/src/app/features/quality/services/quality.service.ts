@@ -41,17 +41,13 @@ export class QualityService {
     return this.http.delete<void>(`${this.api}/groups/${id}/`);
   }
 
-  getGroupTree(groupId: number): Observable<Procedure[]> {
-    return this.http.get<Procedure[]>(`${this.api}/groups/${groupId}/tree/`);
-  }
-
   // ── Procedures ───────────────────────────────────────────────────────────
 
-  getProcedureTree(groupId?: number): Observable<Procedure[]> {
+  getProceduresForGroup(groupId?: number): Observable<Procedure[]> {
     if (groupId != null) {
-      return this.getGroupTree(groupId);
+      return this.http.get<Procedure[]>(`${this.api}/procedures/?group=${groupId}`);
     }
-    return this.http.get<Procedure[]>(`${this.api}/procedures/tree/?group=none`);
+    return this.http.get<Procedure[]>(`${this.api}/procedures/?group=none`);
   }
 
   getProcedures(): Observable<Procedure[]> {
@@ -84,6 +80,18 @@ export class QualityService {
 
   reorderProcedures(payload: ReorderPayload[]): Observable<any> {
     return this.http.patch(`${this.api}/procedures/reorder/`, payload);
+  }
+
+  reorderGroups(orderedIds: number[]): Observable<any> {
+    return this.http.post(`${this.api}/groups/reorder/`, { order: orderedIds });
+  }
+
+  getArchivedProcedures(): Observable<Procedure[]> {
+    return this.http.get<Procedure[]>(`${this.api}/procedures/?archived=true`);
+  }
+
+  unarchiveProcedure(id: number): Observable<Procedure> {
+    return this.http.post<Procedure>(`${this.api}/procedures/${id}/unarchive/`, {});
   }
 
   uploadImage(procedureId: number, file: File): Observable<ProcedureImage> {

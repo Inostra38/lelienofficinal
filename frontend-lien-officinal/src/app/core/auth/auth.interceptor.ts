@@ -3,9 +3,11 @@ import { inject } from '@angular/core';
 import { Router } from '@angular/router';
 import { catchError, switchMap, throwError } from 'rxjs';
 import { AuthService } from './auth.service';
+import { ToastService } from '../services/toast.service';
 
 export const authInterceptor: HttpInterceptorFn = (req, next) => {
   const authService = inject(AuthService);
+  const toastService = inject(ToastService);
   const router = inject(Router);
   const token = authService.getToken();
 
@@ -30,6 +32,9 @@ export const authInterceptor: HttpInterceptorFn = (req, next) => {
       }
       if (err.status === 401) {
         authService.logout(router.url);
+      }
+      if (err.status === 403 && req.url.includes('/api/quality/')) {
+        toastService.error('Action non autorisée : permission insuffisante.');
       }
       return throwError(() => err);
     })

@@ -1,24 +1,36 @@
 import { Component, OnInit, HostListener, ElementRef, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
+import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, RouterLink } from '@angular/router';
 import { DomSanitizer, SafeHtml } from '@angular/platform-browser';
 import { QualityService } from '../../services/quality.service';
+import { AuthService } from '../../../../core/auth/auth.service';
 import { Procedure } from '../../models/procedure.model';
 
 @Component({
   selector: 'app-procedure-detail',
   standalone: true,
-  imports: [CommonModule, RouterLink],
+  imports: [CommonModule, FormsModule, RouterLink],
   templateUrl: './procedure-detail.component.html',
   styleUrl: './procedure-detail.component.scss',
 })
 export class ProcedureDetailComponent implements OnInit {
   private route = inject(ActivatedRoute);
   private qualityService = inject(QualityService);
+  private authService = inject(AuthService);
   private sanitizer = inject(DomSanitizer);
   private el = inject(ElementRef);
 
   readProgress = 0;
+
+  canManageQuality(): boolean { return this.authService.canManageQuality(); }
+
+  canEdit(): boolean {
+    if (this.authService.canManageQuality()) return true;
+    const collabId = this.authService.getCurrentCollaboratorId();
+    if (collabId === null || !this.procedure) return false;
+    return this.procedure.pilots?.some(p => p.id === collabId) ?? false;
+  }
 
   @HostListener('window:scroll')
   onWindowScroll() {
@@ -33,10 +45,24 @@ export class ProcedureDetailComponent implements OnInit {
     return this.sanitizer.bypassSecurityTrustHtml(content);
   }
 
+  /** Dernière version publiée — non null si la procédure est en brouillon et a déjà été publiée. */
+  get publishedVersion() {
+    if (!this.procedure || this.procedure.status !== 'draft') return null;
+    return this.procedure.history?.[0] ?? null;
+  }
+
+  /** Contenu à afficher : version publiée si brouillon avec historique, sinon contenu courant. */
+  get displayContent(): string {
+    return this.publishedVersion?.content ?? this.procedure?.content ?? '';
+  }
+
   procedure: Procedure | null = null;
   loading = true;
   error = '';
   lightboxImage: string | null = null;
+
+  showPublishModal = false;
+  publishSummary = '';
 
   ngOnInit() {
     const id = +(this.route.snapshot.paramMap.get('id') || 0);
@@ -46,12 +72,22 @@ export class ProcedureDetailComponent implements OnInit {
     });
   }
 
-  publish() {
+  openPublishModal() {
     if (!this.procedure) return;
-    const summary = prompt('Résumé des modifications apportées (facultatif) :', '');
-    this.qualityService.publishProcedure(this.procedure.id, summary || undefined).subscribe({
+    this.publishSummary = '';
+    this.showPublishModal = true;
+  }
+
+  confirmPublish() {
+    if (!this.procedure) return;
+    this.showPublishModal = false;
+    this.qualityService.publishProcedure(this.procedure.id, this.publishSummary || undefined).subscribe({
       next: (p) => { this.procedure = p; },
     });
+  }
+
+  cancelPublish() {
+    this.showPublishModal = false;
   }
 
   archive() {
@@ -73,9 +109,16 @@ export class ProcedureDetailComponent implements OnInit {
     } as Record<string, string>)[s] || '';
   }
 
+  isReviewOverdue(): boolean {
+    if (!this.procedure?.next_review_date) return false;
+    return new Date(this.procedure.next_review_date) < new Date();
+  }
+
   pilotNames(p: Procedure): string {
     return p.pilots?.length ? p.pilots.map(c => c.full_name).join(', ') : 'Non défini';
   }
+
+  printProcedure() { window.print(); }
 
   openLightbox(url: string) { this.lightboxImage = url; }
   closeLightbox() { this.lightboxImage = null; }

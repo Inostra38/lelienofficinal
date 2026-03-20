@@ -18,18 +18,28 @@
     <!-- Actions -->
     <div class="proc-actions">
       <a routerLink="/quality" class="proc-back">← Retour</a>
-      @if (procedure.status === 'active') {
+      <button (click)="printProcedure()"
+              class="px-3 py-1.5 text-sm text-gray-500 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors print:hidden">
+        <svg class="inline w-3.5 h-3.5 mr-1 -mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"/>
+        </svg>
+        Imprimer
+      </button>
+      @if (canManageQuality() && procedure.status === 'active') {
         <button (click)="archive()"
                 class="px-3 py-1.5 text-sm text-gray-500 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors">
           Archiver
         </button>
       }
-      <a [routerLink]="['/quality/procedures', procedure.id, 'edit']"
-         class="px-3 py-1.5 text-sm text-gray-600 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors">
-        Modifier
-      </a>
-      @if (procedure.status === 'draft') {
-        <button (click)="publish()"
+      @if (canEdit()) {
+        <a [routerLink]="['/quality/procedures', procedure.id, 'edit']"
+           class="px-3 py-1.5 text-sm text-gray-600 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors">
+          Modifier
+        </a>
+      }
+      @if (canManageQuality() && procedure.status === 'draft') {
+        <button (click)="openPublishModal()"
                 class="px-3 py-1.5 text-sm font-medium text-white bg-green-700 rounded-lg hover:bg-green-800 transition-colors">
           + Publier
         </button>
@@ -39,7 +49,7 @@
     <!-- Titre + version -->
     <div class="proc-title-row">
       <h1 class="proc-title">{{ procedure.title }}</h1>
-      <span class="proc-version">v{{ procedure.version }}</span>
+      <span class="proc-version">v{{ procedure.status === 'active' ? procedure.version - 1 : procedure.version }}</span>
     </div>
 
     <!-- Référence -->
@@ -58,6 +68,17 @@
           {{ statusLabel(procedure.status) }}
         </div>
       </div>
+
+      <!-- Date de révision -->
+      @if (procedure.next_review_date) {
+        <div class="meta-card" [class.ring-1]="isReviewOverdue()" [class.ring-red-300]="isReviewOverdue()" [class.bg-red-50]="isReviewOverdue()">
+          <div class="meta-label">Révision prévue</div>
+          <div class="meta-value" [class.text-red-600]="isReviewOverdue()">
+            {{ procedure.next_review_date | date:'dd/MM/yyyy' }}
+            @if (isReviewOverdue()) { <span class="text-xs ml-1">— En retard</span> }
+          </div>
+        </div>
+      }
 
       <!-- Pilotes -->
       <div class="meta-card">
@@ -125,73 +146,23 @@
 
     <hr class="proc-divider">
 
-    @if (procedure.is_group) {
-
-      <!-- Description du groupe (optionnelle) -->
-      @if (procedure.content) {
-        <div class="bg-white border border-gray-200 rounded-xl p-6 mb-6">
-          <h2 class="text-sm font-semibold text-gray-600 uppercase tracking-wide mb-4">Description</h2>
-          <div class="procedure-content" [innerHTML]="safeHtml(procedure.content!)"></div>
+      <!-- Bannière brouillon avec version publiée disponible -->
+      @if (publishedVersion) {
+        <div class="flex items-center gap-2 bg-amber-50 border border-amber-200 rounded-xl px-4 py-3 mb-4 text-sm text-amber-700">
+          <svg class="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                  d="M12 9v2m0 4h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/>
+          </svg>
+          Révision en cours — vous consultez la dernière version publiée
+          (v{{ publishedVersion.version_number }}).
         </div>
       }
 
-      <!-- Tableau des procédures du groupe -->
-      <div class="bg-white border border-gray-200 rounded-xl overflow-hidden mb-6">
-        <div class="px-4 py-3 bg-gray-50 border-b border-gray-200">
-          <h2 class="text-sm font-semibold text-gray-600 uppercase tracking-wide">
-            Procédures du groupe
-            @if (procedure.children && procedure.children.length > 0) {
-              <span class="ml-2 font-normal text-gray-400">({{ procedure.children.length }})</span>
-            }
-          </h2>
-        </div>
-        @if (!procedure.children || procedure.children.length === 0) {
-          <div class="text-center py-10 text-gray-400 text-sm">
-            <p>Aucune procédure dans ce groupe.</p>
-            <p class="mt-1 text-xs">Glissez-déposez des procédures sous ce groupe depuis la liste.</p>
-          </div>
-        } @else {
-          <table class="w-full text-sm">
-            <thead>
-              <tr class="text-xs font-medium text-gray-500 uppercase tracking-wide border-b border-gray-100">
-                <th class="px-4 py-2 text-left">Référence</th>
-                <th class="px-4 py-2 text-left">Titre</th>
-                <th class="px-4 py-2 text-left">Statut</th>
-                <th class="px-4 py-2 text-left">Version</th>
-              </tr>
-            </thead>
-            <tbody>
-              @for (child of procedure.children; track child.id) {
-                <tr class="border-t border-gray-100 hover:bg-gray-50 transition-colors">
-                  <td class="px-4 py-3">
-                    <span class="font-mono text-xs text-gray-400">{{ child.reference || '—' }}</span>
-                  </td>
-                  <td class="px-4 py-3">
-                    <a [routerLink]="['/quality/procedures', child.id]"
-                       class="text-gray-700 hover:text-green-700 transition-colors font-medium">
-                      {{ child.title }}
-                    </a>
-                  </td>
-                  <td class="px-4 py-3">
-                    <span class="inline-flex px-2 py-0.5 rounded-full text-xs font-medium" [class]="statusClass(child.status)">
-                      {{ statusLabel(child.status) }}
-                    </span>
-                  </td>
-                  <td class="px-4 py-3 text-gray-400 text-xs">v{{ child.version }}</td>
-                </tr>
-              }
-            </tbody>
-          </table>
-        }
-      </div>
-
-    } @else {
-
       <!-- Contenu HTML -->
-      @if (procedure.content) {
+      @if (displayContent) {
         <div class="bg-white border border-gray-200 rounded-xl p-6 mb-6">
           <h2 class="text-sm font-semibold text-gray-600 uppercase tracking-wide mb-4">Contenu</h2>
-          <div class="procedure-content" [innerHTML]="safeHtml(procedure.content!)"></div>
+          <div class="procedure-content" [innerHTML]="safeHtml(displayContent)"></div>
         </div>
       }
 
@@ -286,6 +257,35 @@
       }
     </div>
   }
+
+  <!-- Modale publication -->
+  @if (showPublishModal) {
+    <div class="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm"
+         (click)="cancelPublish()">
+      <div class="bg-white rounded-xl shadow-xl w-full max-w-md mx-4 p-6"
+           (click)="$event.stopPropagation()">
+        <h2 class="text-base font-semibold text-gray-800 mb-1">Publier la procédure</h2>
+        <p class="text-sm text-gray-500 mb-4">
+          Résumez brièvement les modifications apportées. Ce résumé apparaîtra dans l'historique des versions.
+        </p>
+        <textarea
+          [(ngModel)]="publishSummary"
+          rows="3"
+          placeholder="Ex : Mise à jour du protocole de désinfection, ajout de l'étape 4…"
+          class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm text-gray-700 resize-none focus:outline-none focus:ring-2 focus:ring-green-600 focus:border-transparent placeholder-gray-400">
+        </textarea>
+        <div class="flex justify-end gap-3 mt-4">
+          <button type="button" (click)="cancelPublish()"
+                  class="px-4 py-2 text-sm text-gray-600 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors">
+            Annuler
+          </button>
+          <button type="button" (click)="confirmPublish()"
+                  class="px-4 py-2 text-sm font-medium text-white bg-green-700 rounded-lg hover:bg-green-800 transition-colors">
+            Publier
+          </button>
+        </div>
+      </div>
+    </div>
   }
 
   <!-- Lightbox -->

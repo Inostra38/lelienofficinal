@@ -7,12 +7,28 @@
       <p class="text-sm text-gray-500 mt-1">Vue d'ensemble de tous vos tableaux</p>
     </div>
     <div class="flex items-center gap-2">
+      <div class="relative">
+        <svg class="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-gray-400 pointer-events-none"
+             fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                d="M21 21l-4.35-4.35M17 11A6 6 0 111 11a6 6 0 0116 0z"/>
+        </svg>
+        <input [(ngModel)]="searchQuery" type="text" placeholder="Rechercher…"
+               class="pl-8 pr-3 py-1.5 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent w-48"/>
+      </div>
+      <a routerLink="/quality/archives"
+         class="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm text-gray-500 border border-gray-200 hover:bg-gray-50 transition-colors">
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8l1 12a2 2 0 002 2h8a2 2 0 002-2l1-12M10 12v4m4-4v4"/>
+        </svg>
+        Archives
+      </a>
       <button (click)="openNewGroupForm()"
-              class="inline-flex items-center gap-2 px-4 py-2 rounded-lg border border-gray-200 text-sm text-gray-600 hover:border-gray-300 hover:bg-gray-50 transition-colors">
+              class="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-green-700 text-white text-sm font-medium hover:bg-green-800 transition-colors">
         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
         </svg>
-        + Nouveau groupe de procédures
+        + Nouveau groupe
       </button>
     </div>
   </div>
@@ -49,16 +65,31 @@
   }
 
   @if (!loading && !error) {
-    <!-- Tableaux (groupes) en premier -->
-    @for (group of groups; track group.id) {
-      <app-board-section
-        [group]="group"
-        (groupDeleted)="onGroupDeleted($event)"
-        (groupUpdated)="onGroupUpdated($event)" />
-    }
+    <!-- Tableaux (groupes) en premier — drag & drop -->
+    <div cdkDropList (cdkDropListDropped)="onGroupDrop($event)" class="groups-list">
+      @for (group of groups; track group.id) {
+        <div cdkDrag [cdkDragData]="group" class="cdk-drag-group">
+          <!-- Poignée de drag -->
+          <div cdkDragHandle class="drag-handle" title="Réordonner">
+            <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
+              <path d="M8 6a2 2 0 100-4 2 2 0 000 4zm0 6a2 2 0 100-4 2 2 0 000 4zm0 6a2 2 0 100-4 2 2 0 000 4zm8-12a2 2 0 100-4 2 2 0 000 4zm0 6a2 2 0 100-4 2 2 0 000 4zm0 6a2 2 0 100-4 2 2 0 000 4z"/>
+            </svg>
+          </div>
+          <app-board-section
+            [group]="group"
+            [filterQuery]="searchQuery"
+            (groupDeleted)="onGroupDeleted($event)"
+            (groupUpdated)="onGroupUpdated($event)" />
+          <!-- Placeholder CDK -->
+          <div *cdkDragPlaceholder class="cdk-drag-placeholder-block"></div>
+        </div>
+      }
+    </div>
 
-    <!-- Bibliothèque générale en dernier -->
-    <app-board-section [group]="null" />
+    <!-- Bibliothèque générale en dernier (non draggable) -->
+    <div class="pl-6">
+      <app-board-section [group]="null" [filterQuery]="searchQuery" />
+    </div>
   }
 
 </div>

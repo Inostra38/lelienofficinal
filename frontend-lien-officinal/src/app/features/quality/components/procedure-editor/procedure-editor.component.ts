@@ -1,7 +1,7 @@
 import { Component, OnInit, ViewChild, inject } from '@angular/core';
 import { forkJoin, of } from 'rxjs';
 import { CommonModule } from '@angular/common';
-import { ReactiveFormsModule, FormBuilder, Validators } from '@angular/forms';
+import { ReactiveFormsModule, FormBuilder, Validators, FormsModule } from '@angular/forms';
 import { ActivatedRoute, Router } from '@angular/router';
 import { QualityService } from '../../services/quality.service';
 import { Procedure, ProcedureAttachment, ProcedureImage } from '../../models/procedure.model';
@@ -14,7 +14,7 @@ import { AttachmentUploaderComponent } from '../attachment-uploader/attachment-u
 @Component({
   selector: 'app-procedure-editor',
   standalone: true,
-  imports: [CommonModule, ReactiveFormsModule, QuillEditorWrapperComponent, BadgeSelectorComponent, AttachmentUploaderComponent],
+  imports: [CommonModule, ReactiveFormsModule, FormsModule, QuillEditorWrapperComponent, BadgeSelectorComponent, AttachmentUploaderComponent],
   templateUrl: './procedure-editor.component.html',
 })
 export class ProcedureEditorComponent implements OnInit {
@@ -30,7 +30,6 @@ export class ProcedureEditorComponent implements OnInit {
 
   procedureId: number | null = null;
   groupId: number | null = null;
-  parentId: number | null = null;
   isEditMode = false;
   loading = false;
   saving = false;
@@ -47,17 +46,13 @@ export class ProcedureEditorComponent implements OnInit {
   pendingImagePreviews: string[] = [];
 
   form = this.fb.group({
-    is_group: [false],
     title: ['', Validators.required],
     reference: [null as string | null],
     category_ids: [[] as number[]],
     pilot_ids: [[] as number[]],
     content: [''],
+    next_review_date: [null as string | null],
   });
-
-  get isGroup(): boolean {
-    return this.form.get('is_group')?.value ?? false;
-  }
 
   get selectedPilotIds(): number[] {
     return this.form.get('pilot_ids')?.value ?? [];
@@ -70,23 +65,11 @@ export class ProcedureEditorComponent implements OnInit {
     const groupParam = this.route.snapshot.queryParamMap.get('group');
     if (groupParam) { this.groupId = +groupParam; }
 
-    const parentParam = this.route.snapshot.queryParamMap.get('parent');
-    if (parentParam) { this.parentId = +parentParam; }
-
-    const folderParam = this.route.snapshot.queryParamMap.get('folder');
-    if (folderParam === 'true') { this.form.get('is_group')!.setValue(true); }
-
     this.collaboratorService.getTeam().subscribe({
       next: (t) => { this.collaborators = t; },
     });
 
     if (this.isEditMode && this.procedureId) { this.loadProcedure(); }
-
-    this.form.get('is_group')!.valueChanges.subscribe(isGroup => {
-      const ref = this.form.get('reference')!;
-      if (isGroup) { ref.setValue(null); }
-      ref.updateValueAndValidity();
-    });
   }
 
   loadProcedure() {
@@ -97,12 +80,12 @@ export class ProcedureEditorComponent implements OnInit {
         this.attachments = p.attachments || [];
         this.images = p.images || [];
         this.form.patchValue({
-          is_group: p.is_group ?? false,
           title: p.title,
           reference: p.reference ?? null,
           category_ids: p.categories?.map(c => c.id) ?? [],
           pilot_ids: p.pilots?.map(c => c.id) ?? [],
           content: p.content || '',
+          next_review_date: p.next_review_date ?? null,
         });
         this.loading = false;
       },
@@ -139,26 +122,30 @@ export class ProcedureEditorComponent implements OnInit {
 
   // ── Save ────────────────────────────────────────────────────────────────
 
-  save(publish = false) {
+  openPublishModal() {
+    if (this.form.invalid) { this.form.markAllAsTouched(); return; }
+    this.publishSummary = '';
+    this.showPublishModal = true;
+  }
+
+  save(publish = false, changeSummary?: string) {
     if (this.form.invalid) { this.form.markAllAsTouched(); return; }
     this.saving = true;
     const v = this.form.value;
     const payload: any = {
-      is_group: v.is_group,
       title: v.title!,
-      reference: this.isGroup ? null : (v.reference || null),
+      reference: v.reference || null,
       category_ids: v.category_ids ?? [],
       pilot_ids: v.pilot_ids ?? [],
       content: v.content || '',
+      next_review_date: v.next_review_date || null,
       group: this.groupId ?? (this.procedure?.group ?? null),
-      parent: this.parentId ?? (this.procedure?.parent ?? null),
     };
     const obs$ = this.isEditMode
       ? this.qualityService.updateProcedure(this.procedureId!, payload)
       : this.qualityService.createProcedure(payload);
     obs$.subscribe({
       next: (saved) => {
-        // En mode création, uploader les fichiers en attente avant de naviguer
         const imageUploads$ = this.pendingImages.length > 0
           ? forkJoin(this.pendingImages.map(f => this.qualityService.uploadImage(saved.id, f)))
           : of([]);
@@ -167,8 +154,8 @@ export class ProcedureEditorComponent implements OnInit {
           : of([]);
 
         forkJoin([imageUploads$, attachUploads$]).subscribe({
-          next: () => this.afterSave(saved, publish),
-          error: () => this.afterSave(saved, publish), // naviguer quand même
+          next: () => this.afterSave(saved, publish, changeSummary),
+          error: () => this.afterSave(saved, publish, changeSummary),
         });
       },
       error: (err: any) => {
@@ -219,6 +206,10 @@ export class ProcedureEditorComponent implements OnInit {
   showConfirmModal = false;
   private savedRange: QuillRange | null = null;
 
+  // ── Modale publication ───────────────────────────────────────────────────
+  showPublishModal = false;
+  publishSummary = '';
+
   onQuillSelectionChange(range: QuillRange | null): void {
     this.quillSelection = range;
   }
@@ -259,10 +250,19 @@ export class ProcedureEditorComponent implements OnInit {
     });
   }
 
-  private afterSave(saved: Procedure, publish: boolean) {
+  confirmPublish(): void {
+    this.showPublishModal = false;
+    this.save(true, this.publishSummary || undefined);
+  }
+
+  cancelPublish(): void {
+    this.showPublishModal = false;
+  }
+
+  private afterSave(saved: Procedure, publish: boolean, changeSummary?: string) {
     if (publish) {
-      this.qualityService.publishProcedure(saved.id).subscribe({
-        next: () => this.router.navigate(['/quality/procedures', saved.id]),
+      this.qualityService.publishProcedure(saved.id, changeSummary).subscribe({
+        next: () => { this.saving = false; this.router.navigate(['/quality/procedures', saved.id]); },
         error: () => { this.saving = false; this.error = 'Erreur lors de la publication.'; },
       });
     } else {

@@ -86,6 +86,49 @@ class CanCloseNonConformities(BasePermission):
         return collaborator.role == 'Adjoint' and collaborator.can_close_nonconformities
 
 
+class CanManageQuality(BasePermission):
+    """Titulaire, ou collaborateur avec can_manage_quality=True."""
+
+    def has_permission(self, request, view):
+        if _is_direct_pharmacy_access(request):
+            return True
+        collaborator = _get_collaborator(request, request.user)
+        if collaborator is None:
+            return False
+        if collaborator.role == 'Titulaire':
+            return True
+        return bool(collaborator.can_manage_quality)
+
+
+class CanEditProcedure(BasePermission):
+    """
+    Autorise si l'utilisateur peut gérer la qualité OU est pilote de la procédure.
+    Pour la création (pas d'objet), seul CanManageQuality s'applique.
+    """
+
+    def has_permission(self, request, view):
+        if _is_direct_pharmacy_access(request):
+            return True
+        collaborator = _get_collaborator(request, request.user)
+        if collaborator is None:
+            return False
+        # Gérant qualité → autorisé à vue-level
+        if collaborator.role == 'Titulaire' or collaborator.can_manage_quality:
+            return True
+        # Pilote potentiel → on laisse passer pour vérification objet
+        return True
+
+    def has_object_permission(self, request, view, obj):
+        if _is_direct_pharmacy_access(request):
+            return True
+        collaborator = _get_collaborator(request, request.user)
+        if collaborator is None:
+            return False
+        if collaborator.role == 'Titulaire' or collaborator.can_manage_quality:
+            return True
+        return obj.pilots.filter(id=collaborator.id).exists()
+
+
 class IsProcedurePilot(BasePermission):
     """Vrai si le collaborateur connecté est le pilote de la procédure (permission objet)."""
 

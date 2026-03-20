@@ -1,4 +1,5 @@
 from django.db import transaction
+from django.db.models import OuterRef, Subquery
 from django.utils import timezone
 from rest_framework import viewsets, status
 from rest_framework.decorators import action
@@ -8,17 +9,18 @@ from rest_framework.response import Response
 from .models import (
     Procedure, ProcedureAttachment, ProcedureImage, NonConformity,
     CorrectiveAction, ProcedureGroup, ProcedureVersion, ProcedureCategory,
+    ProcedureNotification,
 )
 from .serializers import (
     ProcedureGroupSerializer, ProcedureCategorySerializer,
-    ProcedureListSerializer, ProcedureDetailSerializer, ProcedureTreeSerializer,
+    ProcedureListSerializer, ProcedureDetailSerializer,
     ProcedureAttachmentSerializer, ProcedureImageSerializer,
     NonConformityListSerializer, NonConformityDetailSerializer,
     CorrectiveActionSerializer,
 )
 from .permissions import (
-    IsPharmacyTitulaire, CanManageProcedures, CanPublishProcedures,
-    CanCloseNonConformities, IsProcedurePilot, _get_collaborator,
+    IsPharmacyTitulaire, CanManageProcedures, CanManageQuality, CanEditProcedure,
+    CanPublishProcedures, CanCloseNonConformities, IsProcedurePilot, _get_collaborator,
 )
 
 
@@ -31,9 +33,25 @@ class ProcedureViewSet(viewsets.ModelViewSet):
         qs = (
             Procedure.objects
             .filter(pharmacy=self.request.user)
-            .select_related('created_by', 'parent', 'group')
+            .select_related('created_by', 'archived_by', 'group')
             .prefetch_related('pilots', 'categories', 'attachments', 'images')
         )
+        # Filtre archivage uniquement sur la liste
+        if self.action == 'list':
+            if self.request.query_params.get('archived') == 'true':
+                qs = qs.filter(status=Procedure.Status.ARCHIVED)
+            else:
+                qs = qs.exclude(status=Procedure.Status.ARCHIVED)
+
+        # Annotation : dernière version publiée (sous-requête SQL, pas de N+1)
+        last_pub_sq = (
+            ProcedureVersion.objects
+            .filter(procedure=OuterRef('pk'))
+            .order_by('-version_number')
+            .values('version_number')[:1]
+        )
+        qs = qs.annotate(last_published_version=Subquery(last_pub_sq))
+
         group_param = self.request.query_params.get('group')
         if group_param == 'none':
             qs = qs.filter(group__isnull=True)
@@ -44,19 +62,19 @@ class ProcedureViewSet(viewsets.ModelViewSet):
     def get_serializer_class(self):
         if self.action == 'list':
             return ProcedureListSerializer
-        if self.action == 'tree':
-            return ProcedureTreeSerializer
         return ProcedureDetailSerializer
 
     def get_permissions(self):
-        if self.action in ('create', 'update', 'partial_update'):
-            return [IsAuthenticated(), (CanManageProcedures | IsProcedurePilot)()]
+        if self.action == 'create':
+            return [IsAuthenticated(), CanManageQuality()]
+        if self.action in ('update', 'partial_update'):
+            return [IsAuthenticated(), CanEditProcedure()]
         if self.action == 'destroy':
-            return [IsAuthenticated(), CanManageProcedures()]
+            return [IsAuthenticated(), CanManageQuality()]
         if self.action == 'publish':
             return [IsAuthenticated(), CanPublishProcedures()]
-        if self.action == 'archive':
-            return [IsAuthenticated(), IsPharmacyTitulaire()]
+        if self.action in ('archive', 'unarchive'):
+            return [IsAuthenticated(), CanManageQuality()]
         return [IsAuthenticated()]
 
     def perform_create(self, serializer):
@@ -72,17 +90,6 @@ class ProcedureViewSet(viewsets.ModelViewSet):
             serializer.save()
 
     # ── Actions custom ──────────────────────────────────────────────────────
-
-    @action(detail=False, methods=['get'])
-    def tree(self, request):
-        roots = (
-            self.get_queryset()
-            .filter(parent=None)
-            .order_by('position')
-            .prefetch_related('pilots', 'children__pilots', 'children__children__pilots')
-        )
-        serializer = ProcedureTreeSerializer(roots, many=True, context={'request': request})
-        return Response(serializer.data)
 
     @action(detail=True, methods=['post'])
     def publish(self, request, pk=None):
@@ -111,14 +118,42 @@ class ProcedureViewSet(viewsets.ModelViewSet):
             procedure.status = Procedure.Status.ACTIVE
             procedure.version += 1
             procedure.save(update_fields=['status', 'version'])
-            
+
+            # Notifier les pilotes (sauf celui qui publie)
+            published_version = procedure.version - 1  # version qui vient d'être publiée
+            publisher = collaborator
+            notif_bulk = [
+                ProcedureNotification(
+                    recipient=pilot,
+                    procedure=procedure,
+                    version_number=published_version,
+                )
+                for pilot in procedure.pilots.all()
+                if pilot != publisher
+            ]
+            ProcedureNotification.objects.bulk_create(notif_bulk)
+
         return Response(ProcedureDetailSerializer(procedure, context={'request': request}).data)
 
     @action(detail=True, methods=['post'])
     def archive(self, request, pk=None):
         procedure = self.get_object()
+        collaborator = _get_collaborator(request, request.user)
         procedure.status = Procedure.Status.ARCHIVED
-        procedure.save(update_fields=['status'])
+        procedure.archived_at = timezone.now()
+        procedure.archived_by = collaborator
+        procedure.save(update_fields=['status', 'archived_at', 'archived_by'])
+        # Promouvoir les sous-procédures en racine
+        procedure.children.update(parent=None)
+        return Response(ProcedureDetailSerializer(procedure, context={'request': request}).data)
+
+    @action(detail=True, methods=['post'])
+    def unarchive(self, request, pk=None):
+        procedure = self.get_object()
+        procedure.status = Procedure.Status.DRAFT
+        procedure.archived_at = None
+        procedure.archived_by = None
+        procedure.save(update_fields=['status', 'archived_at', 'archived_by'])
         return Response(ProcedureDetailSerializer(procedure, context={'request': request}).data)
 
     @action(detail=False, methods=['patch'])
@@ -137,31 +172,17 @@ class ProcedureViewSet(viewsets.ModelViewSet):
                 status=status.HTTP_403_FORBIDDEN,
             )
 
-        for item in items:
-            parent_id = item.get('parent_id')
-            if parent_id is not None:
-                try:
-                    parent = Procedure.objects.get(id=parent_id, pharmacy=pharmacy)
-                except Procedure.DoesNotExist:
-                    return Response(
-                        {'detail': f"parent_id={parent_id} introuvable."},
-                        status=status.HTTP_400_BAD_REQUEST,
-                    )
-                if parent.get_depth() + 1 > 2:
-                    return Response(
-                        {'detail': f"Profondeur maximale dépassée pour la procédure {item['id']}."},
-                        status=status.HTTP_400_BAD_REQUEST,
-                    )
-
         with transaction.atomic():
             for item in items:
                 p = procedures[item['id']]
-                p.parent_id = item.get('parent_id')
                 p.position = item.get('position', 0)
-                fields = ['parent_id', 'position']
+                fields = ['position']
                 if 'group_id' in item:
                     p.group_id = item.get('group_id')
                     fields.append('group_id')
+                if 'parent_id' in item:
+                    p.parent_id = item.get('parent_id')
+                    fields.append('parent_id')
                 p.save(update_fields=fields)
 
         return Response({'status': 'ok', 'updated': len(items)})
@@ -222,7 +243,7 @@ class ProcedureCategoryViewSet(viewsets.ModelViewSet):
     def get_permissions(self):
         if self.action in ('list', 'retrieve'):
             return [IsAuthenticated()]
-        return [IsAuthenticated(), CanManageProcedures()]
+        return [IsAuthenticated(), CanManageQuality()]
 
     def perform_create(self, serializer):
         collaborator = _get_collaborator(self.request, self.request.user)
@@ -238,25 +259,28 @@ class ProcedureGroupViewSet(viewsets.ModelViewSet):
         return ProcedureGroup.objects.filter(pharmacy=self.request.user)
 
     def get_permissions(self):
-        if self.action in ['list', 'retrieve', 'tree']:
+        if self.action in ['list', 'retrieve']:
             return [IsAuthenticated()]
-        return [IsAuthenticated(), CanManageProcedures()]
+        return [IsAuthenticated(), CanManageQuality()]
 
     def perform_create(self, serializer):
         collaborator = _get_collaborator(self.request, self.request.user)
         serializer.save(pharmacy=self.request.user, created_by=collaborator)
 
-    @action(detail=True, methods=['get'], url_path='tree')
-    def tree(self, request, pk=None):
-        group = self.get_object()
-        roots = (
-            Procedure.objects
-            .filter(group=group, parent=None, pharmacy=request.user)
-            .order_by('position')
-            .prefetch_related('pilots', 'children__pilots', 'children__children__pilots')
-        )
-        serializer = ProcedureTreeSerializer(roots, many=True, context={'request': request})
-        return Response(serializer.data)
+    @action(detail=False, methods=['post'], url_path='reorder')
+    def reorder(self, request):
+        ordered_ids = request.data.get('order', [])
+        if not isinstance(ordered_ids, list):
+            return Response({'detail': 'Clé "order" (liste) attendue.'}, status=status.HTTP_400_BAD_REQUEST)
+        pharmacy = request.user
+        groups = {g.id: g for g in ProcedureGroup.objects.filter(id__in=ordered_ids, pharmacy=pharmacy)}
+        if len(groups) != len(ordered_ids):
+            return Response({'detail': 'Un ou plusieurs groupes introuvables.'}, status=status.HTTP_404_NOT_FOUND)
+        with transaction.atomic():
+            for position, group_id in enumerate(ordered_ids):
+                groups[group_id].order = position
+                groups[group_id].save(update_fields=['order'])
+        return Response({'status': 'ok'})
 
 
 # ── ProcedureImage (suppression seule) ───────────────────────────────────────
@@ -406,3 +430,56 @@ class CorrectiveActionViewSet(
             from rest_framework.exceptions import PermissionDenied
             raise PermissionDenied('Non-conformité introuvable ou non autorisée.')
         serializer.save(nonconformity=nc)
+
+
+# ── ProcedureNotification ─────────────────────────────────────────────────────
+
+class ProcedureNotificationViewSet(
+    viewsets.mixins.ListModelMixin,
+    viewsets.GenericViewSet,
+):
+    permission_classes = [IsAuthenticated]
+
+    def _get_collaborator(self):
+        return _get_collaborator(self.request, self.request.user)
+
+    def get_queryset(self):
+        collaborator = self._get_collaborator()
+        if not collaborator:
+            return ProcedureNotification.objects.none()
+        return (
+            ProcedureNotification.objects
+            .filter(recipient=collaborator, procedure__pharmacy=self.request.user)
+            .select_related('procedure')
+            .order_by('-created_at')[:50]
+        )
+
+    def list(self, request, *args, **kwargs):
+        qs = list(self.get_queryset())
+        data = [
+            {
+                'id': n.id,
+                'procedure_id': n.procedure_id,
+                'procedure_title': n.procedure.title,
+                'version_number': n.version_number,
+                'is_read': n.is_read,
+                'created_at': n.created_at,
+            }
+            for n in qs
+        ]
+        unread_count = sum(1 for n in data if not n['is_read'])
+        return Response({'results': data, 'unread_count': unread_count})
+
+    @action(detail=False, methods=['post'], url_path='mark-read')
+    def mark_read(self, request):
+        notif_ids = request.data.get('ids', [])
+        collaborator = self._get_collaborator()
+        if not collaborator:
+            return Response({'status': 'ok'})
+        qs = ProcedureNotification.objects.filter(
+            recipient=collaborator, procedure__pharmacy=request.user
+        )
+        if notif_ids:
+            qs = qs.filter(id__in=notif_ids)
+        qs.update(is_read=True)
+        return Response({'status': 'ok'})

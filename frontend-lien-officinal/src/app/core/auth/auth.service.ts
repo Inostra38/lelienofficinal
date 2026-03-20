@@ -174,6 +174,22 @@ export class AuthService {
 
   // ── Auth state ────────────────────────────────────────────────────────────
 
+  /**
+   * Vrai si l'utilisateur actuel peut gérer la qualité.
+   * - Accès direct pharmacie (titulaire) → toujours vrai
+   * - Collaborateur → lit le claim `can_manage_quality` du JWT
+   */
+  canManageQuality(): boolean {
+    const token = this.getToken();
+    if (!token) return false;
+    try {
+      const payload = JSON.parse(atob(token.split('.')[1]));
+      return payload.can_manage_quality === true;
+    } catch {
+      return false;
+    }
+  }
+
   getAuthType(): 'pharmacy_account' | 'collaborator' | null {
     const token = this.getToken();
     if (!token) return null;
