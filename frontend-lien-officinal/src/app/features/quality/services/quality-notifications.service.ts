@@ -20,7 +20,7 @@ export interface NotificationsResponse {
 @Injectable({ providedIn: 'root' })
 export class QualityNotificationsService {
   private http = inject(HttpClient);
-  private base = `${environment.apiUrl}/quality/notifications`;
+  private base = `${environment.apiUrl}/api/quality/notifications`;
 
   private _unreadCount = new BehaviorSubject<number>(0);
   unreadCount$ = this._unreadCount.asObservable();

@@ -23,6 +23,10 @@ interface TeamMember {
   can_manage_team: boolean;
   can_manage_planning: boolean;
   can_manage_quality: boolean;
+  can_manage_procedures: boolean;
+  can_publish_procedures: boolean;
+  can_close_nonconformities: boolean;
+  can_assign_task: boolean;
   is_active: boolean;
   archived_at: string | null;
 }
@@ -39,6 +43,10 @@ interface MemberFormData {
   can_manage_team: boolean;
   can_manage_planning: boolean;
   can_manage_quality: boolean;
+  can_manage_procedures: boolean;
+  can_publish_procedures: boolean;
+  can_close_nonconformities: boolean;
+  can_assign_task: boolean;
 }
 
 interface ColorOption {
@@ -150,6 +158,10 @@ export class TeamManagementComponent implements OnInit {
           can_manage_team: c.can_manage_team,
           can_manage_planning: c.can_manage_planning,
           can_manage_quality: c.can_manage_quality,
+          can_manage_procedures: c.can_manage_procedures,
+          can_publish_procedures: c.can_publish_procedures,
+          can_close_nonconformities: c.can_close_nonconformities,
+          can_assign_task: c.can_assign_task,
           is_active: c.is_active !== false,
           archived_at: c.archived_at ?? null,
         }));
@@ -208,6 +220,10 @@ export class TeamManagementComponent implements OnInit {
       can_manage_team: member.can_manage_team,
       can_manage_planning: member.can_manage_planning,
       can_manage_quality: member.can_manage_quality,
+      can_manage_procedures: member.can_manage_procedures,
+      can_publish_procedures: member.can_publish_procedures,
+      can_close_nonconformities: member.can_close_nonconformities,
+      can_assign_task: member.can_assign_task,
     };
     this.showGeneratedPin = false;
     this.showModal = true;
@@ -235,6 +251,10 @@ export class TeamManagementComponent implements OnInit {
       can_manage_team: false,
       can_manage_planning: false,
       can_manage_quality: false,
+      can_manage_procedures: false,
+      can_publish_procedures: false,
+      can_close_nonconformities: false,
+      can_assign_task: false,
     };
   }
 
@@ -262,6 +282,10 @@ export class TeamManagementComponent implements OnInit {
         can_manage_team: this.formData.can_manage_team,
         can_manage_planning: this.formData.can_manage_planning,
         can_manage_quality: this.formData.can_manage_quality,
+        can_manage_procedures: this.formData.can_manage_procedures,
+        can_publish_procedures: this.formData.can_publish_procedures,
+        can_close_nonconformities: this.formData.can_close_nonconformities,
+        can_assign_task: this.formData.can_assign_task,
         ...(this.formData.pin ? { pin: this.formData.pin } : {})
       };
       this.collaboratorService.updateCollaborator(parseInt(this.currentEditId), updateData).subscribe({
@@ -281,6 +305,10 @@ export class TeamManagementComponent implements OnInit {
         can_manage_team: this.formData.can_manage_team,
         can_manage_planning: this.formData.can_manage_planning,
         can_manage_quality: this.formData.can_manage_quality,
+        can_manage_procedures: this.formData.can_manage_procedures,
+        can_publish_procedures: this.formData.can_publish_procedures,
+        can_close_nonconformities: this.formData.can_close_nonconformities,
+        can_assign_task: this.formData.can_assign_task,
       };
       this.collaboratorService.createCollaborator(createData).subscribe({
         next: () => { this.closeModal(); this.loadTeamMembers(); this.isLoading = false; },
@@ -322,9 +350,27 @@ export class TeamManagementComponent implements OnInit {
     return member.id === String(this.activeCollaboratorId);
   }
 
+  /** Quand on décoche l'accès qualité, on retire les sous-permissions. */
+  onQualityMainChange() {
+    if (!this.formData.can_manage_quality) {
+      this.formData.can_manage_procedures = false;
+      this.formData.can_publish_procedures = false;
+      this.formData.can_close_nonconformities = false;
+    }
+  }
+
+  /** Quand on coche une sous-permission qualité, on active automatiquement l'accès. */
+  onQualitySubChange() {
+    if (this.formData.can_manage_procedures || this.formData.can_publish_procedures || this.formData.can_close_nonconformities) {
+      this.formData.can_manage_quality = true;
+    }
+  }
+
   hasAnyPermission(member: TeamMember): boolean {
     return member.can_manage_account || member.can_manage_team
-      || member.can_manage_planning || member.can_manage_quality;
+      || member.can_manage_planning || member.can_manage_quality
+      || member.can_manage_procedures || member.can_publish_procedures
+      || member.can_close_nonconformities || member.can_assign_task;
   }
 
   getColorClass(color: string): string {

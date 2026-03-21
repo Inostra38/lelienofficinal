@@ -59,6 +59,11 @@ export class PlanningComponent implements OnInit, OnDestroy {
   planningSettings: PlanningSettings | null = null;
   openingHours: OpeningHours[] = [];
 
+  // ── Filtrage collaborateurs (pills niveau 2) ───────────────────────────────
+  selectedCollaboratorIds: number[] = [];
+  showCollabDropdown = false;
+  readonly PILL_MAX = 4;
+
   ngOnInit() {
     this.currentWeekStr = this.toIsoWeek(this.currentMonday);
     this.planningService.getSettings().subscribe(s => { this.planningSettings = s; });
@@ -123,17 +128,91 @@ export class PlanningComponent implements OnInit, OnDestroy {
     this.showCollaboratorPicker = true;
   }
 
+  // ── Filtrage par pills ────────────────────────────────────────────────────
+
+  get isAllSelected(): boolean {
+    return this.selectedCollaboratorIds.length === 0;
+  }
+
+  isCollaboratorSelected(id: number): boolean {
+    return this.selectedCollaboratorIds.includes(id);
+  }
+
+  selectAll(): void {
+    this.selectedCollaboratorIds = [];
+  }
+
+  toggleCollaboratorFilter(id: number): void {
+    const idx = this.selectedCollaboratorIds.indexOf(id);
+    if (idx === -1) {
+      this.selectedCollaboratorIds = [...this.selectedCollaboratorIds, id];
+    } else {
+      this.selectedCollaboratorIds = this.selectedCollaboratorIds.filter(i => i !== id);
+    }
+  }
+
+  get filteredCollaboratorIds(): number[] | null {
+    return this.selectedCollaboratorIds.length > 0 ? [...this.selectedCollaboratorIds] : null;
+  }
+
+  get visibleTeamPills(): Collaborator[] {
+    return this.team.slice(0, this.PILL_MAX);
+  }
+
+  get overflowTeam(): Collaborator[] {
+    return this.team.slice(this.PILL_MAX);
+  }
+
+  hasOverflowSelected(): boolean {
+    return this.overflowTeam.some(c => this.selectedCollaboratorIds.includes(c.id!));
+  }
+
+  // ── Métriques ─────────────────────────────────────────────────────────────
+
+  get totalPlannedHours(): number {
+    if (!this.weekData) return 0;
+    const base = this.filteredCollaboratorIds
+      ? this.weekData.summary.filter(s => this.filteredCollaboratorIds!.includes(s.collaborator_id))
+      : this.weekData.summary;
+    return base.reduce((acc, s) => acc + (s.planned_h ?? 0), 0);
+  }
+
+  get absenceCount(): number {
+    if (!this.weekData) return 0;
+    const base = this.filteredCollaboratorIds
+      ? this.weekData.summary.filter(s => this.filteredCollaboratorIds!.includes(s.collaborator_id))
+      : this.weekData.summary;
+    return base.reduce((acc, s) => acc + (s.absences?.length ?? 0), 0);
+  }
+
   // ── Toggle vue ────────────────────────────────────────────────────────────
 
   setView(mode: 'week' | 'month') {
     this.viewMode = mode;
     if (mode === 'month') {
-      // Synchroniser le mois avec la semaine courante
       this.currentMonth = new Date(this.currentMonday.getFullYear(), this.currentMonday.getMonth(), 1);
       this.loadMonth();
     } else {
       this.loadWeek();
     }
+  }
+
+  /** Segmented control 3 états : 'week' | 'month' | '24h' */
+  setViewMode(mode: 'week' | 'month' | '24h'): void {
+    if (mode === 'month') {
+      this.setView('month');
+    } else if (mode === 'week') {
+      this.weekTimelineMode = 'zoom';
+      if (this.viewMode !== 'week') this.setView('week');
+    } else {
+      this.weekTimelineMode = '24h';
+      if (this.viewMode !== 'week') this.setView('week');
+    }
+  }
+
+  get currentViewMode(): 'week' | 'month' | '24h' {
+    if (this.viewMode === 'month') return 'month';
+    return this.weekTimelineMode === '24h' ? '24h' : 'week';
   }
 
   // ── Navigation semaine ────────────────────────────────────────────────────

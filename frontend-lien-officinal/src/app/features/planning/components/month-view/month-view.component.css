@@ -9,10 +9,28 @@
   overflow: auto;
 }
 
-.month-grid {
+.month-header-grid {
   display: grid;
-  grid-template-columns: repeat(7, 1fr);
+  grid-template-columns: 28px repeat(7, 1fr);
   gap: 6px;
+}
+
+.month-week-row {
+  display: grid;
+  grid-template-columns: 28px repeat(7, 1fr);
+  gap: 6px;
+  margin-bottom: 6px;
+}
+
+.week-num-cell {
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  padding-top: 8px;
+  font-size: 10px;
+  font-weight: 600;
+  color: #d1d5db;
+  user-select: none;
 }
 
 .month-cell {

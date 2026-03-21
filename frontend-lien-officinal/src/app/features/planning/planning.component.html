@@ -80,234 +80,291 @@
   <!-- ── Layout principal ── -->
   <div class="flex-1 flex flex-col overflow-hidden">
 
-    <!-- Header -->
-    <header class="no-print bg-white border-b border-gray-200 px-6 py-4 flex items-center justify-between shrink-0">
-      <div class="flex items-center gap-3">
-        <div class="w-8 h-8 bg-green-100 rounded-lg flex items-center justify-center">
-          <svg class="w-5 h-5 text-green-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+    <!-- ═══════════════════════════════════════════════════════════════════════
+         TOOLBAR NIVEAU 1 — Navigation + vue + actions globales
+    ════════════════════════════════════════════════════════════════════════ -->
+    <div class="no-print bg-white border-b border-gray-200 px-[14px] flex items-center gap-2 shrink-0 toolbar-l1">
+
+      <!-- ── Navigation semaine ── -->
+      <ng-container *ngIf="viewMode !== 'month'">
+        <button (click)="prevWeek()"
+                class="p-1.5 rounded-lg hover:bg-gray-100 text-gray-400 hover:text-gray-700 transition-colors shrink-0">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/>
+          </svg>
+        </button>
+        <div class="flex items-center gap-1.5">
+          <span class="text-[11px] text-gray-400 font-medium tabular-nums">S{{ currentWeekNumber }}</span>
+          <span class="week-label text-sm font-semibold text-gray-800">{{ getWeekLabel() }}</span>
+        </div>
+        <button (click)="nextWeek()"
+                class="p-1.5 rounded-lg hover:bg-gray-100 text-gray-400 hover:text-gray-700 transition-colors shrink-0">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
+          </svg>
+        </button>
+        <span *ngIf="weekData?.template_letter"
+              class="text-[11px] font-bold bg-indigo-100 text-indigo-700 rounded px-1.5 py-0.5 tracking-wide shrink-0">
+          Sem.&nbsp;{{ weekData!.template_letter }}
+        </span>
+        <button *ngIf="!isCurrentWeek()"
+                (click)="goToCurrentWeek()"
+                class="text-[11px] text-green-700 hover:text-green-800 font-semibold border border-green-200 rounded px-1.5 py-0.5 hover:bg-green-50 transition-colors shrink-0">
+          Aujourd'hui
+        </button>
+      </ng-container>
+
+      <!-- ── Navigation mois ── -->
+      <ng-container *ngIf="viewMode === 'month'">
+        <button (click)="prevMonth()"
+                class="p-1.5 rounded-lg hover:bg-gray-100 text-gray-400 hover:text-gray-700 transition-colors shrink-0">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/>
+          </svg>
+        </button>
+        <span class="text-sm font-semibold text-gray-800 capitalize whitespace-nowrap">{{ getMonthLabel() }}</span>
+        <button (click)="nextMonth()"
+                class="p-1.5 rounded-lg hover:bg-gray-100 text-gray-400 hover:text-gray-700 transition-colors shrink-0">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
+          </svg>
+        </button>
+      </ng-container>
+
+      <!-- ── Séparateur vertical ── -->
+      <div class="h-5 w-px bg-gray-200 mx-1 shrink-0"></div>
+
+      <!-- ── Segmented control : Vue 24h | Semaine | Mois (manager) ── -->
+      <div *ngIf="isManager" class="flex bg-gray-100 rounded-lg p-0.5 gap-0.5 shrink-0">
+        <button (click)="setViewMode('24h')"
+                class="px-2.5 py-1 rounded-md text-xs font-semibold transition-all"
+                [class.bg-white]="currentViewMode === '24h'"
+                [class.text-gray-800]="currentViewMode === '24h'"
+                [class.shadow-sm]="currentViewMode === '24h'"
+                [class.text-gray-500]="currentViewMode !== '24h'">
+          Vue 24h
+        </button>
+        <button (click)="setViewMode('week')"
+                class="px-2.5 py-1 rounded-md text-xs font-semibold transition-all"
+                [class.bg-white]="currentViewMode === 'week'"
+                [class.text-gray-800]="currentViewMode === 'week'"
+                [class.shadow-sm]="currentViewMode === 'week'"
+                [class.text-gray-500]="currentViewMode !== 'week'">
+          Semaine
+        </button>
+        <button (click)="setViewMode('month')"
+                class="px-2.5 py-1 rounded-md text-xs font-semibold transition-all"
+                [class.bg-white]="currentViewMode === 'month'"
+                [class.text-gray-800]="currentViewMode === 'month'"
+                [class.shadow-sm]="currentViewMode === 'month'"
+                [class.text-gray-500]="currentViewMode !== 'month'">
+          Mois
+        </button>
+      </div>
+
+      <!-- ── Segmented control : Ma semaine | Voir l'équipe (non-manager) ── -->
+      <div *ngIf="!isManager && activeCollaborator" class="flex bg-gray-100 rounded-lg p-0.5 gap-0.5 shrink-0">
+        <button (click)="showFullTeam = false"
+                class="px-2.5 py-1 rounded-md text-xs font-semibold transition-all"
+                [class.bg-white]="!showFullTeam"
+                [class.text-gray-800]="!showFullTeam"
+                [class.shadow-sm]="!showFullTeam"
+                [class.text-gray-500]="showFullTeam">
+          Ma semaine
+        </button>
+        <button (click)="showFullTeam = true"
+                class="px-2.5 py-1 rounded-md text-xs font-semibold transition-all"
+                [class.bg-white]="showFullTeam"
+                [class.text-gray-800]="showFullTeam"
+                [class.shadow-sm]="showFullTeam"
+                [class.text-gray-500]="!showFullTeam">
+          Voir l'équipe
+        </button>
+      </div>
+
+      <!-- ── Spacer ── -->
+      <div class="flex-1"></div>
+
+      <!-- ── Actions droite (managers) ── -->
+      <ng-container *ngIf="isManager">
+
+        <!-- Analytique -->
+        <button (click)="showAnalyticsPanel = true"
+                class="toolbar-action-btn"
+                title="Analytique">
+          <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                  d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/>
+          </svg>
+          <span>Analytique</span>
+        </button>
+
+        <!-- Templates IA -->
+        <button (click)="showTemplateModal = true"
+                class="toolbar-action-btn"
+                title="Templates IA">
+          <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                  d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"/>
+          </svg>
+          <span>Templates IA</span>
+        </button>
+
+        <!-- Imprimer (semaine uniquement) -->
+        <button *ngIf="viewMode === 'week' && weekData"
+                (click)="printWeek()"
+                class="toolbar-action-btn"
+                title="Imprimer">
+          <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                  d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"/>
+          </svg>
+          <span>Imprimer</span>
+        </button>
+
+        <!-- Absences (vue mois) -->
+        <button *ngIf="viewMode === 'month'"
+                (click)="showAbsenceModal = true"
+                class="toolbar-action-btn">
+          <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                   d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/>
           </svg>
-        </div>
-        <div>
-          <h1 class="text-lg font-bold text-gray-800">Planning</h1>
-          <p class="text-xs text-gray-400">
-            {{ viewMode === 'week' ? 'Vue hebdomadaire' : 'Vue mensuelle' }} de l'équipe
-          </p>
-        </div>
-      </div>
+          <span>Absences</span>
+        </button>
 
-      <div class="flex items-center gap-3">
-        <!-- Bouton paramètres (manager) -->
-        <button *ngIf="isManager"
-                (click)="showSettingsModal = true"
-                class="p-2 rounded-lg hover:bg-gray-100 text-gray-400 hover:text-gray-600 transition-colors"
+        <!-- Séparateur vertical -->
+        <div class="h-5 w-px bg-gray-200 mx-0.5 shrink-0"></div>
+
+        <!-- Déployer la semaine -->
+        <button *ngIf="viewMode === 'week' && hasUnpublishedShifts"
+                (click)="publishWeek()"
+                class="toolbar-deploy-btn">
+          <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                  d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
+          </svg>
+          Déployer la semaine
+        </button>
+
+        <!-- Dépublier la semaine -->
+        <button *ngIf="viewMode === 'week' && isWeekFullyPublished"
+                (click)="unpublishWeek()"
+                class="toolbar-action-btn border border-gray-300">
+          <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                  d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z"/>
+          </svg>
+          Dépublier
+        </button>
+
+        <!-- Paramètres -->
+        <button (click)="showSettingsModal = true"
+                class="p-1.5 rounded-lg hover:bg-gray-100 text-gray-400 hover:text-gray-600 transition-colors shrink-0"
                 title="Paramètres du planning">
-          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                   d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/>
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
           </svg>
         </button>
 
-        <!-- Bouton analytique (managers uniquement) -->
-        <button *ngIf="isManager"
-                (click)="showAnalyticsPanel = true"
-                style="background:#f0fdf4; border:1px solid #86efac; color:#15803d; padding:6px 14px; border-radius:10px; font-size:13px; font-weight:600; cursor:pointer;">
-          Analytique
-        </button>
+      </ng-container>
 
-        <!-- Bouton templates (managers uniquement) -->
-        <button *ngIf="isManager"
-                (click)="showTemplateModal = true"
-                style="background:#f0fdf4; border:1px solid #86efac; color:#15803d; padding:6px 14px; border-radius:10px; font-size:13px; font-weight:600; cursor:pointer; display:flex; align-items:center; gap:6px;">
-          <svg style="width:14px;height:14px;flex-shrink:0;" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                  d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"/>
-          </svg>
-          Templates IA
-        </button>
-
-        <!-- Toggle semaine / mois (managers uniquement) -->
-        <div *ngIf="isManager" class="flex bg-gray-100 rounded-lg p-0.5 gap-0.5">
-          <button (click)="setView('week')"
-                  class="px-3 py-1.5 rounded-md text-xs font-semibold transition-all"
-                  [class.bg-white]="viewMode === 'week'"
-                  [class.text-gray-800]="viewMode === 'week'"
-                  [class.shadow-sm]="viewMode === 'week'"
-                  [class.text-gray-500]="viewMode !== 'week'">
-            Semaine
-          </button>
-          <button (click)="setView('month')"
-                  class="px-3 py-1.5 rounded-md text-xs font-semibold transition-all"
-                  [class.bg-white]="viewMode === 'month'"
-                  [class.text-gray-800]="viewMode === 'month'"
-                  [class.shadow-sm]="viewMode === 'month'"
-                  [class.text-gray-500]="viewMode !== 'month'">
-            Mois
-          </button>
+      <!-- ── Session collaborateur (avatar compact) ── -->
+      <div *ngIf="activeCollaborator" class="flex items-center gap-1.5 ml-1 pl-2 border-l border-gray-200 shrink-0">
+        <div class="w-6 h-6 rounded-full text-white text-[11px] font-bold flex items-center justify-center shrink-0"
+             [ngClass]="getBgClass(activeCollaborator.color)">
+          {{ getInitials(activeCollaborator) }}
         </div>
-
-        <!-- Session collaborateur -->
-        <div *ngIf="activeCollaborator" class="flex items-center gap-2">
-          <!-- Bouton Ma semaine / Voir l'équipe (non-managers) -->
-          <button *ngIf="!isManager"
-                  (click)="showFullTeam = !showFullTeam"
-                  class="flex items-center gap-1.5 text-sm font-medium border rounded-xl px-3 py-1.5 transition-colors"
-                  [class.text-green-700]="showFullTeam"
-                  [class.border-green-300]="showFullTeam"
-                  [class.bg-green-50]="showFullTeam"
-                  [class.text-gray-600]="!showFullTeam"
-                  [class.border-gray-200]="!showFullTeam">
-            <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                    d="M17 20h5v-2a4 4 0 00-5.356-3.712M9 20H4v-2a4 4 0 015.356-3.712M15 7a4 4 0 11-8 0 4 4 0 018 0zm6 4a3 3 0 11-6 0 3 3 0 016 0zm-18 0a3 3 0 116 0 3 3 0 01-6 0z"/>
-            </svg>
-            {{ showFullTeam ? 'Ma semaine' : 'Voir l\'équipe' }}
-          </button>
-          <div class="flex items-center gap-2 bg-gray-50 border border-gray-200 rounded-xl px-3 py-1.5">
-            <div class="w-6 h-6 rounded-full text-white text-xs font-bold flex items-center justify-center"
-                 [ngClass]="getBgClass(activeCollaborator.color)">
-              {{ getInitials(activeCollaborator) }}
-            </div>
-            <span class="text-sm text-gray-700 font-medium">{{ activeCollaborator.first_name }}</span>
-          </div>
-          <button (click)="changeCollaborator()"
-                  class="text-xs text-gray-400 hover:text-red-500 transition-colors">
-            Changer
-          </button>
-        </div>
-      </div>
-    </header>
-
-    <!-- ── Barre navigation SEMAINE ── -->
-    <div *ngIf="viewMode === 'week'"
-         class="no-print bg-white border-b border-gray-200 px-6 py-3 flex items-center gap-4 shrink-0">
-      <button (click)="prevWeek()"
-              class="p-1.5 rounded-lg hover:bg-gray-100 text-gray-500 hover:text-gray-700 transition-colors">
-        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/>
-        </svg>
-      </button>
-
-      <div class="flex items-center gap-2">
-        <span class="text-sm font-semibold text-gray-800 min-w-[240px] text-center flex items-center justify-center gap-2">
-          <span class="text-gray-400 font-normal text-xs">S{{ currentWeekNumber }}</span>{{ getWeekLabel() }}
-          <span *ngIf="weekData?.template_letter"
-                class="text-xs font-bold bg-indigo-100 text-indigo-700 rounded-md px-2 py-0.5 tracking-wide">
-            Sem. {{ weekData!.template_letter }}
-          </span>
-        </span>
-        <button *ngIf="!isCurrentWeek()"
-                (click)="goToCurrentWeek()"
-                class="text-xs text-green-700 hover:text-green-800 font-medium border border-green-200 rounded-lg px-2 py-0.5 hover:bg-green-50 transition-colors">
-          Aujourd'hui
-        </button>
-      </div>
-
-      <button (click)="nextWeek()"
-              class="p-1.5 rounded-lg hover:bg-gray-100 text-gray-500 hover:text-gray-700 transition-colors">
-        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
-        </svg>
-      </button>
-
-      <div class="ml-auto flex items-center gap-2">
-        <!-- Bouton vue 24h / horaires -->
-        <button (click)="weekTimelineMode = weekTimelineMode === '24h' ? 'zoom' : '24h'"
-                class="flex items-center gap-1.5 text-sm font-medium border rounded-xl px-3 py-2 transition-colors"
-                [class.text-gray-600]="weekTimelineMode === '24h'"
-                [class.hover:text-gray-800]="weekTimelineMode === '24h'"
-                [class.border-gray-200]="weekTimelineMode === '24h'"
-                [class.hover:border-gray-300]="weekTimelineMode === '24h'"
-                [class.text-green-700]="weekTimelineMode === 'zoom'"
-                [class.border-green-300]="weekTimelineMode === 'zoom'"
-                [class.bg-green-50]="weekTimelineMode === 'zoom'">
-          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                  d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
-          </svg>
-          {{ weekTimelineMode === '24h' ? 'Vue horaires' : 'Vue 24h' }}
-        </button>
-        <!-- Bouton temps réel (ajustements horaires) -->
-        <button (click)="showAdjustmentsModal = true"
-                class="flex items-center gap-1.5 text-sm font-medium border rounded-xl px-3 py-2 transition-colors border-gray-200 text-gray-600 hover:border-gray-300 hover:text-gray-800">
-          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/>
-          </svg>
-          Temps réel
-        </button>
-        <!-- Bouton absences -->
-        <button (click)="showAbsenceModal = true"
-                class="flex items-center gap-1.5 text-sm font-medium text-gray-600 hover:text-gray-800 border border-gray-200 hover:border-gray-300 rounded-xl px-3 py-2 transition-colors">
-          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                  d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/>
-          </svg>
-          Absences
-        </button>
-        <!-- Bouton imprimer -->
-        <button *ngIf="weekData"
-                (click)="printWeek()"
-                class="flex items-center gap-1.5 text-sm font-medium text-gray-600 hover:text-gray-800 border border-gray-200 hover:border-gray-300 rounded-xl px-3 py-2 transition-colors">
-          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                  d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"/>
-          </svg>
-          Imprimer
-        </button>
-        <!-- Bouton publier (shifts non publiés existants) -->
-        <button *ngIf="isManager && hasUnpublishedShifts"
-                (click)="publishWeek()"
-                class="flex items-center gap-1.5 text-sm font-medium text-white bg-green-700 hover:bg-green-800 rounded-xl px-4 py-2 transition-colors">
-          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                  d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
-          </svg>
-          Publier la semaine
-        </button>
-        <!-- Bouton dépublier (tous les shifts sont publiés) -->
-        <button *ngIf="isManager && isWeekFullyPublished"
-                (click)="unpublishWeek()"
-                class="flex items-center gap-1.5 text-sm font-medium text-gray-600 hover:text-gray-800 border border-gray-300 hover:border-gray-400 rounded-xl px-4 py-2 transition-colors">
-          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                  d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z"/>
-          </svg>
-          Dépublier la semaine
+        <span class="text-xs text-gray-700 font-medium">{{ activeCollaborator.first_name }}</span>
+        <button (click)="changeCollaborator()"
+                class="text-[11px] text-gray-400 hover:text-red-500 transition-colors">
+          Changer
         </button>
       </div>
     </div>
 
-    <!-- ── Barre navigation MOIS ── -->
-    <div *ngIf="viewMode === 'month'"
-         class="no-print bg-white border-b border-gray-200 px-6 py-3 flex items-center gap-4 shrink-0">
-      <button (click)="prevMonth()"
-              class="p-1.5 rounded-lg hover:bg-gray-100 text-gray-500 hover:text-gray-700 transition-colors">
-        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/>
-        </svg>
+    <!-- ═══════════════════════════════════════════════════════════════════════
+         TOOLBAR NIVEAU 2 — Filtres collaborateurs + métriques (semaine seule)
+    ════════════════════════════════════════════════════════════════════════ -->
+    <div *ngIf="viewMode === 'week' && isManager"
+         class="no-print border-b border-gray-200 px-[14px] flex items-center gap-1.5 shrink-0 toolbar-l2">
+
+      <!-- Label -->
+      <span class="text-[11px] font-semibold text-gray-400 uppercase tracking-wide mr-1 shrink-0">Afficher :</span>
+
+      <!-- Pill "Tous" -->
+      <button (click)="selectAll()"
+              class="collab-pill"
+              [class.collab-pill--active]="isAllSelected">
+        <span>Tous</span>
+        <span class="collab-pill-badge">{{ team.length }}</span>
       </button>
 
-      <span class="text-sm font-semibold text-gray-800 min-w-[200px] text-center capitalize">
-        {{ getMonthLabel() }}
-      </span>
-
-      <button (click)="nextMonth()"
-              class="p-1.5 rounded-lg hover:bg-gray-100 text-gray-500 hover:text-gray-700 transition-colors">
-        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
-        </svg>
+      <!-- Pills collaborateurs (max PILL_MAX) -->
+      <button *ngFor="let c of visibleTeamPills"
+              (click)="toggleCollaboratorFilter(c.id!)"
+              class="collab-pill"
+              [class.collab-pill--active]="isCollaboratorSelected(c.id!)">
+        <div class="collab-pill-avatar"
+             [ngClass]="getBgClass(c.color)">
+          {{ getInitials(c) }}
+        </div>
+        <span>{{ c.first_name }}</span>
       </button>
 
-      <button (click)="showAbsenceModal = true"
-              class="ml-auto flex items-center gap-1.5 text-sm font-medium text-gray-600 hover:text-gray-800 border border-gray-200 hover:border-gray-300 rounded-xl px-3 py-2 transition-colors">
-        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/>
-        </svg>
-        Absences
-      </button>
+      <!-- Overflow "+N autres" -->
+      <div *ngIf="overflowTeam.length > 0" class="relative">
+        <button (click)="showCollabDropdown = !showCollabDropdown"
+                class="collab-pill"
+                [class.collab-pill--active]="hasOverflowSelected()">
+          +{{ overflowTeam.length }} autres
+          <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
+          </svg>
+        </button>
+        <div *ngIf="showCollabDropdown"
+             class="absolute top-full left-0 mt-1 bg-white border border-gray-200 rounded-xl shadow-lg z-20 py-1 min-w-[160px]">
+          <button *ngFor="let c of overflowTeam"
+                  (click)="toggleCollaboratorFilter(c.id!)"
+                  class="w-full flex items-center gap-2 px-3 py-2 text-xs hover:bg-gray-50 transition-colors"
+                  [class.text-blue-700]="isCollaboratorSelected(c.id!)"
+                  [class.font-semibold]="isCollaboratorSelected(c.id!)">
+            <div class="w-5 h-5 rounded-full text-white text-[10px] font-bold flex items-center justify-center shrink-0"
+                 [ngClass]="getBgClass(c.color)">
+              {{ getInitials(c) }}
+            </div>
+            {{ c.first_name }} {{ c.last_name }}
+            <svg *ngIf="isCollaboratorSelected(c.id!)" class="w-3 h-3 ml-auto text-blue-600" fill="currentColor" viewBox="0 0 20 20">
+              <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"/>
+            </svg>
+          </button>
+        </div>
+      </div>
+
+      <!-- Spacer -->
+      <div class="flex-1"></div>
+
+      <!-- Métriques + Temps réel -->
+      <div class="flex items-center gap-3 shrink-0">
+        <span class="text-[11px] text-gray-500">
+          Absences : <strong class="text-gray-700 font-semibold">{{ absenceCount }}</strong>
+        </span>
+        <div class="h-3 w-px bg-gray-200"></div>
+        <span class="text-[11px] text-gray-500">
+          Heures : <strong class="text-gray-700 font-semibold">{{ totalPlannedHours.toFixed(1) }}h</strong>
+        </span>
+        <div class="h-3 w-px bg-gray-200"></div>
+        <button (click)="showAdjustmentsModal = true"
+                class="flex items-center gap-1.5 text-[11px] font-medium text-gray-500 hover:text-gray-700 transition-colors">
+          <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                  d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/>
+          </svg>
+          Saisie rapide
+        </button>
+      </div>
     </div>
 
     <!-- Contenu -->
@@ -328,6 +385,7 @@
         [openingHours]="openingHours"
         [timelineMode]="weekTimelineMode"
         [showFullTeam]="showFullTeam"
+        [filteredCollaboratorIds]="filteredCollaboratorIds"
         (shiftChanged)="onShiftChanged()">
       </app-week-view>
 

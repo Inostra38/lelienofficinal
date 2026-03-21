@@ -412,6 +412,10 @@ export class PlanningService {
     return this.http.delete<void>(`${this.apiUrl}/templates/${letter}/shifts/${id}/`);
   }
 
+  bulkReplaceTemplateShifts(letter: string, shifts: CreateTemplateShiftDto[]): Observable<TemplateShift[]> {
+    return this.http.post<TemplateShift[]>(`${this.apiUrl}/templates/${letter}/bulk-replace/`, shifts);
+  }
+
   applyTemplate(letter: string, week: string, force = false): Observable<{ created: number; skipped: number; replaced: number; absence_protected: number; day_protected: number; week_start: string }> {
     return this.http.post<{ created: number; skipped: number; replaced: number; absence_protected: number; day_protected: number; week_start: string }>(
       `${this.apiUrl}/templates/${letter}/apply/`,

@@ -3,6 +3,7 @@ import {
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
+import { HttpErrorResponse } from '@angular/common/http';
 import { PlanningService, ChatMessage } from '../../../../core/services/planning.service';
 import { Collaborator } from '../../../../core/services/collaborator.service';
 
@@ -26,6 +27,7 @@ export class TemplateAiAssistantComponent implements AfterViewChecked {
   conversation: ChatMessage[] = [];
   userInput = '';
   isLoading = false;
+  errorMessage = '';
   currentTemplate: any = null;
   private shouldScrollToBottom = false;
 
@@ -49,6 +51,7 @@ export class TemplateAiAssistantComponent implements AfterViewChecked {
     }
     this.isLoading = true;
 
+    this.errorMessage = '';
     this.planningService.generateTemplate(this.rotation, this.conversation).subscribe({
       next: (res) => {
         this.conversation    = res.conversation;
@@ -56,7 +59,16 @@ export class TemplateAiAssistantComponent implements AfterViewChecked {
         this.isLoading       = false;
         this.shouldScrollToBottom = true;
       },
-      error: () => { this.isLoading = false; }
+      error: (err: HttpErrorResponse) => {
+        this.isLoading = false;
+        if (err.status === 429) {
+          this.errorMessage = err.error?.detail ?? 'Limite atteinte. Réessayez dans une heure.';
+        } else if (err.status === 502) {
+          this.errorMessage = err.error?.detail ?? "La réponse de l'IA n'a pas pu être interprétée. Réessayez ou reformulez votre demande.";
+        } else {
+          this.errorMessage = 'Une erreur est survenue. Veuillez réessayer.';
+        }
+      }
     });
   }
 

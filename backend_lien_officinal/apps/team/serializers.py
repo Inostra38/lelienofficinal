@@ -1,7 +1,10 @@
 from rest_framework import serializers
 from .models import Collaborator
 
-PERMISSION_FIELDS = ['can_manage_account', 'can_manage_team', 'can_manage_planning', 'can_manage_quality']
+PERMISSION_FIELDS = [
+    'can_manage_account', 'can_manage_team', 'can_manage_planning', 'can_manage_quality',
+    'can_manage_procedures', 'can_publish_procedures', 'can_close_nonconformities', 'can_assign_task',
+]
 
 
 class CollaboratorSerializer(serializers.ModelSerializer):
@@ -14,6 +17,7 @@ class CollaboratorSerializer(serializers.ModelSerializer):
             'id', 'civility', 'first_name', 'last_name', 'role', 'email', 'color',
             'is_active', 'archived_at', 'created_at', 'pin',
             'can_manage_account', 'can_manage_team', 'can_manage_planning', 'can_manage_quality',
+            'can_manage_procedures', 'can_publish_procedures', 'can_close_nonconformities', 'can_assign_task',
             'contract_type', 'weekly_hours',
         ]
         read_only_fields = ['id', 'created_at', 'archived_at']
@@ -45,6 +49,7 @@ class CollaboratorCreateSerializer(serializers.ModelSerializer):
         fields = [
             'civility', 'first_name', 'last_name', 'role', 'email', 'color', 'pin',
             'can_manage_account', 'can_manage_team', 'can_manage_planning', 'can_manage_quality',
+            'can_manage_procedures', 'can_publish_procedures', 'can_close_nonconformities', 'can_assign_task',
         ]
 
     def create(self, validated_data):

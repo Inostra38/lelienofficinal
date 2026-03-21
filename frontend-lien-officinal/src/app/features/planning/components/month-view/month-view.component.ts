@@ -239,6 +239,25 @@ export class MonthViewComponent implements OnChanges {
     return '';
   }
 
+  get calendarRows(): { weekNumber: number; days: MonthDay[] }[] {
+    const days = this.calendarDays;
+    const rows: { weekNumber: number; days: MonthDay[] }[] = [];
+    for (let i = 0; i < days.length; i += 7) {
+      rows.push({
+        weekNumber: this.getIsoWeekNumber(days[i].date),
+        days: days.slice(i, i + 7),
+      });
+    }
+    return rows;
+  }
+
+  getIsoWeekNumber(d: Date): number {
+    const date = new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()));
+    date.setUTCDate(date.getUTCDate() + 4 - (date.getUTCDay() || 7));
+    const yearStart = new Date(Date.UTC(date.getUTCFullYear(), 0, 1));
+    return Math.ceil((((date.getTime() - yearStart.getTime()) / 86400000) + 1) / 7);
+  }
+
   onDayClick(day: MonthDay) {
     if (day.isCurrentMonth) {
       this.dayClicked.emit(day.date);

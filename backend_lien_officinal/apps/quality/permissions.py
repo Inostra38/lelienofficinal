@@ -102,8 +102,9 @@ class CanManageQuality(BasePermission):
 
 class CanEditProcedure(BasePermission):
     """
-    Autorise si l'utilisateur peut gérer la qualité OU est pilote de la procédure.
-    Pour la création (pas d'objet), seul CanManageQuality s'applique.
+    Autorise si l'utilisateur peut éditer des procédures (can_manage_procedures)
+    OU est pilote de la procédure (vérification au niveau objet).
+    can_manage_quality seul ne suffit pas pour éditer une procédure dont on n'est pas pilote.
     """
 
     def has_permission(self, request, view):
@@ -112,11 +113,11 @@ class CanEditProcedure(BasePermission):
         collaborator = _get_collaborator(request, request.user)
         if collaborator is None:
             return False
-        # Gérant qualité → autorisé à vue-level
-        if collaborator.role == 'Titulaire' or collaborator.can_manage_quality:
+        # Gestionnaire procédures → accès complet
+        if collaborator.role == 'Titulaire' or collaborator.can_manage_procedures:
             return True
-        # Pilote potentiel → on laisse passer pour vérification objet
-        return True
+        # Pilote potentiel (can_manage_quality) → laisse passer pour vérification objet
+        return bool(collaborator.can_manage_quality)
 
     def has_object_permission(self, request, view, obj):
         if _is_direct_pharmacy_access(request):
@@ -124,7 +125,7 @@ class CanEditProcedure(BasePermission):
         collaborator = _get_collaborator(request, request.user)
         if collaborator is None:
             return False
-        if collaborator.role == 'Titulaire' or collaborator.can_manage_quality:
+        if collaborator.role == 'Titulaire' or collaborator.can_manage_procedures:
             return True
         return obj.pilots.filter(id=collaborator.id).exists()
 

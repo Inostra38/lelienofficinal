@@ -36,6 +36,10 @@ export const authInterceptor: HttpInterceptorFn = (req, next) => {
       if (err.status === 403 && req.url.includes('/api/quality/')) {
         toastService.error('Action non autorisée : permission insuffisante.');
       }
+      if (err.status === 429) {
+        const detail = err.error?.detail ?? 'Trop de requêtes. Réessayez dans un moment.';
+        toastService.error(detail);
+      }
       return throwError(() => err);
     })
   );

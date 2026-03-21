@@ -194,7 +194,14 @@ class CollaboratorViewSet(viewsets.ModelViewSet):
         refresh = RefreshToken.for_user(request.user)
         refresh['auth_type'] = 'collaborator'
         refresh['collaborator_id'] = collaborator.id
+        refresh['can_manage_account'] = collaborator.can_manage_account
+        refresh['can_manage_team'] = collaborator.can_manage_team
+        refresh['can_manage_planning'] = collaborator.can_manage_planning
         refresh['can_manage_quality'] = collaborator.can_manage_quality
+        refresh['can_manage_procedures'] = collaborator.can_manage_procedures
+        refresh['can_publish_procedures'] = collaborator.can_publish_procedures
+        refresh['can_close_nonconformities'] = collaborator.can_close_nonconformities
+        refresh['can_assign_task'] = collaborator.can_assign_task
 
         return Response({
             'access': str(refresh.access_token),

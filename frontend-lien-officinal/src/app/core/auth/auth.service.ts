@@ -180,11 +180,31 @@ export class AuthService {
    * - Collaborateur → lit le claim `can_manage_quality` du JWT
    */
   canManageQuality(): boolean {
+    return this._getClaim('can_manage_quality');
+  }
+
+  canManagePlanning(): boolean {
+    return this._getClaim('can_manage_planning');
+  }
+
+  canManageAccount(): boolean {
+    return this._getClaim('can_manage_account');
+  }
+
+  canManageTeam(): boolean {
+    return this._getClaim('can_manage_team');
+  }
+
+  canAssignTask(): boolean {
+    return this._getClaim('can_assign_task');
+  }
+
+  private _getClaim(claim: string): boolean {
     const token = this.getToken();
     if (!token) return false;
     try {
       const payload = JSON.parse(atob(token.split('.')[1]));
-      return payload.can_manage_quality === true;
+      return payload[claim] === true;
     } catch {
       return false;
     }

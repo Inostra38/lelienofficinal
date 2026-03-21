@@ -5,3 +5,126 @@
   height: 100%;
   overflow: hidden;
 }
+
+/* ── Toolbar niveau 1 ────────────────────────────────────────────────────── */
+.toolbar-l1 {
+  height: 44px;
+}
+
+/* Bouton action standard (Analytique, Templates IA, Imprimer) */
+.toolbar-action-btn {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  padding: 5px 10px;
+  border-radius: 8px;
+  font-size: 12px;
+  font-weight: 500;
+  color: #4b5563;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s;
+  white-space: nowrap;
+}
+.toolbar-action-btn:hover {
+  background: #f3f4f6;
+  color: #111827;
+}
+
+/* Bouton "Déployer la semaine" — vert clair branded */
+.toolbar-deploy-btn {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  padding: 5px 12px;
+  border-radius: 8px;
+  font-size: 12px;
+  font-weight: 600;
+  background: #EAF3DE;
+  border: 1px solid #639922;
+  color: #27500A;
+  cursor: pointer;
+  transition: background 0.15s;
+  white-space: nowrap;
+}
+.toolbar-deploy-btn:hover {
+  background: #d8ecc4;
+}
+
+/* Label semaine — largeur fixe pour stabiliser les flèches ‹ › */
+.week-label {
+  width: 172px;
+  text-align: center;
+  flex-shrink: 0;
+  white-space: nowrap;
+}
+
+/* ── Toolbar niveau 2 ────────────────────────────────────────────────────── */
+.toolbar-l2 {
+  height: 36px;
+  background: #f9fafb;
+}
+
+/* Pills collaborateurs */
+.collab-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 3px 9px 3px 6px;
+  border-radius: 999px;
+  border: 1px solid #e5e7eb;
+  background: #ffffff;
+  font-size: 11px;
+  font-weight: 500;
+  color: #374151;
+  cursor: pointer;
+  transition: background 0.12s, border-color 0.12s, color 0.12s;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+.collab-pill:hover {
+  background: #f3f4f6;
+  border-color: #d1d5db;
+}
+.collab-pill--active {
+  background: #eff6ff;
+  border-color: #93c5fd;
+  color: #1d4ed8;
+}
+.collab-pill--active:hover {
+  background: #dbeafe;
+}
+
+/* Avatar dans les pills */
+.collab-pill-avatar {
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  color: white;
+  font-size: 9px;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+/* Badge compteur dans la pill "Tous" */
+.collab-pill-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 16px;
+  height: 16px;
+  padding: 0 4px;
+  border-radius: 999px;
+  background: #e5e7eb;
+  color: #374151;
+  font-size: 10px;
+  font-weight: 600;
+}
+.collab-pill--active .collab-pill-badge {
+  background: #bfdbfe;
+  color: #1e40af;
+}

@@ -11,6 +11,10 @@ export interface CollaboratorPermissions {
   can_manage_team: boolean;
   can_manage_planning: boolean;
   can_manage_quality: boolean;
+  can_manage_procedures: boolean;
+  can_publish_procedures: boolean;
+  can_close_nonconformities: boolean;
+  can_assign_task: boolean;
 }
 
 export interface Collaborator extends CollaboratorPermissions {
@@ -41,6 +45,10 @@ export interface CollaboratorCreate {
   can_manage_team?: boolean;
   can_manage_planning?: boolean;
   can_manage_quality?: boolean;
+  can_manage_procedures?: boolean;
+  can_publish_procedures?: boolean;
+  can_close_nonconformities?: boolean;
+  can_assign_task?: boolean;
 }
 
 @Injectable({

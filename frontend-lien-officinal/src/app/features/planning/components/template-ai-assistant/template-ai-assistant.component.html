@@ -59,6 +59,13 @@
       </div>
     </ng-container>
 
+    <!-- Error message -->
+    <div *ngIf="errorMessage" class="flex justify-start">
+      <div class="bg-red-50 border border-red-200 text-red-700 text-xs px-4 py-3 rounded-2xl rounded-bl-sm max-w-[85%]">
+        {{ errorMessage }}
+      </div>
+    </div>
+
     <!-- Loading dots -->
     <div *ngIf="isLoading" class="flex justify-start">
       <div class="bg-gray-50 px-4 py-3 rounded-2xl rounded-bl-sm flex gap-1.5">

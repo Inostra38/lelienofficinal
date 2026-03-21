@@ -14,6 +14,8 @@ import { authGuard } from './core/auth/auth.guard';
 import { noAuthGuard } from './core/auth/no-auth.guard';
 import { onboardingGuard } from './core/auth/onboarding.guard';
 import { qualityManagerGuard } from './core/auth/quality-manager.guard';
+import { planningManagerGuard } from './core/auth/planning-manager.guard';
+import { taskAssignerGuard } from './core/auth/task-assigner.guard';
 import { ProcedureEditorComponent } from './features/quality/components/procedure-editor/procedure-editor.component';
 import { ProcedureDetailComponent } from './features/quality/components/procedure-detail/procedure-detail.component';
 import { NcListComponent } from './features/quality/components/nc-list/nc-list.component';

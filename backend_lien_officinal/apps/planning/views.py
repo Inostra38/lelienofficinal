@@ -4,6 +4,8 @@ import json
 
 import anthropic as anthropic_sdk
 from django.conf import settings as django_settings
+from django.core.exceptions import ValidationError
+from django.db import transaction
 from django.db.models import Q
 from django.utils import timezone
 from rest_framework import status
@@ -691,6 +693,51 @@ class TemplateShiftDetailView(APIView):
         return Response(status=status.HTTP_204_NO_CONTENT)
 
 
+class TemplateBulkReplaceView(APIView):
+    """
+    POST /api/planning/templates/{letter}/bulk-replace/
+    Body : [{"collaborator_id": 1, "day_of_week": 0, "start_time": "08:00", "end_time": "16:00", "note": ""}, ...]
+    Supprime tous les TemplateShifts existants pour cette lettre, recrée en transaction atomique.
+    """
+    authentication_classes = [JWTAuthentication]
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request, letter):
+        actor = _get_collaborator(request)
+        if actor and not actor.can_manage_planning:
+            return Response({'detail': 'Permission insuffisante.'}, status=status.HTTP_403_FORBIDDEN)
+
+        items = request.data
+        if not isinstance(items, list):
+            return Response({'detail': 'Liste de shifts attendue.'}, status=status.HTTP_400_BAD_REQUEST)
+
+        letter_upper = letter.upper()
+
+        with transaction.atomic():
+            template, _ = WeekTemplate.objects.get_or_create(
+                pharmacy=request.user, letter=letter_upper
+            )
+            template.shifts.all().delete()
+
+            created = []
+            for item in items:
+                collab_id = item.get('collaborator_id')
+                try:
+                    collaborator = Collaborator.objects.get(id=int(collab_id), pharmacy=request.user, is_active=True)
+                except (Collaborator.DoesNotExist, ValueError, TypeError):
+                    return Response(
+                        {'detail': f'Collaborateur {collab_id} introuvable.'},
+                        status=status.HTTP_400_BAD_REQUEST,
+                    )
+                serializer = TemplateShiftSerializer(data=item)
+                if not serializer.is_valid():
+                    return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+                shift = serializer.save(template=template, collaborator=collaborator)
+                created.append(shift)
+
+        return Response(TemplateShiftSerializer(created, many=True).data, status=status.HTTP_201_CREATED)
+
+
 class TemplateApplyView(APIView):
     """POST /api/planning/templates/{letter}/apply/  { week: '2025-W12' }"""
     authentication_classes = [JWTAuthentication]
@@ -760,13 +807,22 @@ class TemplateApplyView(APIView):
             start_dt = timezone.make_aware(dt.combine(target_date, tshift.start_time), tz)
             end_dt   = timezone.make_aware(dt.combine(target_date, tshift.end_time), tz)
 
-            Shift(
+            shift = Shift(
                 collaborator=tshift.collaborator,
                 start_datetime=start_dt,
                 end_datetime=end_dt,
                 is_published=False,
                 note=tshift.note or '',
-            ).save(bypass_validation=True)
+            )
+            try:
+                shift.save()
+            except ValidationError as e:
+                collab_name = f"{tshift.collaborator.first_name} {tshift.collaborator.last_name}"
+                return Response({
+                    'error': e.messages[0] if e.messages else str(e),
+                    'shift_date': str(target_date),
+                    'collaborator': collab_name,
+                }, status=status.HTTP_400_BAD_REQUEST)
             created += 1
 
         WeekTemplateApplication.objects.update_or_create(
@@ -779,6 +835,87 @@ class TemplateApplyView(APIView):
 
 
 # ── OpeningHours ───────────────────────────────────────────────────────────────
+
+class BulkShiftUpdateView(APIView):
+    """
+    POST /api/planning/templates/<letter>/apply-bulk/
+    Body : [{"date": "2026-03-19", "collaborator_id": 12, "start": "08:00", "end": "16:00", "post": "comptoir"}, ...]
+    Supprime tous les shifts existants sur les dates reçues, recrée en transaction atomique.
+    """
+    authentication_classes = [JWTAuthentication]
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request, letter):
+        actor = _get_collaborator(request)
+        if actor and not actor.can_manage_planning:
+            return Response({'detail': 'Permission insuffisante.'}, status=status.HTTP_403_FORBIDDEN)
+
+        items = request.data
+        if not isinstance(items, list) or not items:
+            return Response({'detail': 'Liste de shifts attendue.'}, status=status.HTTP_400_BAD_REQUEST)
+
+        from datetime import datetime as dt
+        from zoneinfo import ZoneInfo
+        tz = ZoneInfo('Europe/Paris')
+
+        # Collecter toutes les dates couvertes
+        try:
+            dates = list({date.fromisoformat(item['date']) for item in items})
+        except (KeyError, ValueError) as e:
+            return Response({'detail': f'Format de date invalide : {e}'}, status=status.HTTP_400_BAD_REQUEST)
+
+        with transaction.atomic():
+            # Supprimer tous les shifts existants sur ces dates pour cette pharmacie
+            Shift.objects.filter(
+                collaborator__pharmacy=request.user,
+                start_datetime__date__in=dates,
+            ).delete()
+
+            created_shifts = []
+            for item in items:
+                try:
+                    collab_id  = item['collaborator_id']
+                    shift_date = date.fromisoformat(item['date'])
+                    start_time = dt.strptime(item['start'], '%H:%M').time()
+                    end_time   = dt.strptime(item['end'], '%H:%M').time()
+                except (KeyError, ValueError) as e:
+                    return Response(
+                        {'detail': f'Données invalides dans le shift : {e}'},
+                        status=status.HTTP_400_BAD_REQUEST,
+                    )
+
+                try:
+                    collaborator = Collaborator.objects.get(id=collab_id, pharmacy=request.user)
+                except Collaborator.DoesNotExist:
+                    return Response(
+                        {'detail': f'Collaborateur {collab_id} introuvable ou non autorisé.'},
+                        status=status.HTTP_400_BAD_REQUEST,
+                    )
+
+                start_dt = timezone.make_aware(dt.combine(shift_date, start_time), tz)
+                end_dt   = timezone.make_aware(dt.combine(shift_date, end_time), tz)
+
+                shift = Shift(
+                    collaborator=collaborator,
+                    start_datetime=start_dt,
+                    end_datetime=end_dt,
+                    is_published=False,
+                    note=item.get('post', '') or item.get('note', ''),
+                )
+                try:
+                    shift.save()
+                except ValidationError as e:
+                    collab_name = f"{collaborator.first_name} {collaborator.last_name}"
+                    return Response({
+                        'error': e.messages[0] if e.messages else str(e),
+                        'shift_date': str(shift_date),
+                        'collaborator': collab_name,
+                    }, status=status.HTTP_400_BAD_REQUEST)
+
+                created_shifts.append(shift)
+
+        return Response(ShiftSerializer(created_shifts, many=True).data)
+
 
 class OpeningHoursView(APIView):
     """
@@ -1070,6 +1207,20 @@ class GenerateTemplateView(APIView):
     authentication_classes = [JWTAuthentication]
 
     def post(self, request):
+        from django_ratelimit.core import is_ratelimited
+        limited = is_ratelimited(
+            request,
+            fn=GenerateTemplateView.post,
+            key='user',
+            rate='10/h',
+            method='POST',
+            increment=True,
+        )
+        if limited:
+            return Response(
+                {'detail': 'Limite atteinte : 10 générations IA par heure. Réessayez plus tard.'},
+                status=status.HTTP_429_TOO_MANY_REQUESTS,
+            )
         rotation     = int(request.data.get('rotation', 2))
         conversation = request.data.get('conversation', [])
 
@@ -1182,22 +1333,23 @@ Inclure uniquement les semaines {rotation_label}.
         client = anthropic_sdk.Anthropic(api_key=api_key)
         ai_response = client.messages.create(
             model="claude-haiku-4-5-20251001",
-            max_tokens=4000,
+            max_tokens=8000,
             system=system_prompt,
             messages=messages,
         )
 
         assistant_message = ai_response.content[0].text
 
-        template_json = None
+        from .utils import parse_ai_planning_response, AIParseError
         try:
-            json_start = assistant_message.find('```json')
-            json_end   = assistant_message.find('```', json_start + 7)
-            if json_start != -1 and json_end != -1:
-                json_str      = assistant_message[json_start + 7:json_end].strip()
-                template_json = json.loads(json_str)
-        except (json.JSONDecodeError, ValueError):
-            pass
+            template_json = parse_ai_planning_response(assistant_message)
+        except AIParseError as exc:
+            import logging
+            logging.getLogger(__name__).error("AI parse error: %s\nRaw response: %s", exc, assistant_message)
+            return Response(
+                {"detail": f"La réponse de l'IA n'a pas pu être interprétée : {exc}"},
+                status=status.HTTP_502_BAD_GATEWAY,
+            )
 
         return Response({
             "message":      assistant_message,

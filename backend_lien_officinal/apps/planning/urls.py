@@ -17,6 +17,8 @@ from .views import (
     TemplateShiftListCreateView,
     TemplateShiftDetailView,
     TemplateApplyView,
+    TemplateBulkReplaceView,
+    BulkShiftUpdateView,
     OpeningHoursView,
     OpeningHoursDetailView,
     TimeAdjustmentListCreateView,
@@ -62,6 +64,8 @@ urlpatterns = [
     path('planning/templates/<str:letter>/shifts/', TemplateShiftListCreateView.as_view(), name='template-shift-list'),
     path('planning/templates/<str:letter>/shifts/<int:pk>/', TemplateShiftDetailView.as_view(), name='template-shift-detail'),
     path('planning/templates/<str:letter>/apply/', TemplateApplyView.as_view(), name='template-apply'),
+    path('planning/templates/<str:letter>/apply-bulk/', BulkShiftUpdateView.as_view(), name='template-apply-bulk'),
+    path('planning/templates/<str:letter>/bulk-replace/', TemplateBulkReplaceView.as_view(), name='template-bulk-replace'),
 
     # Ajustements horaires
     path('planning/adjustments/', TimeAdjustmentListCreateView.as_view(), name='adjustment-list-create'),

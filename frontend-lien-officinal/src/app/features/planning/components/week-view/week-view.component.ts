@@ -57,12 +57,23 @@ export class WeekViewComponent {
   // ── Vue filtrée (staff voit uniquement sa ligne, ou toute l'équipe) ─────────
 
   @Input() showFullTeam = false;
+  @Input() filteredCollaboratorIds: number[] | null = null;
 
   get visibleSummary(): CollaboratorWeekSummary[] {
-    if (this.isManager) return this.weekData.summary;
-    if (this.activeCollaboratorId == null) return [];
-    if (this.showFullTeam) return this.weekData.summary;
-    return this.weekData.summary.filter(s => s.collaborator_id === this.activeCollaboratorId);
+    let base: CollaboratorWeekSummary[];
+    if (this.isManager) {
+      base = this.weekData.summary;
+    } else if (this.activeCollaboratorId == null) {
+      return [];
+    } else if (this.showFullTeam) {
+      base = this.weekData.summary;
+    } else {
+      base = this.weekData.summary.filter(s => s.collaborator_id === this.activeCollaboratorId);
+    }
+    if (this.filteredCollaboratorIds !== null && this.filteredCollaboratorIds.length > 0) {
+      return base.filter(s => this.filteredCollaboratorIds!.includes(s.collaborator_id));
+    }
+    return base;
   }
 
   // ── Jours de la semaine ────────────────────────────────────────────────────

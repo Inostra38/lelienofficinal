@@ -1,16 +1,22 @@
 <div class="month-grid-wrapper p-4" (click)="closePopup()">
 
   <!-- En-têtes jours -->
-  <div class="month-grid mb-1">
+  <div class="month-header-grid mb-1">
+    <div></div><!-- colonne numéro de semaine -->
     <div *ngFor="let label of DAY_LABELS"
          class="text-center text-xs font-semibold text-gray-400 uppercase tracking-wide py-2">
       {{ label }}
     </div>
   </div>
 
-  <!-- Cases du calendrier -->
-  <div class="month-grid">
-    <div *ngFor="let day of calendarDays"
+  <!-- Lignes du calendrier -->
+  <div *ngFor="let row of calendarRows" class="month-week-row">
+
+    <!-- Numéro de semaine -->
+    <div class="week-num-cell">S{{ row.weekNumber }}</div>
+
+    <!-- Cases du calendrier -->
+    <div *ngFor="let day of row.days"
          class="month-cell rounded-xl border transition-all relative"
          [class.opacity-30]="!day.isCurrentMonth"
          [class.pointer-events-none]="!day.isCurrentMonth"

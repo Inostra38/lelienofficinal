@@ -70,11 +70,11 @@ class ProcedureViewSet(viewsets.ModelViewSet):
         if self.action in ('update', 'partial_update'):
             return [IsAuthenticated(), CanEditProcedure()]
         if self.action == 'destroy':
-            return [IsAuthenticated(), CanManageQuality()]
+            return [IsAuthenticated(), CanManageProcedures()]
         if self.action == 'publish':
             return [IsAuthenticated(), CanPublishProcedures()]
         if self.action in ('archive', 'unarchive'):
-            return [IsAuthenticated(), CanManageQuality()]
+            return [IsAuthenticated(), CanManageProcedures()]
         return [IsAuthenticated()]
 
     def perform_create(self, serializer):

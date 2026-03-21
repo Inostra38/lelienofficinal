@@ -160,9 +160,8 @@ class Shift(models.Model):
                 f"Durée du shift trop longue : {duration:.1f}h (maximum 10h)."
             )
 
-    def save(self, *args, bypass_validation=False, **kwargs):
-        if not bypass_validation:
-            self.full_clean()
+    def save(self, *args, **kwargs):
+        self.full_clean()
         super().save(*args, **kwargs)
 
 

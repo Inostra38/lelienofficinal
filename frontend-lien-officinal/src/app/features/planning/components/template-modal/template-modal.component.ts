@@ -1,7 +1,7 @@
 import { Component, Input, Output, EventEmitter, inject, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { forkJoin, of, from } from 'rxjs';
+import { from, forkJoin, Observable } from 'rxjs';
 import { concatMap } from 'rxjs/operators';
 import {
   PlanningService,
@@ -118,10 +118,10 @@ export class TemplateModalComponent implements OnInit {
       this.letters.reduce((acc, l) => {
         acc[l] = this.planningService.getTemplate(l);
         return acc;
-      }, {} as Record<Letter, any>)
+      }, {} as Record<Letter, Observable<WeekTemplate>>)
     ).subscribe({
-      next:  result => {
-        this.letters.forEach(l => { this.templates[l] = (result as Record<Letter, WeekTemplate | null>)[l]; });
+      next:  (result) => {
+        this.letters.forEach(l => { this.templates[l] = result[l]; });
         this.loading = false;
       },
       error: () => { this.loading = false; },
@@ -314,28 +314,16 @@ export class TemplateModalComponent implements OnInit {
     if (!letters.length) return;
 
     from(letters).pipe(
-      concatMap(letter =>
-        this.planningService.getTemplate(letter).pipe(
-          concatMap(tpl => {
-            const deleteOps = tpl.shifts?.length
-              ? tpl.shifts.map(s => this.planningService.deleteTemplateShift(letter, s.id))
-              : [of(undefined)];
-            return forkJoin(deleteOps);
-          }),
-          concatMap(() => {
-            const createOps = weeks[letter].map((s: any) =>
-              this.planningService.createTemplateShift(letter, {
-                collaborator_id: s.collaborator_id,
-                day_of_week:     s.day_of_week,
-                start_time:      s.start_time.length === 5 ? s.start_time + ':00' : s.start_time,
-                end_time:        s.end_time.length === 5   ? s.end_time   + ':00' : s.end_time,
-                note:            s.note ?? '',
-              })
-            );
-            return forkJoin(createOps);
-          })
-        )
-      )
+      concatMap(letter => {
+        const shifts = weeks[letter].map((s: any) => ({
+          collaborator_id: s.collaborator_id,
+          day_of_week:     s.day_of_week,
+          start_time:      s.start_time.length === 5 ? s.start_time + ':00' : s.start_time,
+          end_time:        s.end_time.length === 5   ? s.end_time   + ':00' : s.end_time,
+          note:            s.note ?? '',
+        }));
+        return this.planningService.bulkReplaceTemplateShifts(letter, shifts);
+      })
     ).subscribe({
       complete: () => {
         this.showAiPanel = false;
