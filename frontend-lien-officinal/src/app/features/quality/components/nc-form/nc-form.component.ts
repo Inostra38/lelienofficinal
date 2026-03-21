@@ -5,11 +5,12 @@ import { Router } from '@angular/router';
 import { QualityNcService } from '../../services/quality-nc.service';
 import { QualityService } from '../../services/quality.service';
 import { Procedure } from '../../models/procedure.model';
+import { DatePickerDirective } from '../../../../shared/directives/date-picker.directive';
 
 @Component({
   selector: 'app-nc-form',
   standalone: true,
-  imports: [CommonModule, ReactiveFormsModule],
+  imports: [CommonModule, ReactiveFormsModule, DatePickerDirective],
   templateUrl: './nc-form.component.html',
 })
 export class NcFormComponent implements OnInit {

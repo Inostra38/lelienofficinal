@@ -52,8 +52,10 @@
       <!-- Date de révision planifiée -->
       <div>
         <label class="block text-sm font-medium text-gray-700 mb-1">Date de révision planifiée</label>
-        <input formControlName="next_review_date" type="date"
-               class="w-48 border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-600 focus:border-transparent"/>
+        <input formControlName="next_review_date" appDatePicker
+               placeholder="Choisir une date..."
+               readonly
+               class="w-48 border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-600 focus:border-transparent cursor-pointer bg-white"/>
       </div>
 
       <!-- Catégories -->

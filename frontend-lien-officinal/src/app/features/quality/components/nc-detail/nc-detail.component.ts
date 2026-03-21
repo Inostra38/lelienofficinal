@@ -7,11 +7,12 @@ import { CollaboratorService, Collaborator } from '../../../../core/services/col
 import { NonConformity, CorrectiveAction } from '../../models/nonconformity.model';
 import { AuthService } from '../../../../core/auth/auth.service';
 import { AiService, CorrectiveActionSuggestion } from '../../../../core/services/ai.service';
+import { DatePickerDirective } from '../../../../shared/directives/date-picker.directive';
 
 @Component({
   selector: 'app-nc-detail',
   standalone: true,
-  imports: [CommonModule, ReactiveFormsModule, FormsModule, RouterLink],
+  imports: [CommonModule, ReactiveFormsModule, FormsModule, RouterLink, DatePickerDirective],
   templateUrl: './nc-detail.component.html',
 })
 export class NcDetailComponent implements OnInit {

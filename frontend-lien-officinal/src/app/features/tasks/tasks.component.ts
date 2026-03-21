@@ -1,11 +1,12 @@
 import { Component, OnInit, OnDestroy, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { Router } from '@angular/router';
-import { Subject, Subscription, interval } from 'rxjs';
-import { takeUntil, switchMap, startWith } from 'rxjs/operators';
+import { Subject, Subscription } from 'rxjs';
+import { takeUntil } from 'rxjs/operators';
 import { CdkDragDrop, DragDropModule, moveItemInArray } from '@angular/cdk/drag-drop';
 
 import { TaskService, Task } from '../../core/services/task.service';
+import { TaskWebSocketService } from '../../core/services/task-websocket.service';
 import { CollaboratorService, Collaborator } from '../../core/services/collaborator.service';
 import { AuthService } from '../../core/auth/auth.service';
 import { PinModalComponent } from '../messaging/components/pin-modal/pin-modal.component';
@@ -22,6 +23,7 @@ import { TaskDetailDrawerComponent } from './components/task-detail-drawer/task-
 })
 export class TasksComponent implements OnInit, OnDestroy {
   private taskService = inject(TaskService);
+  private taskWs = inject(TaskWebSocketService);
   private collaboratorService = inject(CollaboratorService);
   private authService = inject(AuthService);
   private router = inject(Router);
@@ -47,7 +49,8 @@ export class TasksComponent implements OnInit, OnDestroy {
   createMode: 'personal' | 'assigned' = 'personal';
   showCreateDropdown = false;
   selectedTask: Task | null = null;
-  activeTab: 'personal' | 'assigned_to_me' | 'assigned_by_me' = 'personal';
+  collapsed: Record<string, boolean> = { personal: false, assigned_to_me: false, assigned_by_me: false };
+  openedTaskIds = new Set<string>();
 
   ngOnInit() {
     this.collaboratorService.getTeam().subscribe(team => {
@@ -57,7 +60,8 @@ export class TasksComponent implements OnInit, OnDestroy {
         this.authService.collaborator$.subscribe(id => {
           const found = id ? team.find(c => c.id === id) ?? null : null;
           if (found?.id === this.activeCollaborator?.id) return; // pas de changement
-          this.destroy$.next(); // arrêter le polling en cours
+          this.destroy$.next(); // arrêter les subscriptions en cours
+          this.taskWs.disconnect();
           this.showPinModal = false;
           this.pendingCollaborator = null;
           if (found) {
@@ -98,15 +102,13 @@ export class TasksComponent implements OnInit, OnDestroy {
   }
 
   startPolling() {
-    interval(15000).pipe(
-      startWith(0),
-      takeUntil(this.destroy$),
-      switchMap(() => this.taskService.getTasks(this.activeCollaborator!.id!))
-    ).subscribe(data => {
-      this.personalTasks = data.personal_tasks;
-      this.assignedToMe = data.assigned_to_me;
-      this.assignedByMe = data.assigned_by_me;
-      this.refreshUnseenCount();
+    // Fetch initial
+    this.refreshTasks();
+
+    // Connexion WebSocket : refresh à chaque événement reçu
+    this.taskWs.connect();
+    this.taskWs.events$.pipe(takeUntil(this.destroy$)).subscribe(() => {
+      this.refreshTasks();
     });
   }
 
@@ -117,13 +119,22 @@ export class TasksComponent implements OnInit, OnDestroy {
     });
   }
 
-  onTabChange(tab: 'personal' | 'assigned_to_me' | 'assigned_by_me') {
-    this.activeTab = tab;
-    if (tab === 'assigned_by_me' && this.unseenCount > 0) {
+  toggleSection(section: string): void {
+    this.collapsed[section] = !this.collapsed[section];
+    if (section === 'assigned_by_me' && !this.collapsed[section] && this.unseenCount > 0) {
       this.taskService.markAsSeen(this.activeCollaborator!.id!).subscribe(() => {
         this.unseenCount = 0;
         this.assignedByMe = this.assignedByMe.map(t => ({ ...t, is_completion_seen: true }));
       });
+    }
+  }
+
+  onFabClick(evt: Event) {
+    evt.stopPropagation();
+    if (this.activeCollaborator?.can_assign_task) {
+      this.showCreateDropdown = !this.showCreateDropdown;
+    } else {
+      this.openCreate('personal');
     }
   }
 
@@ -159,6 +170,7 @@ export class TasksComponent implements OnInit, OnDestroy {
 
   openDetail(task: Task) {
     this.selectedTask = task;
+    this.openedTaskIds.add(task.id);
   }
 
   onDrawerClosed() {
@@ -201,5 +213,6 @@ export class TasksComponent implements OnInit, OnDestroy {
     this.subs.unsubscribe();
     this.destroy$.next();
     this.destroy$.complete();
+    this.taskWs.disconnect();
   }
 }

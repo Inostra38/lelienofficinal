@@ -3,11 +3,12 @@ import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { PlanningService, TimeAdjustment, WeekResponse } from '../../../../core/services/planning.service';
 import { CollaboratorService, Collaborator } from '../../../../core/services/collaborator.service';
+import { DatePickerDirective } from '../../../../shared/directives/date-picker.directive';
 
 @Component({
   selector: 'app-time-adjustments',
   standalone: true,
-  imports: [CommonModule, FormsModule],
+  imports: [CommonModule, FormsModule, DatePickerDirective],
   templateUrl: './time-adjustments.component.html',
 })
 export class TimeAdjustmentsComponent implements OnInit {

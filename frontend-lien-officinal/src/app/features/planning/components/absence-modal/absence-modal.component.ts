@@ -7,11 +7,12 @@ import {
   CreateAbsenceDto,
 } from '../../../../core/services/planning.service';
 import { CollaboratorService, Collaborator } from '../../../../core/services/collaborator.service';
+import { DatePickerDirective } from '../../../../shared/directives/date-picker.directive';
 
 @Component({
   selector: 'app-absence-modal',
   standalone: true,
-  imports: [CommonModule, FormsModule],
+  imports: [CommonModule, FormsModule, DatePickerDirective],
   templateUrl: './absence-modal.component.html',
 })
 export class AbsenceModalComponent implements OnInit {

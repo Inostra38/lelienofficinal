@@ -1,12 +1,13 @@
 import { Component, Input, Output, EventEmitter, OnChanges, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { TaskService, Task, TaskPriority } from '../../../../core/services/task.service';
+import { TaskService, Task, TaskPriority, TaskComment } from '../../../../core/services/task.service';
+import { DatePickerDirective } from '../../../../shared/directives/date-picker.directive';
 
 @Component({
   selector: 'app-task-detail-drawer',
   standalone: true,
-  imports: [CommonModule, FormsModule],
+  imports: [CommonModule, FormsModule, DatePickerDirective],
   templateUrl: './task-detail-drawer.component.html',
   styleUrl: './task-detail-drawer.component.css'
 })
@@ -28,6 +29,10 @@ export class TaskDetailDrawerComponent implements OnChanges {
   isLoading = false;
   errorMessage = '';
 
+  comments: TaskComment[] = [];
+  newComment = '';
+  sendingComment = false;
+
   priorities = [
     { value: 'HIGH', label: 'Haute' },
     { value: 'MEDIUM', label: 'Moyenne' },
@@ -41,7 +46,38 @@ export class TaskDetailDrawerComponent implements OnChanges {
       this.editPriority = this.task.priority;
       this.editDueDate = this.task.due_date || '';
       this.isEditing = false;
+      this.loadComments();
     }
+  }
+
+  loadComments() {
+    this.taskService.getComments(this.task.id).subscribe(c => this.comments = c);
+  }
+
+  submitComment() {
+    const content = this.newComment.trim();
+    if (!content || this.sendingComment) return;
+    this.sendingComment = true;
+    this.taskService.addComment(this.task.id, content).subscribe({
+      next: (comment) => {
+        this.comments.push(comment);
+        this.newComment = '';
+        this.sendingComment = false;
+      },
+      error: () => { this.sendingComment = false; }
+    });
+  }
+
+  formatCommentTime(date: string): string {
+    const d = new Date(date);
+    const now = new Date();
+    const diffMs = now.getTime() - d.getTime();
+    const diffMin = Math.floor(diffMs / 60000);
+    if (diffMin < 1) return 'à l\'instant';
+    if (diffMin < 60) return `il y a ${diffMin} min`;
+    const diffH = Math.floor(diffMin / 60);
+    if (diffH < 24) return `il y a ${diffH}h`;
+    return d.toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit' });
   }
 
   get canEdit(): boolean {

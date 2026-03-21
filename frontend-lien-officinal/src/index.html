@@ -1,13 +1,224 @@
 <!doctype html>
-<html lang="en">
+<html lang="fr">
 <head>
   <meta charset="utf-8">
-  <title>FrontendLienOfficinal</title>
+  <title>Le Lien Officinal</title>
   <base href="/">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <link rel="icon" type="image/x-icon" href="favicon.ico">
+
+  <style>
+    /* ── Reset minimal ── */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: system-ui, sans-serif; background: #f9fafb; }
+
+    /* ── Shimmer animation ── */
+    @keyframes shimmer {
+      0%   { background-position: -600px 0; }
+      100% { background-position:  600px 0; }
+    }
+    .sk {
+      background: linear-gradient(90deg, #e5e7eb 25%, #f3f4f6 50%, #e5e7eb 75%);
+      background-size: 600px 100%;
+      animation: shimmer 1.4s infinite linear;
+      border-radius: 8px;
+    }
+
+    /* ── Layout racine ── */
+    #app-skeleton {
+      display: flex;
+      height: 100vh;
+      overflow: hidden;
+      min-width: 960px;
+    }
+
+    /* ── Sidebar ── */
+    #sk-sidebar {
+      width: 220px;
+      background: #fff;
+      border-right: 1px solid #f0f0f0;
+      display: flex;
+      flex-direction: column;
+      padding: 20px 16px;
+      gap: 8px;
+      flex-shrink: 0;
+    }
+    #sk-logo {
+      width: 120px;
+      height: 32px;
+      border-radius: 8px;
+      margin-bottom: 16px;
+    }
+    .sk-nav-item {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 8px 10px;
+      border-radius: 8px;
+    }
+    .sk-nav-icon { width: 18px; height: 18px; border-radius: 6px; flex-shrink: 0; }
+    .sk-nav-label { height: 12px; border-radius: 6px; flex: 1; }
+    .sk-nav-item:first-of-type .sk-nav-label { width: 60%; }
+    .sk-nav-item:nth-of-type(2) .sk-nav-label { width: 75%; }
+    .sk-nav-item:nth-of-type(3) .sk-nav-label { width: 50%; }
+    .sk-nav-item:nth-of-type(4) .sk-nav-label { width: 65%; }
+    .sk-nav-item:nth-of-type(5) .sk-nav-label { width: 55%; }
+
+    /* ── Zone principale ── */
+    #sk-main {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+
+    /* Header */
+    #sk-header {
+      background: #fff;
+      border-bottom: 1px solid #f0f0f0;
+      height: 56px;
+      padding: 0 24px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-shrink: 0;
+    }
+    #sk-header-title { width: 160px; height: 14px; border-radius: 7px; }
+    #sk-header-right { display: flex; align-items: center; gap: 8px; }
+    .sk-header-pill { height: 32px; border-radius: 16px; }
+
+    /* Contenu */
+    #sk-content {
+      flex: 1;
+      padding: 24px;
+      display: flex;
+      flex-direction: column;
+      gap: 20px;
+      overflow: hidden;
+    }
+
+    /* Barre de recherche / filtres */
+    #sk-filters {
+      display: flex;
+      gap: 10px;
+      align-items: center;
+    }
+    #sk-search { height: 36px; border-radius: 10px; flex: 1; max-width: 280px; }
+    .sk-tag { height: 28px; width: 72px; border-radius: 14px; }
+
+    /* Grille de cartes */
+    #sk-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+      gap: 12px;
+    }
+    .sk-card {
+      background: #fff;
+      border: 1px solid #f0f0f0;
+      border-radius: 12px;
+      padding: 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+    .sk-card-title { height: 14px; border-radius: 7px; width: 75%; }
+    .sk-card-line  { height: 10px; border-radius: 5px; }
+    .sk-card-line.short { width: 55%; }
+    .sk-card-badge { height: 22px; width: 60px; border-radius: 11px; }
+  </style>
 </head>
 <body>
-  <app-root></app-root>
+  <app-root>
+
+    <!-- Skeleton visible uniquement pendant le chargement d'Angular -->
+    <div id="app-skeleton">
+
+      <!-- Sidebar -->
+      <div id="sk-sidebar">
+        <div class="sk" id="sk-logo"></div>
+        <div class="sk-nav-item">
+          <div class="sk sk-nav-icon"></div><div class="sk sk-nav-label"></div>
+        </div>
+        <div class="sk-nav-item">
+          <div class="sk sk-nav-icon"></div><div class="sk sk-nav-label"></div>
+        </div>
+        <div class="sk-nav-item">
+          <div class="sk sk-nav-icon"></div><div class="sk sk-nav-label"></div>
+        </div>
+        <div class="sk-nav-item">
+          <div class="sk sk-nav-icon"></div><div class="sk sk-nav-label"></div>
+        </div>
+        <div class="sk-nav-item">
+          <div class="sk sk-nav-icon"></div><div class="sk sk-nav-label"></div>
+        </div>
+      </div>
+
+      <!-- Zone principale -->
+      <div id="sk-main">
+
+        <!-- Header -->
+        <div id="sk-header">
+          <div class="sk" id="sk-header-title"></div>
+          <div id="sk-header-right">
+            <div class="sk sk-header-pill" style="width:80px"></div>
+            <div class="sk sk-header-pill" style="width:36px;border-radius:50%"></div>
+          </div>
+        </div>
+
+        <!-- Contenu -->
+        <div id="sk-content">
+          <!-- Filtres -->
+          <div id="sk-filters">
+            <div class="sk" id="sk-search"></div>
+            <div class="sk sk-tag"></div>
+            <div class="sk sk-tag"></div>
+            <div class="sk sk-tag"></div>
+          </div>
+
+          <!-- Cartes -->
+          <div id="sk-grid">
+            <div class="sk-card">
+              <div class="sk sk-card-title"></div>
+              <div class="sk sk-card-line"></div>
+              <div class="sk sk-card-line short"></div>
+              <div class="sk sk-card-badge"></div>
+            </div>
+            <div class="sk-card">
+              <div class="sk sk-card-title" style="width:60%"></div>
+              <div class="sk sk-card-line"></div>
+              <div class="sk sk-card-line short"></div>
+              <div class="sk sk-card-badge"></div>
+            </div>
+            <div class="sk-card">
+              <div class="sk sk-card-title" style="width:80%"></div>
+              <div class="sk sk-card-line"></div>
+              <div class="sk sk-card-line short"></div>
+              <div class="sk sk-card-badge"></div>
+            </div>
+            <div class="sk-card">
+              <div class="sk sk-card-title"></div>
+              <div class="sk sk-card-line"></div>
+              <div class="sk sk-card-line short"></div>
+              <div class="sk sk-card-badge"></div>
+            </div>
+            <div class="sk-card">
+              <div class="sk sk-card-title" style="width:50%"></div>
+              <div class="sk sk-card-line"></div>
+              <div class="sk sk-card-line short"></div>
+              <div class="sk sk-card-badge"></div>
+            </div>
+            <div class="sk-card">
+              <div class="sk sk-card-title" style="width:70%"></div>
+              <div class="sk sk-card-line"></div>
+              <div class="sk sk-card-line short"></div>
+              <div class="sk sk-card-badge"></div>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+  </app-root>
 </body>
 </html>

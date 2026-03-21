@@ -3,11 +3,12 @@ import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { TaskService, TaskPriority, CreateTaskDto } from '../../../../core/services/task.service';
 import { CollaboratorService, Collaborator } from '../../../../core/services/collaborator.service';
+import { DatePickerDirective } from '../../../../shared/directives/date-picker.directive';
 
 @Component({
   selector: 'app-task-create-dialog',
   standalone: true,
-  imports: [CommonModule, FormsModule],
+  imports: [CommonModule, FormsModule, DatePickerDirective],
   templateUrl: './task-create-dialog.component.html',
 })
 export class TaskCreateDialogComponent implements OnInit {
@@ -33,10 +34,10 @@ export class TaskCreateDialogComponent implements OnInit {
   isLoading = false;
   errorMessage = '';
 
-  priorities = [
-    { value: 'HIGH', label: 'Haute' },
-    { value: 'MEDIUM', label: 'Moyenne' },
-    { value: 'LOW', label: 'Basse' },
+  priorities: { value: TaskPriority; label: string; activeClass: string; inactiveClass: string }[] = [
+    { value: 'HIGH',   label: 'Haute',   activeClass: 'bg-red-500 text-white border-red-500',    inactiveClass: 'border-gray-200 text-gray-500 hover:border-red-200' },
+    { value: 'MEDIUM', label: 'Moyenne', activeClass: 'bg-orange-400 text-white border-orange-400', inactiveClass: 'border-gray-200 text-gray-500 hover:border-orange-200' },
+    { value: 'LOW',    label: 'Basse',   activeClass: 'bg-green-500 text-white border-green-500', inactiveClass: 'border-gray-200 text-gray-500 hover:border-green-200' },
   ];
 
   ngOnInit() {

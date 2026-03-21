@@ -1,228 +1,251 @@
 <div class="flex h-full bg-gray-50 overflow-hidden relative" (click)="showCreateDropdown && (showCreateDropdown = false)">
 
   <!-- ── Sélecteur de collaborateur (overlay) ── -->
-  <div *ngIf="showCollaboratorPicker"
-       class="absolute inset-0 z-50 bg-white/80 backdrop-blur-sm flex items-center justify-center">
-    <div class="bg-white rounded-2xl shadow-2xl border border-gray-100 p-8 w-full max-w-sm mx-4">
-      <h2 class="text-lg font-bold text-gray-800 mb-1">Gestion des tâches</h2>
-      <p class="text-sm text-gray-400 mb-6">Qui êtes-vous pour cette session ?</p>
-      <div class="grid grid-cols-3 gap-3">
-        <button *ngFor="let collab of team"
-                (click)="selectCollaborator(collab)"
-                class="flex flex-col items-center gap-2 p-3 rounded-xl border border-gray-100 hover:border-green-300 hover:bg-green-50 transition-all group">
-          <div class="w-10 h-10 rounded-full text-white flex items-center justify-center font-bold text-sm"
-               [ngClass]="getBgClass(collab.color)">
-            {{ getInitials(collab) }}
-          </div>
-          <span class="text-xs text-gray-600 font-medium text-center leading-tight">
-            {{ collab.first_name }}
-          </span>
-        </button>
+  @if (showCollaboratorPicker) {
+    <div class="absolute inset-0 z-50 bg-white/80 backdrop-blur-sm flex items-center justify-center">
+      <div class="bg-white rounded-2xl shadow-2xl border border-gray-100 p-8 w-full max-w-sm mx-4">
+        <h2 class="text-lg font-bold text-gray-800 mb-1">Gestion des tâches</h2>
+        <p class="text-sm text-gray-400 mb-6">Qui êtes-vous pour cette session ?</p>
+        <div class="grid grid-cols-3 gap-3">
+          @for (collab of team; track collab.id) {
+            <button (click)="selectCollaborator(collab)"
+                    class="flex flex-col items-center gap-2 p-3 rounded-xl border border-gray-100 hover:border-green-300 hover:bg-green-50 transition-all">
+              <div class="w-10 h-10 rounded-full text-white flex items-center justify-center font-bold text-sm"
+                   [ngClass]="getBgClass(collab.color)">
+                {{ getInitials(collab) }}
+              </div>
+              <span class="text-xs text-gray-600 font-medium text-center leading-tight">{{ collab.first_name }}</span>
+            </button>
+          }
+        </div>
       </div>
     </div>
-  </div>
+  }
 
   <!-- ── Layout principal ── -->
   <div class="flex-1 flex flex-col overflow-hidden">
 
     <!-- Header -->
-    <header class="bg-white border-b border-gray-200 px-6 py-4 flex items-center justify-between shrink-0">
-      <div class="flex items-center gap-3">
-        <!-- Collaborateur actif -->
-        <div *ngIf="activeCollaborator" class="flex items-center gap-2">
-          <button (click)="changeCollaborator()"
-                  class="w-7 h-7 flex items-center justify-center rounded-lg text-gray-400 hover:text-red-600 hover:bg-red-50 transition-colors"
-                  title="Fermer la session">
-            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
-            </svg>
-          </button>
-          <div class="w-7 h-7 rounded-full text-white flex items-center justify-center text-xs font-bold"
-               [ngClass]="getBgClass(activeCollaborator.color)">
-            {{ getInitials(activeCollaborator) }}
-          </div>
-          <span class="text-sm font-semibold text-gray-700">{{ activeCollaborator.first_name }}</span>
-        </div>
-        <h1 class="text-xl font-bold text-gray-800">Tâches</h1>
-      </div>
+    <header class="bg-white border-b border-gray-100 px-5 py-3 flex items-center gap-3 shrink-0">
 
-      <!-- Bouton + Nouvelle tâche (dropdown) -->
-      <div class="relative" *ngIf="activeCollaborator">
-        <button (click)="showCreateDropdown = !showCreateDropdown; $event.stopPropagation()"
-                class="flex items-center gap-2 px-4 py-2 bg-green-600 hover:bg-green-700 text-white text-sm font-semibold rounded-lg transition-colors">
-          <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 4v16m8-8H4" />
-          </svg>
-          Nouvelle tâche
-          <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+      @if (activeCollaborator) {
+        <div class="w-8 h-8 rounded-full text-white flex items-center justify-center text-xs font-bold shrink-0"
+             [ngClass]="getBgClass(activeCollaborator.color)">
+          {{ getInitials(activeCollaborator) }}
+        </div>
+        <div class="flex flex-col leading-tight">
+          <span class="text-sm font-bold text-gray-800">{{ activeCollaborator.first_name }} {{ activeCollaborator.last_name }}</span>
+          <span class="text-[10px] text-gray-400 uppercase tracking-wide">Tâches</span>
+        </div>
+        <button (click)="changeCollaborator()"
+                class="ml-auto p-1.5 text-gray-300 hover:text-red-400 hover:bg-red-50 rounded-lg transition-colors"
+                title="Changer de collaborateur">
+          <svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
           </svg>
         </button>
-        <div *ngIf="showCreateDropdown"
-             class="absolute right-0 top-full mt-1 bg-white border border-gray-200 rounded-xl shadow-lg overflow-hidden z-30 w-48 animate-in fade-in slide-in-from-top-1 duration-150">
-          <button (click)="openCreate('personal')"
-                  class="w-full px-4 py-3 text-left text-sm text-gray-700 hover:bg-green-50 hover:text-green-700 flex items-center gap-2 transition-colors">
-            <span>📋</span> Tâche propre
-          </button>
-          <button (click)="openCreate('assigned')"
-                  class="w-full px-4 py-3 text-left text-sm text-gray-700 hover:bg-green-50 hover:text-green-700 flex items-center gap-2 transition-colors border-t border-gray-100">
-            <span>📤</span> Assigner une tâche
-          </button>
-        </div>
-      </div>
+      } @else {
+        <h1 class="text-xs font-bold text-gray-400 uppercase tracking-widest">Tâches</h1>
+      }
+
     </header>
 
-    <!-- ── Tabs mobile ── -->
-    <div class="flex md:hidden border-b border-gray-200 bg-white shrink-0">
-      <button (click)="onTabChange('personal')"
-              class="flex-1 py-3 text-xs font-semibold transition-colors"
-              [ngClass]="activeTab === 'personal' ? 'text-green-700 border-b-2 border-green-600' : 'text-gray-500'">
-        📋 Mes tâches
-      </button>
-      <button (click)="onTabChange('assigned_to_me')"
-              class="flex-1 py-3 text-xs font-semibold transition-colors"
-              [ngClass]="activeTab === 'assigned_to_me' ? 'text-green-700 border-b-2 border-green-600' : 'text-gray-500'">
-        📥 Assignées
-      </button>
-      <button (click)="onTabChange('assigned_by_me')"
-              class="flex-1 py-3 text-xs font-semibold transition-colors relative"
-              [ngClass]="activeTab === 'assigned_by_me' ? 'text-green-700 border-b-2 border-green-600' : 'text-gray-500'">
-        📤 Assignateur
-        <span *ngIf="unseenCount > 0"
-              class="absolute top-2 right-2 min-w-[16px] h-4 bg-red-500 text-white text-[9px] font-bold rounded-full flex items-center justify-center px-1">
-          {{ unseenCount }}
-        </span>
-      </button>
-    </div>
+    <!-- ── Sections verticales ── -->
+    <div class="flex-1 overflow-y-auto px-5 py-4 space-y-3">
 
-    <!-- ── 3 colonnes (desktop) / 1 colonne (mobile) ── -->
-    <div class="flex flex-1 overflow-hidden p-4 gap-4">
-
-      <!-- Colonne 1 : Mes tâches propres -->
-      <div class="flex-1 flex flex-col overflow-hidden min-w-0"
-           [ngClass]="activeTab === 'personal' ? 'flex' : 'hidden md:flex'">
-        <div class="flex items-center gap-2 mb-3 shrink-0">
-          <span>📋</span>
-          <h2 class="text-sm font-bold text-gray-700">Mes tâches propres</h2>
-          <span class="text-xs bg-gray-100 text-gray-500 px-2 py-0.5 rounded-full font-medium">{{ personalTasks.length }}</span>
+      @if (!activeCollaborator) {
+        <div class="flex flex-col items-center justify-center h-full text-center">
+          <p class="text-sm text-gray-300">Sélectionnez un collaborateur pour voir vos tâches</p>
         </div>
-        <div class="flex-1 overflow-y-auto"
-             cdkDropList
-             [cdkDropListData]="personalTasks"
-             (cdkDropListDropped)="onDrop($event, 'personal')">
-          <div *ngIf="personalTasks.length === 0" class="text-center py-10 text-gray-300">
-            <svg xmlns="http://www.w3.org/2000/svg" class="h-10 w-10 mx-auto mb-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+      }
+
+      @if (activeCollaborator) {
+
+        <!-- ── Section 1 : Mes tâches propres ── -->
+        <div class="bg-white rounded-xl border border-gray-100 overflow-hidden">
+          <button (click)="toggleSection('personal')"
+                  class="w-full flex items-center gap-2.5 px-4 py-3 text-left hover:bg-gray-50 transition-colors">
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-gray-400 transition-transform shrink-0"
+                 [class.rotate-[-90deg]]="collapsed['personal']"
+                 fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
             </svg>
-            <p class="text-xs">Aucune tâche propre</p>
-          </div>
-          <app-task-card *ngFor="let task of personalTasks"
-                         cdkDrag
-                         [cdkDragData]="task"
-                         [task]="task"
-                         [currentCollaboratorId]="activeCollaborator?.id ?? null"
-                         (action)="onTaskAction($event, task)"
-                         (openDetail)="openDetail($event)">
-          </app-task-card>
-        </div>
-      </div>
+            <span class="text-xs font-bold text-gray-600 uppercase tracking-wide">Mes tâches</span>
+            <span class="text-xs bg-gray-100 text-gray-500 px-2 py-0.5 rounded-full font-medium">{{ personalTasks.length }}</span>
+          </button>
 
-      <div class="hidden md:block w-px bg-gray-200 shrink-0"></div>
-
-      <!-- Colonne 2 : Tâches assignées à moi -->
-      <div class="flex-1 flex flex-col overflow-hidden min-w-0"
-           [ngClass]="activeTab === 'assigned_to_me' ? 'flex' : 'hidden md:flex'">
-        <div class="flex items-center gap-2 mb-3 shrink-0">
-          <span>📥</span>
-          <h2 class="text-sm font-bold text-gray-700">Tâches assignées</h2>
-          <span class="text-xs bg-gray-100 text-gray-500 px-2 py-0.5 rounded-full font-medium">{{ assignedToMe.length }}</span>
+          @if (!collapsed['personal']) {
+            <div class="border-t border-gray-50 px-3 py-2"
+                 cdkDropList
+                 [cdkDropListData]="personalTasks"
+                 (cdkDropListDropped)="onDrop($event, 'personal')">
+              @if (personalTasks.length === 0) {
+                <p class="text-xs text-gray-300 text-center py-4">Aucune tâche pour l'instant</p>
+              }
+              @for (task of personalTasks; track task.id) {
+                <app-task-card cdkDrag [cdkDragData]="task"
+                               [task]="task"
+                               [currentCollaboratorId]="activeCollaborator!.id ?? null"
+                               [hasBeenOpened]="openedTaskIds.has(task.id)"
+                               (action)="onTaskAction($event, task)"
+                               (openDetail)="openDetail($event)">
+                </app-task-card>
+              }
+            </div>
+          }
         </div>
-        <div class="flex-1 overflow-y-auto"
-             cdkDropList
-             [cdkDropListData]="assignedToMe"
-             (cdkDropListDropped)="onDrop($event, 'assigned_to_me')">
-          <div *ngIf="assignedToMe.length === 0" class="text-center py-10 text-gray-300">
-            <svg xmlns="http://www.w3.org/2000/svg" class="h-10 w-10 mx-auto mb-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4" />
+
+        <!-- ── Section 2 : Assignées à moi ── -->
+        <div class="bg-white rounded-xl border border-gray-100 overflow-hidden">
+          <button (click)="toggleSection('assigned_to_me')"
+                  class="w-full flex items-center gap-2.5 px-4 py-3 text-left hover:bg-gray-50 transition-colors">
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-gray-400 transition-transform shrink-0"
+                 [class.rotate-[-90deg]]="collapsed['assigned_to_me']"
+                 fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
             </svg>
-            <p class="text-xs">Aucune tâche assignée</p>
+            <span class="text-xs font-bold text-gray-600 uppercase tracking-wide">Assignées à moi</span>
+            <span class="text-xs bg-gray-100 text-gray-500 px-2 py-0.5 rounded-full font-medium">{{ assignedToMe.length }}</span>
+          </button>
+
+          @if (!collapsed['assigned_to_me']) {
+            <div class="border-t border-gray-50 px-3 py-2"
+                 cdkDropList
+                 [cdkDropListData]="assignedToMe"
+                 (cdkDropListDropped)="onDrop($event, 'assigned_to_me')">
+              @if (assignedToMe.length === 0) {
+                <p class="text-xs text-gray-300 text-center py-4">Aucune tâche assignée par un collègue</p>
+              }
+              @for (task of assignedToMe; track task.id) {
+                <app-task-card cdkDrag [cdkDragData]="task"
+                               [task]="task"
+                               [currentCollaboratorId]="activeCollaborator!.id ?? null"
+                               [hasBeenOpened]="openedTaskIds.has(task.id)"
+                               (action)="onTaskAction($event, task)"
+                               (openDetail)="openDetail($event)">
+                </app-task-card>
+              }
+            </div>
+          }
+        </div>
+
+        <!-- ── Section 3 : Assignées par moi (uniquement si can_assign_task) ── -->
+        @if (activeCollaborator.can_assign_task) {
+          <div class="bg-white rounded-xl border border-gray-100 overflow-hidden">
+            <button (click)="toggleSection('assigned_by_me')"
+                    class="w-full flex items-center gap-2.5 px-4 py-3 text-left hover:bg-gray-50 transition-colors">
+              <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-gray-400 transition-transform shrink-0"
+                   [class.rotate-[-90deg]]="collapsed['assigned_by_me']"
+                   fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+              </svg>
+              <span class="text-xs font-bold text-gray-600 uppercase tracking-wide">Assignées par moi</span>
+              <span class="text-xs bg-gray-100 text-gray-500 px-2 py-0.5 rounded-full font-medium">{{ assignedByMe.length }}</span>
+              @if (unseenCount > 0) {
+                <span class="text-[10px] bg-red-500 text-white font-bold px-1.5 py-0.5 rounded-full">
+                  {{ unseenCount }} nouveau{{ unseenCount > 1 ? 'x' : '' }}
+                </span>
+              }
+            </button>
+
+            @if (!collapsed['assigned_by_me']) {
+              <div class="border-t border-gray-50 px-3 py-2"
+                   cdkDropList
+                   [cdkDropListData]="assignedByMe"
+                   (cdkDropListDropped)="onDrop($event, 'assigned_by_me')">
+                @if (assignedByMe.length === 0) {
+                  <p class="text-xs text-gray-300 text-center py-4">Aucune tâche assignée à un collègue</p>
+                }
+                @for (task of assignedByMe; track task.id) {
+                  <app-task-card cdkDrag [cdkDragData]="task"
+                                 [task]="task"
+                                 [currentCollaboratorId]="activeCollaborator!.id ?? null"
+                                 [hasBeenOpened]="openedTaskIds.has(task.id)"
+                                 (action)="onTaskAction($event, task)"
+                                 (openDetail)="openDetail($event)">
+                  </app-task-card>
+                }
+              </div>
+            }
           </div>
-          <app-task-card *ngFor="let task of assignedToMe"
-                         cdkDrag
-                         [cdkDragData]="task"
-                         [task]="task"
-                         [currentCollaboratorId]="activeCollaborator?.id ?? null"
-                         (action)="onTaskAction($event, task)"
-                         (openDetail)="openDetail($event)">
-          </app-task-card>
-        </div>
-      </div>
+        }
 
-      <div class="hidden md:block w-px bg-gray-200 shrink-0"></div>
-
-      <!-- Colonne 3 : Tâches assignées par moi -->
-      <div class="flex-1 flex flex-col overflow-hidden min-w-0"
-           [ngClass]="activeTab === 'assigned_by_me' ? 'flex' : 'hidden md:flex'">
-        <div class="flex items-center gap-2 mb-3 shrink-0">
-          <span>📤</span>
-          <h2 class="text-sm font-bold text-gray-700">Tâches assignateur</h2>
-          <span class="text-xs bg-gray-100 text-gray-500 px-2 py-0.5 rounded-full font-medium">{{ assignedByMe.length }}</span>
-          <span *ngIf="unseenCount > 0"
-                class="text-[10px] bg-red-500 text-white font-bold px-1.5 py-0.5 rounded-full">
-            {{ unseenCount }} nouveau{{ unseenCount > 1 ? 'x' : '' }}
-          </span>
-        </div>
-        <div class="flex-1 overflow-y-auto"
-             cdkDropList
-             [cdkDropListData]="assignedByMe"
-             (cdkDropListDropped)="onDrop($event, 'assigned_by_me')">
-          <div *ngIf="assignedByMe.length === 0" class="text-center py-10 text-gray-300">
-            <svg xmlns="http://www.w3.org/2000/svg" class="h-10 w-10 mx-auto mb-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z" />
-            </svg>
-            <p class="text-xs">Aucune tâche assignée à d'autres</p>
-          </div>
-          <app-task-card *ngFor="let task of assignedByMe"
-                         cdkDrag
-                         [cdkDragData]="task"
-                         [task]="task"
-                         [currentCollaboratorId]="activeCollaborator?.id ?? null"
-                         (action)="onTaskAction($event, task)"
-                         (openDetail)="openDetail($event)">
-          </app-task-card>
-        </div>
-      </div>
-
+      }
     </div>
   </div>
 
-  <!-- ── Modal création ── -->
-  <app-task-create-dialog
-    *ngIf="showCreateDialog && activeCollaborator"
-    [mode]="createMode"
-    [currentCollaboratorId]="activeCollaborator.id!"
-    (created)="onTaskCreated()"
-    (cancelled)="showCreateDialog = false">
-  </app-task-create-dialog>
+  <!-- ── FAB ── -->
+  @if (activeCollaborator) {
+    <div class="fixed bottom-6 right-6 z-30 flex flex-col items-end gap-2">
+
+      <!-- Mini-menu (visible si dropdown ouvert) -->
+      @if (showCreateDropdown) {
+        <div class="flex flex-col gap-2 items-end" (click)="$event.stopPropagation()">
+          @if (activeCollaborator.can_assign_task) {
+            <button (click)="openCreate('assigned')"
+                    class="flex items-center gap-2 px-4 py-2.5 bg-white text-green-700 text-sm font-semibold rounded-xl shadow-lg border border-green-100 hover:bg-green-50 transition-all whitespace-nowrap">
+              <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z" />
+              </svg>
+              Assigner une tâche
+            </button>
+          }
+          <button (click)="openCreate('personal')"
+                  class="flex items-center gap-2 px-4 py-2.5 bg-white text-green-700 text-sm font-semibold rounded-xl shadow-lg border border-green-100 hover:bg-green-50 transition-all whitespace-nowrap">
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+            </svg>
+            Tâche propre
+          </button>
+        </div>
+      }
+
+      <!-- Bouton principal -->
+      <button
+        (click)="onFabClick($event)"
+        class="w-14 h-14 rounded-full bg-green-700 hover:bg-green-800 text-white shadow-xl flex items-center justify-center transition-all active:scale-95"
+        [title]="activeCollaborator.can_assign_task ? 'Nouvelle tâche' : 'Créer une tâche'">
+        <svg xmlns="http://www.w3.org/2000/svg"
+             class="h-6 w-6 transition-transform duration-200"
+             [class.rotate-45]="showCreateDropdown"
+             fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 4v16m8-8H4" />
+        </svg>
+      </button>
+
+    </div>
+  }
+
+  <!-- ── Drawer création ── -->
+  @if (showCreateDialog && activeCollaborator) {
+    <app-task-create-dialog
+      [mode]="createMode"
+      [currentCollaboratorId]="activeCollaborator.id!"
+      (created)="onTaskCreated()"
+      (cancelled)="showCreateDialog = false">
+    </app-task-create-dialog>
+  }
 
   <!-- ── Drawer détail ── -->
-  <app-task-detail-drawer
-    *ngIf="selectedTask"
-    [task]="selectedTask"
-    [currentCollaboratorId]="activeCollaborator?.id ?? null"
-    (closed)="onDrawerClosed()"
-    (taskUpdated)="refreshTasks()">
-  </app-task-detail-drawer>
+  @if (selectedTask) {
+    <app-task-detail-drawer
+      [task]="selectedTask"
+      [currentCollaboratorId]="activeCollaborator?.id ?? null"
+      (closed)="onDrawerClosed()"
+      (taskUpdated)="refreshTasks()">
+    </app-task-detail-drawer>
+  }
 
   <!-- ── PIN Modal ── -->
-  <app-pin-modal
-    *ngIf="showPinModal && pendingCollaborator"
-    [collaboratorId]="pendingCollaborator.id!"
-    [collaboratorName]="pendingCollaborator.first_name + ' ' + pendingCollaborator.last_name"
-    [collaboratorRole]="pendingCollaborator.role"
-    mode="switch"
-    (pinValidated)="onPinValidated()"
-    (cancelled)="onPinCancelled()">
-  </app-pin-modal>
+  @if (showPinModal && pendingCollaborator) {
+    <app-pin-modal
+      [collaboratorId]="pendingCollaborator.id!"
+      [collaboratorName]="pendingCollaborator.first_name + ' ' + pendingCollaborator.last_name"
+      [collaboratorRole]="pendingCollaborator.role"
+      mode="switch"
+      (pinValidated)="onPinValidated()"
+      (cancelled)="onPinCancelled()">
+    </app-pin-modal>
+  }
 
 </div>

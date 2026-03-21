@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from .models import Task
+from .models import Task, TaskComment
 from apps.team.models import Collaborator
 
 
@@ -12,13 +12,15 @@ class CollaboratorMinimalSerializer(serializers.ModelSerializer):
 class TaskSerializer(serializers.ModelSerializer):
     created_by = CollaboratorMinimalSerializer(read_only=True)
     assigned_to = CollaboratorMinimalSerializer(read_only=True)
+    comments_count = serializers.IntegerField(read_only=True, default=0)
 
     class Meta:
         model = Task
         fields = [
             'id', 'title', 'description', 'priority', 'status', 'type',
-            'created_by', 'assigned_to', 'due_date', 'completed_at',
-            'is_completion_seen', 'order', 'created_at', 'updated_at'
+            'created_by', 'assigned_to', 'due_date', 'started_at', 'completed_at',
+            'is_completion_seen', 'order', 'created_at', 'updated_at',
+            'comments_count',
         ]
 
 
@@ -58,3 +60,11 @@ class TaskUpdateSerializer(serializers.ModelSerializer):
     class Meta:
         model = Task
         fields = ['title', 'description', 'priority', 'due_date']
+
+
+class TaskCommentSerializer(serializers.ModelSerializer):
+    author = CollaboratorMinimalSerializer(read_only=True)
+
+    class Meta:
+        model = TaskComment
+        fields = ['id', 'author', 'content', 'created_at']

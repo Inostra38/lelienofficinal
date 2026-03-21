@@ -3,6 +3,113 @@
 @tailwind components;
 @tailwind utilities;
 
+/* ── Flatpickr — altInput hérite des styles de l'input original ─────────────── */
+input + .flatpickr-input.form-control.input {
+  /* reset flatpickr default */
+}
+
+/* L'altInput prend les mêmes dimensions/styles que l'input original */
+.flatpickr-input[readonly] {
+  background-color: white;
+}
+
+/* ── Flatpickr — thème vert ─────────────────────────────────────────────────── */
+.flatpickr-calendar {
+  font-family: inherit;
+  border-radius: 12px;
+  border: 1px solid #e5e7eb;
+  box-shadow: 0 10px 25px -5px rgba(0,0,0,.12), 0 4px 6px -2px rgba(0,0,0,.06);
+  overflow: hidden;
+}
+
+.flatpickr-months {
+  background: #15803d; /* green-700 */
+  padding: 6px 0;
+}
+
+.flatpickr-month {
+  background: transparent;
+  color: #fff;
+  fill: #fff;
+}
+
+.flatpickr-current-month .flatpickr-monthDropdown-months,
+.flatpickr-current-month input.cur-year {
+  color: #fff;
+  font-weight: 700;
+  font-size: 0.875rem;
+}
+
+.flatpickr-current-month .flatpickr-monthDropdown-months:hover,
+.flatpickr-current-month .numInput:hover {
+  background: rgba(255,255,255,.15);
+}
+
+.flatpickr-prev-month,
+.flatpickr-next-month {
+  fill: #fff !important;
+  color: #fff !important;
+}
+
+.flatpickr-prev-month:hover svg,
+.flatpickr-next-month:hover svg {
+  fill: #bbf7d0 !important;
+}
+
+.flatpickr-weekdays {
+  background: #16a34a; /* green-600 */
+}
+
+span.flatpickr-weekday {
+  background: transparent;
+  color: #dcfce7;
+  font-size: 0.7rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.flatpickr-day {
+  border-radius: 8px;
+  font-size: 0.8rem;
+  color: #374151;
+  border: none;
+}
+
+.flatpickr-day:hover {
+  background: #f0fdf4;
+  border-color: #bbf7d0;
+}
+
+.flatpickr-day.selected,
+.flatpickr-day.selected:hover {
+  background: #15803d;
+  border-color: #15803d;
+  color: #fff;
+  font-weight: 700;
+}
+
+.flatpickr-day.today {
+  border: 2px solid #16a34a;
+  color: #15803d;
+  font-weight: 700;
+}
+
+.flatpickr-day.today.selected {
+  color: #fff;
+}
+
+.flatpickr-day.flatpickr-disabled,
+.flatpickr-day.flatpickr-disabled:hover {
+  color: #d1d5db;
+}
+
+.flatpickr-day.inRange {
+  background: #dcfce7;
+  border-color: #dcfce7;
+  box-shadow: -5px 0 0 #dcfce7, 5px 0 0 #dcfce7;
+}
+
 /* ── Print ──────────────────────────────────────────────────────────────────── */
 .print-only { display: none; }
 

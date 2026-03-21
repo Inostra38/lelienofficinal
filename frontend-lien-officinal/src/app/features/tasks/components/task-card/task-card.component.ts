@@ -12,6 +12,7 @@ import { Task, TaskPriority } from '../../../../core/services/task.service';
 export class TaskCardComponent {
   @Input() task!: Task;
   @Input() currentCollaboratorId: number | null = null;
+  @Input() hasBeenOpened = false;
 
   @Output() action = new EventEmitter<'start' | 'complete' | 'delete' | 'reopen'>();
   @Output() openDetail = new EventEmitter<Task>();
@@ -43,10 +44,7 @@ export class TaskCardComponent {
 
   get canDelete(): boolean {
     if (!this.currentCollaboratorId) return false;
-    return (
-      this.task.created_by?.id === this.currentCollaboratorId ||
-      this.task.assigned_to?.id === this.currentCollaboratorId
-    );
+    return this.task.created_by?.id === this.currentCollaboratorId;
   }
 
   get isDone(): boolean { return this.task.status === 'DONE'; }

@@ -10,11 +10,12 @@ import { AiService } from '../../../../core/services/ai.service';
 import { QuillEditorWrapperComponent, QuillRange } from '../quill-editor-wrapper/quill-editor-wrapper.component';
 import { BadgeSelectorComponent } from '../badge-selector/badge-selector.component';
 import { AttachmentUploaderComponent } from '../attachment-uploader/attachment-uploader.component';
+import { DatePickerDirective } from '../../../../shared/directives/date-picker.directive';
 
 @Component({
   selector: 'app-procedure-editor',
   standalone: true,
-  imports: [CommonModule, ReactiveFormsModule, FormsModule, QuillEditorWrapperComponent, BadgeSelectorComponent, AttachmentUploaderComponent],
+  imports: [CommonModule, ReactiveFormsModule, FormsModule, QuillEditorWrapperComponent, BadgeSelectorComponent, AttachmentUploaderComponent, DatePickerDirective],
   templateUrl: './procedure-editor.component.html',
 })
 export class ProcedureEditorComponent implements OnInit {

@@ -295,8 +295,10 @@
                 <option [ngValue]="col.id">{{ col.first_name }} {{ col.last_name }}</option>
               }
             </select>
-            <input formControlName="due_date" type="date"
-                   class="flex-1 border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-600"/>
+            <input formControlName="due_date" appDatePicker
+                   placeholder="Choisir une date..."
+                   readonly
+                   class="flex-1 border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-600 cursor-pointer bg-white"/>
           </div>
           <button type="submit"
                   class="px-4 py-2 bg-green-700 text-white rounded-lg text-sm font-medium hover:bg-green-800 transition-colors">

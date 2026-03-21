@@ -21,7 +21,7 @@ export interface Task {
   priority: TaskPriority;
   status: TaskStatus;
   type: TaskType;
-  created_by: TaskCollaborator;
+  created_by: TaskCollaborator | null;
   assigned_to: TaskCollaborator | null;
   due_date: string | null;
   completed_at: string | null;
@@ -29,6 +29,15 @@ export interface Task {
   order: number;
   created_at: string;
   updated_at: string;
+  started_at: string | null;
+  comments_count: number;
+}
+
+export interface TaskComment {
+  id: string;
+  author: TaskCollaborator | null;
+  content: string;
+  created_at: string;
 }
 
 export interface TasksResponse {
@@ -92,5 +101,13 @@ export class TaskService {
 
   reorderTasks(taskIds: string[]): Observable<{ detail: string }> {
     return this.http.post<{ detail: string }>(`${this.apiUrl}/reorder/`, { task_ids: taskIds });
+  }
+
+  getComments(taskId: string): Observable<TaskComment[]> {
+    return this.http.get<TaskComment[]>(`${this.apiUrl}/${taskId}/comments/`);
+  }
+
+  addComment(taskId: string, content: string): Observable<TaskComment> {
+    return this.http.post<TaskComment>(`${this.apiUrl}/${taskId}/comments/`, { content });
   }
 }

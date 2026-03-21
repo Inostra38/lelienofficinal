@@ -10,4 +10,5 @@ urlpatterns = [
     path('tasks/<uuid:task_id>/start/', views.TaskStartView.as_view(), name='task-start'),
     path('tasks/<uuid:task_id>/complete/', views.TaskCompleteView.as_view(), name='task-complete'),
     path('tasks/<uuid:task_id>/reopen/', views.TaskReopenView.as_view(), name='task-reopen'),
+    path('tasks/<uuid:task_id>/comments/', views.TaskCommentListCreateView.as_view(), name='task-comments'),
 ]
