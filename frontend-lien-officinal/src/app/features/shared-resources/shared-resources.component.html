@@ -1,0 +1,206 @@
+<div class="flex flex-col min-h-screen bg-gray-100">
+
+  <!-- HEADER -->
+  <div class="px-6 py-5 bg-white border-b border-gray-100 shrink-0">
+    <div class="max-w-5xl mx-auto flex items-center justify-between">
+      <div class="flex items-center gap-4">
+        <button (click)="goBack()"
+          class="flex items-center gap-1.5 text-sm text-gray-400 hover:text-gray-700 transition-colors">
+          <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/>
+          </svg>
+          Retour
+        </button>
+        <div class="h-5 w-px bg-gray-200"></div>
+        <div>
+          <h1 class="text-xl font-bold text-gray-800">Ressources partagées</h1>
+          <p class="text-xs text-gray-400 mt-0.5">Ressources validées — ajoutez-les à votre tableau de bord</p>
+        </div>
+      </div>
+
+      <!-- Filtres -->
+      <div class="flex items-center gap-1.5">
+        @for (f of [{key:'ALL',label:'Tous'},{key:'OFFICIAL',label:'Validés'},{key:'PARTNER',label:'Partenaires'}]; track f.key) {
+          <button (click)="activeFilter = $any(f.key); onFilterChange()"
+            class="px-3 py-1.5 rounded-lg text-xs font-medium transition-colors"
+            [ngClass]="activeFilter === f.key
+              ? 'bg-green-700 text-white'
+              : 'bg-gray-100 text-gray-500 hover:bg-gray-200'">
+            {{ f.label }}
+          </button>
+        }
+      </div>
+
+      <!-- Recherche -->
+      <div class="relative w-64">
+        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-gray-400 absolute left-3 top-1/2 -translate-y-1/2"
+          fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
+        </svg>
+        <input type="text" [(ngModel)]="searchQuery" (ngModelChange)="onSearchChange()" placeholder="Rechercher…"
+          class="w-full pl-9 pr-4 py-2 border border-gray-200 rounded-xl text-sm bg-white focus:outline-none focus:ring-2 focus:ring-green-200"/>
+      </div>
+    </div>
+  </div>
+
+  <!-- CONTENU -->
+  <div class="flex-1 px-6 py-6">
+    <div class="max-w-5xl mx-auto space-y-8">
+
+      <!-- ── SECTION MISES EN AVANT (toujours visible, hors recherche) ── -->
+      @if (featuredResources.length > 0 && !searchQuery) {
+        <div>
+          <h2 class="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">Mises en avant</h2>
+          <div class="grid grid-cols-5 gap-3">
+            @for (card of featuredResources; track card.id) {
+              <div class="relative bg-white rounded-2xl border border-gray-100 p-5 flex flex-col justify-between
+                         hover:border-green-300 hover:shadow-md transition-all group cursor-pointer aspect-square">
+
+                <div class="flex flex-col gap-2">
+                  <p class="font-semibold text-gray-800 text-sm leading-snug">{{ card.titre }}</p>
+
+                  <p class="text-xs text-gray-400 line-clamp-2">{{ card.description_officielle }}</p>
+
+                  <div class="flex items-center gap-1.5">
+                    @if (card.type === 'OFFICIAL') {
+                      <svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5 text-green-600 flex-shrink-0"
+                        fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"/>
+                      </svg>
+                    }
+                    <span class="text-xs font-medium"
+                      [ngClass]="{
+                        'text-green-700': card.type === 'OFFICIAL',
+                        'text-orange-600': card.type === 'PARTNER'
+                      }">
+                      @if (card.type === 'PARTNER') { Partenaire }
+                    </span>
+                  </div>
+                </div>
+
+                <div class="flex items-center justify-between mt-3">
+                  @if (card.pharmacy_count && card.pharmacy_count > 0) {
+                    <span class="text-xs text-gray-400">
+                      🔥 {{ card.pharmacy_count }} pharmacie{{ card.pharmacy_count > 1 ? 's' : '' }}
+                    </span>
+                  } @else {
+                    <span></span>
+                  }
+
+                  @if (isAlreadyAdded(card)) {
+                    <span class="text-xs text-gray-400 italic">Déjà ajoutée</span>
+                  } @else {
+                    <button (click)="addToBoard(card)"
+                      class="px-2 py-1 text-xs text-green-700 hover:bg-green-100 rounded transition-colors">
+                      Ajouter
+                    </button>
+                  }
+                </div>
+              </div>
+            }
+          </div>
+        </div>
+      }
+
+      <!-- ── SECTION TOUTES LES RESSOURCES ── -->
+      <div>
+        @if (featuredResources.length > 0 && !searchQuery) {
+          <h2 class="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">Toutes les ressources</h2>
+        }
+
+        @if (filteredResources.length === 0 && resources.length > 0) {
+          <div class="text-center py-16">
+            <p class="text-gray-500 font-medium">Aucune ressource trouvée</p>
+            <p class="text-gray-400 text-sm mt-1">Essayez un autre terme de recherche</p>
+          </div>
+        }
+
+        @if (resources.length === 0) {
+          <div class="text-center py-16">
+            <div class="w-14 h-14 rounded-2xl bg-gray-200 flex items-center justify-center mx-auto mb-4">
+              <svg xmlns="http://www.w3.org/2000/svg" class="h-7 w-7 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"
+                  d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"/>
+              </svg>
+            </div>
+            <p class="text-gray-500 font-medium">Aucune ressource disponible</p>
+          </div>
+        }
+
+        <div class="space-y-2">
+          @for (card of filteredResources; track card.id) {
+            <div class="relative bg-white rounded-xl border border-gray-100 px-4 py-3
+                       flex items-center justify-between gap-4
+                       hover:border-green-200 hover:shadow-sm transition-all group">
+
+              <div class="flex items-center gap-2 flex-1 min-w-0">
+                <p class="font-semibold text-gray-800 text-sm truncate">{{ card.titre }}</p>
+
+                <div class="flex items-center gap-1 flex-shrink-0">
+                  @if (card.type === 'OFFICIAL') {
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5 text-green-600"
+                      fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"/>
+                    </svg>
+                  }
+                  <span class="text-xs font-medium"
+                    [ngClass]="{
+                      'text-green-700': card.type === 'OFFICIAL',
+                      'text-orange-600': card.type === 'PARTNER'
+                    }">
+                    @if (card.type === 'PARTNER') { Partenaire }
+                  </span>
+                </div>
+
+                @if (card.pharmacy_count && card.pharmacy_count > 0) {
+                  <span class="text-xs text-gray-400 flex-shrink-0">
+                    🔥 {{ card.pharmacy_count }} pharmacie{{ card.pharmacy_count > 1 ? 's' : '' }}
+                  </span>
+                }
+
+                <span class="text-xs text-gray-400 truncate hidden sm:block">{{ card.description_officielle }}</span>
+              </div>
+
+              <div class="flex-shrink-0 w-24 flex justify-end">
+                @if (isAlreadyAdded(card)) {
+                  <span class="text-xs text-gray-400 italic">Déjà ajoutée</span>
+                } @else {
+                  <button (click)="addToBoard(card)"
+                    class="px-2 py-1 text-xs text-green-700 hover:bg-green-100 rounded transition-colors">
+                    Ajouter
+                  </button>
+                }
+              </div>
+            </div>
+          }
+        </div>
+      </div>
+
+      <!-- Pagination -->
+      @if (totalPages > 1) {
+        <div class="flex items-center justify-center gap-3 pt-4">
+          <button (click)="loadPage(currentPage - 1)" [disabled]="currentPage === 1"
+            class="px-3 py-1.5 rounded-lg text-sm text-gray-500 hover:bg-gray-200 disabled:opacity-30 disabled:cursor-not-allowed transition-colors">
+            ← Précédent
+          </button>
+          <span class="text-sm text-gray-400">{{ currentPage }} / {{ totalPages }}</span>
+          <button (click)="loadPage(currentPage + 1)" [disabled]="currentPage === totalPages"
+            class="px-3 py-1.5 rounded-lg text-sm text-gray-500 hover:bg-gray-200 disabled:opacity-30 disabled:cursor-not-allowed transition-colors">
+            Suivant →
+          </button>
+        </div>
+      }
+
+    </div>
+  </div>
+</div>
+
+<!-- MODALE CHOIX CATÉGORIE -->
+@if (selectedCard) {
+  <app-category-assigner-modal
+    [categories]="categories"
+    [cardToAssign]="selectedCard"
+    (assign)="assignCategory($event)"
+    (cancel)="selectedCard = null">
+  </app-category-assigner-modal>
+}

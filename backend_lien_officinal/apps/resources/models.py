@@ -75,7 +75,21 @@ class ResourceCard(models.Model):
         related_name='owned_cards'
     )
 
+    icon = models.ImageField(
+        _("Icône"),
+        upload_to='cards/icons/',
+        null=True,
+        blank=True,
+        help_text=_("Icône carrée représentant la ressource (PNG/SVG recommandé, fond transparent).")
+    )
+
     created_at = models.DateTimeField(auto_now_add=True)
+    ordre = models.PositiveIntegerField(default=0)
+    is_featured = models.BooleanField(
+        _("Mise en avant"),
+        default=False,
+        help_text=_("Cocher pour afficher cette ressource en tête de liste.")
+    )
 
     class Meta:
         verbose_name = _("Carte de Ressource")
@@ -145,6 +159,7 @@ class PharmacyPreference(models.Model):
     
     is_favorite = models.BooleanField(default=False)
     is_hidden = models.BooleanField(default=False)
+    ordre = models.PositiveIntegerField(default=0)
     
     # ✅ NOUVEAU : Deux champs distincts pour les notes
     note_courte = models.CharField(

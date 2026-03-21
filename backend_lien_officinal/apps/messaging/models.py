@@ -31,6 +31,12 @@ class Conversation(models.Model):
         blank=True,
         verbose_name=_("Participants")
     )
+    hidden_by = models.ManyToManyField(
+        'team.Collaborator',
+        related_name='hidden_conversations',
+        blank=True,
+        verbose_name=_("Masquée par")
+    )
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
@@ -84,42 +90,3 @@ class Message(models.Model):
         super().save(*args, **kwargs)
         # Met à jour updated_at de la conversation à chaque nouveau message
         self.conversation.save(update_fields=['updated_at'])
-
-
-ALLOWED_MIME_TYPES = [
-    'image/jpeg', 'image/png', 'image/gif', 'image/webp',
-    'application/pdf',
-    'application/msword',
-    'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-    'application/vnd.ms-excel',
-    'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-]
-
-MAX_ATTACHMENT_SIZE = 10 * 1024 * 1024  # 10 Mo
-
-
-class Attachment(models.Model):
-    """
-    Pièce jointe associée à un message.
-    Types autorisés : images, PDF, Word, Excel. Max 10 Mo.
-    """
-    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    message = models.ForeignKey(
-        Message,
-        on_delete=models.CASCADE,
-        related_name='attachments',
-        verbose_name=_("Message")
-    )
-    file = models.FileField(_("Fichier"), upload_to='messaging/attachments/')
-    file_name = models.CharField(_("Nom du fichier"), max_length=255)
-    file_size = models.IntegerField(_("Taille (octets)"))
-    file_type = models.CharField(_("Type MIME"), max_length=100)
-    created_at = models.DateTimeField(auto_now_add=True)
-
-    class Meta:
-        verbose_name = _("Pièce jointe")
-        verbose_name_plural = _("Pièces jointes")
-        ordering = ['created_at']
-
-    def __str__(self):
-        return f"{self.file_name} ({self.file_type})"

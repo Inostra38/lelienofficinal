@@ -23,6 +23,7 @@ import { NcFormComponent } from './features/quality/components/nc-form/nc-form.c
 import { NcDetailComponent } from './features/quality/components/nc-detail/nc-detail.component';
 import { ProcedureBoardsComponent } from './features/quality/components/procedure-boards/procedure-boards.component';
 import { ProcedureArchivesComponent } from './features/quality/components/procedure-archives/procedure-archives.component';
+import { SharedResourcesComponent } from './features/shared-resources/shared-resources.component';
 
 export const routes: Routes = [
   { path: 'login', component: LoginComponent, canActivate: [noAuthGuard] },
@@ -35,6 +36,7 @@ export const routes: Routes = [
     canActivate: [authGuard],
     children: [
       { path: 'dashboard', component: DashboardComponent },
+      { path: 'ressources-partagees', component: SharedResourcesComponent },
       { path: 'messagerie', component: MessagingComponent },
       { path: 'taches', component: TasksComponent },
       { path: 'planning', component: PlanningComponent },

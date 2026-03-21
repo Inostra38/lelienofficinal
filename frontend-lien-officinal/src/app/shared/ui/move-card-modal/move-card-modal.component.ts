@@ -1,4 +1,4 @@
-import { Component, EventEmitter, Input, Output, OnInit } from '@angular/core';
+import { Component, EventEmitter, HostListener, Input, Output, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Category, ResourceCard } from '../../../features/dashboard/dashboard.component';
@@ -19,6 +19,9 @@ export class MoveCardModalComponent implements OnInit {
   @Output() cancel = new EventEmitter<void>();
 
   selectedCategoryId: number | null = null;
+
+  @HostListener('document:keydown.escape')
+  onEscape() { this.cancel.emit(); }
 
   ngOnInit() {
     this.selectedCategoryId = this.currentCategoryId;

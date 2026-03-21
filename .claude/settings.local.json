@@ -1,7 +1,10 @@
 {
   "permissions": {
     "allow": [
-      "Bash(cat:*)"
+      "Bash(cat:*)",
+      "Bash(source .venv/bin/activate)",
+      "Bash(python manage.py makemigrations core)",
+      "Bash(python manage.py migrate)"
     ],
     "deny": [],
     "ask": []

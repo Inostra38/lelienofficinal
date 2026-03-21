@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from .models import Conversation, Message, Attachment, ALLOWED_MIME_TYPES, MAX_ATTACHMENT_SIZE
+from .models import Conversation, Message
 from apps.team.models import Collaborator
 
 
@@ -15,20 +15,13 @@ class CollaboratorMinimalSerializer(serializers.ModelSerializer):
         return f"{obj.first_name} {obj.last_name}"
 
 
-class AttachmentSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = Attachment
-        fields = ['id', 'file_name', 'file_size', 'file_type', 'created_at']
-
-
 class MessageSerializer(serializers.ModelSerializer):
     sender = CollaboratorMinimalSerializer(read_only=True)
-    attachments = AttachmentSerializer(many=True, read_only=True)
     is_read_by = CollaboratorMinimalSerializer(many=True, read_only=True)
 
     class Meta:
         model = Message
-        fields = ['id', 'sender', 'content', 'attachments', 'is_read_by', 'created_at']
+        fields = ['id', 'sender', 'content', 'is_read_by', 'created_at']
 
 
 class MessageCreateSerializer(serializers.ModelSerializer):
@@ -116,32 +109,3 @@ class ConversationCreateSerializer(serializers.ModelSerializer):
         all_participants = list({p.id: p for p in [creator] + participants}.values())
         conversation.participants.set(all_participants)
         return conversation
-
-
-class AttachmentUploadSerializer(serializers.ModelSerializer):
-    file = serializers.FileField()
-
-    class Meta:
-        model = Attachment
-        fields = ['file']
-
-    def validate_file(self, value):
-        if value.size > MAX_ATTACHMENT_SIZE:
-            raise serializers.ValidationError("Le fichier dépasse la limite de 10 Mo.")
-        mime_type = value.content_type
-        if mime_type not in ALLOWED_MIME_TYPES:
-            raise serializers.ValidationError(
-                f"Type de fichier non autorisé : {mime_type}."
-            )
-        return value
-
-    def create(self, validated_data):
-        file = validated_data['file']
-        message = self.context['message']
-        return Attachment.objects.create(
-            message=message,
-            file=file,
-            file_name=file.name,
-            file_size=file.size,
-            file_type=file.content_type,
-        )

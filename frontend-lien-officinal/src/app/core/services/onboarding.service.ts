@@ -1,3 +1,4 @@
+import { environment } from '../../../environments/environment';
 import { Injectable, inject, signal } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { tap } from 'rxjs/operators';
@@ -44,7 +45,7 @@ export interface WizardState {
 export class OnboardingService {
   private http = inject(HttpClient);
   private authService = inject(AuthService);
-  private baseUrl = 'http://127.0.0.1:8000/api';
+  private baseUrl = environment.apiUrl + '/api';
 
   // État global du wizard
   state = signal<WizardState>({

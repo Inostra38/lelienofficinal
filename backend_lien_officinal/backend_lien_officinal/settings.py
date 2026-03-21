@@ -27,6 +27,9 @@ ALLOWED_HOSTS = []
 # Application definition
 
 INSTALLED_APPS = [
+    'daphne',           # WebSocket ASGI — doit être en premier
+    'channels',
+
     'django.contrib.admin',
     'django.contrib.auth',
     'django.contrib.contenttypes',
@@ -202,6 +205,26 @@ BACKEND_BASE_URL = 'http://127.0.0.1:8000'
 
 # --- CHIFFREMENT AU REPOS (Messagerie) ---
 FIELD_ENCRYPTION_KEY = os.environ.get('FIELD_ENCRYPTION_KEY', '')
+
+# --- WEBSOCKET / DJANGO CHANNELS ---
+ASGI_APPLICATION = "backend_lien_officinal.asgi.application"
+
+if os.environ.get('REDIS_URL'):
+    CHANNEL_LAYERS = {
+        "default": {
+            "BACKEND": "channels_redis.core.RedisChannelLayer",
+            "CONFIG": {
+                "hosts": [os.environ.get('REDIS_URL')],
+            },
+        }
+    }
+else:
+    # Développement local uniquement
+    CHANNEL_LAYERS = {
+        "default": {
+            "BACKEND": "channels.layers.InMemoryChannelLayer"
+        }
+    }
 
 # --- API Claude (Anthropic) ---
 ANTHROPIC_API_KEY = os.environ.get('ANTHROPIC_API_KEY', '')

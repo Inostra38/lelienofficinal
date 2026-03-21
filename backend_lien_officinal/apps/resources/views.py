@@ -1,10 +1,11 @@
 from rest_framework import viewsets, parsers, status
+from rest_framework.pagination import PageNumberPagination
 from rest_framework.permissions import IsAuthenticated
 from rest_framework_simplejwt.authentication import JWTAuthentication
 from rest_framework.filters import SearchFilter
 from rest_framework.decorators import api_view, permission_classes, authentication_classes, action
 from rest_framework.response import Response
-from django.db.models import Prefetch, Q, Exists, OuterRef
+from django.db.models import Prefetch, Q, Exists, OuterRef, Count
 from django.utils.decorators import method_decorator
 from django.views.decorators.csrf import csrf_exempt
 from django.shortcuts import get_object_or_404
@@ -409,6 +410,25 @@ class ResourceCardViewSet(viewsets.ModelViewSet):
     def get_queryset(self):
         return ResourceCard.objects.filter(owner_pharmacy=self.request.user, type='PRIVATE')
 
+    @action(detail=False, methods=['post'], url_path='reorder')
+    def reorder(self, request):
+        """
+        Réordonne les cartes et préférences adoptées dans une catégorie.
+        Payload : { "items": [{"id": 1, "type": "PRIVATE", "ordre": 0}, ...] }
+        """
+        items_data = request.data.get('items', [])
+        for item in items_data:
+            card_id = item.get('id')
+            ordre = item.get('ordre')
+            card_type = item.get('type', 'PRIVATE')
+            if card_id is None or ordre is None:
+                continue
+            if card_type == 'PRIVATE':
+                ResourceCard.objects.filter(id=card_id, owner_pharmacy=request.user).update(ordre=ordre)
+            else:
+                PharmacyPreference.objects.filter(card_id=card_id, pharmacy=request.user).update(ordre=ordre)
+        return Response({"detail": "Ordre mis à jour."}, status=status.HTTP_200_OK)
+
     def perform_create(self, serializer):
         # Vérifier que la catégorie appartient à l'utilisateur
         category = serializer.validated_data.get('category')
@@ -503,17 +523,30 @@ class ResourceItemViewSet(viewsets.ModelViewSet):
 # CATALOGUE (Lecture seule)
 # =====================================================
 
+class CatalogPagination(PageNumberPagination):
+    page_size = 20
+    page_size_query_param = 'page_size'
+    max_page_size = 100
+
+
 class CatalogCardViewSet(viewsets.ReadOnlyModelViewSet):
     serializer_class = CatalogCardSerializer
     permission_classes = [IsAuthenticated]
     authentication_classes = [JWTAuthentication]
     filter_backends = [SearchFilter]
     search_fields = ['titre', 'description_officielle']
+    pagination_class = CatalogPagination
 
     def get_queryset(self):
-        return ResourceCard.objects.filter(
+        qs = ResourceCard.objects.filter(
             type__in=['OFFICIAL', 'PARTNER']
-        ).order_by('titre')
+        ).annotate(
+            pharmacy_count=Count('preferences', filter=Q(preferences__assigned_category__isnull=False), distinct=True)
+        )
+        type_filter = self.request.query_params.get('type')
+        if type_filter in ['OFFICIAL', 'PARTNER']:
+            qs = qs.filter(type=type_filter)
+        return qs.order_by('-is_featured', 'titre')
 
 
 # =====================================================

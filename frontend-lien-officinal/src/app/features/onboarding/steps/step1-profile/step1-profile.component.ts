@@ -1,3 +1,4 @@
+import { environment } from '../../../../../environments/environment';
 import { Component, OnInit, inject, output } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
@@ -21,7 +22,7 @@ export class Step1ProfileComponent implements OnInit {
   cityReadonly = false;
 
   ngOnInit() {
-    this.http.get<any>('http://127.0.0.1:8000/api/pharmacy/me/').subscribe({
+    this.http.get<any>(environment.apiUrl + '/api/pharmacy/me/').subscribe({
       next: (pharmacy) => {
         this.nomOfficine = pharmacy.nom_officine || '';
         this.city = pharmacy.city || '';

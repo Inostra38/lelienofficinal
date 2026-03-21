@@ -50,7 +50,7 @@ class AdoptedCardSerializer(serializers.ModelSerializer):
     
     class Meta:
         model = ResourceCard
-        fields = ['id', 'titre', 'description_officielle', 'type', 'items', 'partner']
+        fields = ['id', 'titre', 'description_officielle', 'type', 'items', 'partner', 'ordre']
 
 
 class ResourceCardSerializer(serializers.ModelSerializer):
@@ -75,7 +75,7 @@ class ResourceCardSerializer(serializers.ModelSerializer):
         fields = [
             'id', 'titre', 'description_officielle', 'type',
             'items', 'partner', 'is_favorite', 'note_courte', 'note_longue',
-            'category'
+            'category', 'ordre', 'icon'
         ]
         extra_kwargs = {
             'type': {'read_only': True},
@@ -144,9 +144,11 @@ class CatalogCardSerializer(serializers.ModelSerializer):
     """
     Serializer léger pour la liste de choix dans la modale d'ajout.
     """
+    pharmacy_count = serializers.IntegerField(read_only=True)
+
     class Meta:
         model = ResourceCard
-        fields = ['id', 'titre', 'description_officielle', 'type']
+        fields = ['id', 'titre', 'description_officielle', 'type', 'is_featured', 'pharmacy_count', 'icon']
 
 
 # =====================================================
@@ -182,9 +184,10 @@ class CategorySerializer(serializers.ModelSerializer):
         for pref in preferences:
             card_data = AdoptedCardSerializer(pref.card).data
             card_data['is_favorite'] = pref.is_favorite
-            card_data['note_courte'] = pref.note_courte  # ✅ Accès direct
-            card_data['note_longue'] = pref.note_longue  # ✅ Accès direct
+            card_data['note_courte'] = pref.note_courte
+            card_data['note_longue'] = pref.note_longue
             card_data['is_adopted'] = True
+            card_data['ordre'] = pref.ordre
             adopted.append(card_data)
         
         return adopted

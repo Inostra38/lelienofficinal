@@ -1,8 +1,11 @@
-import { Component, EventEmitter, Input, Output, inject } from '@angular/core';
+import { environment } from '../../../../environments/environment';
+import { Component, EventEmitter, HostListener, Input, Output, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { HttpClient } from '@angular/common/http';
+import { Router } from '@angular/router';
 import { ResourceCard, Category } from '../../../features/dashboard/dashboard.component';
+import { ToastService } from '../../../core/services/toast.service';
 
 interface ResourceItemForm {
   tempId: number;
@@ -21,6 +24,8 @@ interface ResourceItemForm {
 })
 export class AddLinkModalComponent {
   private http = inject(HttpClient);
+  private router = inject(Router);
+  private toast = inject(ToastService);
 
   @Input() categories: Category[] = [];
   @Input() library: ResourceCard[] = [];
@@ -30,6 +35,9 @@ export class AddLinkModalComponent {
   @Output() selectCard = new EventEmitter<ResourceCard>();
   @Output() categoryCreated = new EventEmitter<void>();
   @Output() resourceCreated = new EventEmitter<void>(); // ✅ NOUVEAU
+
+  @HostListener('document:keydown.escape')
+  onEscape() { this.close.emit(); }
 
   step: 'CHOICE' | 'RESOURCE' | 'CATALOG' | 'CATEGORY' = 'CHOICE';
   searchCatalog: string = '';
@@ -115,7 +123,7 @@ export class AddLinkModalComponent {
   // ✅ Soumission complète
   submitResource() {
     if (!this.isFormValid()) {
-      alert('Veuillez remplir tous les champs obligatoires');
+      this.toast.warning('Veuillez remplir tous les champs obligatoires.');
       return;
     }
 
@@ -160,17 +168,17 @@ export class AddLinkModalComponent {
     });
 
     // Envoi au backend
-    this.http.post('http://127.0.0.1:8000/api/cards/create-full/', formData)
+    this.http.post(environment.apiUrl + '/api/cards/create-full/', formData)
       .subscribe({
         next: () => {
-          alert('✅ Ressource créée avec succès !');
+          this.toast.success('Ressource créée avec succès !');
           this.resetForm();
           this.resourceCreated.emit(); // ✅ Notifie le parent pour recharger
           this.close.emit();
         },
         error: (err) => {
           console.error('❌ Erreur création ressource:', err);
-          alert('Erreur lors de la création. Vérifiez la console.');
+          this.toast.error('Erreur lors de la création.');
         }
       });
   }
@@ -198,6 +206,11 @@ export class AddLinkModalComponent {
   // ANCIENNES MÉTHODES (CATALOGUE + CATÉGORIE)
   // ============================================================
 
+  goToSharedResources(): void {
+    this.close.emit();
+    this.router.navigate(['/ressources-partagees']);
+  }
+
   selectFromCatalog(card: ResourceCard) {
     this.close.emit();
     this.selectCard.emit(card);
@@ -206,7 +219,7 @@ export class AddLinkModalComponent {
   createCategory() {
     if (!this.newCategory.nom) return;
 
-    this.http.post('http://127.0.0.1:8000/api/categories/', {
+    this.http.post(environment.apiUrl + '/api/categories/', {
       nom: this.newCategory.nom
     }).subscribe({
       next: () => {
@@ -217,7 +230,7 @@ export class AddLinkModalComponent {
       },
       error: (err) => {
         console.error('Erreur création catégorie', err);
-        alert(err.error?.nom?.[0] || "Erreur lors de la création.");
+        this.toast.error(err.error?.nom?.[0] || 'Erreur lors de la création.');
       }
     });
   }

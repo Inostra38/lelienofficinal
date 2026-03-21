@@ -19,5 +19,9 @@ module.exports = {
       },
     },
   },
+  safelist: [
+    // Couleurs dynamiques des avatars collaborateurs
+    { pattern: /bg-(blue|indigo|purple|pink|red|orange|amber|yellow|lime|green|emerald|teal|cyan|sky|violet|fuchsia|rose|slate|gray|stone)-500/ },
+  ],
   plugins: [],
 }

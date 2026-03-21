@@ -1,9 +1,11 @@
 import { Component, inject, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { HttpClient } from '@angular/common/http';
 
 import { PharmacyService } from '../../core/services/pharmacy.service';
+import { ToastService } from '../../core/services/toast.service';
+import { DashboardApiService } from './services/dashboard-api.service';
+import { DashboardDisplayService } from './services/dashboard-display.service';
 
 import { HeaderComponent } from './components/header/header.component';
 import { AddLinkModalComponent } from '../../shared/ui/add-link-modal/add-link-modal.component';
@@ -31,6 +33,10 @@ export interface ResourceCard {
   is_favorite: boolean;
   note_courte: string;
   note_longue: string;
+  pharmacy_count?: number;
+  is_featured?: boolean;
+  ordre?: number;
+  icon?: string | null;
 }
 
 export interface Category {
@@ -56,322 +62,256 @@ export interface Category {
   styleUrl: './dashboard.component.css'
 })
 export class DashboardComponent implements OnInit {
-  private http = inject(HttpClient);
+  private api = inject(DashboardApiService);
+  private display = inject(DashboardDisplayService);
   private pharmacyService = inject(PharmacyService);
+  private toast = inject(ToastService);
 
-  pharmacyName = '';
-  showOnlyFavorites = false;
-  searchTerm: string = '';
-
-  // --- DONNÉES ---
+  // Données
   allCategories: Category[] = [];
   displayedCategories: Category[] = [];
   libraryItems: any[] = [];
+  pharmacyName = '';
+  isLoading = true;
 
-  // --- ÉTATS ---
+  // Filtres & vues
   viewMode: 'COMPACT' | 'LARGE' | 'TABLE' | 'ICON' = 'LARGE';
-  isEditMode = false;
+  showOnlyFavorites = false;
+  searchTerm = '';
   isSearching = false;
-  showAddModal = false;
 
+  // Modes & modales
+  isEditMode = false;
+  showAddModal = false;
+  showAddCategoryModal = false;
+  newCategoryName = '';
+
+  // Carte ouverte
   openedCard: ResourceCard | null = null;
   selectedCardToAssign: ResourceCard | null = null;
 
+  // Déplacement de carte (modale)
   cardToMove: ResourceCard | null = null;
   currentCategoryIdForMove: number | null = null;
 
+  // Renommage catégorie
   editingCategoryId: number | null = null;
-  editingCategoryName: string = '';
+  editingCategoryName = '';
+
+  // Drag & drop
+  draggedCard: ResourceCard | null = null;
+  dragOverCard: ResourceCard | null = null;
+  dragOverPosition: 'before' | 'after' | null = null;
 
   ngOnInit() {
     this.loadCategories();
-    this.loadLibrary();
+    this.api.loadLibrary().subscribe({ next: data => this.libraryItems = data });
     this.pharmacyService.getCurrentPharmacy().subscribe({
-      next: (data) => { this.pharmacyName = data.nom_officine; }
+      next: data => this.pharmacyName = data.nom_officine
     });
   }
 
   // ============================================================
-  // 1. CHARGEMENT DES DONNÉES
+  // CHARGEMENT
   // ============================================================
 
   loadCategories() {
-    const timestamp = new Date().getTime();
-
-    this.http.get<any>(`http://127.0.0.1:8000/api/categories/?t=${timestamp}`)
-      .subscribe({
-        next: (data) => {
-          const rawData = Array.isArray(data) ? data : data.results || [];
-
-          this.allCategories = rawData.map((cat: Category) => ({
-            ...cat,
-            cards: (cat.cards || []).map(card => ({
-              ...card,
-              items: card.items || []
-            })),
-            adopted_cards: (cat.adopted_cards || []).map(card => ({
-              ...card,
-              items: card.items || []
-            }))
-          }));
-
-          this.updateDisplay();
-        },
-        error: (err) => console.error('Erreur chargement catégories', err)
-      });
-  }
-
-  loadLibrary() {
-    this.http.get<any[]>('http://127.0.0.1:8000/api/catalog/cards/')
-      .subscribe({
-        next: (data) => this.libraryItems = data,
-        error: (err) => console.error('Erreur catalogue', err)
-      });
-  }
-
-  refreshData() {
-    console.log('🔄 Rafraîchissement des données...');
-    this.loadCategories();
-    this.loadLibrary();
+    this.api.loadCategories().subscribe({
+      next: (data) => {
+        const raw = Array.isArray(data) ? data : data.results || [];
+        this.allCategories = raw.map((cat: Category) => ({
+          ...cat,
+          cards: (cat.cards || []).map((c: ResourceCard) => ({ ...c, items: c.items || [] })),
+          adopted_cards: (cat.adopted_cards || []).map((c: ResourceCard) => ({ ...c, items: c.items || [] }))
+        }));
+        this.updateDisplay();
+        this.isLoading = false;
+      },
+      error: err => { console.error('Erreur chargement catégories', err); this.isLoading = false; }
+    });
   }
 
   private updateDisplay() {
-    const rawData: Category[] = JSON.parse(JSON.stringify(this.allCategories));
-
-    this.displayedCategories = rawData.map(category => {
-      const nativeCards = category.cards || [];
-      const adoptedCards = category.adopted_cards || [];
-      let mergedCards = [...nativeCards, ...adoptedCards];
-
-      // ✅ Filtrer par favoris si activé
-      if (this.showOnlyFavorites) {
-        mergedCards = mergedCards.filter(card => card.is_favorite);
-      }
-
-      mergedCards.sort((a, b) => a.titre.localeCompare(b.titre));
-
-      return {
-        ...category,
-        cards: mergedCards
-      };
-    });
-  }
-
-  // ============================================================
-  // 2. GESTION DES VUES & RECHERCHE
-  // ============================================================
-
-  getAllFavorites(): ResourceCard[] {
-    const favorites: ResourceCard[] = [];
-
-    this.allCategories.forEach(cat => {
-      const nativeFavorites = (cat.cards || []).filter(card => card.is_favorite);
-      favorites.push(...nativeFavorites);
-
-      const adoptedFavorites = (cat.adopted_cards || []).filter(card => card.is_favorite);
-      favorites.push(...adoptedFavorites);
-    });
-
-    // ✅ FILTRE PAR RECHERCHE SI NÉCESSAIRE
-    let filteredFavorites = favorites;
-    
-    if (this.searchTerm) {
-      filteredFavorites = favorites.filter(card => {
-        const titleMatch = (card.titre || '').toLowerCase().includes(this.searchTerm);
-        const descMatch = (card.description_officielle || '').toLowerCase().includes(this.searchTerm);
-        const partnerMatch = (card.partner?.nom || '').toLowerCase().includes(this.searchTerm);
-        const noteCourtMatch = (card.note_courte || '').toLowerCase().includes(this.searchTerm);
-        const noteLongueMatch = (card.note_longue || '').toLowerCase().includes(this.searchTerm);
-        const itemMatch = (card.items || []).some(item => {
-          const labelMatch = (item.label || '').toLowerCase().includes(this.searchTerm);
-          const urlMatch = (item.url || '').toLowerCase().includes(this.searchTerm);
-          return labelMatch || urlMatch;
-        });
-
-        return titleMatch || descMatch || partnerMatch || noteCourtMatch || noteLongueMatch || itemMatch;
-      });
+    if (this.isSearching && this.searchTerm) {
+      this.displayedCategories = this.display.search(this.allCategories, this.searchTerm);
+    } else {
+      this.displayedCategories = this.display.buildDisplay(this.allCategories, this.showOnlyFavorites);
     }
-
-    return filteredFavorites.sort((a, b) => a.titre.localeCompare(b.titre));
   }
+
+  // ============================================================
+  // VUES & RECHERCHE
+  // ============================================================
+
+  setViewMode(mode: 'COMPACT' | 'LARGE' | 'TABLE' | 'ICON') { this.viewMode = mode; }
 
   toggleFavoritesFilter() {
     this.showOnlyFavorites = !this.showOnlyFavorites;
     this.updateDisplay();
   }
 
-  setViewMode(mode: 'COMPACT' | 'LARGE' | 'TABLE' | 'ICON') {
-    this.viewMode = mode;
+  onSearch(term: string) {
+    this.searchTerm = term.toLowerCase().trim();
+    this.isSearching = !!this.searchTerm;
+    this.updateDisplay();
   }
 
-  onSearch(term: string) {
-    this.searchTerm = term.toLowerCase().trim(); // ✅ SAUVEGARDER le terme
-    this.isSearching = !!this.searchTerm;
+  getAllFavorites(): ResourceCard[] {
+    return this.display.getAllFavorites(this.allCategories, this.searchTerm);
+  }
 
-    if (!this.searchTerm) {
-      this.updateDisplay();
-      return;
-    }
+  // ============================================================
+  // CATÉGORIES
+  // ============================================================
 
-    // Mode normal : recherche dans les catégories
-    this.displayedCategories = this.allCategories.map(cat => {
-      const allCards = [...(cat.cards || []), ...(cat.adopted_cards || [])];
-
-      const matchingCards = allCards.filter(card => {
-        const titleMatch = (card.titre || '').toLowerCase().includes(this.searchTerm);
-        const descMatch = (card.description_officielle || '').toLowerCase().includes(this.searchTerm);
-        const partnerMatch = (card.partner?.nom || '').toLowerCase().includes(this.searchTerm);
-        const noteCourtMatch = (card.note_courte || '').toLowerCase().includes(this.searchTerm);
-        const noteLongueMatch = (card.note_longue || '').toLowerCase().includes(this.searchTerm);
-        const itemMatch = (card.items || []).some(item => {
-          const labelMatch = (item.label || '').toLowerCase().includes(this.searchTerm);
-          const urlMatch = (item.url || '').toLowerCase().includes(this.searchTerm);
-          return labelMatch || urlMatch;
-        });
-
-        return titleMatch || descMatch || partnerMatch || noteCourtMatch || noteLongueMatch || itemMatch;
-      });
-
-      return { ...cat, cards: matchingCards };
-    }).filter(cat => cat.cards.length > 0);
-
-    const categoryNameMatches = this.allCategories.filter(cat =>
-      (cat.nom || '').toLowerCase().includes(this.searchTerm)
-    );
-
-    categoryNameMatches.forEach(catMatch => {
-      if (!this.displayedCategories.find(c => c.id === catMatch.id)) {
-        this.displayedCategories.push({ ...catMatch, cards: catMatch.cards || [] });
-      }
+  createCategoryFromDashboard() {
+    if (!this.newCategoryName.trim()) return;
+    const name = this.newCategoryName.trim();
+    this.showAddCategoryModal = false;
+    this.newCategoryName = '';
+    this.api.createCategory(name).subscribe({
+      next: (cat: any) => {
+        this.allCategories.push({ id: cat.id, nom: cat.nom, cards: [], adopted_cards: [] });
+        this.updateDisplay();
+      },
+      error: err => { console.error(err); this.toast.error('Erreur lors de la création de la catégorie.'); }
     });
   }
-
-  // ============================================================
-  // 3. ACTIONS SUR LES CATÉGORIES
-  // ============================================================
 
   deleteCategory(category: Category) {
-    const cardsCount = category.cards?.length || 0;
-    const message = cardsCount > 0
-      ? `Voulez-vous vraiment supprimer la catégorie "${category.nom}" et ses ${cardsCount} carte(s) ?`
-      : `Voulez-vous vraiment supprimer la catégorie "${category.nom}" ?`;
+    const count = category.cards?.length || 0;
+    const msg = count > 0
+      ? `Supprimer "${category.nom}" et ses ${count} carte(s) ?`
+      : `Supprimer la catégorie "${category.nom}" ?`;
+    if (!confirm(msg)) return;
 
-    if (confirm(message)) {
-      this.http.delete(`http://127.0.0.1:8000/api/categories/${category.id}/`)
-        .subscribe({
-          next: () => {
-            this.loadCategories();
-          },
-          error: (err) => {
-            console.error('Erreur suppression catégorie', err);
-            alert("Erreur lors de la suppression.");
-          }
-        });
-    }
-  }
+    const idx = this.allCategories.findIndex(c => c.id === category.id);
+    if (idx >= 0) this.allCategories.splice(idx, 1);
+    this.updateDisplay();
 
-  // ============================================================
-  // 4. RENOMMAGE DE CATÉGORIE
-  // ============================================================
-
-  startRename(category: Category) {
-    this.editingCategoryId = category.id;
-    this.editingCategoryName = category.nom;
-  }
-
-  cancelRename() {
-    this.editingCategoryId = null;
-    this.editingCategoryName = '';
-  }
-
-  saveRename(category: Category) {
-    if (!this.editingCategoryName.trim()) {
-      alert("Le nom ne peut pas être vide.");
-      return;
-    }
-
-    this.http.patch(`http://127.0.0.1:8000/api/categories/${category.id}/`, {
-      nom: this.editingCategoryName.trim()
-    }).subscribe({
-      next: () => {
-        this.editingCategoryId = null;
-        this.editingCategoryName = '';
+    this.api.deleteCategory(category.id).subscribe({
+      error: err => {
+        console.error(err);
+        this.toast.error('Erreur lors de la suppression.');
         this.loadCategories();
-      },
-      error: (err) => {
-        console.error('Erreur renommage', err);
-        alert(err.error?.nom?.[0] || "Erreur lors du renommage.");
       }
     });
   }
 
-  // ============================================================
-  // 5. RÉORDONNANCEMENT DES CATÉGORIES
-  // ============================================================
+  startRename(category: Category) { this.editingCategoryId = category.id; this.editingCategoryName = category.nom; }
+  cancelRename() { this.editingCategoryId = null; this.editingCategoryName = ''; }
 
-  isFirstCategory(category: Category): boolean {
-    return this.displayedCategories.indexOf(category) === 0;
+  saveRename(category: Category) {
+    if (!this.editingCategoryName.trim()) { this.toast.warning('Le nom ne peut pas être vide.'); return; }
+    const newName = this.editingCategoryName.trim();
+    const oldName = category.nom;
+    category.nom = newName;
+    this.cancelRename();
+    this.updateDisplay();
+    this.api.renameCategory(category.id, newName).subscribe({
+      error: err => {
+        console.error(err);
+        category.nom = oldName;
+        this.updateDisplay();
+        this.toast.error(err.error?.nom?.[0] || 'Erreur lors du renommage.');
+      }
+    });
   }
 
-  isLastCategory(category: Category): boolean {
-    return this.displayedCategories.indexOf(category) === this.displayedCategories.length - 1;
-  }
+  // Réordonnancement catégories
+  isFirstCategory(cat: Category) { return this.displayedCategories.indexOf(cat) === 0; }
+  isLastCategory(cat: Category) { return this.displayedCategories.indexOf(cat) === this.displayedCategories.length - 1; }
 
   moveCategoryUp(category: Category) {
-    const index = this.displayedCategories.indexOf(category);
-    if (index <= 0) return;
-
-    [this.displayedCategories[index - 1], this.displayedCategories[index]] =
-      [this.displayedCategories[index], this.displayedCategories[index - 1]];
-
-    const allIndex = this.allCategories.findIndex(c => c.id === category.id);
-    if (allIndex > 0) {
-      [this.allCategories[allIndex - 1], this.allCategories[allIndex]] =
-        [this.allCategories[allIndex], this.allCategories[allIndex - 1]];
-    }
-
+    const i = this.displayedCategories.indexOf(category);
+    if (i <= 0) return;
+    [this.displayedCategories[i - 1], this.displayedCategories[i]] = [this.displayedCategories[i], this.displayedCategories[i - 1]];
+    const j = this.allCategories.findIndex(c => c.id === category.id);
+    if (j > 0) [this.allCategories[j - 1], this.allCategories[j]] = [this.allCategories[j], this.allCategories[j - 1]];
     this.saveOrder();
   }
 
   moveCategoryDown(category: Category) {
-    const index = this.displayedCategories.indexOf(category);
-    if (index >= this.displayedCategories.length - 1) return;
-
-    [this.displayedCategories[index], this.displayedCategories[index + 1]] =
-      [this.displayedCategories[index + 1], this.displayedCategories[index]];
-
-    const allIndex = this.allCategories.findIndex(c => c.id === category.id);
-    if (allIndex < this.allCategories.length - 1) {
-      [this.allCategories[allIndex], this.allCategories[allIndex + 1]] =
-        [this.allCategories[allIndex + 1], this.allCategories[allIndex]];
-    }
-
+    const i = this.displayedCategories.indexOf(category);
+    if (i >= this.displayedCategories.length - 1) return;
+    [this.displayedCategories[i], this.displayedCategories[i + 1]] = [this.displayedCategories[i + 1], this.displayedCategories[i]];
+    const j = this.allCategories.findIndex(c => c.id === category.id);
+    if (j < this.allCategories.length - 1) [this.allCategories[j], this.allCategories[j + 1]] = [this.allCategories[j + 1], this.allCategories[j]];
     this.saveOrder();
   }
 
   private saveOrder() {
-    const order = this.displayedCategories.map(cat => cat.id);
-
-    this.http.post('http://127.0.0.1:8000/api/categories/reorder/', { order })
-      .subscribe({
-        next: () => {
-          // Silencieux
-        },
-        error: (err) => {
-          console.error('Erreur sauvegarde ordre', err);
-          this.loadCategories();
-        }
-      });
+    this.api.reorderCategories(this.displayedCategories.map(c => c.id)).subscribe({
+      error: err => { console.error(err); this.loadCategories(); }
+    });
   }
 
   // ============================================================
-  // 6. ACTIONS SUR LES CARTES
+  // ACTIONS CARTES
   // ============================================================
 
   toggleEditMode() {
     this.isEditMode = !this.isEditMode;
-    if (!this.isEditMode) {
-      this.cancelRename();
+    if (!this.isEditMode) this.cancelRename();
+  }
+
+  openDetail(card: ResourceCard, event: Event) {
+    event.preventDefault();
+    event.stopPropagation();
+    if (this.isEditMode) return;
+    this.openedCard = card;
+  }
+
+  closeDetail() { this.openedCard = null; }
+  closeDetailAndRefresh() { this.openedCard = null; }
+
+  onCardUpdated(updatedCard: any) {
+    if (this.openedCard && this.openedCard.id === updatedCard.id) Object.assign(this.openedCard, updatedCard);
+    if (this.display.updateCardInCategories(this.allCategories, updatedCard)) this.updateDisplay();
+  }
+
+  toggleFavorite(card: ResourceCard, event: Event) {
+    event.stopPropagation();
+    card.is_favorite = !card.is_favorite;
+
+    this.api.toggleCardFavorite(card.id).subscribe({
+      next: (res) => {
+        card.is_favorite = res.is_favorite;
+        this.display.updateCardInCategories(this.allCategories, { id: card.id, is_favorite: res.is_favorite });
+        this.updateDisplay();
+      },
+      error: () => { card.is_favorite = !card.is_favorite; }
+    });
+  }
+
+  hideOrDeleteCard(card: ResourceCard, event: Event) {
+    event.stopPropagation();
+    if (card.type === 'PRIVATE') {
+      if (!confirm(`Supprimer définitivement la carte "${card.titre}" ?`)) return;
+    } else {
+      if (!confirm(`Masquer la carte "${card.titre}" de votre tableau de bord ?`)) return;
+    }
+
+    this._removeCardFromAll(card.id);
+    this.updateDisplay();
+
+    const req = card.type === 'PRIVATE'
+      ? this.api.deleteCard(card.id)
+      : this.api.toggleCardVisibility(card.id);
+
+    req.subscribe({
+      error: err => {
+        console.error(err);
+        this.toast.error('Erreur — la carte a été restaurée.');
+        this.loadCategories();
+      }
+    });
+  }
+
+  private _removeCardFromAll(cardId: number) {
+    for (const cat of this.allCategories) {
+      cat.cards = cat.cards.filter(c => c.id !== cardId);
+      if (cat.adopted_cards) cat.adopted_cards = cat.adopted_cards.filter(c => c.id !== cardId);
     }
   }
 
@@ -383,211 +323,103 @@ export class DashboardComponent implements OnInit {
 
   moveCard(newCategoryId: number) {
     if (!this.cardToMove) return;
-
     const card = this.cardToMove;
+    this.cardToMove = null;
+    this.currentCategoryIdForMove = null;
 
-    if (card.type === 'PRIVATE') {
-      const formData = new FormData();
-      formData.append('category', newCategoryId.toString());
+    // Optimistic: move card in memory
+    this._removeCardFromAll(card.id);
+    const destCat = this.allCategories.find(c => c.id === newCategoryId);
+    if (destCat) destCat.cards.push(card);
+    this.updateDisplay();
 
-      this.http.patch(`http://127.0.0.1:8000/api/cards/${card.id}/`, formData)
-        .subscribe({
-          next: () => {
-            this.cardToMove = null;
-            this.currentCategoryIdForMove = null;
-            this.loadCategories();
-          },
-          error: (err) => {
-            console.error('Erreur déplacement carte', err);
-            alert("Erreur lors du déplacement.");
-          }
-        });
-    } else {
-      this.http.patch(`http://127.0.0.1:8000/api/cards/${card.id}/assign-category/`,
-        { category: newCategoryId }
-      ).subscribe({
-        next: () => {
-          this.cardToMove = null;
-          this.currentCategoryIdForMove = null;
-          this.loadCategories();
-        },
-        error: (err) => {
-          console.error('Erreur déplacement carte', err);
-          alert("Erreur lors du déplacement.");
-        }
-      });
-    }
-  }
+    const req = card.type === 'PRIVATE'
+      ? this.api.movePrivateCard(card.id, newCategoryId)
+      : this.api.assignCardCategory(card.id, newCategoryId);
 
-  hideOrDeleteCard(card: ResourceCard, event: Event) {
-    event.stopPropagation();
-
-    if (card.type === 'PRIVATE') {
-      if (confirm(`Voulez-vous vraiment SUPPRIMER votre carte privée "${card.titre}" ?`)) {
-        this.http.delete(`http://127.0.0.1:8000/api/cards/${card.id}/`).subscribe({
-          next: () => this.loadCategories(),
-          error: (err) => console.error("Erreur suppression", err)
-        });
-      }
-      return;
-    }
-
-    if (confirm(`Voulez-vous masquer la carte "${card.titre}" de votre tableau de bord ?`)) {
-      this.http.post(`http://127.0.0.1:8000/api/cards/${card.id}/toggle-visibility/`, {}).subscribe({
-        next: () => this.loadCategories(),
-        error: (err) => console.error("Erreur masquage", err)
-      });
-    }
-  }
-
-  toggleFavorite(card: ResourceCard, event: Event) {
-    event.stopPropagation();
-
-    card.is_favorite = !card.is_favorite;
-
-    this.http.post(`http://127.0.0.1:8000/api/cards/${card.id}/toggle-favorite/`, {})
-      .subscribe({
-        next: (response: any) => {
-          card.is_favorite = response.is_favorite;
-
-          // ✅ MISE À JOUR DANS allCategories
-          this.allCategories.forEach(cat => {
-            const cardIndex = (cat.cards || []).findIndex(c => c.id === card.id);
-            if (cardIndex !== -1) {
-              cat.cards[cardIndex].is_favorite = response.is_favorite;
-            }
-
-            if (cat.adopted_cards) {
-              const adoptedIndex = cat.adopted_cards.findIndex(c => c.id === card.id);
-              if (adoptedIndex !== -1) {
-                cat.adopted_cards[adoptedIndex].is_favorite = response.is_favorite;
-              }
-            }
-          });
-
-          // ✅ FORCER LE REFRESH DE L'AFFICHAGE
-          this.updateDisplay();
-        },
-        error: (err) => {
-          card.is_favorite = !card.is_favorite;
-          console.error('Erreur toggle favori', err);
-        }
-      });
-  }
-
-  openDetail(card: ResourceCard, event: Event) {
-    event.preventDefault();
-    event.stopPropagation();
-    if (this.isEditMode) return;
-    this.openedCard = card;
-  }
-
-  closeDetail() {
-    this.openedCard = null;
-  }
-
-  closeDetailAndRefresh() {
-    this.openedCard = null;
-  }
-
-  onCardUpdated(updatedCard: any) {
-    console.log('🔄 Mise à jour locale de la carte:', updatedCard.id);
-
-    if (this.openedCard && this.openedCard.id === updatedCard.id) {
-      Object.assign(this.openedCard, updatedCard);
-    }
-
-    let found = false;
-
-    this.allCategories.forEach(cat => {
-      const cardIndex = (cat.cards || []).findIndex(c => c.id === updatedCard.id);
-      if (cardIndex !== -1) {
-        cat.cards[cardIndex] = { ...cat.cards[cardIndex], ...updatedCard };
-        found = true;
-      }
-
-      if (cat.adopted_cards) {
-        const adoptedIndex = cat.adopted_cards.findIndex(c => c.id === updatedCard.id);
-        if (adoptedIndex !== -1) {
-          cat.adopted_cards[adoptedIndex] = { ...cat.adopted_cards[adoptedIndex], ...updatedCard };
-          found = true;
-        }
+    req.subscribe({
+      error: err => {
+        console.error(err);
+        this.toast.error('Erreur lors du déplacement.');
+        this.loadCategories();
       }
     });
-
-    if (found) {
-      this.updateDisplay();
-    }
   }
 
-  handleCardSelection(card: ResourceCard) {
-    this.showAddModal = false;
-    this.selectedCardToAssign = card;
-  }
+  handleCardSelection(card: ResourceCard) { this.showAddModal = false; this.selectedCardToAssign = card; }
 
   assignCategory(categoryId: number) {
     if (!this.selectedCardToAssign) return;
-
-    const cardId = this.selectedCardToAssign.id;
-    const payload = { category: categoryId };
-
-    this.http.patch(`http://127.0.0.1:8000/api/cards/${cardId}/assign-category/`, payload)
-      .subscribe({
-        next: () => {
-          this.selectedCardToAssign = null;
-          this.loadCategories();
-          alert(`✅ Ressource classée et ajoutée !`);
-        },
-        error: (err) => {
-          console.error("❌ ERREUR ASSIGNATION :", err.error);
-          alert(`Erreur d'assignation : ${err.error?.category?.[0] || 'Vérifiez la console.'}`);
-          this.selectedCardToAssign = null;
-        }
-      });
+    this.api.assignCardCategory(this.selectedCardToAssign.id, categoryId).subscribe({
+      next: () => { this.selectedCardToAssign = null; this.loadCategories(); this.toast.success('Ressource ajoutée !'); },
+      error: err => { console.error(err); this.toast.error('Erreur d\'assignation.'); this.selectedCardToAssign = null; }
+    });
   }
 
-  // ============================================================
-  // 7. AJOUT DE LIEN PERSONNEL
-  // ============================================================
-
   onLinkAdded(data: any) {
-    if (this.allCategories.length === 0) {
-      alert("Aucune catégorie disponible. Créez d'abord une catégorie.");
-      return;
-    }
-
-    let finalCategoryId = data.category;
-    if (!finalCategoryId) {
-      finalCategoryId = this.allCategories[0].id;
-    }
-
+    if (!this.allCategories.length) { this.toast.warning('Créez d\'abord une catégorie.'); return; }
     const formData = new FormData();
     formData.append('titre', data.title);
-    formData.append('category', finalCategoryId);
+    formData.append('category', data.category || this.allCategories[0].id);
+    if (data.type === 'WEB') { formData.append('type', 'WEB'); formData.append('url', data.url); }
+    else { formData.append('type', 'PDF'); formData.append('document', data.file); }
 
-    if (data.type === 'WEB') {
-      formData.append('type', 'WEB');
-      formData.append('url', data.url);
-    } else {
-      formData.append('type', 'PDF');
-      formData.append('document', data.file);
-    }
-
-    this.http.post('http://127.0.0.1:8000/api/cards/', formData).subscribe({
-      next: () => {
-        alert('✅ Ressource ajoutée !');
-        this.showAddModal = false;
-        this.loadCategories();
-      },
-      error: (err) => {
-        console.error('❌ Erreur POST :', err);
-        alert("Erreur lors de l'ajout d'une ressource.");
-      }
+    this.api.createCard(formData).subscribe({
+      next: () => { this.showAddModal = false; this.loadCategories(); },
+      error: err => { console.error(err); this.toast.error('Erreur lors de l\'ajout.'); }
     });
   }
 
   // ============================================================
-  // 9. BADGES
+  // DRAG & DROP CARTES
+  // ============================================================
+
+  onCardDragStart(event: DragEvent, card: ResourceCard) {
+    this.draggedCard = card;
+    event.dataTransfer!.effectAllowed = 'move';
+    event.dataTransfer!.setData('text/plain', String(card.id));
+  }
+
+  onCardDragOver(event: DragEvent, card: ResourceCard) {
+    event.preventDefault();
+    event.dataTransfer!.dropEffect = 'move';
+    if (!this.draggedCard || this.draggedCard.id === card.id) return;
+    this.dragOverCard = card;
+    const rect = (event.currentTarget as HTMLElement).getBoundingClientRect();
+    this.dragOverPosition = event.clientY < rect.top + rect.height / 2 ? 'before' : 'after';
+  }
+
+  onCardDragLeave() { this.dragOverCard = null; this.dragOverPosition = null; }
+
+  onCardDrop(event: DragEvent, targetCard: ResourceCard, cat: Category) {
+    event.preventDefault();
+    if (!this.draggedCard || this.draggedCard.id === targetCard.id) {
+      this.resetDrag(); return;
+    }
+
+    const cards = cat.cards;
+    const fromIdx = cards.findIndex(c => c.id === this.draggedCard!.id);
+    if (fromIdx < 0) { this.resetDrag(); return; }
+
+    const draggedCard = this.draggedCard;
+    const position = this.dragOverPosition;
+    cards.splice(fromIdx, 1);
+    const toIdx = cards.findIndex(c => c.id === targetCard.id);
+    if (toIdx < 0) { this.resetDrag(); return; }
+    cards.splice(position === 'before' ? toIdx : toIdx + 1, 0, draggedCard);
+
+    this.api.reorderCards(cards.map((c, i) => ({ id: c.id, type: c.type, ordre: i }))).subscribe({
+      error: err => console.error('Erreur reorder', err)
+    });
+    this.resetDrag();
+  }
+
+  onCardDragEnd() { this.resetDrag(); }
+
+  private resetDrag() { this.draggedCard = null; this.dragOverCard = null; this.dragOverPosition = null; }
+
+  // ============================================================
+  // BADGES
   // ============================================================
 
   getBadgeClass(cardType: string): string {

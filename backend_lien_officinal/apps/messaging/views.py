@@ -1,4 +1,3 @@
-from django.http import FileResponse
 from django.shortcuts import get_object_or_404
 from rest_framework import status
 from rest_framework.permissions import IsAuthenticated
@@ -7,14 +6,12 @@ from rest_framework.views import APIView
 
 from apps.team.models import Collaborator
 from apps.team.serializers import CollaboratorSerializer
-from .models import Conversation, Message, Attachment
+from .models import Conversation, Message
 from .serializers import (
     ConversationSerializer,
     ConversationCreateSerializer,
     MessageSerializer,
     MessageCreateSerializer,
-    AttachmentSerializer,
-    AttachmentUploadSerializer,
 )
 
 
@@ -64,11 +61,9 @@ class ConversationListCreateView(APIView):
                 {"detail": "En-tête X-Collaborator-Id manquant ou invalide."},
                 status=status.HTTP_400_BAD_REQUEST
             )
-        # Filtrage par participant : on ne retourne que les conversations
-        # dont le collaborateur actif est membre
         conversations = Conversation.objects.filter(
             pharmacy=request.user, participants=collaborator
-        )
+        ).exclude(hidden_by=collaborator)
         serializer = ConversationSerializer(
             conversations, many=True, context={'request': request, 'collaborator': collaborator}
         )
@@ -134,8 +129,8 @@ class ConversationDetailView(APIView):
 
 class MessageListCreateView(APIView):
     """
-    GET  /api/messaging/conversations/{id}/messages/  — Messages du fil (paginés)
-    POST /api/messaging/conversations/{id}/messages/  — Envoyer un message
+    GET  /api/messaging/conversations/{id}/messages/  — Messages du fil
+    POST /api/messaging/conversations/{id}/messages/  — Envoyer un message (fallback HTTP)
     """
     permission_classes = [IsAuthenticated]
 
@@ -147,9 +142,7 @@ class MessageListCreateView(APIView):
                 status=status.HTTP_400_BAD_REQUEST
             )
         conversation = _get_conversation_for_participant(conversation_id, request, collaborator)
-        messages = conversation.messages.select_related('sender').prefetch_related(
-            'attachments', 'is_read_by'
-        )
+        messages = conversation.messages.select_related('sender').prefetch_related('is_read_by')
         serializer = MessageSerializer(messages, many=True, context={'request': request})
         return Response(serializer.data)
 
@@ -198,64 +191,31 @@ class MarkReadView(APIView):
         return Response({"detail": "Messages marqués comme lus."})
 
 
-class AttachmentUploadView(APIView):
+class ConversationHideView(APIView):
     """
-    POST /api/messaging/messages/{message_id}/attachments/
-    Upload d'une pièce jointe sur un message existant.
-    """
-    permission_classes = [IsAuthenticated]
-
-    def post(self, request, message_id):
-        collaborator = _get_collaborator(request)
-        if collaborator is None:
-            return Response(
-                {"detail": "En-tête X-Collaborator-Id manquant ou invalide."},
-                status=status.HTTP_400_BAD_REQUEST
-            )
-        message = get_object_or_404(
-            Message,
-            id=message_id,
-            conversation__pharmacy=request.user,
-            conversation__participants=collaborator,
-        )
-        serializer = AttachmentUploadSerializer(
-            data=request.data, context={'message': message}
-        )
-        if serializer.is_valid():
-            attachment = serializer.save()
-            return Response(
-                AttachmentSerializer(attachment).data,
-                status=status.HTTP_201_CREATED
-            )
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-
-
-class AttachmentDownloadView(APIView):
-    """
-    GET /api/messaging/attachments/{attachment_id}/download/
-    Télécharge une pièce jointe (scope pharmacie vérifié).
+    POST /api/messaging/conversations/{id}/hide/
+    Masque la conversation pour le collaborateur actif (soft delete personnel).
+    Réservé aux participants non-créateurs.
     """
     permission_classes = [IsAuthenticated]
 
-    def get(self, request, attachment_id):
+    def post(self, request, conversation_id):
         collaborator = _get_collaborator(request)
         if collaborator is None:
             return Response(
-                {"detail": "En-tête X-Collaborator-Id manquant ou invalide."},
+                {"detail": "Session collaborateur requise."},
+                status=status.HTTP_403_FORBIDDEN
+            )
+        conversation = _get_conversation_for_participant(conversation_id, request, collaborator)
+
+        if conversation.created_by_id == collaborator.id:
+            return Response(
+                {"detail": "Le créateur doit supprimer la conversation, pas la masquer."},
                 status=status.HTTP_400_BAD_REQUEST
             )
-        attachment = get_object_or_404(
-            Attachment,
-            id=attachment_id,
-            message__conversation__pharmacy=request.user,
-            message__conversation__participants=collaborator,
-        )
-        response = FileResponse(
-            attachment.file.open('rb'),
-            content_type=attachment.file_type,
-        )
-        response['Content-Disposition'] = f'attachment; filename="{attachment.file_name}"'
-        return response
+
+        conversation.hidden_by.add(collaborator)
+        return Response(status=status.HTTP_204_NO_CONTENT)
 
 
 class TeamMembersView(APIView):

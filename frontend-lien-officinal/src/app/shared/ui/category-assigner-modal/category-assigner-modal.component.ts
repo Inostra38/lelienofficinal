@@ -1,4 +1,4 @@
-import { Component, EventEmitter, Input, Output } from '@angular/core';
+import { Component, EventEmitter, HostListener, Input, Output } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Category, ResourceCard } from '../../../features/dashboard/dashboard.component'; // Import de l'interface
@@ -17,6 +17,9 @@ export class CategoryAssignerModalComponent {
   @Output() cancel = new EventEmitter<void>();
 
   selectedCategoryId: number | null = null;
+
+  @HostListener('document:keydown.escape')
+  onEscape() { this.cancel.emit(); }
 
   onSubmit() {
     if (this.selectedCategoryId) {

@@ -1,13 +1,15 @@
-import { Component, Input, Output, EventEmitter, OnInit } from '@angular/core';
+import { Component, Input, Output, EventEmitter, HostListener, OnInit, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { HttpClient, HttpHeaders } from '@angular/common/http';
+import { QuillModule } from 'ngx-quill';
+import { ToastService } from '../../../../core/services/toast.service';
 import { environment } from '../../../../../environments/environment';
 
 @Component({
   selector: 'app-card-detail',
   standalone: true,
-  imports: [CommonModule, FormsModule],
+  imports: [CommonModule, FormsModule, QuillModule],
   templateUrl: './card-detail.component.html',
   styleUrls: ['./card-detail.component.css']
 })
@@ -38,7 +40,22 @@ export class CardDetailComponent implements OnInit {
   isSaving = false;
   saveSuccess = false;
 
-  constructor(private http: HttpClient) {}
+  readonly quillModules = {
+    toolbar: [
+      ['bold', 'italic', 'underline'],
+      [{ list: 'ordered' }, { list: 'bullet' }],
+      ['link'],
+      ['clean'],
+    ]
+  };
+
+  private http: HttpClient = inject(HttpClient);
+  private toast: ToastService = inject(ToastService);
+
+  @HostListener('document:keydown.escape')
+  onEscape() { this.close.emit(); }
+
+  constructor() {}
 
   ngOnInit() {
     // Initialiser les champs éditables avec les valeurs actuelles
@@ -107,11 +124,11 @@ export class CardDetailComponent implements OnInit {
         next: () => {
           this.card.items = this.card.items.filter((item: any) => item.id !== itemId);
           this.cardUpdated.emit(this.card);
-          alert('Item supprimé avec succès !');
+          this.toast.success('Item supprimé avec succès.');
         },
         error: (err) => {
           console.error('Erreur lors de la suppression:', err);
-          alert('Erreur lors de la suppression de l\'item.');
+          this.toast.error('Erreur lors de la suppression.');
         }
       });
   }
@@ -161,7 +178,7 @@ export class CardDetailComponent implements OnInit {
       },
       error: (err) => {
         console.error('Erreur lors de la mise à jour de l\'ordre:', err);
-        alert('Erreur lors du réordonnancement.');
+        this.toast.error('Erreur lors du réordonnancement.');
       }
     });
   }
@@ -172,7 +189,7 @@ export class CardDetailComponent implements OnInit {
 
   saveCardChanges() {
     if (this.card.type !== 'PRIVATE') {
-      alert('Vous ne pouvez modifier que vos cartes privées.');
+      this.toast.warning('Vous ne pouvez modifier que vos cartes privées.');
       return;
     }
 
@@ -189,17 +206,16 @@ export class CardDetailComponent implements OnInit {
     this.http.patch(`${environment.apiUrl}/api/cards/${this.card.id}/`, formData, { headers })
       .subscribe({
         next: (updatedCard: any) => {
-          // ✅ MISE À JOUR IMMÉDIATE
           this.card.titre = updatedCard.titre;
           this.card.description_officielle = updatedCard.description_officielle;
           this.isSaving = false;
           this.isEditMode = false;
           this.cardUpdated.emit(this.card);
-          alert('Modifications enregistrées avec succès !');
+          this.toast.success('Modifications enregistrées.');
         },
         error: (err) => {
           console.error('Erreur lors de la sauvegarde:', err);
-          alert('Erreur lors de la sauvegarde des modifications.');
+          this.toast.error('Erreur lors de la sauvegarde.');
           this.isSaving = false;
         }
       });
@@ -218,17 +234,17 @@ export class CardDetailComponent implements OnInit {
 
   addItem() {
     if (!this.newItem.label.trim()) {
-      alert('Le nom est obligatoire.');
+      this.toast.warning('Le nom est obligatoire.');
       return;
     }
 
     if (this.newItem.type === 'WEB' && !this.newItem.url.trim()) {
-      alert('L\'URL est obligatoire pour un lien web.');
+      this.toast.warning('L\'URL est obligatoire pour un lien web.');
       return;
     }
 
     if (this.newItem.type === 'PDF' && !this.newItem.file) {
-      alert('Le fichier PDF est obligatoire.');
+      this.toast.warning('Le fichier PDF est obligatoire.');
       return;
     }
 
@@ -254,17 +270,17 @@ export class CardDetailComponent implements OnInit {
           this.cardUpdated.emit(this.card);
           this.newItem = { label: '', type: 'WEB', url: '', file: null };
           this.showAddForm = false;
-          alert('Item ajouté avec succès !');
+          this.toast.success('Item ajouté avec succès.');
         },
         error: (err) => {
           console.error('Erreur lors de l\'ajout:', err);
-          alert('Erreur lors de l\'ajout de l\'item.');
+          this.toast.error('Erreur lors de l\'ajout de l\'item.');
         }
       });
   }
 
   // ============================================
-  // SAUVEGARDE DES NOTES (✅ CORRIGÉ)
+  // SAUVEGARDE DES NOTES
   // ============================================
 
   saveNotes() {
@@ -291,11 +307,12 @@ export class CardDetailComponent implements OnInit {
           this.isSaving = false;
           this.saveSuccess = true;
           this.cardUpdated.emit(this.card);
+          this.toast.success('Notes enregistrées.');
           setTimeout(() => this.saveSuccess = false, 3000);
         },
         error: (err) => {
           console.error('Erreur lors de la sauvegarde des notes:', err);
-          alert('Erreur lors de la sauvegarde des notes.');
+          this.toast.error('Erreur lors de la sauvegarde des notes.');
           this.isSaving = false;
         }
       });

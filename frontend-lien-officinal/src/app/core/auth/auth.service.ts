@@ -1,3 +1,4 @@
+import { environment } from '../../../environments/environment';
 import { Injectable, inject } from '@angular/core';
 import { HttpClient, HttpHeaders } from '@angular/common/http';
 import { Router } from '@angular/router';
@@ -10,7 +11,7 @@ import { tap, switchMap, map, filter, take, catchError } from 'rxjs/operators';
 export class AuthService {
   private http = inject(HttpClient);
   private router = inject(Router);
-  private baseUrl = 'http://127.0.0.1:8000/api';
+  private baseUrl = environment.apiUrl + '/api';
   private tokenKey = 'access_token';
   private refreshKey = 'refresh_token';
   private pharmacyTokenKey = 'pharmacy_access_token';

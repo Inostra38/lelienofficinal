@@ -13,9 +13,12 @@ export class ConversationListComponent implements OnChanges {
   @Input() conversations: Conversation[] = [];
   @Input() selectedId: string | null = null;
   @Input() loading = false;
+  @Input() activeCollaboratorId: number | null = null;
 
   @Output() selected = new EventEmitter<Conversation>();
   @Output() newConversation = new EventEmitter<void>();
+  @Output() deleteRequested = new EventEmitter<Conversation>();
+  @Output() hideRequested = new EventEmitter<Conversation>();
 
   searchTerm = '';
   filtered: Conversation[] = [];
@@ -39,6 +42,20 @@ export class ConversationListComponent implements OnChanges {
     this.selected.emit(conv);
   }
 
+  isCreator(conv: Conversation): boolean {
+    return conv.created_by?.id === this.activeCollaboratorId;
+  }
+
+  onDelete(event: Event, conv: Conversation): void {
+    event.stopPropagation();
+    this.deleteRequested.emit(conv);
+  }
+
+  onHide(event: Event, conv: Conversation): void {
+    event.stopPropagation();
+    this.hideRequested.emit(conv);
+  }
+
   formatDate(dateStr: string): string {
     const date = new Date(dateStr);
     const now = new Date();
@@ -51,5 +68,9 @@ export class ConversationListComponent implements OnChanges {
 
   getInitials(fullName: string): string {
     return fullName.split(' ').map(p => p[0]).join('').toUpperCase().slice(0, 2);
+  }
+
+  getColorClass(color: string): string {
+    return `bg-${color || 'gray'}-500`;
   }
 }

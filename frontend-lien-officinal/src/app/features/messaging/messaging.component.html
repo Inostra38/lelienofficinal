@@ -59,8 +59,11 @@
         [conversations]="conversations"
         [selectedId]="selectedConversation?.id ?? null"
         [loading]="loadingConversations"
+        [activeCollaboratorId]="activeCollaborator?.id ?? null"
         (selected)="onConversationSelected($event)"
-        (newConversation)="onNewConversation()">
+        (newConversation)="onNewConversation()"
+        (deleteRequested)="onDeleteConversation($event)"
+        (hideRequested)="onHideConversation($event)">
       </app-conversation-list>
     </div>
 

@@ -186,6 +186,24 @@ export class MessagingComponent implements OnInit, OnDestroy {
     this.loadConversations();
   }
 
+  onDeleteConversation(conv: Conversation): void {
+    if (!confirm(`Supprimer définitivement le fil "${conv.subject}" et tous ses messages ?`)) return;
+    this.conversations = this.conversations.filter(c => c.id !== conv.id);
+    if (this.selectedConversation?.id === conv.id) this.selectedConversation = null;
+    this.messagingService.deleteConversation(conv.id).subscribe({
+      error: () => this.loadConversations()
+    });
+  }
+
+  onHideConversation(conv: Conversation): void {
+    if (!confirm(`Masquer le fil "${conv.subject}" ? Il réapparaîtra si quelqu'un écrit un nouveau message.`)) return;
+    this.conversations = this.conversations.filter(c => c.id !== conv.id);
+    if (this.selectedConversation?.id === conv.id) this.selectedConversation = null;
+    this.messagingService.hideConversation(conv.id).subscribe({
+      error: () => this.loadConversations()
+    });
+  }
+
   // ── Navigation ───────────────────────────────────────────────────────────
 
   goToDashboard(): void {
