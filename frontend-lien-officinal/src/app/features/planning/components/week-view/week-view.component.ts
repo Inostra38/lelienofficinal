@@ -579,6 +579,7 @@ export class WeekViewComponent implements OnChanges {
 
   readonly ABSENCE_TYPES = [
     { value: 'injustifiee', label: 'Injustifiée' },
+    { value: 'justifiee',   label: 'Justifiée' },
     { value: 'maladie',     label: 'Maladie' },
     { value: 'cp',          label: 'Congés payés' },
     { value: 'rcr',         label: 'RCR' },

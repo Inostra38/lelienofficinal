@@ -24,7 +24,7 @@ export interface Shift {
   is_published: boolean;
   is_extra_hour: boolean;
   is_absent: boolean;
-  absence_type: 'injustifiee' | 'maladie' | 'cp' | 'rcr' | 'sans_solde' | null;
+  absence_type: 'injustifiee' | 'justifiee' | 'maladie' | 'cp' | 'rcr' | 'sans_solde' | null;
   note: string;
   created_at: string;
   updated_at: string;
@@ -163,7 +163,7 @@ export interface CreateAbsenceDto {
   collaborator_id?: number;
   start_date: string;
   end_date: string;
-  type?: 'cp' | 'maladie' | 'rcr' | 'sans_solde';
+  type?: 'cp' | 'maladie' | 'rcr' | 'sans_solde' | 'justifiee';
   note?: string;
 }
 
@@ -318,7 +318,7 @@ export class PlanningService {
     return this.http.post<Shift>(`${this.apiUrl}/shifts/`, dto);
   }
 
-  updateShift(id: number, dto: Partial<Pick<CreateShiftDto, 'start_datetime' | 'end_datetime' | 'is_extra_hour' | 'note'> & { is_absent: boolean; absence_type: string | null }>): Observable<Shift> {
+  updateShift(id: number, dto: Record<string, any>): Observable<Shift> {
     return this.http.patch<Shift>(`${this.apiUrl}/shifts/${id}/`, dto);
   }
 

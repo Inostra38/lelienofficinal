@@ -96,6 +96,7 @@ class Shift(models.Model):
         max_length=20,
         choices=[
             ('injustifiee', 'Absence injustifiée'),
+            ('justifiee',   'Absence justifiée'),
             ('maladie',     'Maladie'),
             ('cp',          'Congés payés'),
             ('rcr',         'RCR'),

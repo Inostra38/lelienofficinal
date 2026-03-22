@@ -55,6 +55,8 @@ export class PlanningComponent implements OnInit, OnDestroy {
   showSettingsModal      = false;
   showTemplateModal      = false;
   showAdjustmentsModal   = false;
+  adjustmentsTab: 'list' | 'create' | 'absence' = 'list';
+  adjustmentsMode: 'adjustments' | 'absence' = 'adjustments';
   showAnalyticsPanel     = false;
   planningSettings: PlanningSettings | null = null;
   openingHours: OpeningHours[] = [];

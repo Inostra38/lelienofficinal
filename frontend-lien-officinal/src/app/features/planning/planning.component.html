@@ -1,14 +1,14 @@
 <div class="flex h-full bg-gray-50 overflow-hidden relative">
 
   <!-- ── Sélecteur de collaborateur (overlay) ── -->
-  <div *ngIf="showCollaboratorPicker"
-       class="absolute inset-0 z-50 bg-white/80 backdrop-blur-sm flex items-center justify-center">
+  @if (showCollaboratorPicker) {
+  <div class="absolute inset-0 z-50 bg-white/80 backdrop-blur-sm flex items-center justify-center">
     <div class="bg-white rounded-2xl shadow-2xl border border-gray-100 p-8 w-full max-w-sm mx-4">
       <h2 class="text-lg font-bold text-gray-800 mb-1">Planning</h2>
       <p class="text-sm text-gray-400 mb-6">Qui êtes-vous pour cette session ?</p>
       <div class="grid grid-cols-3 gap-3">
-        <button *ngFor="let collab of team"
-                (click)="selectCollaborator(collab)"
+        @for (collab of team; track collab.id) {
+        <button (click)="selectCollaborator(collab)"
                 class="flex flex-col items-center gap-2 p-3 rounded-xl border border-gray-100 hover:border-green-300 hover:bg-green-50 transition-all group">
           <div class="relative">
             <div class="w-10 h-10 rounded-full text-white flex items-center justify-center font-bold text-sm"
@@ -16,66 +16,77 @@
               {{ getInitials(collab) }}
             </div>
             <!-- Badge manager -->
-            <span *ngIf="collab.can_manage_planning"
-                  class="absolute -top-1 -right-1 w-4 h-4 bg-green-700 text-white text-[9px] font-bold rounded-full flex items-center justify-center leading-none"
+            @if (collab.can_manage_planning) {
+            <span class="absolute -top-1 -right-1 w-4 h-4 bg-green-700 text-white text-[9px] font-bold rounded-full flex items-center justify-center leading-none"
                   title="Manager planning">M</span>
+            }
           </div>
           <span class="text-xs text-gray-600 font-medium text-center leading-tight">
             {{ collab.first_name }}
           </span>
         </button>
+        }
       </div>
     </div>
   </div>
+  }
 
   <!-- ── Modal PIN ── -->
+  @if (showPinModal && pendingCollaborator) {
   <app-pin-modal
-    *ngIf="showPinModal && pendingCollaborator"
     [collaboratorId]="pendingCollaborator.id!"
     [collaboratorName]="pendingCollaborator.first_name"
     (validated)="onPinValidated()"
     (cancelled)="onPinCancelled()">
   </app-pin-modal>
+  }
 
   <!-- ── Modale absences ── -->
+  @if (showAbsenceModal) {
   <app-absence-modal
-    *ngIf="showAbsenceModal"
     [isManager]="isManager"
     [weekStr]="viewMode === 'week' ? currentWeekStr : ''"
     (closed)="showAbsenceModal = false">
   </app-absence-modal>
+  }
 
   <!-- ── Modale paramètres ── -->
+  @if (showSettingsModal) {
   <app-planning-settings
-    *ngIf="showSettingsModal"
     (closed)="onSettingsClosed()">
   </app-planning-settings>
+  }
 
   <!-- ── Modale templates ── -->
+  @if (showTemplateModal) {
   <app-template-modal
-    *ngIf="showTemplateModal"
     [currentWeekStr]="currentWeekStr"
     [planningSettings]="planningSettings"
     (closed)="showTemplateModal = false"
     (weekChanged)="onShiftChanged()">
   </app-template-modal>
+  }
 
   <!-- ── Modale analytique ── -->
+  @if (showAnalyticsPanel) {
   <app-planning-analytics
-    *ngIf="showAnalyticsPanel"
     (closed)="showAnalyticsPanel = false">
   </app-planning-analytics>
+  }
 
   <!-- ── Modale ajustements horaires ── -->
+  @if (showAdjustmentsModal) {
   <app-time-adjustments
-    *ngIf="showAdjustmentsModal"
     [isManager]="isManager"
     [weekStr]="currentWeekStr"
     [weekData]="weekData"
     [activeCollaboratorId]="activeCollaborator?.id ?? null"
-    (closed)="showAdjustmentsModal = false"
+    [initialTab]="adjustmentsTab"
+    [mode]="adjustmentsMode"
+    (closed)="showAdjustmentsModal = false; adjustmentsTab = 'list'; adjustmentsMode = 'adjustments'"
     (weekChanged)="onShiftChanged()">
   </app-time-adjustments>
+  }
 
   <!-- ── Layout principal ── -->
   <div class="flex-1 flex flex-col overflow-hidden">
@@ -86,7 +97,7 @@
     <div class="no-print bg-white border-b border-gray-200 px-[14px] flex items-center gap-2 shrink-0 toolbar-l1">
 
       <!-- ── Navigation semaine ── -->
-      <ng-container *ngIf="viewMode !== 'month'">
+      @if (viewMode !== 'month') {
         <button (click)="prevWeek()"
                 class="p-1.5 rounded-lg hover:bg-gray-100 text-gray-400 hover:text-gray-700 transition-colors shrink-0">
           <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -103,19 +114,21 @@
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
           </svg>
         </button>
-        <span *ngIf="weekData?.template_letter"
-              class="text-[11px] font-bold bg-indigo-100 text-indigo-700 rounded px-1.5 py-0.5 tracking-wide shrink-0">
+        @if (weekData?.template_letter) {
+        <span class="text-[11px] font-bold bg-indigo-100 text-indigo-700 rounded px-1.5 py-0.5 tracking-wide shrink-0">
           Sem.&nbsp;{{ weekData!.template_letter }}
         </span>
-        <button *ngIf="!isCurrentWeek()"
-                (click)="goToCurrentWeek()"
+        }
+        @if (!isCurrentWeek()) {
+        <button (click)="goToCurrentWeek()"
                 class="text-[11px] text-green-700 hover:text-green-800 font-semibold border border-green-200 rounded px-1.5 py-0.5 hover:bg-green-50 transition-colors shrink-0">
           Aujourd'hui
         </button>
-      </ng-container>
+        }
+      }
 
       <!-- ── Navigation mois ── -->
-      <ng-container *ngIf="viewMode === 'month'">
+      @if (viewMode === 'month') {
         <button (click)="prevMonth()"
                 class="p-1.5 rounded-lg hover:bg-gray-100 text-gray-400 hover:text-gray-700 transition-colors shrink-0">
           <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -129,13 +142,14 @@
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
           </svg>
         </button>
-      </ng-container>
+      }
 
       <!-- ── Séparateur vertical ── -->
       <div class="h-5 w-px bg-gray-200 mx-1 shrink-0"></div>
 
       <!-- ── Segmented control : Vue 24h | Semaine | Mois (manager) ── -->
-      <div *ngIf="isManager" class="flex bg-gray-100 rounded-lg p-0.5 gap-0.5 shrink-0">
+      @if (isManager) {
+      <div class="flex bg-gray-100 rounded-lg p-0.5 gap-0.5 shrink-0">
         <button (click)="setViewMode('24h')"
                 class="px-2.5 py-1 rounded-md text-xs font-semibold transition-all"
                 [class.bg-white]="currentViewMode === '24h'"
@@ -161,9 +175,11 @@
           Mois
         </button>
       </div>
+      }
 
       <!-- ── Segmented control : Ma semaine | Voir l'équipe (non-manager) ── -->
-      <div *ngIf="!isManager && activeCollaborator" class="flex bg-gray-100 rounded-lg p-0.5 gap-0.5 shrink-0">
+      @if (!isManager && activeCollaborator) {
+      <div class="flex bg-gray-100 rounded-lg p-0.5 gap-0.5 shrink-0">
         <button (click)="showFullTeam = false"
                 class="px-2.5 py-1 rounded-md text-xs font-semibold transition-all"
                 [class.bg-white]="!showFullTeam"
@@ -181,12 +197,13 @@
           Voir l'équipe
         </button>
       </div>
+      }
 
       <!-- ── Spacer ── -->
       <div class="flex-1"></div>
 
       <!-- ── Actions droite (managers) ── -->
-      <ng-container *ngIf="isManager">
+      @if (isManager) {
 
         <!-- Analytique -->
         <button (click)="showAnalyticsPanel = true"
@@ -211,8 +228,8 @@
         </button>
 
         <!-- Imprimer (semaine uniquement) -->
-        <button *ngIf="viewMode === 'week' && weekData"
-                (click)="printWeek()"
+        @if (viewMode === 'week' && weekData) {
+        <button (click)="printWeek()"
                 class="toolbar-action-btn"
                 title="Imprimer">
           <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -221,10 +238,10 @@
           </svg>
           <span>Imprimer</span>
         </button>
+        }
 
-        <!-- Absences (vue mois) -->
-        <button *ngIf="viewMode === 'month'"
-                (click)="showAbsenceModal = true"
+        <!-- Absences -->
+        <button (click)="showAbsenceModal = true"
                 class="toolbar-action-btn">
           <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
@@ -237,8 +254,8 @@
         <div class="h-5 w-px bg-gray-200 mx-0.5 shrink-0"></div>
 
         <!-- Déployer la semaine -->
-        <button *ngIf="viewMode === 'week' && hasUnpublishedShifts"
-                (click)="publishWeek()"
+        @if (viewMode === 'week' && hasUnpublishedShifts) {
+        <button (click)="publishWeek()"
                 class="toolbar-deploy-btn">
           <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
@@ -246,10 +263,11 @@
           </svg>
           Déployer la semaine
         </button>
+        }
 
         <!-- Dépublier la semaine -->
-        <button *ngIf="viewMode === 'week' && isWeekFullyPublished"
-                (click)="unpublishWeek()"
+        @if (viewMode === 'week' && isWeekFullyPublished) {
+        <button (click)="unpublishWeek()"
                 class="toolbar-action-btn border border-gray-300">
           <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
@@ -257,6 +275,7 @@
           </svg>
           Dépublier
         </button>
+        }
 
         <!-- Paramètres -->
         <button (click)="showSettingsModal = true"
@@ -269,10 +288,31 @@
           </svg>
         </button>
 
-      </ng-container>
+      }
+
+      <!-- ── Actions (collaborateur non-manager) ── -->
+      @if (!isManager && activeCollaborator) {
+      <button (click)="adjustmentsMode = 'adjustments'; adjustmentsTab = 'list'; showAdjustmentsModal = true"
+              class="toolbar-action-btn">
+        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/>
+        </svg>
+        <span>Saisie rapide</span>
+      </button>
+      <button (click)="showAbsenceModal = true"
+              class="toolbar-action-btn">
+        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/>
+        </svg>
+        <span>Absences</span>
+      </button>
+      }
 
       <!-- ── Session collaborateur (avatar compact) ── -->
-      <div *ngIf="activeCollaborator" class="flex items-center gap-1.5 ml-1 pl-2 border-l border-gray-200 shrink-0">
+      @if (activeCollaborator) {
+      <div class="flex items-center gap-1.5 ml-1 pl-2 border-l border-gray-200 shrink-0">
         <div class="w-6 h-6 rounded-full text-white text-[11px] font-bold flex items-center justify-center shrink-0"
              [ngClass]="getBgClass(activeCollaborator.color)">
           {{ getInitials(activeCollaborator) }}
@@ -283,13 +323,14 @@
           Changer
         </button>
       </div>
+      }
     </div>
 
     <!-- ═══════════════════════════════════════════════════════════════════════
          TOOLBAR NIVEAU 2 — Filtres collaborateurs + métriques (semaine seule)
     ════════════════════════════════════════════════════════════════════════ -->
-    <div *ngIf="viewMode === 'week' && isManager"
-         class="no-print border-b border-gray-200 px-[14px] flex items-center gap-1.5 shrink-0 toolbar-l2">
+    @if (viewMode === 'week' && isManager) {
+    <div class="no-print border-b border-gray-200 px-[14px] flex items-center gap-1.5 shrink-0 toolbar-l2">
 
       <!-- Label -->
       <span class="text-[11px] font-semibold text-gray-400 uppercase tracking-wide mr-1 shrink-0">Afficher :</span>
@@ -303,8 +344,8 @@
       </button>
 
       <!-- Pills collaborateurs (max PILL_MAX) -->
-      <button *ngFor="let c of visibleTeamPills"
-              (click)="toggleCollaboratorFilter(c.id!)"
+      @for (c of visibleTeamPills; track c.id) {
+      <button (click)="toggleCollaboratorFilter(c.id!)"
               class="collab-pill"
               [class.collab-pill--active]="isCollaboratorSelected(c.id!)">
         <div class="collab-pill-avatar"
@@ -313,9 +354,11 @@
         </div>
         <span>{{ c.first_name }}</span>
       </button>
+      }
 
       <!-- Overflow "+N autres" -->
-      <div *ngIf="overflowTeam.length > 0" class="relative">
+      @if (overflowTeam.length > 0) {
+      <div class="relative">
         <button (click)="showCollabDropdown = !showCollabDropdown"
                 class="collab-pill"
                 [class.collab-pill--active]="hasOverflowSelected()">
@@ -324,10 +367,10 @@
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
           </svg>
         </button>
-        <div *ngIf="showCollabDropdown"
-             class="absolute top-full left-0 mt-1 bg-white border border-gray-200 rounded-xl shadow-lg z-20 py-1 min-w-[160px]">
-          <button *ngFor="let c of overflowTeam"
-                  (click)="toggleCollaboratorFilter(c.id!)"
+        @if (showCollabDropdown) {
+        <div class="absolute top-full left-0 mt-1 bg-white border border-gray-200 rounded-xl shadow-lg z-20 py-1 min-w-[160px]">
+          @for (c of overflowTeam; track c.id) {
+          <button (click)="toggleCollaboratorFilter(c.id!)"
                   class="w-full flex items-center gap-2 px-3 py-2 text-xs hover:bg-gray-50 transition-colors"
                   [class.text-blue-700]="isCollaboratorSelected(c.id!)"
                   [class.font-semibold]="isCollaboratorSelected(c.id!)">
@@ -336,12 +379,17 @@
               {{ getInitials(c) }}
             </div>
             {{ c.first_name }} {{ c.last_name }}
-            <svg *ngIf="isCollaboratorSelected(c.id!)" class="w-3 h-3 ml-auto text-blue-600" fill="currentColor" viewBox="0 0 20 20">
+            @if (isCollaboratorSelected(c.id!)) {
+            <svg class="w-3 h-3 ml-auto text-blue-600" fill="currentColor" viewBox="0 0 20 20">
               <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"/>
             </svg>
+            }
           </button>
+          }
         </div>
+        }
       </div>
+      }
 
       <!-- Spacer -->
       <div class="flex-1"></div>
@@ -356,7 +404,7 @@
           Heures : <strong class="text-gray-700 font-semibold">{{ totalPlannedHours.toFixed(1) }}h</strong>
         </span>
         <div class="h-3 w-px bg-gray-200"></div>
-        <button (click)="showAdjustmentsModal = true"
+        <button (click)="adjustmentsMode = 'adjustments'; adjustmentsTab = 'list'; showAdjustmentsModal = true"
                 class="flex items-center gap-1.5 text-[11px] font-medium text-gray-500 hover:text-gray-700 transition-colors">
           <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
@@ -364,16 +412,28 @@
           </svg>
           Saisie rapide
         </button>
+        <div class="h-3 w-px bg-gray-200"></div>
+        <button (click)="adjustmentsMode = 'absence'; adjustmentsTab = 'list'; showAdjustmentsModal = true"
+                class="flex items-center gap-1.5 text-[11px] font-medium text-orange-500 hover:text-orange-700 transition-colors">
+          <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                  d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/>
+          </svg>
+          Absences
+        </button>
       </div>
     </div>
+    }
 
     <!-- Contenu -->
     <div class="flex-1 overflow-auto p-0">
 
       <!-- Loader semaine -->
-      <div *ngIf="loading && viewMode !== 'month'" class="flex items-center justify-center h-32">
+      @if (loading && viewMode !== 'month') {
+      <div class="flex items-center justify-center h-32">
         <div class="animate-spin rounded-full h-8 w-8 border-2 border-green-700 border-t-transparent"></div>
       </div>
+      }
 
       <!-- Skeleton mois -->
       @if (loading && viewMode === 'month') {
@@ -398,8 +458,8 @@
       }
 
       <!-- Vue semaine -->
+      @if (!loading && viewMode === 'week' && weekData) {
       <app-week-view
-        *ngIf="!loading && viewMode === 'week' && weekData"
         [weekData]="weekData"
         [isManager]="isManager"
         [currentWeekStr]="currentWeekStr"
@@ -410,10 +470,11 @@
         [filteredCollaboratorIds]="filteredCollaboratorIds"
         (shiftChanged)="onShiftChanged()">
       </app-week-view>
+      }
 
       <!-- Vue mois -->
+      @if (!loading && viewMode === 'month') {
       <app-month-view
-        *ngIf="!loading && viewMode === 'month'"
         [weeksData]="monthWeeks"
         [currentMonth]="currentMonth"
         [isManager]="isManager"
@@ -421,16 +482,18 @@
         (dayClicked)="onDayClicked($event)"
         (dayStatusChanged)="loadMonth()">
       </app-month-view>
+      }
 
       <!-- Équipe vide (vue semaine) -->
-      <div *ngIf="!loading && viewMode === 'week' && weekData && weekData.summary.length === 0"
-           class="flex flex-col items-center justify-center h-48 text-gray-400">
+      @if (!loading && viewMode === 'week' && weekData && weekData.summary.length === 0) {
+      <div class="flex flex-col items-center justify-center h-48 text-gray-400">
         <svg class="w-12 h-12 mb-3 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"
                 d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z"/>
         </svg>
         <p class="text-sm font-medium">Aucun collaborateur dans l'équipe</p>
       </div>
+      }
 
     </div>
   </div>

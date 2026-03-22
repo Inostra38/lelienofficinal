@@ -5,7 +5,9 @@
 
     <!-- Header -->
     <div class="flex items-center justify-between px-6 py-4 border-b border-gray-100">
-      <h2 class="text-base font-bold text-gray-800">Ajustements horaires</h2>
+      <h2 class="text-base font-bold text-gray-800">
+        {{ mode === 'absence' ? 'Déclarer une absence' : 'Ajustements horaires' }}
+      </h2>
       <button (click)="closed.emit()"
               class="p-1.5 rounded-lg hover:bg-gray-100 text-gray-400 hover:text-gray-600 transition-colors">
         <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -16,163 +18,334 @@
 
     <!-- Tabs -->
     <div class="flex border-b border-gray-100">
-      <button (click)="activeTab = 'list'"
-              class="flex-1 py-2.5 text-sm font-semibold transition-colors"
-              [class.text-green-700]="activeTab === 'list'"
-              [class.border-b-2]="activeTab === 'list'"
-              [class.border-green-700]="activeTab === 'list'"
-              [class.text-gray-400]="activeTab !== 'list'">
-        Cette semaine
-      </button>
-      <button (click)="activeTab = 'create'"
-              class="flex-1 py-2.5 text-sm font-semibold transition-colors"
-              [class.text-green-700]="activeTab === 'create'"
-              [class.border-b-2]="activeTab === 'create'"
-              [class.border-green-700]="activeTab === 'create'"
-              [class.text-gray-400]="activeTab !== 'create'">
-        Ajustement
-      </button>
+      @if (mode === 'adjustments') {
+        <button (click)="activeTab = 'list'"
+                class="flex-1 py-2.5 text-sm font-semibold transition-colors"
+                [class.text-green-700]="activeTab === 'list'"
+                [class.border-b-2]="activeTab === 'list'"
+                [class.border-green-700]="activeTab === 'list'"
+                [class.text-gray-400]="activeTab !== 'list'">
+          Cette semaine
+        </button>
+        <button (click)="activeTab = 'create'"
+                class="flex-1 py-2.5 text-sm font-semibold transition-colors"
+                [class.text-green-700]="activeTab === 'create'"
+                [class.border-b-2]="activeTab === 'create'"
+                [class.border-green-700]="activeTab === 'create'"
+                [class.text-gray-400]="activeTab !== 'create'">
+          Ajustement
+        </button>
+      }
+      @if (mode === 'absence') {
+        <button (click)="activeTab = 'list'"
+                class="flex-1 py-2.5 text-sm font-semibold transition-colors"
+                [class.text-orange-600]="activeTab === 'list'"
+                [class.border-b-2]="activeTab === 'list'"
+                [class.border-orange-500]="activeTab === 'list'"
+                [class.text-gray-400]="activeTab !== 'list'">
+          Demandes
+        </button>
+        <button (click)="activeTab = 'absence'"
+                class="flex-1 py-2.5 text-sm font-semibold transition-colors"
+                [class.text-orange-600]="activeTab === 'absence'"
+                [class.border-b-2]="activeTab === 'absence'"
+                [class.border-orange-500]="activeTab === 'absence'"
+                [class.text-gray-400]="activeTab !== 'absence'">
+          {{ isManager ? 'Poser un congé' : 'Nouvelle demande' }}
+        </button>
+      }
     </div>
 
-    <!-- Onglet liste -->
-    <div *ngIf="activeTab === 'list'" class="overflow-y-auto max-h-96">
-      <div *ngIf="loading" class="flex justify-center py-8">
-        <div class="animate-spin rounded-full h-6 w-6 border-2 border-green-700 border-t-transparent"></div>
-      </div>
-      <div *ngIf="!loading && adjustments.length === 0"
-           class="flex flex-col items-center py-10 text-gray-400">
-        <svg class="w-10 h-10 mb-2 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"
-                d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/>
-        </svg>
-        <p class="text-sm">Aucun ajustement cette semaine</p>
-      </div>
-      <div *ngFor="let adj of adjustments"
-           class="flex items-start gap-3 px-6 py-4 border-b border-gray-50 last:border-0">
-        <div class="w-8 h-8 rounded-full text-white text-xs font-bold flex items-center justify-center flex-shrink-0"
-             [style.background]="getAvatarBg(adj.collaborator.color)">
-          {{ getInitials(adj.collaborator) }}
-        </div>
-        <div class="flex-1 min-w-0">
-          <div class="flex items-center gap-2 flex-wrap">
-            <span class="text-sm font-semibold text-gray-800">
-              {{ adj.collaborator.first_name }} {{ adj.collaborator.last_name }}
-            </span>
-            <span class="text-xs px-2 py-0.5 rounded-full font-medium"
-                  [class.bg-orange-100]="adj.type === 'overtime'"
-                  [class.text-orange-700]="adj.type === 'overtime'"
-                  [class.bg-blue-100]="adj.type === 'early_departure'"
-                  [class.text-blue-700]="adj.type === 'early_departure'">
-              {{ adj.type === 'overtime' ? '+' : '-' }}{{ formatDuration(adj.duration_minutes) }}
-            </span>
-            <span class="text-xs text-gray-400">{{ getTypeLabel(adj.type) }}</span>
+    <!-- Onglet demandes d'absence -->
+    @if (mode === 'absence' && activeTab === 'list') {
+      <div class="overflow-y-auto max-h-96">
+        @if (absenceRequestsLoading) {
+          <div class="flex justify-center py-8">
+            <div class="animate-spin rounded-full h-6 w-6 border-2 border-orange-500 border-t-transparent"></div>
           </div>
-          <p class="text-xs text-gray-500 mt-0.5">
-            {{ formatDate(adj.date) }} — Réel : {{ adj.actual_time.substring(0,5) }}
-            <span *ngIf="adj.reference_time"> (prévu : {{ adj.reference_time.substring(0,5) }})</span>
-          </p>
-          <p *ngIf="adj.note" class="text-xs text-gray-400 mt-0.5 italic">Justificatif : {{ adj.note }}</p>
-          <p *ngIf="adj.declared_by" class="text-xs text-gray-400 mt-0.5">
-            Déclaré par {{ adj.declared_by.first_name }} {{ adj.declared_by.last_name }}
-          </p>
-        </div>
-        <button (click)="delete(adj.id)"
-                class="p-1 rounded hover:bg-red-50 text-gray-300 hover:text-red-400 transition-colors flex-shrink-0"
-                title="Supprimer">
-          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
-          </svg>
-        </button>
+        }
+        @if (!absenceRequestsLoading && absenceRequests.length === 0) {
+          <div class="flex flex-col items-center py-10 text-gray-400">
+            <svg class="w-10 h-10 mb-2 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"
+                    d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/>
+            </svg>
+            <p class="text-sm">Aucune demande d'absence</p>
+          </div>
+        }
+        @for (absence of absenceRequests; track absence.id) {
+          <div class="flex items-start gap-3 px-6 py-4 border-b border-gray-50 last:border-0">
+            <div class="w-8 h-8 rounded-full text-white text-xs font-bold flex items-center justify-center flex-shrink-0"
+                 [style.background]="getAvatarBg(absence.collaborator.color)">
+              {{ getInitials(absence.collaborator) }}
+            </div>
+            <div class="flex-1 min-w-0">
+              <div class="flex items-center gap-2 flex-wrap">
+                <span class="text-sm font-semibold text-gray-800">
+                  {{ absence.collaborator.first_name }} {{ absence.collaborator.last_name }}
+                </span>
+                <span class="text-xs px-2 py-0.5 rounded-full font-medium"
+                      [ngClass]="STATUS_CLASSES[absence.status]">
+                  {{ STATUS_LABELS[absence.status] }}
+                </span>
+                @if (absence.posted_by_manager) {
+                  <span class="text-xs px-2 py-0.5 rounded-full bg-purple-50 text-purple-600 font-medium">
+                    Posé par manager
+                  </span>
+                }
+              </div>
+              <p class="text-xs text-gray-500 mt-0.5">
+                {{ getAbsenceTypeLabel(absence.type) }} —
+                {{ formatDate(absence.start_date) }} → {{ formatDate(absence.end_date) }}
+              </p>
+              @if (absence.note) {
+                <p class="text-xs text-gray-400 mt-0.5 italic">{{ absence.note }}</p>
+              }
+            </div>
+            @if (isManager && absence.status === 'pending') {
+              <div class="flex gap-1 flex-shrink-0">
+                <button (click)="approveAbsence(absence.id)"
+                        class="px-2.5 py-1 text-xs font-semibold text-green-700 bg-green-50 hover:bg-green-100 rounded-lg transition-colors">
+                  Approuver
+                </button>
+                <button (click)="rejectAbsence(absence.id)"
+                        class="px-2.5 py-1 text-xs font-semibold text-red-600 bg-red-50 hover:bg-red-100 rounded-lg transition-colors">
+                  Refuser
+                </button>
+              </div>
+            }
+          </div>
+        }
       </div>
-    </div>
+    }
+
+    <!-- Onglet liste (ajustements) -->
+    @if (mode === 'adjustments' && activeTab === 'list') {
+      <div class="overflow-y-auto max-h-96">
+        @if (loading) {
+          <div class="flex justify-center py-8">
+            <div class="animate-spin rounded-full h-6 w-6 border-2 border-green-700 border-t-transparent"></div>
+          </div>
+        }
+        @if (!loading && adjustments.length === 0) {
+          <div class="flex flex-col items-center py-10 text-gray-400">
+            <svg class="w-10 h-10 mb-2 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"
+                    d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/>
+            </svg>
+            <p class="text-sm">Aucun ajustement cette semaine</p>
+          </div>
+        }
+        @for (adj of adjustments; track adj.id) {
+          <div class="flex items-start gap-3 px-6 py-4 border-b border-gray-50 last:border-0">
+            <div class="w-8 h-8 rounded-full text-white text-xs font-bold flex items-center justify-center flex-shrink-0"
+                 [style.background]="getAvatarBg(adj.collaborator.color)">
+              {{ getInitials(adj.collaborator) }}
+            </div>
+            <div class="flex-1 min-w-0">
+              <div class="flex items-center gap-2 flex-wrap">
+                <span class="text-sm font-semibold text-gray-800">
+                  {{ adj.collaborator.first_name }} {{ adj.collaborator.last_name }}
+                </span>
+                <span class="text-xs px-2 py-0.5 rounded-full font-medium"
+                      [class.bg-orange-100]="adj.type === 'overtime'"
+                      [class.text-orange-700]="adj.type === 'overtime'"
+                      [class.bg-blue-100]="adj.type === 'early_departure'"
+                      [class.text-blue-700]="adj.type === 'early_departure'">
+                  {{ adj.type === 'overtime' ? '+' : '-' }}{{ formatDuration(adj.duration_minutes) }}
+                </span>
+                <span class="text-xs text-gray-400">{{ getTypeLabel(adj.type) }}</span>
+              </div>
+              <p class="text-xs text-gray-500 mt-0.5">
+                {{ formatDate(adj.date) }} — Réel : {{ adj.actual_time.substring(0,5) }}
+                @if (adj.reference_time) {
+                  <span> (prévu : {{ adj.reference_time.substring(0,5) }})</span>
+                }
+              </p>
+              @if (adj.note) {
+                <p class="text-xs text-gray-400 mt-0.5 italic">Justificatif : {{ adj.note }}</p>
+              }
+              @if (adj.declared_by) {
+                <p class="text-xs text-gray-400 mt-0.5">
+                  Déclaré par {{ adj.declared_by.first_name }} {{ adj.declared_by.last_name }}
+                </p>
+              }
+            </div>
+            <button (click)="delete(adj.id)"
+                    class="p-1 rounded hover:bg-red-50 text-gray-300 hover:text-red-400 transition-colors flex-shrink-0"
+                    title="Supprimer">
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+              </svg>
+            </button>
+          </div>
+        }
+      </div>
+    }
 
     <!-- Onglet création -->
-    <div *ngIf="activeTab === 'create'" class="px-6 py-5">
-      <form (ngSubmit)="submit()" class="flex flex-col gap-4">
+    @if (activeTab === 'create') {
+      <div class="px-6 py-5">
+        <form (ngSubmit)="submit()" class="flex flex-col gap-4">
 
-        <div *ngIf="isManager">
-          <label class="block text-xs font-semibold text-gray-500 mb-1">Collaborateur</label>
-          <select [(ngModel)]="form.collaborator_id" name="collaborator_id"
-                  (ngModelChange)="onDateOrCollabChange()"
-                  class="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-300">
-            <option *ngFor="let collab of team" [value]="collab.id">
-              {{ collab.first_name }} {{ collab.last_name }}
-            </option>
-          </select>
-        </div>
+          @if (isManager) {
+            <div>
+              <label class="block text-xs font-semibold text-gray-500 mb-1">Collaborateur</label>
+              <select [(ngModel)]="form.collaborator_id" name="collaborator_id"
+                      (ngModelChange)="onDateOrCollabChange()"
+                      class="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-300">
+                @for (collab of team; track collab.id) {
+                  <option [value]="collab.id">{{ collab.first_name }} {{ collab.last_name }}</option>
+                }
+              </select>
+            </div>
+          }
 
-        <div>
-          <label class="block text-xs font-semibold text-gray-500 mb-1">Type</label>
-          <select [(ngModel)]="form.type" name="type"
-                  (ngModelChange)="onActualTimeChange()"
-                  class="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-300">
-            <option *ngFor="let t of TYPES" [value]="t.value">{{ t.label }}</option>
-          </select>
-        </div>
-
-        <div>
-          <label class="block text-xs font-semibold text-gray-500 mb-1">Date</label>
-          <input appDatePicker [(ngModel)]="form.date" name="date"
-                 (ngModelChange)="onDateOrCollabChange()"
-                 placeholder="Choisir une date..."
-                 readonly
-                 class="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-300 cursor-pointer bg-white"/>
-        </div>
-
-        <div class="grid grid-cols-2 gap-3">
           <div>
-            <label class="block text-xs font-semibold text-gray-500 mb-1">
-              Heure fin planifiée
-            </label>
-            <input type="time" [(ngModel)]="form.reference_time" name="reference_time"
-                   (ngModelChange)="onActualTimeChange()"
+            <label class="block text-xs font-semibold text-gray-500 mb-1">Type</label>
+            <select [(ngModel)]="form.type" name="type"
+                    (ngModelChange)="onActualTimeChange()"
+                    class="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-300">
+              @for (t of TYPES; track t.value) {
+                <option [value]="t.value">{{ t.label }}</option>
+              }
+            </select>
+          </div>
+
+          <div>
+            <label class="block text-xs font-semibold text-gray-500 mb-1">Date</label>
+            <input appDatePicker [(ngModel)]="form.date" name="date"
+                   (ngModelChange)="onDateOrCollabChange()"
+                   placeholder="Choisir une date..."
+                   readonly
+                   class="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-300 cursor-pointer bg-white"/>
+          </div>
+
+          <div class="grid grid-cols-2 gap-3">
+            <div>
+              <label class="block text-xs font-semibold text-gray-500 mb-1">Heure fin planifiée</label>
+              <input type="time" [(ngModel)]="form.reference_time" name="reference_time"
+                     (ngModelChange)="onActualTimeChange()"
+                     class="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-300"/>
+            </div>
+            <div>
+              <label class="block text-xs font-semibold text-gray-500 mb-1">
+                {{ form.type === 'overtime' ? 'Heure fin réelle' : 'Heure départ réelle' }}
+              </label>
+              <input type="time" [(ngModel)]="form.actual_time" name="actual_time"
+                     (ngModelChange)="onActualTimeChange()"
+                     class="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-300"/>
+            </div>
+          </div>
+
+          @if (form.duration_minutes > 0) {
+            <div class="flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-semibold"
+                 [class.bg-orange-50]="form.type === 'overtime'"
+                 [class.text-orange-700]="form.type === 'overtime'"
+                 [class.bg-blue-50]="form.type === 'early_departure'"
+                 [class.text-blue-700]="form.type === 'early_departure'">
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/>
+              </svg>
+              {{ form.type === 'overtime' ? '+' : '-' }}{{ formatDuration(form.duration_minutes) }}
+              {{ form.type === 'overtime' ? 'heure(s) supplémentaire(s)' : 'départ anticipé' }}
+            </div>
+          }
+
+          <div>
+            <label class="block text-xs font-semibold text-gray-500 mb-1">Justificatif (optionnel)</label>
+            <input type="text" [(ngModel)]="form.note" name="note"
+                   placeholder="Motif, raison..."
                    class="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-300"/>
           </div>
-          <div>
-            <label class="block text-xs font-semibold text-gray-500 mb-1">
-              {{ form.type === 'overtime' ? 'Heure fin réelle' : 'Heure départ réelle' }}
-            </label>
-            <input type="time" [(ngModel)]="form.actual_time" name="actual_time"
-                   (ngModelChange)="onActualTimeChange()"
-                   class="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-300"/>
+
+          @if (errorMessage) {
+            <p class="text-xs text-red-500 font-medium">{{ errorMessage }}</p>
+          }
+
+          <div class="flex justify-end gap-2 pt-1">
+            <button type="button" (click)="closed.emit()"
+                    class="px-4 py-2 text-sm text-gray-500 hover:text-gray-700 transition-colors">
+              Annuler
+            </button>
+            <button type="submit" [disabled]="submitting || form.duration_minutes <= 0"
+                    class="px-5 py-2 text-sm font-semibold text-white bg-green-700 hover:bg-green-800 rounded-xl transition-colors disabled:opacity-60">
+              {{ submitting ? 'Enregistrement...' : 'Enregistrer' }}
+            </button>
           </div>
-        </div>
+        </form>
+      </div>
+    }
 
-        <!-- Durée calculée -->
-        <div *ngIf="form.duration_minutes > 0"
-             class="flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-semibold"
-             [class.bg-orange-50]="form.type === 'overtime'"
-             [class.text-orange-700]="form.type === 'overtime'"
-             [class.bg-blue-50]="form.type === 'early_departure'"
-             [class.text-blue-700]="form.type === 'early_departure'">
-          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/>
-          </svg>
-          {{ form.type === 'overtime' ? '+' : '-' }}{{ formatDuration(form.duration_minutes) }}
-          {{ form.type === 'overtime' ? 'heure(s) supplémentaire(s)' : 'départ anticipé' }}
-        </div>
+    <!-- Onglet absence -->
+    @if (activeTab === 'absence') {
+      <div class="px-6 py-5">
+        <form (ngSubmit)="submitAbsence()" class="flex flex-col gap-4">
 
-        <div>
-          <label class="block text-xs font-semibold text-gray-500 mb-1">Justificatif (optionnel)</label>
-          <input type="text" [(ngModel)]="form.note" name="note"
-                 placeholder="Motif, raison..."
-                 class="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-300"/>
-        </div>
+          @if (isManager) {
+            <div>
+              <label class="block text-xs font-semibold text-gray-500 mb-1">Collaborateur</label>
+              <select [(ngModel)]="absenceForm.collaborator_id" name="abs_collaborator_id"
+                      class="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-orange-200">
+                @for (collab of team; track collab.id) {
+                  <option [value]="collab.id">{{ collab.first_name }} {{ collab.last_name }}</option>
+                }
+              </select>
+            </div>
+          }
 
-        <p *ngIf="errorMessage" class="text-xs text-red-500 font-medium">{{ errorMessage }}</p>
+          <div class="grid grid-cols-2 gap-3">
+            <div>
+              <label class="block text-xs font-semibold text-gray-500 mb-1">Du</label>
+              <input appDatePicker [(ngModel)]="absenceForm.start_date" name="abs_start"
+                     placeholder="Date début..."
+                     readonly
+                     class="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-orange-200 cursor-pointer bg-white"/>
+            </div>
+            <div>
+              <label class="block text-xs font-semibold text-gray-500 mb-1">Au</label>
+              <input appDatePicker [(ngModel)]="absenceForm.end_date" name="abs_end"
+                     placeholder="Date fin..."
+                     readonly
+                     class="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-orange-200 cursor-pointer bg-white"/>
+            </div>
+          </div>
 
-        <div class="flex justify-end gap-2 pt-1">
-          <button type="button" (click)="closed.emit()"
-                  class="px-4 py-2 text-sm text-gray-500 hover:text-gray-700 transition-colors">
-            Annuler
-          </button>
-          <button type="submit" [disabled]="submitting || form.duration_minutes <= 0"
-                  class="px-5 py-2 text-sm font-semibold text-white bg-green-700 hover:bg-green-800 rounded-xl transition-colors disabled:opacity-60">
-            {{ submitting ? 'Enregistrement...' : 'Enregistrer' }}
-          </button>
-        </div>
-      </form>
-    </div>
+          <div>
+            <label class="block text-xs font-semibold text-gray-500 mb-1">Motif</label>
+            <select [(ngModel)]="absenceForm.type" name="abs_type"
+                    class="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-orange-200">
+              @for (t of ABSENCE_TYPES; track t.value) {
+                <option [value]="t.value">{{ t.label }}</option>
+              }
+            </select>
+          </div>
+
+          <div>
+            <label class="block text-xs font-semibold text-gray-500 mb-1">Note (optionnelle)</label>
+            <input type="text" [(ngModel)]="absenceForm.note" name="abs_note"
+                   placeholder="Précisions..."
+                   class="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-orange-200"/>
+          </div>
+
+          @if (errorMessage) {
+            <p class="text-xs text-red-500 font-medium">{{ errorMessage }}</p>
+          }
+
+          <div class="flex justify-end gap-2 pt-1">
+            <button type="button" (click)="closed.emit()"
+                    class="px-4 py-2 text-sm text-gray-500 hover:text-gray-700 transition-colors">
+              Annuler
+            </button>
+            <button type="submit" [disabled]="submitting || !absenceForm.start_date || !absenceForm.end_date"
+                    class="px-5 py-2 text-sm font-semibold text-white bg-orange-500 hover:bg-orange-600 rounded-xl transition-colors disabled:opacity-60">
+              {{ submitting ? 'Enregistrement...' : 'Déclarer' }}
+            </button>
+          </div>
+
+        </form>
+      </div>
+    }
 
   </div>
 </div>

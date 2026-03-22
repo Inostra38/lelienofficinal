@@ -139,10 +139,12 @@
     </label>
     @if (activeShiftPopover.shift.is_absent) {
       <select class="tl-shift-popover-select"
-              [value]="activeShiftPopover.shift.absence_type ?? 'injustifiee'"
               (change)="updateAbsenceType(activeShiftPopover.shift, $any($event.target).value)">
         @for (t of ABSENCE_TYPES; track t.value) {
-          <option [value]="t.value">{{ t.label }}</option>
+          <option [value]="t.value"
+                  [selected]="t.value === (activeShiftPopover.shift.absence_type ?? 'injustifiee')">
+            {{ t.label }}
+          </option>
         }
       </select>
     }

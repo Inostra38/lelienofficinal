@@ -1,7 +1,7 @@
 import { Component, Input, Output, EventEmitter, inject, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { PlanningService, TimeAdjustment, WeekResponse } from '../../../../core/services/planning.service';
+import { PlanningService, TimeAdjustment, WeekResponse, AbsenceRequest } from '../../../../core/services/planning.service';
 import { CollaboratorService, Collaborator } from '../../../../core/services/collaborator.service';
 import { DatePickerDirective } from '../../../../shared/directives/date-picker.directive';
 import { getCollaboratorColor } from '../../../../core/utils/collaborator-colors';
@@ -17,6 +17,8 @@ export class TimeAdjustmentsComponent implements OnInit {
   @Input() weekStr   = '';
   @Input() weekData: WeekResponse | null = null;
   @Input() activeCollaboratorId: number | null = null;
+  @Input() set initialTab(tab: 'list' | 'create' | 'absence') { this.activeTab = tab; }
+  @Input() mode: 'adjustments' | 'absence' = 'adjustments';
 
   @Output() closed = new EventEmitter<void>();
   @Output() weekChanged = new EventEmitter<void>();
@@ -24,10 +26,12 @@ export class TimeAdjustmentsComponent implements OnInit {
   private planningService     = inject(PlanningService);
   private collaboratorService = inject(CollaboratorService);
 
-  adjustments: TimeAdjustment[] = [];
-  team: Collaborator[]          = [];
-  loading   = false;
-  activeTab: 'list' | 'create' = 'list';
+  adjustments: TimeAdjustment[]   = [];
+  absenceRequests: AbsenceRequest[] = [];
+  team: Collaborator[]            = [];
+  loading                = false;
+  absenceRequestsLoading = false;
+  activeTab: 'list' | 'create' | 'absence' = 'list';
 
   form = {
     collaborator_id: undefined as number | undefined,
@@ -39,6 +43,13 @@ export class TimeAdjustmentsComponent implements OnInit {
     shift_id: null as number | null,
     note: '',
   };
+  absenceForm = {
+    collaborator_id: undefined as number | undefined,
+    start_date: '',
+    end_date: '',
+    type: 'cp' as 'cp' | 'maladie' | 'rcr' | 'sans_solde' | 'justifiee',
+    note: '',
+  };
   submitting    = false;
   errorMessage  = '';
 
@@ -47,13 +58,26 @@ export class TimeAdjustmentsComponent implements OnInit {
     { value: 'early_departure', label: 'Départ anticipé' },
   ];
 
+  readonly ABSENCE_TYPES = [
+    { value: 'cp',         label: 'Congés payés' },
+    { value: 'maladie',    label: 'Maladie' },
+    { value: 'rcr',        label: 'RCR' },
+    { value: 'sans_solde', label: 'Sans solde' },
+    { value: 'justifiee',  label: 'Absence justifiée' },
+  ];
+
 ngOnInit() {
-    this.loadAdjustments();
+    if (this.mode === 'absence') {
+      this.loadAbsenceRequests();
+    } else {
+      this.loadAdjustments();
+    }
     if (this.isManager) {
       this.collaboratorService.getTeam().subscribe(team => {
         this.team = team;
         if (team.length > 0) {
-          this.form.collaborator_id = team[0].id;
+          this.form.collaborator_id        = team[0].id;
+          this.absenceForm.collaborator_id = team[0].id;
         }
       });
     }
@@ -65,6 +89,22 @@ ngOnInit() {
       next:  data => { this.adjustments = data; this.loading = false; },
       error: ()   => { this.loading = false; },
     });
+  }
+
+  loadAbsenceRequests() {
+    this.absenceRequestsLoading = true;
+    this.planningService.getAbsences().subscribe({
+      next:  data => { this.absenceRequests = data; this.absenceRequestsLoading = false; },
+      error: ()   => { this.absenceRequestsLoading = false; },
+    });
+  }
+
+  approveAbsence(id: number) {
+    this.planningService.approveAbsence(id).subscribe(() => this.loadAbsenceRequests());
+  }
+
+  rejectAbsence(id: number) {
+    this.planningService.rejectAbsence(id).subscribe(() => this.loadAbsenceRequests());
   }
 
   /** Quand la date ou le collaborateur change, pré-remplir reference_time depuis le shift */
@@ -175,6 +215,55 @@ ngOnInit() {
 
   getTypeLabel(type: string): string {
     return type === 'overtime' ? 'Heures sup.' : 'Départ anticipé';
+  }
+
+  getAbsenceTypeLabel(type: string): string {
+    return this.ABSENCE_TYPES.find(t => t.value === type)?.label ?? type;
+  }
+
+  readonly STATUS_LABELS: Record<string, string> = {
+    pending:  'En attente',
+    approved: 'Approuvée',
+    rejected: 'Refusée',
+  };
+
+  readonly STATUS_CLASSES: Record<string, string> = {
+    pending:  'bg-amber-100 text-amber-700',
+    approved: 'bg-green-100 text-green-700',
+    rejected: 'bg-red-100 text-red-700',
+  };
+
+  submitAbsence() {
+    if (!this.absenceForm.start_date || !this.absenceForm.end_date) {
+      this.errorMessage = 'Dates de début et de fin obligatoires.';
+      return;
+    }
+    const collabId = this.isManager ? this.absenceForm.collaborator_id : this.activeCollaboratorId;
+    if (!collabId) { this.errorMessage = 'Collaborateur obligatoire.'; return; }
+
+    this.submitting   = true;
+    this.errorMessage = '';
+    this.planningService.createAbsence({
+      collaborator_id: collabId,
+      start_date: this.absenceForm.start_date,
+      end_date:   this.absenceForm.end_date,
+      type:       this.absenceForm.type,
+      note:       this.absenceForm.note,
+    }).subscribe({
+      next: () => {
+        this.submitting = false;
+        this.absenceForm = {
+          collaborator_id: this.isManager && this.team.length > 0 ? this.team[0].id : undefined,
+          start_date: '', end_date: '', type: 'cp', note: '',
+        };
+        this.activeTab = 'list';
+        this.weekChanged.emit();
+      },
+      error: (err) => {
+        this.errorMessage = err?.error?.detail ?? 'Erreur lors de la création.';
+        this.submitting   = false;
+      },
+    });
   }
 
 }
