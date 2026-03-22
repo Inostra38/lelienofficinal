@@ -212,6 +212,16 @@ def hours_overlap(start_dt: datetime, end_dt: datetime, window_start: datetime, 
     return 0.0
 
 
+def _strip_tz(dt: datetime) -> datetime:
+    """Rend un datetime timezone-naive (local time si aware)."""
+    if dt is None:
+        return dt
+    if dt.tzinfo is not None:
+        from django.utils import timezone as tz
+        return tz.localtime(dt).replace(tzinfo=None)
+    return dt
+
+
 def hours_in_plage(start_dt: datetime, end_dt: datetime, plage_ranges: list) -> float:
     """
     Calcule le total d'heures du shift tombant dans les plages horaires données.
@@ -219,6 +229,8 @@ def hours_in_plage(start_dt: datetime, end_dt: datetime, plage_ranges: list) -> 
     Si h_start > h_end, la plage est cross-midnight.
     Itère jour par jour.
     """
+    start_dt = _strip_tz(start_dt)
+    end_dt   = _strip_tz(end_dt)
     if end_dt <= start_dt:
         return 0.0
 
@@ -256,6 +268,8 @@ def hours_in_plage(start_dt: datetime, end_dt: datetime, plage_ranges: list) -> 
 
 def sunday_hours(start_dt: datetime, end_dt: datetime) -> float:
     """Calcule les heures du shift tombant un dimanche (weekday==6)."""
+    start_dt = _strip_tz(start_dt)
+    end_dt   = _strip_tz(end_dt)
     if end_dt <= start_dt:
         return 0.0
 
@@ -275,9 +289,11 @@ def sunday_hours(start_dt: datetime, end_dt: datetime) -> float:
 
 def shift_duration_hours(shift: Shift) -> float:
     """Durée d'un shift en heures."""
-    if shift.end_datetime <= shift.start_datetime:
+    start = _strip_tz(shift.start_datetime)
+    end   = _strip_tz(shift.end_datetime)
+    if end <= start:
         return 0.0
-    return (shift.end_datetime - shift.start_datetime).total_seconds() / 3600
+    return (end - start).total_seconds() / 3600
 
 
 def count_working_days_in_range(start: date, end: date) -> int:
