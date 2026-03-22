@@ -135,6 +135,7 @@ class AbsenceRequest(models.Model):
         MALADIE     = 'maladie',     'Maladie'
         RCR         = 'rcr',         'RCR'
         SANS_SOLDE  = 'sans_solde',  'Sans solde'
+        FORMATION   = 'formation',   'Formation'
 
     class Status(models.TextChoices):
         PENDING  = 'pending',  'En attente'

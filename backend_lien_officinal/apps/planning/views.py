@@ -1390,3 +1390,31 @@ Inclure uniquement les semaines {rotation_label}.
                 {"role": "assistant", "content": assistant_message}
             ]
         })
+
+
+class PayeAnalyticsView(APIView):
+    """
+    GET /api/planning/analytics/paie/?month=2026-03
+    Retourne le récap paie CCN pour le mois demandé.
+    Managers uniquement.
+    """
+    authentication_classes = [JWTAuthentication]
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        actor = _get_collaborator(request)
+        if actor and not actor.can_manage_planning:
+            return Response({'detail': 'Permission insuffisante.'}, status=status.HTTP_403_FORBIDDEN)
+
+        month_str = request.query_params.get('month', '')
+        if not month_str or len(month_str) < 7:
+            return Response({'error': 'Paramètre month requis (YYYY-MM).'}, status=status.HTTP_400_BAD_REQUEST)
+        try:
+            year = int(month_str[:4])
+            month = int(month_str[5:7])
+        except ValueError:
+            return Response({'error': 'Format month invalide.'}, status=status.HTTP_400_BAD_REQUEST)
+
+        from .paye_analytics import compute_paye_summary
+        data = compute_paye_summary(request.user, year, month)
+        return Response(data)

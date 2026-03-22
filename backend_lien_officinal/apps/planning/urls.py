@@ -24,6 +24,7 @@ from .views import (
     TimeAdjustmentListCreateView,
     TimeAdjustmentDeleteView,
     AnalyticsView,
+    PayeAnalyticsView,
     ConstraintsView,
     ConstraintDetailView,
     GenerateTemplateView,
@@ -72,6 +73,7 @@ urlpatterns = [
     path('planning/adjustments/<int:pk>/', TimeAdjustmentDeleteView.as_view(), name='adjustment-delete'),
 
     # Analytics
+    path('planning/analytics/paie/', PayeAnalyticsView.as_view(), name='planning-analytics-paye'),
     path('planning/analytics/', AnalyticsView.as_view(), name='planning-analytics'),
 
     # Contraintes planning (generate BEFORE <int:pk> to avoid conflict)

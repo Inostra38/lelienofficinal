@@ -63,6 +63,11 @@ class Collaborator(models.Model):
         verbose_name="Heures hebdomadaires contractuelles"
     )
 
+    is_tns = models.BooleanField(
+        default=False,
+        verbose_name="Travailleur Non Salarié (TNS)"
+    )
+
     is_active = models.BooleanField(default=True)
     archived_at = models.DateTimeField(null=True, blank=True, verbose_name=_("Date d'archivage"))
     created_at = models.DateTimeField(auto_now_add=True)

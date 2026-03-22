@@ -11,6 +11,8 @@ import { CommonModule } from '@angular/common';
 import {
   PlanningService,
   AnalyticsData,
+  PayeSummaryResponse,
+  PayeCollaborateur,
 } from '../../../../core/services/planning.service';
 
 @Component({
@@ -25,6 +27,8 @@ export class PlanningAnalyticsComponent implements OnInit, AfterViewInit, OnDest
 
   private planningService = inject(PlanningService);
 
+  // ── Analytics tab ────────────────────────────────────────────────────────────
+
   period: 'week' | 'month' | 'year' = 'month';
   currentDate = new Date();
   data: AnalyticsData | null = null;
@@ -34,6 +38,18 @@ export class PlanningAnalyticsComponent implements OnInit, AfterViewInit, OnDest
   // Chart.js instance (dynamically imported)
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   private chart: any = null;
+
+  // ── Tab management ───────────────────────────────────────────────────────────
+
+  activeTab: 'analytics' | 'paye' = 'analytics';
+
+  // ── Paye tab ─────────────────────────────────────────────────────────────────
+
+  payeData: PayeSummaryResponse | null = null;
+  payeLoading = false;
+  payeError = false;
+  payeDate = new Date();
+  expandedRows = new Set<number>();
 
   ngOnInit(): void {
     this.load();
@@ -45,6 +61,92 @@ export class PlanningAnalyticsComponent implements OnInit, AfterViewInit, OnDest
 
   ngOnDestroy(): void {
     this.destroyChart();
+  }
+
+  // ── Tab methods ──────────────────────────────────────────────────────────────
+
+  setTab(tab: 'analytics' | 'paye'): void {
+    this.activeTab = tab;
+    if (tab === 'paye' && !this.payeData && !this.payeLoading) {
+      this.loadPaye();
+    }
+  }
+
+  // ── Paye methods ─────────────────────────────────────────────────────────────
+
+  loadPaye(): void {
+    this.payeLoading = true;
+    this.payeError = false;
+    this.planningService.getPayeSummary(this.payeMonthStr).subscribe({
+      next: (data) => {
+        this.payeData = data;
+        this.payeLoading = false;
+      },
+      error: () => {
+        this.payeLoading = false;
+        this.payeError = true;
+      },
+    });
+  }
+
+  prevPayeMonth(): void {
+    const d = new Date(this.payeDate);
+    d.setMonth(d.getMonth() - 1);
+    this.payeDate = d;
+    this.payeData = null;
+    this.expandedRows.clear();
+    this.loadPaye();
+  }
+
+  nextPayeMonth(): void {
+    const d = new Date(this.payeDate);
+    d.setMonth(d.getMonth() + 1);
+    this.payeDate = d;
+    this.payeData = null;
+    this.expandedRows.clear();
+    this.loadPaye();
+  }
+
+  toggleRow(id: number): void {
+    if (this.expandedRows.has(id)) {
+      this.expandedRows.delete(id);
+    } else {
+      this.expandedRows.add(id);
+    }
+  }
+
+  isExpanded(id: number): boolean {
+    return this.expandedRows.has(id);
+  }
+
+  get payeMonthStr(): string {
+    const y = this.payeDate.getFullYear();
+    const m = String(this.payeDate.getMonth() + 1).padStart(2, '0');
+    return `${y}-${m}`;
+  }
+
+  get payeMonthLabel(): string {
+    return this.payeDate.toLocaleDateString('fr-FR', { month: 'long', year: 'numeric' });
+  }
+
+  formatSolde(h: number): string {
+    const sign = h >= 0 ? '+' : '';
+    return `${sign}${this.formatH(h)}`;
+  }
+
+  contingentWidth(n: number): string {
+    const pct = Math.min(100, (n / 150) * 100);
+    return `${pct.toFixed(1)}%`;
+  }
+
+  rcr_alerte_date(): string {
+    const d = new Date();
+    d.setMonth(d.getMonth() + 2);
+    return d.toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' });
+  }
+
+  getSalariesCollaborateurs(): PayeCollaborateur[] {
+    return this.payeData?.collaborateurs.filter(c => !c.is_tns) ?? [];
   }
 
   // ── Computed totals ─────────────────────────────────────────────────────────

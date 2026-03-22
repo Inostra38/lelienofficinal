@@ -235,6 +235,78 @@ export interface GenerateTemplateResponse {
   conversation: ChatMessage[];
 }
 
+// ── Paye interfaces ────────────────────────────────────────────────────────────
+
+export interface PayeHeureSup {
+  total: number;
+  tranche1: number;
+  tranche2: number;
+}
+
+export interface PayeDetailSemaine {
+  week_str: string;
+  heures_travaillees: number;
+  seuil: number;
+  sup_tranche1: number;
+  sup_tranche2: number;
+  rattachement: string;
+  a_cheval: boolean;
+}
+
+export interface PayeAnnuel {
+  rcr_acquis: number;
+  rcr_consomme: number;
+  rcr_solde: number;
+  rcr_alerte: boolean;
+  contingent_consomme: number;
+}
+
+export interface PayeCollaborateur {
+  id: number;
+  nom: string;
+  initiales: string;
+  role: string;
+  is_tns: boolean;
+  couleur: string;
+  couleur_texte: string;
+  weekly_hours: number;
+  jours_travailles: number;
+  heures_reelles: number;
+  heures_contrat: number | null;
+  heures_sup_planning: PayeHeureSup | null;
+  detail_semaines: PayeDetailSemaine[] | null;
+  solde_ajustements: number | null;
+  heures_nuit_20: number | null;
+  heures_nuit_40: number | null;
+  heures_dimanche: number | null;
+  heures_formation: number;
+  absences_justifiees: number | null;
+  absences_injustifiees: number | null;
+  cp_poses: number | null;
+  annuel: PayeAnnuel | null;
+}
+
+export interface PayeTotauxSalaries {
+  jours_travailles: number;
+  heures_reelles: number;
+  heures_sup_planning_total: number;
+  solde_ajustements: number;
+  heures_nuit_20: number;
+  heures_nuit_40: number;
+  heures_dimanche: number;
+  heures_formation: number;
+  absences_justifiees: number;
+  absences_injustifiees: number;
+  cp_poses: number;
+}
+
+export interface PayeSummaryResponse {
+  month: string;
+  jours_ouvres_mois: number;
+  collaborateurs: PayeCollaborateur[];
+  totaux_salaries: PayeTotauxSalaries;
+}
+
 // ── Analytics interfaces ───────────────────────────────────────────────────────
 
 export interface HoursSummaryRow {
@@ -469,6 +541,10 @@ export class PlanningService {
     return this.http.get<AnalyticsData>(`${this.apiUrl}/analytics/`, {
       params: { period, date },
     });
+  }
+
+  getPayeSummary(month: string): Observable<PayeSummaryResponse> {
+    return this.http.get<PayeSummaryResponse>(`${this.apiUrl}/analytics/paie/?month=${month}`);
   }
 
   // ── Contraintes planning ───────────────────────────────────────────────────
