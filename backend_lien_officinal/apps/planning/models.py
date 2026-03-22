@@ -1,6 +1,4 @@
-from datetime import timedelta
 from django.conf import settings
-from django.core.exceptions import ValidationError
 from django.db import models
 
 
@@ -39,8 +37,7 @@ class PlanningSettings(models.Model):
         on_delete=models.CASCADE,
         related_name='planning_settings',
     )
-    draft_window          = models.IntegerField(choices=DraftWindow.choices, default=DraftWindow.TWO)
-    weekly_contract_hours = models.DecimalField(max_digits=4, decimal_places=1, default=35.0)
+    draft_window = models.IntegerField(choices=DraftWindow.choices, default=DraftWindow.TWO)
 
     # Créneaux de garde
     on_call_day_start   = models.TimeField(null=True, blank=True)
@@ -94,6 +91,18 @@ class Shift(models.Model):
     end_datetime   = models.DateTimeField()
     is_published   = models.BooleanField(default=False)
     is_extra_hour  = models.BooleanField(default=False)
+    is_absent      = models.BooleanField(default=False)
+    absence_type   = models.CharField(
+        max_length=20,
+        choices=[
+            ('injustifiee', 'Absence injustifiée'),
+            ('maladie',     'Maladie'),
+            ('cp',          'Congés payés'),
+            ('rcr',         'RCR'),
+            ('sans_solde',  'Sans solde'),
+        ],
+        null=True, blank=True,
+    )
     note           = models.TextField(blank=True)
     # Snapshot des heures contractuelles au moment de la création du shift
     # Permet de préserver l'exactitude des stats historiques si le contrat évolue
@@ -111,75 +120,20 @@ class Shift(models.Model):
         name = self.collaborator_snapshot or str(self.collaborator) or "—"
         return f"{name} — {self.start_datetime:%Y-%m-%d %H:%M}"
 
-    def clean(self):
-        if not self.collaborator:
-            return
-        pharmacy = self.collaborator.pharmacy
-
-        # Règle 1 — Officine fermée
-        day_status = PharmacyDayStatus.objects.filter(
-            pharmacy=pharmacy,
-            date=self.start_datetime.date(),
-        ).first()
-        if day_status and day_status.status == PharmacyDayStatus.Status.CLOSED and not (day_status.on_call_day or day_status.on_call_night):
-            raise ValidationError("Impossible de créer un shift : l'officine est fermée ce jour.")
-
-        # Règle 2 — Repos quotidien 11h entre deux jours de travail distincts
-        # (ne s'applique pas entre deux créneaux du même jour — coupures autorisées)
-        previous_shift = (
-            Shift.objects.filter(
-                collaborator=self.collaborator,
-                end_datetime__lt=self.start_datetime,
-            )
-            .exclude(pk=self.pk)
-            .order_by('-end_datetime')
-            .first()
-        )
-        if previous_shift and previous_shift.end_datetime.date() != self.start_datetime.date():
-            gap = self.start_datetime - previous_shift.end_datetime
-            if gap < timedelta(hours=11):
-                hours = int(gap.total_seconds() // 3600)
-                raise ValidationError(
-                    f"Repos quotidien insuffisant : {hours}h entre ce shift et le précédent (minimum 11h)."
-                )
-
-        # Règle 3 — Amplitude maximale 12h sur la journée
-        day_shifts = Shift.objects.filter(
-            collaborator=self.collaborator,
-            start_datetime__date=self.start_datetime.date(),
-        ).exclude(pk=self.pk)
-        if day_shifts.exists():
-            starts = list(day_shifts.values_list('start_datetime', flat=True))
-            ends   = list(day_shifts.values_list('end_datetime', flat=True))
-            earliest = min(starts + [self.start_datetime])
-            latest   = max(ends   + [self.end_datetime])
-            amplitude = (latest - earliest).total_seconds() / 3600
-            if amplitude > 12:
-                raise ValidationError(
-                    f"Amplitude journalière dépassée : {amplitude:.1f}h (maximum 12h)."
-                )
-
-        # Règle 4 — Durée effective maximale 10h
-        duration = (self.end_datetime - self.start_datetime).total_seconds() / 3600
-        if duration > 10:
-            raise ValidationError(
-                f"Durée du shift trop longue : {duration:.1f}h (maximum 10h)."
-            )
-
     def save(self, *args, **kwargs):
         # Capture les heures contractuelles à la création uniquement
         if self._state.adding and self.collaborator and self.contract_hours_snapshot is None:
             self.contract_hours_snapshot = self.collaborator.weekly_hours
-        self.full_clean()
         super().save(*args, **kwargs)
 
 
 class AbsenceRequest(models.Model):
     class AbsenceType(models.TextChoices):
-        CP         = 'cp',         'Congés payés'
-        MALADIE    = 'maladie',    'Maladie'
-        RCR        = 'rcr',        'RCR'
-        SANS_SOLDE = 'sans_solde', 'Sans solde'
+        INJUSTIFIEE = 'injustifiee', 'Absence injustifiée'
+        CP          = 'cp',          'Congés payés'
+        MALADIE     = 'maladie',     'Maladie'
+        RCR         = 'rcr',         'RCR'
+        SANS_SOLDE  = 'sans_solde',  'Sans solde'
 
     class Status(models.TextChoices):
         PENDING  = 'pending',  'En attente'
@@ -193,7 +147,7 @@ class AbsenceRequest(models.Model):
     )
     start_date  = models.DateField()
     end_date    = models.DateField()
-    type        = models.CharField(max_length=20, choices=AbsenceType.choices)
+    type        = models.CharField(max_length=20, choices=AbsenceType.choices, default=AbsenceType.INJUSTIFIEE)
     status      = models.CharField(max_length=10, choices=Status.choices, default=Status.PENDING)
     note        = models.TextField(blank=True)
     created_at  = models.DateTimeField(auto_now_add=True)

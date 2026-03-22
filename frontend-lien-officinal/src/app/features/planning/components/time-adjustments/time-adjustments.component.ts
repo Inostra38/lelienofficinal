@@ -4,6 +4,7 @@ import { FormsModule } from '@angular/forms';
 import { PlanningService, TimeAdjustment, WeekResponse } from '../../../../core/services/planning.service';
 import { CollaboratorService, Collaborator } from '../../../../core/services/collaborator.service';
 import { DatePickerDirective } from '../../../../shared/directives/date-picker.directive';
+import { getCollaboratorColor } from '../../../../core/utils/collaborator-colors';
 
 @Component({
   selector: 'app-time-adjustments',
@@ -46,12 +47,14 @@ export class TimeAdjustmentsComponent implements OnInit {
     { value: 'early_departure', label: 'Départ anticipé' },
   ];
 
-  ngOnInit() {
+ngOnInit() {
     this.loadAdjustments();
     if (this.isManager) {
       this.collaboratorService.getTeam().subscribe(team => {
         this.team = team;
-        if (team.length > 0) this.form.collaborator_id = team[0].id;
+        if (team.length > 0) {
+          this.form.collaborator_id = team[0].id;
+        }
       });
     }
   }
@@ -166,9 +169,12 @@ export class TimeAdjustmentsComponent implements OnInit {
     return `${c.first_name.charAt(0)}${c.last_name.charAt(0)}`.toUpperCase();
   }
 
-  getBgClass(color: string): string { return `bg-${color}-500`; }
+  getAvatarBg(color: string): string {
+    return getCollaboratorColor(color).base;
+  }
 
   getTypeLabel(type: string): string {
     return type === 'overtime' ? 'Heures sup.' : 'Départ anticipé';
   }
+
 }

@@ -51,6 +51,18 @@ export class ShiftFormComponent implements OnInit {
   setH(field: 'start_time' | 'end_time', v: string) { this.form[field] = `${v}:${this.getM(field)}`; }
   setM(field: 'start_time' | 'end_time', v: string) { this.form[field] = `${this.getH(field)}:${v}`; }
 
+  /** Vrai si le shift se termine le lendemain (fin < début) */
+  get crossesMidnight(): boolean {
+    return this.form.end_time < this.form.start_time;
+  }
+
+  private nextDayIso(iso: string): string {
+    const d = new Date(iso + 'T00:00:00');
+    d.setDate(d.getDate() + 1);
+    const p = (n: number) => String(n).padStart(2, '0');
+    return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`;
+  }
+
   getDayIso(d: Date): string {
     const p = (n: number) => String(n).padStart(2, '0');
     return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`;
@@ -69,12 +81,8 @@ export class ShiftFormComponent implements OnInit {
     }
 
     const start_datetime = `${this.form.date}T${this.form.start_time}:00`;
-    const end_datetime   = `${this.form.date}T${this.form.end_time}:00`;
-
-    if (end_datetime <= start_datetime) {
-      this.errorMsg = 'L\'heure de fin doit être après l\'heure de début.';
-      return;
-    }
+    const end_date       = this.crossesMidnight ? this.nextDayIso(this.form.date) : this.form.date;
+    const end_datetime   = `${end_date}T${this.form.end_time}:00`;
 
     this.submitting = true;
     this.planningService.createShift({

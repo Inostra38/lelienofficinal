@@ -1,4 +1,5 @@
-import { Component, Input, Output, EventEmitter, inject, OnChanges, SimpleChanges, ChangeDetectionStrategy } from '@angular/core';
+import { Component, Input, Output, EventEmitter, inject, OnChanges, SimpleChanges, ChangeDetectionStrategy, ChangeDetectorRef } from '@angular/core';
+import { COLLABORATOR_COLORS } from '../../../../core/utils/collaborator-colors';
 import { CommonModule } from '@angular/common';
 import { CdkDragDrop } from '@angular/cdk/drag-drop';
 import {
@@ -30,15 +31,18 @@ export class WeekViewComponent implements OnChanges {
   @Output() shiftChanged = new EventEmitter<void>();
 
   private planningService = inject(PlanningService);
+  private cdr             = inject(ChangeDetectorRef);
 
   // ── Cache pré-calculé (rebuil dans ngOnChanges) ───────────────────────────
 
   _weekDaysWithIso: { date: Date; iso: string; label: string }[] = [];
+  _weekDays: Date[] = [];
   _hours: number[] = [];
   _shiftsIndex = new Map<string, Shift[]>();
   _summaryByDay = new Map<string, CollaboratorWeekSummary[]>();
   _rowGradients = new Map<number, string>();
   _summaryMap = new Map<number, CollaboratorWeekSummary>();
+  _shiftFormCollaborators: ShiftFormCollab[] = [];
 
   ngOnChanges(_changes: SimpleChanges) {
     this._rebuild();
@@ -59,6 +63,14 @@ export class WeekViewComponent implements OnChanges {
         label: d.toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' }),
       };
     });
+    this._weekDays = this._weekDaysWithIso.map(d => d.date);
+
+    // Collaborateurs pour le formulaire de shift (stable — évite NG0103)
+    this._shiftFormCollaborators = this.weekData.summary.map(s => ({
+      id:        s.collaborator_id,
+      full_name: s.full_name,
+      color:     s.color,
+    }));
 
     // Index des collaborateurs (O(1) lookup)
     this._summaryMap.clear();
@@ -82,7 +94,8 @@ export class WeekViewComponent implements OnChanges {
     // Gradients CSS (1 par index de jour, pas par collab×jour)
     this._rowGradients.clear();
     for (let i = 0; i < 7; i++) {
-      this._rowGradients.set(i, this._computeRowGradient(i));
+      const dayIso = this._weekDaysWithIso[i]?.iso ?? '';
+      this._rowGradients.set(i, this._computeRowGradient(i, dayIso));
     }
 
     // Résumé filtré par jour (contrats)
@@ -128,13 +141,6 @@ export class WeekViewComponent implements OnChanges {
     this.shiftChanged.emit();
   }
 
-  get shiftFormCollaborators(): ShiftFormCollab[] {
-    return this.weekData.summary.map(s => ({
-      id:        s.collaborator_id,
-      full_name: s.full_name,
-      color:     s.color,
-    }));
-  }
 
   // ── Vue filtrée (staff voit uniquement sa ligne, ou toute l'équipe) ─────────
 
@@ -186,14 +192,6 @@ export class WeekViewComponent implements OnChanges {
     return Math.ceil((((d.getTime() - yearStart.getTime()) / 86400000) + 1) / 7);
   }
 
-  get weekDays(): Date[] {
-    const monday = new Date(this.weekData.week_start + 'T00:00:00');
-    return Array.from({ length: 7 }, (_, i) => {
-      const d = new Date(monday);
-      d.setDate(monday.getDate() + i);
-      return d;
-    });
-  }
 
   getDayLabel(d: Date): string {
     return d.toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
@@ -339,59 +337,24 @@ export class WeekViewComponent implements OnChanges {
     return this.visibleSummary.reduce((acc, s) => acc + s.planned_h, 0);
   }
 
-  getAbsenceType(collaboratorId: number, dayIso: string): string | null {
-    const summary = this.getSummary(collaboratorId);
-    if (!summary) return null;
-    const labels: Record<string, string> = {
-      cp: 'Congés payés', maladie: 'Maladie', rcr: 'RCR', sans_solde: 'Sans solde',
-    };
-    // Absence approuvée (via day_summary du backend)
-    const day = summary.days.find(d => d.date === dayIso);
-    if (day?.absence_type) return labels[day.absence_type] ?? day.absence_type;
-    // Absence en attente (non incluse dans day_summary — on la lit directement)
-    const pending = summary.absences.find(a =>
-      a.status === 'pending' && a.start_date <= dayIso && a.end_date >= dayIso
-    );
-    return pending ? (labels[pending.type] ?? pending.type) : null;
-  }
-
-  getAbsenceStatus(collaboratorId: number, dayIso: string): 'pending' | 'approved' | 'rejected' | null {
-    const summary = this.getSummary(collaboratorId);
-    if (!summary) return null;
-    const absence = summary.absences.find(a =>
-      a.start_date <= dayIso && a.end_date >= dayIso
-    );
-    return absence?.status ?? null;
-  }
 
   // ── Timeline — couleurs collaborateurs ────────────────────────────────────
 
-  private readonly colorPalette: Record<string, { base: string; light: string; text: string }> = {
-    green:  { base: '#15803d', light: '#dcfce7', text: '#14532d' },
-    blue:   { base: '#1d4ed8', light: '#dbeafe', text: '#1e3a8a' },
-    purple: { base: '#7c3aed', light: '#ede9fe', text: '#4c1d95' },
-    red:    { base: '#b91c1c', light: '#fee2e2', text: '#7f1d1d' },
-    orange: { base: '#c2410c', light: '#ffedd5', text: '#7c2d12' },
-    yellow: { base: '#a16207', light: '#fef9c3', text: '#713f12' },
-    pink:   { base: '#be185d', light: '#fce7f3', text: '#831843' },
-    indigo: { base: '#4338ca', light: '#e0e7ff', text: '#312e81' },
-    teal:   { base: '#0f766e', light: '#ccfbf1', text: '#134e4a' },
-    cyan:   { base: '#0e7490', light: '#cffafe', text: '#164e63' },
-    gray:   { base: '#4b5563', light: '#f3f4f6', text: '#1f2937' },
-  };
-
-  getShiftBg(color: string, published: boolean): string {
-    const c = this.colorPalette[color] ?? this.colorPalette['gray'];
-    return published ? c.base : c.light;
+  getShiftBg(color: string, published: boolean, absent = false): string {
+    const c    = COLLABORATOR_COLORS[color] ?? COLLABORATOR_COLORS['gray'];
+    const base = published ? c.base : c.light;
+    if (!absent) return base;
+    const stripe = published ? 'rgba(255,255,255,0.28)' : 'rgba(0,0,0,0.10)';
+    return `repeating-linear-gradient(135deg, transparent, transparent 5px, ${stripe} 5px, ${stripe} 9px), ${base}`;
   }
 
   getShiftText(color: string, published: boolean): string {
-    const c = this.colorPalette[color] ?? this.colorPalette['gray'];
+    const c = COLLABORATOR_COLORS[color] ?? COLLABORATOR_COLORS['gray'];
     return published ? '#ffffff' : c.text;
   }
 
   getShiftBorderColor(color: string): string {
-    return (this.colorPalette[color] ?? this.colorPalette['gray']).base;
+    return (COLLABORATOR_COLORS[color] ?? COLLABORATOR_COLORS['gray']).base;
   }
 
   // ── Timeline ──────────────────────────────────────────────────────────────
@@ -421,16 +384,17 @@ export class WeekViewComponent implements OnChanges {
     return this._rowGradients.get(dayOfWeek) ?? '#eef2ff';
   }
 
-  /** Calcul effectif du gradient (appelé uniquement par _rebuild) */
-  private _computeRowGradient(dayOfWeek: number): string {
-    if (dayOfWeek === 6) return '#eef2ff';
+  /** Gradient de base ouverture/fermeture (toujours une linear-gradient) */
+  private _computeBaseGradient(dayOfWeek: number): string {
+    const closed = 'linear-gradient(to right, #eef2ff, #eef2ff)';
+    if (dayOfWeek === 6) return closed;
 
     const slots = this.openingHours
       .filter(h => h.day_of_week === dayOfWeek)
       .map(h => ({ start: this._timeToMins(h.start_time), end: this._timeToMins(h.end_time) }))
       .sort((a, b) => a.start - b.start);
 
-    if (slots.length === 0) return '#eef2ff';
+    if (slots.length === 0) return closed;
 
     const viewStart = this.dayStartHour * 60;
     const viewEnd   = this.dayEndHour   * 60;
@@ -450,7 +414,78 @@ export class WeekViewComponent implements OnChanges {
     }
     if (cur < viewEnd) stops.push(`#eef2ff ${pct(cur)}%, #eef2ff 100%`);
 
-    return stops.length ? `linear-gradient(to right, ${stops.join(', ')})` : '#eef2ff';
+    return stops.length ? `linear-gradient(to right, ${stops.join(', ')})` : closed;
+  }
+
+  /** Overlay semi-transparent pour une plage de garde (transparent en dehors) */
+  private _buildOnCallOverlay(startMins: number, endMins: number, color: string): string {
+    const viewStart  = this.dayStartHour * 60;
+    const viewEnd    = this.dayEndHour   * 60;
+    const viewTotal  = viewEnd - viewStart;
+    const pct = (m: number) =>
+      (Math.max(0, Math.min(100, ((m - viewStart) / viewTotal) * 100))).toFixed(3);
+
+    const s = Math.max(startMins, viewStart);
+    const e = Math.min(endMins,   viewEnd);
+    if (s >= e) return 'linear-gradient(to right, transparent, transparent)';
+
+    const stops: string[] = [];
+    if (s > viewStart) stops.push(`transparent ${pct(viewStart)}%, transparent ${pct(s)}%`);
+    stops.push(`${color} ${pct(s)}%, ${color} ${pct(e)}%`);
+    if (e < viewEnd)   stops.push(`transparent ${pct(e)}%, transparent 100%`);
+
+    return `linear-gradient(to right, ${stops.join(', ')})`;
+  }
+
+  /** Calcul effectif du gradient (appelé uniquement par _rebuild) */
+  private _computeRowGradient(dayOfWeek: number, dayIso: string): string {
+    const base = this._computeBaseGradient(dayOfWeek);
+    const wd   = this.weekData;
+    const ds   = this.getDayStatus(dayIso);
+
+    const overlays: string[] = [];
+
+    // ── Garde de jour ────────────────────────────────────────────────────────
+    const isOnCallDay = ds?.on_call_day ?? (dayOfWeek === 6 && !!wd.on_call_sunday);
+    if (isOnCallDay && wd.on_call_day_start && wd.on_call_day_end) {
+      overlays.push(this._buildOnCallOverlay(
+        this._timeToMins(wd.on_call_day_start),
+        this._timeToMins(wd.on_call_day_end),
+        'rgba(254, 249, 195, 0.85)',
+      ));
+    }
+
+    // ── Garde de nuit (avec gestion du franchissement de minuit) ─────────────
+    if (wd.on_call_night_start && wd.on_call_night_end) {
+      const nightStart      = this._timeToMins(wd.on_call_night_start);
+      const nightEnd        = this._timeToMins(wd.on_call_night_end);
+      const crossesMidnight = nightEnd < nightStart;
+      const color           = 'rgba(186, 230, 253, 0.65)';
+
+      // Ce jour est en garde de nuit
+      if (ds?.on_call_night) {
+        const endMins = crossesMidnight ? this.dayEndHour * 60 : nightEnd;
+        overlays.push(this._buildOnCallOverlay(nightStart, endMins, color));
+      }
+
+      // Le jour précédent était en garde de nuit et franchit minuit
+      // → la tranche 00h–nightEnd déborde sur ce matin
+      if (crossesMidnight) {
+        const prevDs = this.getDayStatus(this._prevDayIso(dayIso));
+        if (prevDs?.on_call_night) {
+          overlays.push(this._buildOnCallOverlay(this.dayStartHour * 60, nightEnd, color));
+        }
+      }
+    }
+
+    return overlays.length ? [...overlays, base].join(', ') : base;
+  }
+
+  private _prevDayIso(iso: string): string {
+    const d = new Date(iso + 'T00:00:00');
+    d.setDate(d.getDate() - 1);
+    const pad = (n: number) => String(n).padStart(2, '0');
+    return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
   }
 
   private _timeToMins(timeStr: string): number {
@@ -490,7 +525,11 @@ export class WeekViewComponent implements OnChanges {
   }
 
   isClosed(day: Date): boolean {
-    return this.getDayStatus(this.getDayIso(day))?.status === 'closed';
+    const s = this.getDayStatus(this.getDayIso(day));
+    if (s) return s.status === 'closed' && !s.on_call_day && !s.on_call_night;
+    // Dimanche implicitement fermé (sauf si on_call_sunday actif dans les settings)
+    if (day.getDay() === 0) return !this.weekData.on_call_sunday;
+    return false;
   }
 
   isOnCall(day: Date): boolean {
@@ -500,7 +539,15 @@ export class WeekViewComponent implements OnChanges {
 
   getDayBadges(day: Date): { label: string; cls: string }[] {
     const s = this.getDayStatus(this.getDayIso(day));
-    if (!s) return [];
+    if (!s) {
+      // Dimanche sans entrée explicite
+      if (day.getDay() === 0) {
+        return this.weekData.on_call_sunday
+          ? [{ label: 'Garde de jour', cls: 'badge-oncall-day' }]
+          : [{ label: 'Fermé', cls: 'badge-closed' }];
+      }
+      return [];
+    }
     const badges: { label: string; cls: string }[] = [];
     if (s.on_call_day)   badges.push({ label: 'Garde de jour',  cls: 'badge-oncall-day' });
     if (s.on_call_night) badges.push({ label: 'Garde de nuit',  cls: 'badge-oncall-night' });
@@ -515,11 +562,58 @@ export class WeekViewComponent implements OnChanges {
     return `${parts[0]} ${parts[parts.length - 1].charAt(0)}.`;
   }
 
-  onShiftClick(shift: Shift): void {
-    if (!this.isManager) return;
-    this.shiftFormCollaboratorId = shift.collaborator?.id ?? null;
-    this.shiftFormDate           = shift.start_datetime.substring(0, 10);
-    this.showShiftForm           = true;
+  // ── Popover shift ─────────────────────────────────────────────────────────
+
+  activeShiftPopover: { shift: Shift; x: number; y: number } | null = null;
+  savingAbsent = false;
+
+  onShiftClick(shift: Shift, event: MouseEvent): void {
+    event.stopPropagation();
+    const rect = (event.currentTarget as HTMLElement).getBoundingClientRect();
+    this.activeShiftPopover = { shift, x: rect.left, y: rect.bottom + 6 };
+  }
+
+  closeShiftPopover(): void {
+    this.activeShiftPopover = null;
+  }
+
+  readonly ABSENCE_TYPES = [
+    { value: 'injustifiee', label: 'Injustifiée' },
+    { value: 'maladie',     label: 'Maladie' },
+    { value: 'cp',          label: 'Congés payés' },
+    { value: 'rcr',         label: 'RCR' },
+    { value: 'sans_solde',  label: 'Sans solde' },
+  ];
+
+  toggleAbsent(shift: Shift): void {
+    this.savingAbsent = true;
+    const newAbsent = !shift.is_absent;
+    const payload: any = { is_absent: newAbsent };
+    if (newAbsent) payload.absence_type = shift.absence_type ?? 'injustifiee';
+    else payload.absence_type = null;
+    this.planningService.updateShift(shift.id, payload).subscribe({
+      next: (updated) => {
+        this.savingAbsent = false;
+        if (this.activeShiftPopover) {
+          this.activeShiftPopover = { ...this.activeShiftPopover, shift: updated };
+        }
+        this.cdr.markForCheck();
+        this.shiftChanged.emit();
+      },
+      error: () => { this.savingAbsent = false; this.cdr.markForCheck(); },
+    });
+  }
+
+  updateAbsenceType(shift: Shift, type: string): void {
+    this.planningService.updateShift(shift.id, { absence_type: type as any }).subscribe({
+      next: (updated) => {
+        if (this.activeShiftPopover) {
+          this.activeShiftPopover = { ...this.activeShiftPopover, shift: updated };
+        }
+        this.cdr.markForCheck();
+        this.shiftChanged.emit();
+      },
+    });
   }
 
   // ── Ajustements horaires ──────────────────────────────────────────────────

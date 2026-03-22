@@ -28,13 +28,13 @@
               [class.text-gray-400]="activeTab !== 'horaires'">
         Horaires d'ouverture
       </button>
-      <button (click)="activeTab = 'contrats'"
+      <button (click)="activeTab = 'equipe'"
               class="flex-1 py-2.5 text-sm font-semibold transition-colors"
-              [class.text-green-700]="activeTab === 'contrats'"
-              [class.border-b-2]="activeTab === 'contrats'"
-              [class.border-green-700]="activeTab === 'contrats'"
-              [class.text-gray-400]="activeTab !== 'contrats'">
-        Contrats
+              [class.text-green-700]="activeTab === 'equipe'"
+              [class.border-b-2]="activeTab === 'equipe'"
+              [class.border-green-700]="activeTab === 'equipe'"
+              [class.text-gray-400]="activeTab !== 'equipe'">
+        Équipe
       </button>
       <button (click)="activeTab = 'gardes'"
               class="flex-1 py-2.5 text-sm font-semibold transition-colors"
@@ -153,8 +153,8 @@
 
     </div>
 
-    <!-- ── Onglet Contrats ── -->
-    <div *ngIf="!loading && activeTab === 'contrats'" class="flex flex-col overflow-hidden flex-1">
+    <!-- ── Onglet Équipe ── -->
+    <div *ngIf="!loading && activeTab === 'equipe'" class="flex flex-col overflow-hidden flex-1">
 
       <div class="flex-1 overflow-y-auto">
 
@@ -182,7 +182,7 @@
 
             <!-- Avatar -->
             <div class="w-9 h-9 rounded-full text-white text-xs font-bold flex items-center justify-center flex-shrink-0"
-                 [ngClass]="getBgClass(collab.color)">
+                 [style.background]="getAvatarBg(collab.color)">
               {{ getInitials(collab) }}
             </div>
 
@@ -192,14 +192,6 @@
                 {{ collab.first_name }} {{ collab.last_name }}
               </span>
               <span class="text-xs text-gray-400 truncate">{{ collab.role }}</span>
-            </div>
-
-            <!-- Heures -->
-            <div class="flex items-center gap-1 shrink-0">
-              <input type="number" [(ngModel)]="collab.weekly_hours" [name]="'wh_' + collab.id"
-                     min="1" max="48" step="0.5"
-                     class="w-16 border border-gray-200 rounded-lg px-2 py-1 text-xs text-center focus:outline-none focus:ring-2 focus:ring-green-300"/>
-              <span class="text-xs text-gray-400">h/sem</span>
             </div>
 
             <!-- Flèches ↑↓ -->

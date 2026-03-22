@@ -9,119 +9,148 @@
   <div class="tl-hours-header">
     <div class="tl-collab-spacer"></div>
     <div class="tl-hours-scale">
-      <div class="tl-h" *ngFor="let h of _hours; trackBy: trackByHour" [style.left.%]="getHourLeft(h)">{{ h }}h</div>
+      @for (h of _hours; track h) {
+        <div class="tl-h" [style.left.%]="getHourLeft(h)">{{ h }}h</div>
+      }
     </div>
     <div class="tl-add-spacer"></div>
   </div>
 
   <!-- ── Un bloc par jour ────────────────────────────────────────────────── -->
-  <div class="tl-day" *ngFor="let dayObj of _weekDaysWithIso; let i = index; trackBy: trackByDay">
+  @for (dayObj of _weekDaysWithIso; track dayObj.iso; let i = $index) {
 
-    <div class="tl-day-label"
-         [class.today]="isToday(dayObj.date)"
-         [class.closed]="isClosed(dayObj.date)">
-      {{ dayObj.label }}
-      <span *ngFor="let badge of getDayBadges(dayObj.date)"
-            class="week-day-badge"
-            [ngClass]="badge.cls">{{ badge.label }}</span>
-    </div>
+    <div class="tl-day">
 
-    <!-- Une ligne par collaborateur (filtré selon le contrat actif ce jour) -->
-    <div class="tl-collab-row"
-         *ngFor="let summary of _summaryByDay.get(dayObj.iso) || []; trackBy: trackByCollabId">
-
-      <div class="tl-collab-name">
-        <div class="tl-collab-avatar" [style.background]="getShiftBg(summary.color, true)">
-          {{ getInitials(summary) }}
-        </div>
-        <div class="tl-collab-info">
-          <span class="tl-collab-name-text" [title]="summary.full_name">{{ summary.full_name }}</span>
-          <span class="tl-collab-role">{{ summary.role }}</span>
-          <span *ngIf="summary.contract_hours"
-                class="tl-hours-badge"
-                [class.ok]="summary.balance_h >= 0"
-                [class.warn]="summary.balance_h < 0"
-                [title]="'Planifié\u00a0: ' + summary.planned_h.toFixed(1) + 'h\u00a0/ Contrat\u00a0: ' + summary.contract_hours + 'h (' + (summary.balance_h >= 0 ? '+' : '') + summary.balance_h.toFixed(1) + 'h)'">
-            {{ summary.planned_h.toFixed(1) }}h / {{ summary.contract_hours }}h
-          </span>
-        </div>
+      <div class="tl-day-label"
+           [class.today]="isToday(dayObj.date)"
+           [class.closed]="isClosed(dayObj.date)">
+        {{ dayObj.label }}
+        @for (badge of getDayBadges(dayObj.date); track badge.label) {
+          <span class="week-day-badge" [ngClass]="badge.cls">{{ badge.label }}</span>
+        }
       </div>
 
-      <div class="tl-row" [class.closed]="isClosed(dayObj.date)" [style.background]="_rowGradients.get(i)">
+      <!-- Une ligne par collaborateur (filtré selon le contrat actif ce jour) -->
+      @for (summary of _summaryByDay.get(dayObj.iso) || []; track summary.collaborator_id) {
 
-        <!-- Repères horaires -->
-        <div *ngFor="let h of _hours; trackBy: trackByHour"
-             [class]="'tl-slot' + (h % 3 === 0 ? ' major' : '')"
-             [style.left.%]="getHourLeft(h)"></div>
+        <div class="tl-collab-row">
 
-        <!-- Shifts du collaborateur ce jour -->
-        <div *ngFor="let shift of getShiftsForCollabDay(summary.collaborator_id, dayObj.iso); trackBy: trackByShiftId"
-             class="tl-block"
-             [class.published]="shift.is_published"
-             [class.draft]="!shift.is_published && isManager"
-             [style.left.%]="getShiftLeft(shift)"
-             [style.width.%]="getShiftWidth(shift)"
-             [style.background]="getShiftBg(summary.color, shift.is_published)"
-             [style.color]="getShiftText(summary.color, shift.is_published)"
-             [style.border-left-color]="getShiftBorderColor(summary.color)"
-             (click)="onShiftClick(shift)">
-          <b>{{ formatTime(shift.start_datetime) }}–{{ formatTime(shift.end_datetime) }}</b>
-          <button *ngIf="isManager"
-                  class="tl-delete-btn"
-                  (click)="$event.stopPropagation(); deleteShift(shift.id)">×</button>
-        </div>
-
-        <!-- Absence du collaborateur ce jour -->
-        <ng-container *ngIf="getAbsenceType(summary.collaborator_id, dayObj.iso) as absType">
-          <div class="tl-block absence"
-               [class.pending]="getAbsenceStatus(summary.collaborator_id, dayObj.iso) === 'pending'"
-               [class.approved]="getAbsenceStatus(summary.collaborator_id, dayObj.iso) === 'approved'"
-               [style.left.%]="0"
-               [style.width.%]="100">
-            <b>{{ absType }}</b>
-            <span *ngIf="getAbsenceStatus(summary.collaborator_id, dayObj.iso) === 'pending'"
-                  style="font-size:9px; margin-left:4px; opacity:0.8">(en attente)</span>
+          <div class="tl-collab-name">
+            <div class="tl-collab-avatar" [style.background]="getShiftBg(summary.color, true)">
+              {{ getInitials(summary) }}
+            </div>
+            <div class="tl-collab-info">
+              <span class="tl-collab-name-text" [title]="summary.full_name">{{ summary.full_name }}</span>
+              <span class="tl-collab-role">{{ summary.role }}</span>
+              @if (summary.contract_hours) {
+                <span class="tl-hours-badge"
+                      [class.ok]="summary.balance_h >= 0"
+                      [class.warn]="summary.balance_h < 0"
+                      [title]="'Planifié\u00a0: ' + summary.planned_h.toFixed(1) + 'h\u00a0/ Contrat\u00a0: ' + summary.contract_hours + 'h (' + (summary.balance_h >= 0 ? '+' : '') + summary.balance_h.toFixed(1) + 'h)'">
+                  {{ summary.planned_h.toFixed(1) }}h / {{ summary.contract_hours }}h
+                </span>
+              }
+            </div>
           </div>
-        </ng-container>
 
-        <!-- Ajustements horaires -->
-        <div *ngFor="let adj of getAdjustmentsForDay(summary.collaborator_id, dayObj.iso); trackBy: trackByAdjId"
-             class="tl-adjustment-badge"
-             [class.overtime]="adj.type === 'overtime'"
-             [class.early]="adj.type === 'early_departure'"
-             (click)="onAdjBadgeClick(adj, $event)">
-          {{ adj.type === 'overtime' ? '+' : '-' }}{{ formatDuration(adj.duration_minutes) }}
+          <div class="tl-row" [class.closed]="isClosed(dayObj.date)" [style.background]="_rowGradients.get(i)">
+
+            <!-- Repères horaires -->
+            @for (h of _hours; track h) {
+              <div [class]="'tl-slot' + (h % 3 === 0 ? ' major' : '')"
+                   [style.left.%]="getHourLeft(h)"></div>
+            }
+
+            <!-- Shifts du collaborateur ce jour -->
+            @for (shift of getShiftsForCollabDay(summary.collaborator_id, dayObj.iso); track shift.id) {
+              <div class="tl-block"
+                   [class.published]="shift.is_published"
+                   [class.draft]="!shift.is_published && isManager"
+                   [style.left.%]="getShiftLeft(shift)"
+                   [style.width.%]="getShiftWidth(shift)"
+                   [style.background]="getShiftBg(summary.color, shift.is_published, shift.is_absent)"
+                   [style.color]="getShiftText(summary.color, shift.is_published)"
+                   [style.border-left-color]="getShiftBorderColor(summary.color)"
+                   (click)="onShiftClick(shift, $event)">
+                <b>{{ formatTime(shift.start_datetime) }}–{{ formatTime(shift.end_datetime) }}</b>
+                @if (isManager) {
+                  <button class="tl-delete-btn"
+                          (click)="$event.stopPropagation(); deleteShift(shift.id)">×</button>
+                }
+              </div>
+            }
+
+            <!-- Ajustements horaires -->
+            @for (adj of getAdjustmentsForDay(summary.collaborator_id, dayObj.iso); track adj.adjustment_id) {
+              <div class="tl-adjustment-badge"
+                   [class.overtime]="adj.type === 'overtime'"
+                   [class.early]="adj.type === 'early_departure'"
+                   (click)="onAdjBadgeClick(adj, $event)">
+                {{ adj.type === 'overtime' ? '+' : '-' }}{{ formatDuration(adj.duration_minutes) }}
+              </div>
+            }
+
+          </div>
+
+          <!-- Bouton + (manager uniquement) -->
+          @if (isManager) {
+            <button class="tl-add-btn"
+                    (click)="openShiftForm(summary.collaborator_id, dayObj.iso)">
+              <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
+              </svg>
+            </button>
+          }
+
         </div>
 
-      </div>
-
-      <!-- Bouton + (manager uniquement) -->
-      <button *ngIf="isManager"
-              class="tl-add-btn"
-              (click)="openShiftForm(summary.collaborator_id, dayObj.iso)">
-        <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
-        </svg>
-      </button>
+      }
 
     </div>
 
-  </div>
+  }
 
   <!-- ── Légende ─────────────────────────────────────────────────────────── -->
   <div class="tl-legend">
     <div class="tl-leg"><div class="tl-dot published"></div>Shift publié</div>
     <div class="tl-leg"><div class="tl-dot draft"></div>Brouillon</div>
-    <div class="tl-leg"><div class="tl-dot absence approved"></div>Absence approuvée</div>
-    <div class="tl-leg"><div class="tl-dot absence pending"></div>Absence en attente</div>
-    <div class="tl-leg"><div class="tl-dot closed"></div>Fermé</div>
+    <div class="tl-leg"><div class="tl-dot absent"></div>Absent</div>
+<div class="tl-leg"><div class="tl-dot closed"></div>Fermé</div>
     <div class="tl-leg"><div class="tl-dot night-zone"></div>Plage nuit (0h–8h / 20h–24h)</div>
   </div>
 
 </div>
 
+<!-- ── Popover shift ──────────────────────────────────────────────────────── -->
+@if (activeShiftPopover) {
+  <div class="fixed inset-0 z-40" (click)="closeShiftPopover()"></div>
+  <div class="tl-shift-popover z-50"
+       [style.left.px]="activeShiftPopover.x"
+       [style.top.px]="activeShiftPopover.y">
+    <div class="tl-shift-popover-time">
+      {{ formatTime(activeShiftPopover.shift.start_datetime) }} – {{ formatTime(activeShiftPopover.shift.end_datetime) }}
+    </div>
+    <label class="tl-shift-popover-row">
+      <input type="checkbox"
+             [checked]="activeShiftPopover.shift.is_absent"
+             [disabled]="savingAbsent"
+             (change)="toggleAbsent(activeShiftPopover.shift)">
+      <span>Absent</span>
+    </label>
+    @if (activeShiftPopover.shift.is_absent) {
+      <select class="tl-shift-popover-select"
+              [value]="activeShiftPopover.shift.absence_type ?? 'injustifiee'"
+              (change)="updateAbsenceType(activeShiftPopover.shift, $any($event.target).value)">
+        @for (t of ABSENCE_TYPES; track t.value) {
+          <option [value]="t.value">{{ t.label }}</option>
+        }
+      </select>
+    }
+  </div>
+}
+
 <!-- ── Popover ajustement ────────────────────────────────────────────────── -->
-<ng-container *ngIf="activeAdjPopover">
+@if (activeAdjPopover) {
   <div class="fixed inset-0 z-40" (click)="closeAdjPopover()"></div>
   <div class="tl-adj-popover z-50"
        [style.left.px]="activeAdjPopover.x"
@@ -143,21 +172,24 @@
         <span class="tl-adj-popover-label">{{ activeAdjPopover.adj.type === 'overtime' ? 'Fin réelle' : 'Départ réel' }}</span>
         <span>{{ activeAdjPopover.adj.actual_time.substring(0,5) }}</span>
       </div>
-      <div *ngIf="activeAdjPopover.adj.note" class="tl-adj-popover-note">
-        <span class="tl-adj-popover-label">Justificatif</span><br>
-        {{ activeAdjPopover.adj.note }}
-      </div>
+      @if (activeAdjPopover.adj.note) {
+        <div class="tl-adj-popover-note">
+          <span class="tl-adj-popover-label">Justificatif</span><br>
+          {{ activeAdjPopover.adj.note }}
+        </div>
+      }
     </div>
   </div>
-</ng-container>
+}
 
 <!-- ── Modale création shift ─────────────────────────────────────────────── -->
-<app-shift-form
-  *ngIf="showShiftForm"
-  [collaborators]="shiftFormCollaborators"
-  [weekDays]="weekDays"
-  [prefilledCollaboratorId]="shiftFormCollaboratorId"
-  [prefilledDate]="shiftFormDate"
-  (saved)="onShiftCreated()"
-  (closed)="showShiftForm = false">
-</app-shift-form>
+@if (showShiftForm) {
+  <app-shift-form
+    [collaborators]="_shiftFormCollaborators"
+    [weekDays]="_weekDays"
+    [prefilledCollaboratorId]="shiftFormCollaboratorId"
+    [prefilledDate]="shiftFormDate"
+    (saved)="onShiftCreated()"
+    (closed)="showShiftForm = false">
+  </app-shift-form>
+}

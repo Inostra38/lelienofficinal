@@ -93,7 +93,7 @@ class WeekView(APIView):
 
         day_statuses = PharmacyDayStatus.objects.filter(
             pharmacy=request.user,
-            date__gte=monday,
+            date__gte=monday - timedelta(days=1),  # inclut le dimanche précédent (garde de nuit → lundi matin)
             date__lte=sunday,
         )
 
@@ -124,6 +124,11 @@ class WeekView(APIView):
                     'end_date': c['end_date'].isoformat() if c['end_date'] else None,
                 }
 
+        ps = PlanningSettings.objects.filter(pharmacy=request.user).first()
+
+        def _fmt_time(t):
+            return str(t)[:5] if t else None
+
         return Response({
             'week_start': monday.isoformat(),
             'week_end': sunday.isoformat(),
@@ -132,6 +137,11 @@ class WeekView(APIView):
             'summary': summary,
             'template_letter': tpl_app.letter if tpl_app else None,
             'contracts': contracts_by_collab,
+            'on_call_sunday':      ps.on_call_sunday      if ps else False,
+            'on_call_day_start':   _fmt_time(ps.on_call_day_start)   if ps else None,
+            'on_call_day_end':     _fmt_time(ps.on_call_day_end)     if ps else None,
+            'on_call_night_start': _fmt_time(ps.on_call_night_start) if ps else None,
+            'on_call_night_end':   _fmt_time(ps.on_call_night_end)   if ps else None,
         })
 
 

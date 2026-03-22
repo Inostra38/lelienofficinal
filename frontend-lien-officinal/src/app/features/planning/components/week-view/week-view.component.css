@@ -309,18 +309,6 @@
   min-width: 30px;
 }
 
-.tl-block.absence,
-.tl-block.absence.approved {
-  background: #ffccbc;
-  color: #bf360c;
-  border-left: 3px solid #e64a19;
-}
-
-.tl-block.absence.pending {
-  background: #fff9c4;
-  color: #f57f17;
-  border-left: 3px dashed #f9a825;
-}
 
 /* ── Légende ─────────────────────────────────────────────────────────────── */
 .tl-legend {
@@ -355,16 +343,8 @@
   opacity: 0.75;
 }
 
-.tl-dot.absence,
-.tl-dot.absence.approved {
-  background: #ffccbc;
-  border-left: 3px solid #e64a19;
-}
-
-.tl-dot.absence.pending {
-  background: #fff9c4;
-  border-left: 3px dashed #f9a825;
-  opacity: 0.9;
+.tl-dot.absent {
+  background: repeating-linear-gradient(135deg, #d1d5db, #d1d5db 3px, #f3f4f6 3px, #f3f4f6 7px);
 }
 
 .tl-dot.closed {
@@ -388,6 +368,50 @@
   border-radius: 3px;
   white-space: nowrap;
   cursor: pointer;
+}
+
+/* ── Popover shift ────────────────────────────────────────────────────────── */
+.tl-shift-popover {
+  position: fixed;
+  background: #fff;
+  border: 1px solid #e5e7eb;
+  border-radius: 10px;
+  box-shadow: 0 4px 16px rgba(0,0,0,0.12);
+  padding: 10px 14px;
+  min-width: 160px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.tl-shift-popover-time {
+  font-size: 12px;
+  font-weight: 600;
+  color: #374151;
+}
+.tl-shift-popover-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  color: #374151;
+  cursor: pointer;
+}
+.tl-shift-popover-row input[type="checkbox"] {
+  width: 15px;
+  height: 15px;
+  cursor: pointer;
+  accent-color: #b91c1c;
+}
+.tl-shift-popover-select {
+  width: 100%;
+  border: 1px solid #e5e7eb;
+  border-radius: 6px;
+  padding: 4px 8px;
+  font-size: 12px;
+  color: #374151;
+  background: #fff;
+  cursor: pointer;
+  outline: none;
 }
 
 /* ── Popover ajustement ───────────────────────────────────────────────────── */

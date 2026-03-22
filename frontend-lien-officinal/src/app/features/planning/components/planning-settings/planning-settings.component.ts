@@ -5,15 +5,15 @@ import { forkJoin } from 'rxjs';
 import { CdkDragDrop, DragDropModule, moveItemInArray } from '@angular/cdk/drag-drop';
 
 import { PlanningService, PlanningSettings, OpeningHours } from '../../../../core/services/planning.service';
-import { CollaboratorService } from '../../../../core/services/collaborator.service';
+import { CollaboratorService, Collaborator } from '../../../../core/services/collaborator.service';
+import { getCollaboratorColor } from '../../../../core/utils/collaborator-colors';
 
-interface CollabContract {
+interface CollabOrder {
   id: number;
   first_name: string;
   last_name: string;
   role: string;
   color: string;
-  weekly_hours: number;
 }
 
 interface DayRow {
@@ -36,11 +36,10 @@ export class PlanningSettingsComponent implements OnInit {
 
   @Output() closed = new EventEmitter<void>();
 
-  activeTab: 'horaires' | 'contrats' | 'gardes' = 'horaires';
+  activeTab: 'horaires' | 'equipe' | 'gardes' = 'horaires';
 
   settings: PlanningSettings = {
     draft_window: 2,
-    weekly_contract_hours: 35,
     on_call_day_start:   null,
     on_call_day_end:     null,
     on_call_night_start: null,
@@ -48,7 +47,7 @@ export class PlanningSettingsComponent implements OnInit {
     on_call_sunday: false,
   };
 
-  collaborators: CollabContract[] = [];
+  collaborators: CollabOrder[] = [];
 
   days: DayRow[] = [
     { dayIndex: 0, label: 'Lundi',     slots: [], addForm: null, addError: '' },
@@ -64,13 +63,6 @@ export class PlanningSettingsComponent implements OnInit {
   errorMsg   = '';
   successMsg = '';
 
-  readonly CONTRACT_TYPES = [
-    { value: 'cdi',      label: 'CDI' },
-    { value: 'cdd',      label: 'CDD' },
-    { value: 'apprenti', label: 'Apprentissage' },
-    { value: 'interim',  label: 'Intérim' },
-  ];
-
   ngOnInit() {
     forkJoin({
       settings:      this.planningService.getSettings(),
@@ -80,14 +72,13 @@ export class PlanningSettingsComponent implements OnInit {
       next: ({ settings, collaborators, openingHours }) => {
         this.settings = settings;
         this.collaborators = collaborators
-          .filter(c => c.is_active !== false)
-          .map(c => ({
-            id:            c.id!,
-            first_name:    c.first_name,
-            last_name:     c.last_name,
-            role:          c.role,
-            color:         c.color,
-            weekly_hours:  c.weekly_hours  ?? 35,
+          .filter((c: Collaborator) => c.is_active !== false)
+          .map((c: Collaborator) => ({
+            id:         c.id!,
+            first_name: c.first_name,
+            last_name:  c.last_name,
+            role:       c.role,
+            color:      c.color,
           }));
         this._distributeSlots(openingHours);
         this.loading = false;
@@ -146,18 +137,7 @@ export class PlanningSettingsComponent implements OnInit {
     this.saving     = true;
     this.errorMsg   = '';
     this.successMsg = '';
-
-    const contractUpdates = this.collaborators.map(c =>
-      this.collaboratorService.updateCollaborator(c.id, {
-        weekly_hours: c.weekly_hours,
-      } as any)
-    );
-
-    const all$ = contractUpdates.length
-      ? forkJoin([this.planningService.updateSettings(this.settings), ...contractUpdates])
-      : forkJoin([this.planningService.updateSettings(this.settings)]);
-
-    all$.subscribe({
+    this.planningService.updateSettings(this.settings).subscribe({
       next: () => {
         this.saving = false;
         this.successMsg = 'Paramètres enregistrés.';
@@ -167,14 +147,14 @@ export class PlanningSettingsComponent implements OnInit {
     });
   }
 
-  getBgClass(color: string): string { return `bg-${color}-500`; }
-  getInitials(c: CollabContract): string {
+  getAvatarBg(color: string): string { return getCollaboratorColor(color).base; }
+  getInitials(c: CollabOrder): string {
     return `${c.first_name.charAt(0)}${c.last_name.charAt(0)}`.toUpperCase();
   }
 
   // ── Réordonnancement ──────────────────────────────────────────────────────
 
-  onDrop(event: CdkDragDrop<CollabContract[]>) {
+  onDrop(event: CdkDragDrop<CollabOrder[]>) {
     moveItemInArray(this.collaborators, event.previousIndex, event.currentIndex);
     this.saveOrder();
   }

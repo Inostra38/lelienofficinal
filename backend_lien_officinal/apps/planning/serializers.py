@@ -7,7 +7,7 @@ from .models import Shift, AbsenceRequest, PharmacyDayStatus, PlanningSettings, 
 class CollaboratorMinimalSerializer(serializers.ModelSerializer):
     class Meta:
         model = Collaborator
-        fields = ['id', 'first_name', 'last_name', 'color', 'role', 'weekly_hours', 'contract_type']
+        fields = ['id', 'first_name', 'last_name', 'color', 'role', 'weekly_hours']
 
 
 # ── Shift ─────────────────────────────────────────────────────────────────────
@@ -29,7 +29,7 @@ class ShiftSerializer(serializers.ModelSerializer):
         fields = [
             'id', 'collaborator', 'collaborator_snapshot', 'display_name',
             'start_datetime', 'end_datetime',
-            'is_published', 'is_extra_hour', 'note', 'created_at', 'updated_at',
+            'is_published', 'is_extra_hour', 'is_absent', 'absence_type', 'note', 'created_at', 'updated_at',
         ]
 
 
@@ -61,7 +61,7 @@ class ShiftCreateSerializer(serializers.ModelSerializer):
 class ShiftUpdateSerializer(serializers.ModelSerializer):
     class Meta:
         model = Shift
-        fields = ['start_datetime', 'end_datetime', 'is_extra_hour', 'note']
+        fields = ['start_datetime', 'end_datetime', 'is_extra_hour', 'is_absent', 'absence_type', 'note']
 
 
 # ── AbsenceRequest ────────────────────────────────────────────────────────────
@@ -83,6 +83,7 @@ class AbsenceRequestCreateSerializer(serializers.ModelSerializer):
     class Meta:
         model = AbsenceRequest
         fields = ['start_date', 'end_date', 'type', 'note']
+        extra_kwargs = {'type': {'required': False}}
 
     def create(self, validated_data):
         collaborator = self.context['collaborator']
@@ -114,7 +115,7 @@ class PlanningSettingsSerializer(serializers.ModelSerializer):
     class Meta:
         model = PlanningSettings
         fields = [
-            'draft_window', 'weekly_contract_hours',
+            'draft_window',
             'on_call_day_start', 'on_call_day_end',
             'on_call_night_start', 'on_call_night_end',
             'on_call_sunday',

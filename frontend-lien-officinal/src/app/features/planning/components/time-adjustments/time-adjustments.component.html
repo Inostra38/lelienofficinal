@@ -30,7 +30,7 @@
               [class.border-b-2]="activeTab === 'create'"
               [class.border-green-700]="activeTab === 'create'"
               [class.text-gray-400]="activeTab !== 'create'">
-        Déclarer
+        Ajustement
       </button>
     </div>
 
@@ -50,7 +50,7 @@
       <div *ngFor="let adj of adjustments"
            class="flex items-start gap-3 px-6 py-4 border-b border-gray-50 last:border-0">
         <div class="w-8 h-8 rounded-full text-white text-xs font-bold flex items-center justify-center flex-shrink-0"
-             [ngClass]="getBgClass(adj.collaborator.color)">
+             [style.background]="getAvatarBg(adj.collaborator.color)">
           {{ getInitials(adj.collaborator) }}
         </div>
         <div class="flex-1 min-w-0">
