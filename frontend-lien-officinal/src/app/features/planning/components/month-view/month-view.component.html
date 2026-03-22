@@ -38,10 +38,11 @@
         </span>
 
         <div class="flex items-center gap-0.5">
-          <!-- Badges J / N / F -->
+          <!-- Badges J / N / F(fermé) / F(férié) -->
           <span *ngFor="let badge of getStatusBadges(day)"
                 class="month-badge"
-                [ngClass]="badge.cls">
+                [ngClass]="badge.cls"
+                [title]="badge.title">
             {{ badge.label }}
           </span>
 

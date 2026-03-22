@@ -111,6 +111,7 @@
 .badge-oncall-day   { background: #fef3c7; color: #b45309; border: 1px solid #fde68a; }
 .badge-oncall-night { background: #e0e7ff; color: #4338ca; border: 1px solid #c7d2fe; }
 .badge-closed       { background: #fee2e2; color: #b91c1c; border: 1px solid #fecdd3; }
+.badge-ferie        { background: #ffedd5; color: #c2410c; border: 1px solid #fed7aa; }
 
 /* ── Ligne collaborateur ─────────────────────────────────────────────────── */
 .tl-collab-row {

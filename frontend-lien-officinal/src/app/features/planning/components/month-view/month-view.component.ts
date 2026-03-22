@@ -53,6 +53,59 @@ export class MonthViewComponent implements OnChanges {
 
   readonly DAY_LABELS = ['Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam', 'Dim'];
 
+  // ── Jours fériés (calculés côté client, mis en cache par année) ───────────
+
+  private _holidayCache = new Map<number, Map<string, string>>();
+
+  private _computeHolidays(year: number): Map<string, string> {
+    if (this._holidayCache.has(year)) return this._holidayCache.get(year)!;
+
+    // Algorithme Meeus/Jones/Butcher pour Pâques
+    const a = year % 19;
+    const b = Math.floor(year / 100);
+    const c = year % 100;
+    const d = Math.floor(b / 4);
+    const e = b % 4;
+    const f = Math.floor((b + 8) / 25);
+    const g = Math.floor((b - f + 1) / 3);
+    const h = (19 * a + b - d - g + 15) % 30;
+    const ii = Math.floor(c / 4);
+    const k = c % 4;
+    const l = (32 + 2 * e + 2 * ii - h - k) % 7;
+    const m = Math.floor((a + 11 * h + 22 * l) / 451);
+    const eMonth = Math.floor((h + l - 7 * m + 114) / 31);
+    const eDay   = ((h + l - 7 * m + 114) % 31) + 1;
+    const easter = new Date(year, eMonth - 1, eDay);
+
+    const shift = (n: number): string => {
+      const r = new Date(easter);
+      r.setDate(r.getDate() + n);
+      const p = (x: number) => String(x).padStart(2, '0');
+      return `${r.getFullYear()}-${p(r.getMonth() + 1)}-${p(r.getDate())}`;
+    };
+
+    const holidays = new Map<string, string>([
+      [`${year}-01-01`, "Jour de l'An"],
+      [shift(1),        'Lundi de Pâques'],
+      [`${year}-05-01`, 'Fête du Travail'],
+      [`${year}-05-08`, 'Victoire 1945'],
+      [shift(39),       'Ascension'],
+      [shift(50),       'Lundi de Pentecôte'],
+      [`${year}-07-14`, 'Fête Nationale'],
+      [`${year}-08-15`, 'Assomption'],
+      [`${year}-11-01`, 'Toussaint'],
+      [`${year}-11-11`, 'Armistice'],
+      [`${year}-12-25`, 'Noël'],
+    ]);
+
+    this._holidayCache.set(year, holidays);
+    return holidays;
+  }
+
+  getHolidayLabel(day: MonthDay): string | null {
+    return this._computeHolidays(day.date.getFullYear()).get(day.iso) ?? null;
+  }
+
   // ── Chargement absences mensuel ───────────────────────────────────────────
 
   ngOnChanges(changes: SimpleChanges) {
@@ -219,24 +272,34 @@ export class MonthViewComponent implements OnChanges {
     return `bg-${color}-400`;
   }
 
-  /** Badges J / N / F dans la cellule */
-  getStatusBadges(day: MonthDay): { label: string; cls: string }[] {
-    const badges: { label: string; cls: string }[] = [];
+  /** Badges J / N / F(fermé) / F(férié) dans la cellule */
+  getStatusBadges(day: MonthDay): { label: string; cls: string; title: string }[] {
+    const badges: { label: string; cls: string; title: string }[] = [];
+
+    // Badge Férié (en premier, en ambré)
+    const holidayLabel = this.getHolidayLabel(day);
+    if (holidayLabel) {
+      badges.push({ label: 'F', cls: 'badge-ferie', title: holidayLabel });
+    }
+
     if (!day.dayStatus) return badges;
-    if (day.dayStatus.on_call_day)   badges.push({ label: 'J', cls: 'badge-oncall-day' });
-    if (day.dayStatus.on_call_night) badges.push({ label: 'N', cls: 'badge-oncall-night' });
-    if (day.dayStatus.status === 'closed' && !day.dayStatus.on_call_day && !day.dayStatus.on_call_night)
-      badges.push({ label: 'F', cls: 'badge-closed' });
+    if (day.dayStatus.on_call_day)
+      badges.push({ label: 'J', cls: 'badge-oncall-day', title: 'Garde de jour' });
+    if (day.dayStatus.on_call_night)
+      badges.push({ label: 'N', cls: 'badge-oncall-night', title: 'Garde de nuit' });
+    if (day.dayStatus.status === 'closed' && !day.dayStatus.on_call_day && !day.dayStatus.on_call_night && !holidayLabel)
+      badges.push({ label: 'F', cls: 'badge-closed', title: 'Fermé' });
     return badges;
   }
 
   getCellClass(day: MonthDay): string {
-    if (!day.dayStatus) return '';
+    const isFerie = !!this.getHolidayLabel(day);
+    if (!day.dayStatus) return isFerie ? 'month-cell-ferie' : '';
     if (day.dayStatus.on_call_day && day.dayStatus.on_call_night) return 'month-cell-oncall-both';
     if (day.dayStatus.on_call_day)   return 'month-cell-oncall-day';
     if (day.dayStatus.on_call_night) return 'month-cell-oncall-night';
-    if (day.dayStatus.status === 'closed') return 'month-cell-closed';
-    return '';
+    if (day.dayStatus.status === 'closed') return isFerie ? 'month-cell-ferie' : 'month-cell-closed';
+    return isFerie ? 'month-cell-ferie' : '';
   }
 
   get calendarRows(): { weekNumber: number; days: MonthDay[] }[] {

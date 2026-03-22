@@ -245,12 +245,26 @@ export interface PayeHeureSup {
 
 export interface PayeDetailSemaine {
   week_str: string;
-  heures_travaillees: number;
+  heures_shifts: number;
+  heures_overtime: number;
+  heures_early: number;
+  heures_absence_injustifiee: number;
+  heures_formation: number;
+  total_semaine: number;
   seuil: number;
   sup_tranche1: number;
   sup_tranche2: number;
+  heures_dues: number;
+  alerte_46h: boolean;
   rattachement: string;
   a_cheval: boolean;
+}
+
+export interface JourFerieDto {
+  date: string;
+  label: string;
+  heures: number;
+  premier_mai: boolean;
 }
 
 export interface PayeAnnuel {
@@ -275,14 +289,15 @@ export interface PayeCollaborateur {
   heures_contrat: number | null;
   heures_sup_planning: PayeHeureSup | null;
   detail_semaines: PayeDetailSemaine[] | null;
-  solde_ajustements: number | null;
+  heures_dues: number | null;
   heures_nuit_20: number | null;
   heures_nuit_40: number | null;
   heures_dimanche: number | null;
   heures_formation: number;
   absences_justifiees: number | null;
-  absences_injustifiees: number | null;
   cp_poses: number | null;
+  heures_feries_travaillees: number | null;
+  jours_feries_travailles: JourFerieDto[] | null;
   annuel: PayeAnnuel | null;
 }
 
@@ -290,14 +305,14 @@ export interface PayeTotauxSalaries {
   jours_travailles: number;
   heures_reelles: number;
   heures_sup_planning_total: number;
-  solde_ajustements: number;
+  heures_dues: number;
   heures_nuit_20: number;
   heures_nuit_40: number;
   heures_dimanche: number;
   heures_formation: number;
   absences_justifiees: number;
-  absences_injustifiees: number;
   cp_poses: number;
+  heures_feries_travaillees: number;
 }
 
 export interface PayeSummaryResponse {

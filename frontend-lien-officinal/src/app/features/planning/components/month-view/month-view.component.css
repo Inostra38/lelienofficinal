@@ -52,6 +52,11 @@
   border-color: #fecdd3;
 }
 
+.month-cell-ferie {
+  background: #fff7ed;
+  border-color: #fed7aa;
+}
+
 .month-cell-oncall-day {
   background: #fffbeb;
   border-color: #fde68a;
@@ -87,6 +92,7 @@
 .badge-oncall-day   { background: #fef3c7; color: #b45309; }
 .badge-oncall-night { background: #e0e7ff; color: #4338ca; }
 .badge-closed       { background: #fee2e2; color: #b91c1c; }
+.badge-ferie        { background: #ffedd5; color: #c2410c; }
 
 /* ── Initiales absences ──────────────────────────────────────────────────── */
 

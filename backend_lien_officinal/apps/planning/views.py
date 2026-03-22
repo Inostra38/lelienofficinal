@@ -16,6 +16,7 @@ from rest_framework_simplejwt.authentication import JWTAuthentication
 
 from apps.team.models import Collaborator, ContractHistory
 from .calculator import pharmacy_week_summary
+from .utils import get_jours_feries
 from .models import AbsenceRequest, Constraint, ConstraintSet, OpeningHours, PharmacyDayStatus, PlanningSettings, Shift, TemplateShift, TimeAdjustment, WeekTemplate, WeekTemplateApplication
 from .serializers import (
     AbsenceRequestCreateSerializer,
@@ -351,6 +352,15 @@ class AbsenceListCreateView(APIView):
                 Q(status='closed') | Q(on_call_day=True)
             ).values_list('date', flat=True)
         )
+
+        # Ajouter les dimanches et jours fériés (non travaillés par défaut)
+        years_in_period = {d.year for d in period_dates}
+        feries = set()
+        for y in years_in_period:
+            feries.update(get_jours_feries(y))
+        for d in period_dates:
+            if d.weekday() == 6 or d in feries:  # dimanche ou férié
+                blocked_set.add(d)
 
         # Ajouter les jours déjà couverts par une absence existante du collaborateur
         existing_absences = AbsenceRequest.objects.filter(

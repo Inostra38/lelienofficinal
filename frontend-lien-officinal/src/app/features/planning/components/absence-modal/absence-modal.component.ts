@@ -117,7 +117,7 @@ export class AbsenceModalComponent implements OnInit {
         };
         if (res.skipped_days > 0) {
           const s = res.skipped_days > 1 ? 's' : '';
-          this.successMessage = `${res.absences.length > 1 ? res.absences.length + ' tranche(s) créée(s)' : 'Absence créée'}. ${res.skipped_days} jour${s} exclu${s} (fermé / garde de jour).`;
+          this.successMessage = `${res.absences.length > 1 ? res.absences.length + ' tranche(s) créée(s)' : 'Absence créée'}. ${res.skipped_days} jour${s} exclu${s} (dimanche, férié ou jour fermé).`;
           this.activeTab = 'list';
         } else {
           this.activeTab = 'list';

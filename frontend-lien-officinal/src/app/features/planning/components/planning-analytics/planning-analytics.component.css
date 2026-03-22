@@ -132,15 +132,15 @@
     90px   /* Heures contrat */
     80px   /* Sup tr.1 */
     80px   /* Sup tr.2 */
-    80px   /* Solde ajust. */
     70px   /* Nuit +20% */
     70px   /* Nuit +40% */
     60px   /* Dim. */
     70px   /* Abs. just. */
-    70px   /* Abs. injust. */
+    70px   /* Heures dues */
     60px   /* CP */
+    70px   /* Fériés */
     80px;  /* Formation */
-  min-width: 1060px;
+  min-width: 1050px;
 }
 
 /* En-tête de groupe (ligne 1) */
@@ -199,10 +199,17 @@
   text-align: center;
 }
 
-/* Cellule TNS fusionnée */
+/* Ligne TNS — fond grisé sur toutes les cellules */
+.paye-cell-tns {
+  background: #f3f4f6;
+  color: #9ca3af;
+}
+
+/* Cellule TNS fusionnée (colonnes non applicables) */
 .paye-tns-merged {
-  background: #faf5ff;
-  border-left: 2px solid #e9d5ff;
+  background: #f3f4f6;
+  border-left: 2px solid #e5e7eb;
+  justify-content: center;
 }
 
 /* Ligne footer total */
@@ -216,25 +223,81 @@
   align-items: center;
 }
 
+/* ── Alerte 46h ── */
+.paye-sub-row-alerte {
+  background: #fef2f2;
+}
+
+/* ── Popover jours fériés ── */
+.paye-feries-cell {
+  position: relative;
+}
+
+.paye-feries-popover {
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 50;
+  background: #fff;
+  border: 1px solid #e5e7eb;
+  border-radius: 0.5rem;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.12);
+  padding: 0.5rem 0.75rem;
+  min-width: 220px;
+  white-space: nowrap;
+}
+
+.paye-feries-popover::before {
+  content: '';
+  position: absolute;
+  top: -5px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 8px;
+  height: 8px;
+  background: #fff;
+  border-left: 1px solid #e5e7eb;
+  border-top: 1px solid #e5e7eb;
+  rotate: 45deg;
+}
+
+.paye-feries-popover-row {
+  padding: 0.25rem 0;
+  border-bottom: 1px solid #f3f4f6;
+  font-size: 0.6875rem;
+}
+
+.paye-feries-popover-row:last-child {
+  border-bottom: none;
+}
+
 /* ── Sous-grille détail semaines ── */
 .paye-subgrid-wrapper {
   background: #fafafa;
   border-bottom: 1px solid #e5e7eb;
   border-left: 3px solid #d1fae5;
   padding: 0.25rem 0;
+  overflow-x: auto;
 }
 
 .paye-subgrid {
   display: grid;
   grid-template-columns:
-    220px  /* Semaine */
-    120px  /* H. travaillées */
-    100px  /* Seuil CCN */
-    100px  /* Sup tr.1 */
-    100px  /* Sup tr.2 */
+    160px  /* Semaine */
+    70px   /* H. shifts */
+    70px   /* Overtime */
+    70px   /* Départ ant. */
+    60px   /* Abs. inj. */
+    70px   /* Formation */
+    80px   /* Total sem. */
+    60px   /* Seuil */
+    70px   /* Sup tr.1 */
+    70px   /* Sup tr.2 */
+    70px   /* H. dues */
     1fr;   /* Rattachement */
-  margin-left: 1.5rem;
-  min-width: 700px;
+  margin-left: 1rem;
+  min-width: 860px;
 }
 
 .paye-sub-header {
@@ -257,6 +320,10 @@
   align-items: center;
   white-space: nowrap;
   overflow: hidden;
+}
+
+.paye-sub-row-alerte .paye-sub-cell {
+  background: #fef2f2;
 }
 
 /* ── Utilitaires ── */

@@ -478,7 +478,55 @@ export class WeekViewComponent implements OnChanges {
       }
     }
 
+    // ── Jour férié — overlay plein-jour ambré ─────────────────────────────────
+    if (this.getHolidayLabelForIso(dayIso)) {
+      overlays.push(this._buildOnCallOverlay(0, 1440, 'rgba(254, 215, 170, 0.45)'));
+    }
+
     return overlays.length ? [...overlays, base].join(', ') : base;
+  }
+
+  // ── Jours fériés (calculés côté client, mis en cache par année) ───────────
+
+  private _holidayCache = new Map<number, Map<string, string>>();
+
+  private _computeHolidays(year: number): Map<string, string> {
+    if (this._holidayCache.has(year)) return this._holidayCache.get(year)!;
+    const a = year % 19, b = Math.floor(year / 100), c = year % 100;
+    const d = Math.floor(b / 4), e = b % 4, f = Math.floor((b + 8) / 25);
+    const g = Math.floor((b - f + 1) / 3);
+    const h = (19 * a + b - d - g + 15) % 30;
+    const ii = Math.floor(c / 4), k = c % 4;
+    const l = (32 + 2 * e + 2 * ii - h - k) % 7;
+    const m = Math.floor((a + 11 * h + 22 * l) / 451);
+    const eMonth = Math.floor((h + l - 7 * m + 114) / 31);
+    const eDay   = ((h + l - 7 * m + 114) % 31) + 1;
+    const easter = new Date(year, eMonth - 1, eDay);
+    const shift = (n: number): string => {
+      const r = new Date(easter); r.setDate(r.getDate() + n);
+      const p = (x: number) => String(x).padStart(2, '0');
+      return `${r.getFullYear()}-${p(r.getMonth() + 1)}-${p(r.getDate())}`;
+    };
+    const holidays = new Map<string, string>([
+      [`${year}-01-01`, "Jour de l'An"],
+      [shift(1),        'Lundi de Pâques'],
+      [`${year}-05-01`, 'Fête du Travail'],
+      [`${year}-05-08`, 'Victoire 1945'],
+      [shift(39),       'Ascension'],
+      [shift(50),       'Lundi de Pentecôte'],
+      [`${year}-07-14`, 'Fête Nationale'],
+      [`${year}-08-15`, 'Assomption'],
+      [`${year}-11-01`, 'Toussaint'],
+      [`${year}-11-11`, 'Armistice'],
+      [`${year}-12-25`, 'Noël'],
+    ]);
+    this._holidayCache.set(year, holidays);
+    return holidays;
+  }
+
+  getHolidayLabelForIso(iso: string): string | null {
+    const year = parseInt(iso.substring(0, 4), 10);
+    return this._computeHolidays(year).get(iso) ?? null;
   }
 
   private _prevDayIso(iso: string): string {
@@ -538,17 +586,25 @@ export class WeekViewComponent implements OnChanges {
   }
 
   getDayBadges(day: Date): { label: string; cls: string }[] {
-    const s = this.getDayStatus(this.getDayIso(day));
-    if (!s) {
-      // Dimanche sans entrée explicite
-      if (day.getDay() === 0) {
-        return this.weekData.on_call_sunday
-          ? [{ label: 'Garde de jour', cls: 'badge-oncall-day' }]
-          : [{ label: 'Fermé', cls: 'badge-closed' }];
-      }
-      return [];
-    }
+    const iso = this.getDayIso(day);
     const badges: { label: string; cls: string }[] = [];
+
+    // Badge Férié (en premier)
+    const holidayLabel = this.getHolidayLabelForIso(iso);
+    if (holidayLabel) {
+      badges.push({ label: holidayLabel, cls: 'badge-ferie' });
+    }
+
+    const s = this.getDayStatus(iso);
+    if (!s) {
+      if (day.getDay() === 0) {
+        if (this.weekData.on_call_sunday)
+          badges.push({ label: 'Garde de jour', cls: 'badge-oncall-day' });
+        else
+          badges.push({ label: 'Fermé', cls: 'badge-closed' });
+      }
+      return badges;
+    }
     if (s.on_call_day)   badges.push({ label: 'Garde de jour',  cls: 'badge-oncall-day' });
     if (s.on_call_night) badges.push({ label: 'Garde de nuit',  cls: 'badge-oncall-night' });
     if (s.status === 'closed' && !s.on_call_day && !s.on_call_night)
@@ -568,6 +624,7 @@ export class WeekViewComponent implements OnChanges {
   savingAbsent = false;
 
   onShiftClick(shift: Shift, event: MouseEvent): void {
+    if (!this.isManager) return;
     event.stopPropagation();
     const rect = (event.currentTarget as HTMLElement).getBoundingClientRect();
     this.activeShiftPopover = { shift, x: rect.left, y: rect.bottom + 6 };

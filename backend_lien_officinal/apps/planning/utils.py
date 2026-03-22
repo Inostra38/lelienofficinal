@@ -1,5 +1,68 @@
 import json
 import re
+from datetime import date, timedelta
+
+
+# ── Jours fériés français ──────────────────────────────────────────────────────
+
+def get_jours_feries(year: int) -> list:
+    """Jours fériés français (algorithme Meeus/Jones/Butcher pour Pâques)."""
+    a = year % 19
+    b = year // 100
+    c = year % 100
+    d = b // 4
+    e = b % 4
+    f = (b + 8) // 25
+    g = (b - f + 1) // 3
+    h = (19 * a + b - d - g + 15) % 30
+    i = c // 4
+    k = c % 4
+    l = (32 + 2 * e + 2 * i - h - k) % 7
+    m = (a + 11 * h + 22 * l) // 451
+    month = (h + l - 7 * m + 114) // 31
+    day = ((h + l - 7 * m + 114) % 31) + 1
+    paques = date(year, month, day)
+    return [
+        date(year, 1, 1),
+        paques + timedelta(days=1),   # Lundi de Pâques
+        date(year, 5, 1),
+        date(year, 5, 8),
+        paques + timedelta(days=39),  # Ascension
+        paques + timedelta(days=50),  # Lundi de Pentecôte
+        date(year, 7, 14),
+        date(year, 8, 15),
+        date(year, 11, 1),
+        date(year, 11, 11),
+        date(year, 12, 25),
+    ]
+
+
+_LABELS_FERIES_FIXES = {
+    (1, 1):   "Jour de l'An",
+    (5, 1):   "Fête du Travail",
+    (5, 8):   "Victoire 1945",
+    (7, 14):  "Fête Nationale",
+    (8, 15):  "Assomption",
+    (11, 1):  "Toussaint",
+    (11, 11): "Armistice",
+    (12, 25): "Noël",
+}
+
+
+def get_label_ferie(d: date, year: int) -> str:
+    label = _LABELS_FERIES_FIXES.get((d.month, d.day))
+    if label:
+        return label
+    feries = get_jours_feries(year)
+    paques_lundi = feries[1]
+    paques = paques_lundi - timedelta(days=1)
+    if d == paques_lundi:
+        return "Lundi de Pâques"
+    if d == paques + timedelta(days=39):
+        return "Ascension"
+    if d == paques + timedelta(days=50):
+        return "Lundi de Pentecôte"
+    return "Jour férié"
 
 
 class AIParseError(Exception):
