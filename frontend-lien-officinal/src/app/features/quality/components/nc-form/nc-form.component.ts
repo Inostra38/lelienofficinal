@@ -32,8 +32,8 @@ export class NcFormComponent implements OnInit {
   });
 
   ngOnInit() {
-    this.qualityService.getProcedures().subscribe({
-      next: (p) => { this.procedures = p.filter(x => x.status === 'active'); },
+    this.qualityService.getProcedures({ status: 'active' }).subscribe({
+      next: (p) => { this.procedures = p; },
     });
   }
 

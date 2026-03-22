@@ -47,7 +47,7 @@ export class TimeAdjustmentsComponent implements OnInit {
     collaborator_id: undefined as number | undefined,
     start_date: '',
     end_date: '',
-    type: 'cp' as 'cp' | 'maladie' | 'rcr' | 'sans_solde' | 'justifiee',
+    type: 'cp' as 'cp' | 'maladie' | 'rcr' | 'sans_solde' | 'conge_exceptionnel',
     note: '',
   };
   submitting    = false;
@@ -63,7 +63,7 @@ export class TimeAdjustmentsComponent implements OnInit {
     { value: 'maladie',    label: 'Maladie' },
     { value: 'rcr',        label: 'RCR' },
     { value: 'sans_solde', label: 'Sans solde' },
-    { value: 'justifiee',  label: 'Absence justifiée' },
+    { value: 'conge_exceptionnel', label: 'Congé exceptionnel légal' },
   ];
 
 ngOnInit() {

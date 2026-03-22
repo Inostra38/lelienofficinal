@@ -135,12 +135,14 @@
     70px   /* Nuit +20% */
     70px   /* Nuit +40% */
     60px   /* Dim. */
-    70px   /* Abs. just. */
-    70px   /* Heures dues */
-    60px   /* CP */
     70px   /* Fériés */
+    60px   /* CP */
+    60px   /* RCR */
+    70px   /* C.exc. */
+    60px   /* Sans solde */
+    70px   /* Heures dues */
     80px;  /* Formation */
-  min-width: 1050px;
+  min-width: 1180px;
 }
 
 /* En-tête de groupe (ligne 1) */
@@ -228,49 +230,6 @@
   background: #fef2f2;
 }
 
-/* ── Popover jours fériés ── */
-.paye-feries-cell {
-  position: relative;
-}
-
-.paye-feries-popover {
-  position: absolute;
-  top: calc(100% + 4px);
-  left: 50%;
-  transform: translateX(-50%);
-  z-index: 50;
-  background: #fff;
-  border: 1px solid #e5e7eb;
-  border-radius: 0.5rem;
-  box-shadow: 0 4px 12px rgba(0,0,0,0.12);
-  padding: 0.5rem 0.75rem;
-  min-width: 220px;
-  white-space: nowrap;
-}
-
-.paye-feries-popover::before {
-  content: '';
-  position: absolute;
-  top: -5px;
-  left: 50%;
-  transform: translateX(-50%);
-  width: 8px;
-  height: 8px;
-  background: #fff;
-  border-left: 1px solid #e5e7eb;
-  border-top: 1px solid #e5e7eb;
-  rotate: 45deg;
-}
-
-.paye-feries-popover-row {
-  padding: 0.25rem 0;
-  border-bottom: 1px solid #f3f4f6;
-  font-size: 0.6875rem;
-}
-
-.paye-feries-popover-row:last-child {
-  border-bottom: none;
-}
 
 /* ── Sous-grille détail semaines ── */
 .paye-subgrid-wrapper {

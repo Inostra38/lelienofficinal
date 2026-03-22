@@ -322,6 +322,12 @@ def compute_paye_summary(pharmacy, year: int, month: int) -> dict:
         start_datetime__date__lte=month_end,
     ).select_related('collaborator')
 
+    all_annual_adjustments = TimeAdjustment.objects.filter(
+        collaborator__pharmacy=pharmacy,
+        date__gte=jan_1,
+        date__lte=month_end,
+    ).select_related('collaborator')
+
     all_annual_rcr = AbsenceRequest.objects.filter(
         collaborator__pharmacy=pharmacy,
         status='approved',
@@ -355,6 +361,10 @@ def compute_paye_summary(pharmacy, year: int, month: int) -> dict:
     for shift in all_annual_shifts:
         annual_shifts_by_collab.setdefault(shift.collaborator_id, []).append(shift)
 
+    annual_adjustments_by_collab = {}
+    for adj in all_annual_adjustments:
+        annual_adjustments_by_collab.setdefault(adj.collaborator_id, []).append(adj)
+
     annual_rcr_by_collab = {}
     for absence in all_annual_rcr:
         annual_rcr_by_collab.setdefault(absence.collaborator_id, []).append(absence)
@@ -369,8 +379,10 @@ def compute_paye_summary(pharmacy, year: int, month: int) -> dict:
     totaux_nuit_40          = 0.0
     totaux_dimanche         = 0.0
     totaux_formation        = 0.0
-    totaux_abs_just         = 0
     totaux_cp               = 0
+    totaux_rcr              = 0
+    totaux_conge_exc        = 0
+    totaux_sans_solde       = 0
     totaux_feries           = 0.0
 
     for collab in collaborators:
@@ -435,8 +447,10 @@ def compute_paye_summary(pharmacy, year: int, month: int) -> dict:
                 'heures_nuit_40': None,
                 'heures_dimanche': None,
                 'heures_formation': round(heures_formation, 2),
-                'absences_justifiees': None,
-                'cp_poses': None,
+                'cp_poses':          None,
+                'rcr_poses':         None,
+                'conge_exc_poses':   None,
+                'sans_solde_poses':  None,
                 'heures_feries_travaillees': None,
                 'jours_feries_travailles': None,
                 'annuel': None,
@@ -546,17 +560,19 @@ def compute_paye_summary(pharmacy, year: int, month: int) -> dict:
             heures_nuit_40  += hours_in_plage(sd, ed, plage_40)
             heures_dimanche += sunday_hours(sd, ed)
 
-        # Absences du mois civil (justifiées + CP)
-        abs_just = 0
-        cp_poses = 0
+        # Absences du mois civil — ventilation par type
+        cp_poses          = 0
+        rcr_poses         = 0
+        conge_exc_poses   = 0
+        sans_solde_poses  = 0
         for absence in collab_absences:
             abs_start = max(absence.start_date, month_start)
             abs_end   = min(absence.end_date, month_end)
             n_days    = count_working_days_in_range(abs_start, abs_end)
-            if absence.type in ('justifiee', 'maladie', 'rcr', 'sans_solde', 'formation'):
-                abs_just += n_days
-            elif absence.type == 'cp':
-                cp_poses += n_days
+            if   absence.type == 'cp':                cp_poses         += n_days
+            elif absence.type == 'rcr':               rcr_poses        += n_days
+            elif absence.type == 'conge_exceptionnel': conge_exc_poses  += n_days
+            elif absence.type == 'sans_solde':        sans_solde_poses += n_days
 
         # Jours fériés travaillés (shifts non-absents ce jour)
         jours_feries_travailles = []
@@ -573,8 +589,9 @@ def compute_paye_summary(pharmacy, year: int, month: int) -> dict:
         heures_feries_travaillees = round(sum(j['heures'] for j in jours_feries_travailles), 2)
 
         # ── Calcul annuel RCR ──────────────────────────────────────────────────
-        collab_annual_shifts = annual_shifts_by_collab.get(collab.id, [])
-        collab_annual_rcr    = annual_rcr_by_collab.get(collab.id, [])
+        collab_annual_shifts      = annual_shifts_by_collab.get(collab.id, [])
+        collab_annual_adjustments = annual_adjustments_by_collab.get(collab.id, [])
+        collab_annual_rcr         = annual_rcr_by_collab.get(collab.id, [])
 
         rcr_acquis_h = 0.0
         for (w_monday, w_sunday, w_friday) in annual_weeks:
@@ -583,6 +600,10 @@ def compute_paye_summary(pharmacy, year: int, month: int) -> dict:
                 for s in collab_annual_shifts
                 if w_monday <= _strip_tz(s.start_datetime).date() <= w_sunday
             )
+            week_adjs_annual = [a for a in collab_annual_adjustments if w_monday <= a.date <= w_sunday]
+            week_ot_annual   = sum(a.duration_minutes / 60 for a in week_adjs_annual if a.type == 'overtime')
+            week_early_annual = sum(a.duration_minutes / 60 for a in week_adjs_annual if a.type == 'early_departure')
+
             week_form_h = 0.0
             for fa in AbsenceRequest.objects.filter(
                 collaborator=collab,
@@ -599,7 +620,7 @@ def compute_paye_summary(pharmacy, year: int, month: int) -> dict:
                         week_form_h += 7.0
                     d += timedelta(days=1)
 
-            week_sup = max(0.0, week_shift_h + week_form_h - weekly_hours)
+            week_sup = max(0.0, week_shift_h + week_ot_annual - week_early_annual + week_form_h - weekly_hours)
             rcr_acquis_h += week_sup
 
         rcr_consomme_h = 0.0
@@ -638,8 +659,10 @@ def compute_paye_summary(pharmacy, year: int, month: int) -> dict:
             'heures_nuit_40': round(heures_nuit_40, 2),
             'heures_dimanche': round(heures_dimanche, 2),
             'heures_formation': round(heures_formation, 2),
-            'absences_justifiees': abs_just,
-            'cp_poses': cp_poses,
+            'cp_poses':          cp_poses,
+            'rcr_poses':         rcr_poses,
+            'conge_exc_poses':   conge_exc_poses,
+            'sans_solde_poses':  sans_solde_poses,
             'heures_feries_travaillees': heures_feries_travaillees,
             'jours_feries_travailles': jours_feries_travailles,
             'annuel': annuel,
@@ -653,8 +676,10 @@ def compute_paye_summary(pharmacy, year: int, month: int) -> dict:
         totaux_nuit_40          += heures_nuit_40
         totaux_dimanche         += heures_dimanche
         totaux_formation        += heures_formation
-        totaux_abs_just         += abs_just
         totaux_cp               += cp_poses
+        totaux_rcr              += rcr_poses
+        totaux_conge_exc        += conge_exc_poses
+        totaux_sans_solde       += sans_solde_poses
         totaux_feries           += heures_feries_travaillees
 
     totaux_salaries = {
@@ -666,8 +691,10 @@ def compute_paye_summary(pharmacy, year: int, month: int) -> dict:
         'heures_nuit_40':           round(totaux_nuit_40, 2),
         'heures_dimanche':          round(totaux_dimanche, 2),
         'heures_formation':         round(totaux_formation, 2),
-        'absences_justifiees':      totaux_abs_just,
         'cp_poses':                 totaux_cp,
+        'rcr_poses':                totaux_rcr,
+        'conge_exc_poses':          totaux_conge_exc,
+        'sans_solde_poses':         totaux_sans_solde,
         'heures_feries_travaillees': round(totaux_feries, 2),
     }
 

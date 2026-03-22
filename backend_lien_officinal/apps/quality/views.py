@@ -1,5 +1,5 @@
 from django.db import transaction
-from django.db.models import OuterRef, Subquery
+from django.db.models import Count, OuterRef, Subquery
 from django.utils import timezone
 from rest_framework import viewsets, status
 from rest_framework.decorators import action
@@ -51,6 +51,10 @@ class ProcedureViewSet(viewsets.ModelViewSet):
             .values('version_number')[:1]
         )
         qs = qs.annotate(last_published_version=Subquery(last_pub_sq))
+
+        status_param = self.request.query_params.get('status')
+        if status_param:
+            qs = qs.filter(status=status_param)
 
         group_param = self.request.query_params.get('group')
         if group_param == 'none':
@@ -256,7 +260,12 @@ class ProcedureGroupViewSet(viewsets.ModelViewSet):
     serializer_class = ProcedureGroupSerializer
 
     def get_queryset(self):
-        return ProcedureGroup.objects.filter(pharmacy=self.request.user)
+        return (
+            ProcedureGroup.objects
+            .filter(pharmacy=self.request.user)
+            .annotate(procedure_count=Count('procedures', distinct=True))
+            .order_by('order')
+        )
 
     def get_permissions(self):
         if self.action in ['list', 'retrieve']:

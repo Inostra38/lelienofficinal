@@ -124,7 +124,7 @@ export interface AbsenceRequest {
   collaborator: PlanningCollaborator;
   start_date: string;
   end_date: string;
-  type: 'cp' | 'maladie' | 'rcr' | 'sans_solde';
+  type: 'cp' | 'maladie' | 'rcr' | 'sans_solde' | 'conge_exceptionnel';
   status: 'pending' | 'approved' | 'rejected';
   note: string;
   created_at: string;
@@ -163,7 +163,7 @@ export interface CreateAbsenceDto {
   collaborator_id?: number;
   start_date: string;
   end_date: string;
-  type?: 'cp' | 'maladie' | 'rcr' | 'sans_solde' | 'justifiee';
+  type?: 'cp' | 'maladie' | 'rcr' | 'sans_solde' | 'conge_exceptionnel';
   note?: string;
 }
 
@@ -294,8 +294,10 @@ export interface PayeCollaborateur {
   heures_nuit_40: number | null;
   heures_dimanche: number | null;
   heures_formation: number;
-  absences_justifiees: number | null;
-  cp_poses: number | null;
+  cp_poses:          number | null;
+  rcr_poses:         number | null;
+  conge_exc_poses:   number | null;
+  sans_solde_poses:  number | null;
   heures_feries_travaillees: number | null;
   jours_feries_travailles: JourFerieDto[] | null;
   annuel: PayeAnnuel | null;
@@ -310,8 +312,10 @@ export interface PayeTotauxSalaries {
   heures_nuit_40: number;
   heures_dimanche: number;
   heures_formation: number;
-  absences_justifiees: number;
-  cp_poses: number;
+  cp_poses:          number;
+  rcr_poses:         number;
+  conge_exc_poses:   number;
+  sans_solde_poses:  number;
   heures_feries_travaillees: number;
 }
 

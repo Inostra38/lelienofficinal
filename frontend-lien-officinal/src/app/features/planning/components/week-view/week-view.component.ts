@@ -635,12 +635,12 @@ export class WeekViewComponent implements OnChanges {
   }
 
   readonly ABSENCE_TYPES = [
-    { value: 'injustifiee', label: 'Injustifiée' },
-    { value: 'justifiee',   label: 'Justifiée' },
-    { value: 'maladie',     label: 'Maladie' },
-    { value: 'cp',          label: 'Congés payés' },
-    { value: 'rcr',         label: 'RCR' },
-    { value: 'sans_solde',  label: 'Sans solde' },
+    { value: 'injustifiee',        label: 'Injustifiée' },
+    { value: 'conge_exceptionnel', label: 'Congé exceptionnel légal' },
+    { value: 'maladie',            label: 'Maladie' },
+    { value: 'cp',                 label: 'Congés payés' },
+    { value: 'rcr',                label: 'RCR' },
+    { value: 'sans_solde',         label: 'Sans solde' },
   ];
 
   toggleAbsent(shift: Shift): void {

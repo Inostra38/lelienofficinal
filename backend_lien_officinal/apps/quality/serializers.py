@@ -79,16 +79,13 @@ class ProcedureVersionSerializer(serializers.ModelSerializer):
 # ── ProcedureGroup ────────────────────────────────────────────────────────────
 
 class ProcedureGroupSerializer(serializers.ModelSerializer):
-    procedure_count = serializers.SerializerMethodField()
+    procedure_count = serializers.IntegerField(read_only=True)
     created_by = serializers.SerializerMethodField()
 
     class Meta:
         model = ProcedureGroup
         fields = ['id', 'name', 'description', 'color', 'order', 'procedure_count', 'created_by', 'created_at', 'updated_at']
         read_only_fields = ['id', 'created_by', 'created_at', 'updated_at']
-
-    def get_procedure_count(self, obj):
-        return obj.procedures.count()
 
     def get_created_by(self, obj):
         return _collab_repr(obj.created_by)

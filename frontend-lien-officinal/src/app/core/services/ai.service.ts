@@ -1,17 +1,20 @@
 import { Injectable, inject } from '@angular/core';
-import { HttpClient } from '@angular/common/http';
 import { Observable } from 'rxjs';
-import { environment } from '../../../environments/environment';
+import { map } from 'rxjs/operators';
+import { QualityAiWsService } from './quality-ai-ws.service';
 
 export interface CorrectiveActionSuggestion {
   description: string;
   delai: string;
 }
 
+/**
+ * Service IA pour le module qualité.
+ * Délègue au QualityAiWsService (WebSocket async) — non bloquant.
+ */
 @Injectable({ providedIn: 'root' })
 export class AiService {
-  private http = inject(HttpClient);
-  private api = `${environment.apiUrl}/api/quality/ai`;
+  private ws = inject(QualityAiWsService);
 
   generateProcedureContent(payload: {
     title: string;
@@ -19,14 +22,14 @@ export class AiService {
     reference: string;
     context?: string;
   }): Observable<{ content: string }> {
-    return this.http.post<{ content: string }>(`${this.api}/generate-procedure/`, payload);
+    return this.ws.request<{ content: string }>('generate_content', payload);
   }
 
   refactorText(payload: {
     text: string;
     mode: 'selection' | 'full';
   }): Observable<{ result: string }> {
-    return this.http.post<{ result: string }>(`${this.api}/refactor-text/`, payload);
+    return this.ws.request<{ result: string }>('refactor_text', payload);
   }
 
   suggestCorrectiveActions(payload: {
@@ -34,8 +37,8 @@ export class AiService {
     nc_description: string;
     severity: string;
   }): Observable<{ actions: CorrectiveActionSuggestion[] }> {
-    return this.http.post<{ actions: CorrectiveActionSuggestion[] }>(
-      `${this.api}/suggest-actions/`,
+    return this.ws.request<{ actions: CorrectiveActionSuggestion[] }>(
+      'suggest_actions',
       payload,
     );
   }

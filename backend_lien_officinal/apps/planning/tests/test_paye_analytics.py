@@ -284,9 +284,34 @@ class PayeAnalyticsMarcMars2026(TestCase):
         alertes = [s["alerte_46h"] for s in marc["detail_semaines"]]
         self.assertFalse(any(alertes))
 
-    def test_absences_justifiees_zero(self):
-        """Absence injustifiée ne compte pas dans absences_justifiees."""
+    def test_absences_ventilees_zero(self):
+        """Aucune absence justifiée posée ce mois (injustifiée ne compte pas dans les compteurs)."""
         result = compute_paye_summary(self.pharmacy, YEAR, MONTH)
         marc = self._get_marc(result)
-        self.assertEqual(marc["absences_justifiees"], 0)
         self.assertEqual(marc["cp_poses"], 0)
+        self.assertEqual(marc["rcr_poses"], 0)
+        self.assertEqual(marc["conge_exc_poses"], 0)
+        self.assertEqual(marc["sans_solde_poses"], 0)
+
+    def test_rcr_acquis_inclut_adjustments(self):
+        """
+        rcr_acquis doit inclure les TimeAdjustment (overtime/early) — cohérence
+        avec detail_semaines.
+
+        Calcul attendu (données du test, pas de jan/fév) :
+          S10 : 40h shifts, 0 adj     → sup = 40-35 = 5h
+          S11 : 40h shifts, +2h OT    → sup = 42-35 = 7h
+          S12 : 32h shifts (abs_inj non déduit pour rcr annuel) → sup = 0h
+          S13 : 40h shifts, -1h early → sup = 39-35 = 4h
+          S14 : 16h (a_cheval, <35)   → sup = 0h
+          Total = 16h
+        """
+        result = compute_paye_summary(self.pharmacy, YEAR, MONTH)
+        marc = self._get_marc(result)
+        annuel = marc["annuel"]
+        self.assertEqual(annuel["rcr_acquis"], 16.0)
+        # contingent_consomme doit être identique à rcr_acquis
+        self.assertEqual(annuel["contingent_consomme"], annuel["rcr_acquis"])
+        # Aucun RCR consommé dans ce scénario
+        self.assertEqual(annuel["rcr_consomme"], 0.0)
+        self.assertEqual(annuel["rcr_solde"], 16.0)

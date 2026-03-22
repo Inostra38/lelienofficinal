@@ -95,9 +95,9 @@ class Shift(models.Model):
     absence_type   = models.CharField(
         max_length=20,
         choices=[
-            ('injustifiee', 'Absence injustifiée'),
-            ('justifiee',   'Absence justifiée'),
-            ('maladie',     'Maladie'),
+            ('injustifiee',        'Absence injustifiée'),
+            ('conge_exceptionnel', 'Congé exceptionnel légal'),
+            ('maladie',            'Maladie'),
             ('cp',          'Congés payés'),
             ('rcr',         'RCR'),
             ('sans_solde',  'Sans solde'),
@@ -130,12 +130,13 @@ class Shift(models.Model):
 
 class AbsenceRequest(models.Model):
     class AbsenceType(models.TextChoices):
-        INJUSTIFIEE = 'injustifiee', 'Absence injustifiée'
-        CP          = 'cp',          'Congés payés'
-        MALADIE     = 'maladie',     'Maladie'
-        RCR         = 'rcr',         'RCR'
-        SANS_SOLDE  = 'sans_solde',  'Sans solde'
-        FORMATION   = 'formation',   'Formation'
+        INJUSTIFIEE        = 'injustifiee',        'Absence injustifiée'
+        CONGE_EXCEPTIONNEL = 'conge_exceptionnel', 'Congé exceptionnel légal'
+        CP                 = 'cp',                 'Congés payés'
+        MALADIE            = 'maladie',            'Maladie'
+        RCR                = 'rcr',                'RCR'
+        SANS_SOLDE         = 'sans_solde',         'Sans solde'
+        FORMATION          = 'formation',          'Formation'
 
     class Status(models.TextChoices):
         PENDING  = 'pending',  'En attente'

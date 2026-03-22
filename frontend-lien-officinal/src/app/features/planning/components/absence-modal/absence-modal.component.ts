@@ -44,16 +44,22 @@ export class AbsenceModalComponent implements OnInit {
   successMessage  = '';
 
   private readonly ALL_TYPES = [
-    { value: 'cp',         label: 'Congés payés' },
-    { value: 'maladie',    label: 'Maladie' },
-    { value: 'rcr',        label: 'RCR' },
-    { value: 'sans_solde', label: 'Sans solde' },
+    { value: 'cp',                 label: 'Congés payés' },
+    { value: 'conge_exceptionnel', label: 'Congé exceptionnel légal' },
+    { value: 'maladie',            label: 'Maladie' },
+    { value: 'rcr',                label: 'RCR' },
+    { value: 'sans_solde',         label: 'Sans solde' },
   ];
 
+  /** Types disponibles selon le rôle.
+   *  Salarié : CP · Congé exceptionnel · Sans solde
+   *  Manager : tous */
   get TYPES() {
     return this.isManager
       ? this.ALL_TYPES
-      : this.ALL_TYPES.filter(t => t.value === 'cp' || t.value === 'sans_solde');
+      : this.ALL_TYPES.filter(t =>
+          t.value === 'cp' || t.value === 'conge_exceptionnel' || t.value === 'rcr' || t.value === 'sans_solde'
+        );
   }
 
   readonly STATUS_LABELS: Record<string, string> = {
@@ -144,7 +150,7 @@ export class AbsenceModalComponent implements OnInit {
   // ── Helpers ───────────────────────────────────────────────────────────────
 
   getTypeLabel(type: string): string {
-    return this.TYPES.find(t => t.value === type)?.label ?? type;
+    return this.ALL_TYPES.find(t => t.value === type)?.label ?? type;
   }
 
   formatDate(iso: string): string {

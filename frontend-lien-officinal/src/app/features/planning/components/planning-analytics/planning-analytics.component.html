@@ -446,76 +446,6 @@
         <!-- Données -->
         @if (!payeLoading && !payeError && payeData) {
 
-          <!-- ── Bandeau annuel RCR (salariés seulement) ── -->
-          @if (getSalariesCollaborateurs().length > 0) {
-            <div class="rounded-xl border border-gray-200 overflow-hidden">
-              <div class="px-4 py-3 bg-gray-50 border-b border-gray-200 flex items-center justify-between">
-                <div>
-                  <h3 class="text-sm font-semibold text-gray-700">Suivi RCR annuel (depuis jan. {{ payeDate.getFullYear() }})</h3>
-                  <p class="text-xs text-gray-400 mt-0.5">Contingent CCN : 150h/an — alerte si solde dépasse 150h</p>
-                </div>
-              </div>
-              <div class="p-4 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
-                @for (collab of getSalariesCollaborateurs(); track collab.id) {
-                  @if (collab.annuel) {
-                    <div class="border rounded-lg p-3 space-y-2"
-                         [class.border-red-300]="collab.annuel.rcr_alerte"
-                         [class.border-gray-200]="!collab.annuel.rcr_alerte">
-                      <!-- Avatar + Nom -->
-                      <div class="flex items-center gap-2">
-                        <div class="w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold flex-shrink-0"
-                             [style.background-color]="collab.couleur"
-                             [style.color]="collab.couleur_texte">
-                          {{ collab.initiales }}
-                        </div>
-                        <div class="flex-1 min-w-0">
-                          <p class="text-xs font-semibold text-gray-800 truncate">{{ collab.nom }}</p>
-                          @if (collab.annuel.rcr_alerte) {
-                            <span class="inline-flex items-center gap-0.5 text-xs text-red-600 font-medium">
-                              <svg class="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
-                                <path fill-rule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clip-rule="evenodd"/>
-                              </svg>
-                              Alerte contingent
-                            </span>
-                          }
-                        </div>
-                      </div>
-                      <!-- Solde RCR -->
-                      <div class="flex justify-between items-center text-xs">
-                        <span class="text-gray-500">Solde RCR</span>
-                        <span class="font-bold"
-                              [class.text-red-600]="collab.annuel.rcr_alerte"
-                              [class.text-gray-800]="!collab.annuel.rcr_alerte">
-                          {{ formatH(collab.annuel.rcr_solde) }}
-                        </span>
-                      </div>
-                      <div class="flex justify-between items-center text-xs text-gray-400">
-                        <span>Acquis</span><span>{{ formatH(collab.annuel.rcr_acquis) }}</span>
-                      </div>
-                      <div class="flex justify-between items-center text-xs text-gray-400">
-                        <span>Consommé</span><span>{{ formatH(collab.annuel.rcr_consomme) }}</span>
-                      </div>
-                      <!-- Barre contingent -->
-                      <div>
-                        <div class="flex justify-between text-xs text-gray-400 mb-1">
-                          <span>Contingent</span>
-                          <span>{{ formatH(collab.annuel.contingent_consomme) }} / 150h</span>
-                        </div>
-                        <div class="h-1.5 bg-gray-100 rounded-full overflow-hidden">
-                          <div class="h-full rounded-full transition-all"
-                               [class.bg-red-500]="collab.annuel.rcr_alerte"
-                               [class.bg-green-500]="!collab.annuel.rcr_alerte"
-                               [style.width]="contingentWidth(collab.annuel.contingent_consomme)">
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  }
-                }
-              </div>
-            </div>
-          }
-
           <!-- ── Tableau principal ── -->
           <div class="rounded-xl border border-gray-200 overflow-hidden">
             <div class="px-4 py-3 bg-gray-50 border-b border-gray-200">
@@ -532,13 +462,13 @@
               <div class="paye-grid">
 
                 <!-- ── En-tête groupe 1 ── -->
-                <div class="paye-group-header">Collaborateur</div>
+                <div class="paye-group-header"></div>
                 <div class="paye-group-header paye-center" style="grid-column: span 2;">Temps</div>
                 <div class="paye-group-header paye-center">Base CCN</div>
                 <div class="paye-group-header paye-center" style="grid-column: span 2;">Heures sup CCN</div>
                 <div class="paye-group-header paye-center" style="grid-column: span 2;">Nuit CCN</div>
-                <div class="paye-group-header paye-center">Dim.</div>
-                <div class="paye-group-header paye-center" style="grid-column: span 5;">Absences &amp; formation</div>
+                <div class="paye-group-header paye-center" style="grid-column: span 2;">Dim. / Fériés</div>
+                <div class="paye-group-header paye-center" style="grid-column: span 6;">Absences &amp; formation</div>
 
                 <!-- ── En-tête groupe 2 (labels) ── -->
                 <div class="paye-col-header">Collaborateur</div>
@@ -550,10 +480,12 @@
                 <div class="paye-col-header paye-center">Nuit<br><span class="font-normal text-gray-400">+20%</span></div>
                 <div class="paye-col-header paye-center">Nuit<br><span class="font-normal text-gray-400">+40%</span></div>
                 <div class="paye-col-header paye-center">Dim.</div>
-                <div class="paye-col-header paye-center">Abs.just.</div>
-                <div class="paye-col-header paye-center">H.dues</div>
-                <div class="paye-col-header paye-center">CP</div>
                 <div class="paye-col-header paye-center">Fériés</div>
+                <div class="paye-col-header paye-center">CP</div>
+                <div class="paye-col-header paye-center">RCR</div>
+                <div class="paye-col-header paye-center" title="Congé exceptionnel légal (décès, etc.)">C.exc.</div>
+                <div class="paye-col-header paye-center" title="Sans solde">S.S.</div>
+                <div class="paye-col-header paye-center">H.dues</div>
                 <div class="paye-col-header paye-center">Formation</div>
 
                 <!-- ── Lignes collaborateurs ── -->
@@ -599,7 +531,7 @@
 
                   @if (collab.is_tns) {
                     <!-- TNS : colonnes non applicables (grisées) -->
-                    <div class="paye-cell paye-tns-merged" style="grid-column: span 10;">
+                    <div class="paye-cell paye-tns-merged" style="grid-column: span 12;">
                       <span class="text-xs text-gray-400 italic">Non applicable (TNS)</span>
                     </div>
                   } @else {
@@ -643,17 +575,11 @@
                       {{ collab.heures_dimanche !== null && collab.heures_dimanche > 0 ? formatH(collab.heures_dimanche) : '—' }}
                     </div>
 
-                    <!-- Abs. justifiées -->
-                    <div class="paye-cell paye-center text-gray-500">
-                      {{ collab.absences_justifiees !== null && collab.absences_justifiees > 0 ? collab.absences_justifiees + 'j' : '—' }}
-                    </div>
-
-                    <!-- Heures dues (négatif = redevable pharmacie) -->
+                    <!-- Fériés travaillés -->
                     <div class="paye-cell paye-center"
-                         title="Heures redevables à la pharmacie (absences injustifiées + départs anticipés non compensés)"
-                         [class.text-red-600]="collab.heures_dues !== null && collab.heures_dues < 0"
-                         [class.text-gray-400]="collab.heures_dues === null || collab.heures_dues === 0">
-                      {{ collab.heures_dues !== null && collab.heures_dues < 0 ? formatH(collab.heures_dues) : '—' }}
+                         [class.text-amber-600]="collab.heures_feries_travaillees !== null && collab.heures_feries_travaillees > 0"
+                         [class.text-gray-400]="!collab.heures_feries_travaillees">
+                      {{ collab.heures_feries_travaillees && collab.heures_feries_travaillees > 0 ? formatH(collab.heures_feries_travaillees) : '—' }}
                     </div>
 
                     <!-- CP -->
@@ -661,32 +587,27 @@
                       {{ collab.cp_poses !== null && collab.cp_poses > 0 ? collab.cp_poses + 'j' : '—' }}
                     </div>
 
-                    <!-- Fériés travaillés (avec popover) -->
-                    <div class="paye-cell paye-center paye-feries-cell">
-                      @if (collab.heures_feries_travaillees && collab.heures_feries_travaillees > 0) {
-                        <button class="text-amber-600 font-semibold hover:underline text-xs"
-                                (click)="toggleFeriesPopover(collab.id, $event)">
-                          {{ formatH(collab.heures_feries_travaillees) }}
-                        </button>
-                        @if (feriesPopoverCollabId === collab.id) {
-                          <div class="paye-feries-popover" (click)="$event.stopPropagation()">
-                            <p class="text-xs font-semibold text-gray-700 mb-1">Jours fériés travaillés</p>
-                            @for (jour of feriesPopoverData(collab); track jour.date) {
-                              <div class="paye-feries-popover-row">
-                                <span class="font-medium text-gray-700">{{ jour.label }}</span>
-                                <span class="text-amber-600 ml-1">— {{ formatH(jour.heures) }}</span>
-                                <br>
-                                <span class="text-gray-400">
-                                  @if (jour.premier_mai) { doublement salaire dû }
-                                  @else { repos compensateur dû }
-                                </span>
-                              </div>
-                            }
-                          </div>
-                        }
-                      } @else {
-                        <span class="text-gray-400">—</span>
-                      }
+                    <!-- RCR -->
+                    <div class="paye-cell paye-center text-gray-500">
+                      {{ collab.rcr_poses !== null && collab.rcr_poses > 0 ? collab.rcr_poses + 'j' : '—' }}
+                    </div>
+
+                    <!-- Congé exceptionnel légal -->
+                    <div class="paye-cell paye-center text-gray-500">
+                      {{ collab.conge_exc_poses !== null && collab.conge_exc_poses > 0 ? collab.conge_exc_poses + 'j' : '—' }}
+                    </div>
+
+                    <!-- Sans solde -->
+                    <div class="paye-cell paye-center text-gray-500">
+                      {{ collab.sans_solde_poses !== null && collab.sans_solde_poses > 0 ? collab.sans_solde_poses + 'j' : '—' }}
+                    </div>
+
+                    <!-- Heures dues (positif affiché, redevable pharmacie) -->
+                    <div class="paye-cell paye-center"
+                         title="Heures redevables à la pharmacie (absences injustifiées + départs anticipés non compensés)"
+                         [class.text-red-600]="collab.heures_dues !== null && collab.heures_dues < 0"
+                         [class.text-gray-400]="collab.heures_dues === null || collab.heures_dues === 0">
+                      {{ collab.heures_dues !== null && collab.heures_dues < 0 ? formatH(-collab.heures_dues) : '—' }}
                     </div>
                   }
 
@@ -700,7 +621,7 @@
 
                   <!-- ── Sous-lignes détail semaines (si développé) ── -->
                   @if (!collab.is_tns && isExpanded(collab.id) && collab.detail_semaines) {
-                    <div class="paye-subgrid-wrapper" style="grid-column: span 14;">
+                    <div class="paye-subgrid-wrapper" style="grid-column: span 16;">
                       <div class="paye-subgrid">
                         <!-- En-têtes sous-grille -->
                         <div class="paye-sub-header">Semaine</div>
@@ -800,7 +721,7 @@
                                [class.paye-sub-row-alerte]="sem.alerte_46h"
                                [class.text-red-600]="sem.heures_dues < 0"
                                [class.text-gray-400]="sem.heures_dues === 0">
-                            {{ sem.heures_dues < 0 ? formatH(sem.heures_dues) : '—' }}
+                            {{ sem.heures_dues < 0 ? formatH(-sem.heures_dues) : '—' }}
                           </div>
                           <!-- Rattachement -->
                           <div class="paye-sub-cell paye-center text-xs"
@@ -857,25 +778,33 @@
                        [class.text-gray-400]="payeData.totaux_salaries.heures_dimanche === 0">
                     {{ payeData.totaux_salaries.heures_dimanche > 0 ? formatH(payeData.totaux_salaries.heures_dimanche) : '—' }}
                   </div>
-                  <!-- Abs. justifiées -->
-                  <div class="paye-cell paye-footer paye-center text-gray-500">
-                    {{ payeData.totaux_salaries.absences_justifiees > 0 ? payeData.totaux_salaries.absences_justifiees + 'j' : '—' }}
-                  </div>
-                  <!-- Heures dues total -->
-                  <div class="paye-cell paye-footer paye-center font-semibold"
-                       [class.text-red-600]="payeData.totaux_salaries.heures_dues < 0"
-                       [class.text-gray-400]="payeData.totaux_salaries.heures_dues === 0">
-                    {{ payeData.totaux_salaries.heures_dues < 0 ? formatH(payeData.totaux_salaries.heures_dues) : '—' }}
-                  </div>
-                  <!-- CP -->
-                  <div class="paye-cell paye-footer paye-center text-gray-500">
-                    {{ payeData.totaux_salaries.cp_poses > 0 ? payeData.totaux_salaries.cp_poses + 'j' : '—' }}
-                  </div>
                   <!-- Fériés total -->
                   <div class="paye-cell paye-footer paye-center font-semibold"
                        [class.text-amber-600]="payeData.totaux_salaries.heures_feries_travaillees > 0"
                        [class.text-gray-400]="payeData.totaux_salaries.heures_feries_travaillees === 0">
                     {{ payeData.totaux_salaries.heures_feries_travaillees > 0 ? formatH(payeData.totaux_salaries.heures_feries_travaillees) : '—' }}
+                  </div>
+                  <!-- CP -->
+                  <div class="paye-cell paye-footer paye-center text-gray-500">
+                    {{ payeData.totaux_salaries.cp_poses > 0 ? payeData.totaux_salaries.cp_poses + 'j' : '—' }}
+                  </div>
+                  <!-- RCR -->
+                  <div class="paye-cell paye-footer paye-center text-gray-500">
+                    {{ payeData.totaux_salaries.rcr_poses > 0 ? payeData.totaux_salaries.rcr_poses + 'j' : '—' }}
+                  </div>
+                  <!-- Congé exceptionnel légal -->
+                  <div class="paye-cell paye-footer paye-center text-gray-500">
+                    {{ payeData.totaux_salaries.conge_exc_poses > 0 ? payeData.totaux_salaries.conge_exc_poses + 'j' : '—' }}
+                  </div>
+                  <!-- Sans solde -->
+                  <div class="paye-cell paye-footer paye-center text-gray-500">
+                    {{ payeData.totaux_salaries.sans_solde_poses > 0 ? payeData.totaux_salaries.sans_solde_poses + 'j' : '—' }}
+                  </div>
+                  <!-- Heures dues total -->
+                  <div class="paye-cell paye-footer paye-center font-semibold"
+                       [class.text-red-600]="payeData.totaux_salaries.heures_dues < 0"
+                       [class.text-gray-400]="payeData.totaux_salaries.heures_dues === 0">
+                    {{ payeData.totaux_salaries.heures_dues < 0 ? formatH(-payeData.totaux_salaries.heures_dues) : '—' }}
                   </div>
                   <!-- Formation -->
                   <div class="paye-cell paye-footer paye-center font-semibold"
@@ -894,9 +823,79 @@
             * Heures sup CCN : tr.1 (+25%) = 0 à 8h au-delà du seuil hebdo · tr.2 (+50%) = au-delà de 8h sup ·
             Nuit +20% = 5h–8h et 20h–22h · Nuit +40% = 22h–5h (CCN Pharmacie) ·
             Formation assimilée à du temps de travail effectif (CCN art. 13.7) ·
-            H. dues = heures redevables à la pharmacie (cumul mensuel semaines négatives) ·
+            H. dues = heures redevables à la pharmacie (absences injustifiées / départs anticipés non compensés) ·
             Alerte ⚠ = durée hebdomadaire max. 46h dépassée (CCN art. 13.3.c)
           </p>
+
+          <!-- ── Bandeau annuel RCR (salariés seulement) ── -->
+          @if (getSalariesCollaborateurs().length > 0) {
+            <div class="rounded-xl border border-gray-200 overflow-hidden">
+              <div class="px-4 py-3 bg-gray-50 border-b border-gray-200 flex items-center justify-between">
+                <div>
+                  <h3 class="text-sm font-semibold text-gray-700">Suivi RCR annuel (depuis jan. {{ payeDate.getFullYear() }})</h3>
+                  <p class="text-xs text-gray-400 mt-0.5">Contingent CCN : 150h/an — alerte si solde dépasse 150h</p>
+                </div>
+              </div>
+              <div class="p-4 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
+                @for (collab of getSalariesCollaborateurs(); track collab.id) {
+                  @if (collab.annuel) {
+                    <div class="border rounded-lg p-3 space-y-2"
+                         [class.border-red-300]="collab.annuel.rcr_alerte"
+                         [class.border-gray-200]="!collab.annuel.rcr_alerte">
+                      <!-- Avatar + Nom -->
+                      <div class="flex items-center gap-2">
+                        <div class="w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold flex-shrink-0"
+                             [style.background-color]="collab.couleur"
+                             [style.color]="collab.couleur_texte">
+                          {{ collab.initiales }}
+                        </div>
+                        <div class="flex-1 min-w-0">
+                          <p class="text-xs font-semibold text-gray-800 truncate">{{ collab.nom }}</p>
+                          @if (collab.annuel.rcr_alerte) {
+                            <span class="inline-flex items-center gap-0.5 text-xs text-red-600 font-medium">
+                              <svg class="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
+                                <path fill-rule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clip-rule="evenodd"/>
+                              </svg>
+                              Alerte contingent
+                            </span>
+                          }
+                        </div>
+                      </div>
+                      <!-- Solde RCR -->
+                      <div class="flex justify-between items-center text-xs">
+                        <span class="text-gray-500">Solde RCR</span>
+                        <span class="font-bold"
+                              [class.text-red-600]="collab.annuel.rcr_alerte"
+                              [class.text-gray-800]="!collab.annuel.rcr_alerte">
+                          {{ formatH(collab.annuel.rcr_solde) }}
+                        </span>
+                      </div>
+                      <div class="flex justify-between items-center text-xs text-gray-400">
+                        <span>Acquis</span><span>{{ formatH(collab.annuel.rcr_acquis) }}</span>
+                      </div>
+                      <div class="flex justify-between items-center text-xs text-gray-400">
+                        <span>Consommé</span><span>{{ formatH(collab.annuel.rcr_consomme) }}</span>
+                      </div>
+                      <!-- Barre contingent -->
+                      <div>
+                        <div class="flex justify-between text-xs text-gray-400 mb-1">
+                          <span>Contingent</span>
+                          <span>{{ formatH(collab.annuel.contingent_consomme) }} / 150h</span>
+                        </div>
+                        <div class="h-1.5 bg-gray-100 rounded-full overflow-hidden">
+                          <div class="h-full rounded-full transition-all"
+                               [class.bg-red-500]="collab.annuel.rcr_alerte"
+                               [class.bg-green-500]="!collab.annuel.rcr_alerte"
+                               [style.width]="contingentWidth(collab.annuel.contingent_consomme)">
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  }
+                }
+              </div>
+            </div>
+          }
 
         }
 

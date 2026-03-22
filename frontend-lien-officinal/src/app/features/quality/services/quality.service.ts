@@ -50,8 +50,9 @@ export class QualityService {
     return this.http.get<Procedure[]>(`${this.api}/procedures/?group=none`);
   }
 
-  getProcedures(): Observable<Procedure[]> {
-    return this.http.get<Procedure[]>(`${this.api}/procedures/`);
+  getProcedures(params?: { status?: string }): Observable<Procedure[]> {
+    const query = params?.status ? `?status=${params.status}` : '';
+    return this.http.get<Procedure[]>(`${this.api}/procedures/${query}`);
   }
 
   getProcedure(id: number): Observable<Procedure> {

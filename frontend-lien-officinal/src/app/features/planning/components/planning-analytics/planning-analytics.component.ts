@@ -5,7 +5,6 @@ import {
   OnDestroy,
   Output,
   EventEmitter,
-  HostListener,
   inject,
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
@@ -14,7 +13,6 @@ import {
   AnalyticsData,
   PayeSummaryResponse,
   PayeCollaborateur,
-  JourFerieDto,
 } from '../../../../core/services/planning.service';
 
 @Component({
@@ -52,7 +50,6 @@ export class PlanningAnalyticsComponent implements OnInit, AfterViewInit, OnDest
   payeError = false;
   payeDate = new Date();
   expandedRows = new Set<number>();
-  feriesPopoverCollabId: number | null = null;
 
   ngOnInit(): void {
     this.load();
@@ -122,19 +119,6 @@ export class PlanningAnalyticsComponent implements OnInit, AfterViewInit, OnDest
     return this.expandedRows.has(id);
   }
 
-  toggleFeriesPopover(collabId: number, event: Event): void {
-    event.stopPropagation();
-    this.feriesPopoverCollabId = this.feriesPopoverCollabId === collabId ? null : collabId;
-  }
-
-  @HostListener('document:click')
-  closeFeriesPopover(): void {
-    this.feriesPopoverCollabId = null;
-  }
-
-  feriesPopoverData(collab: PayeCollaborateur): JourFerieDto[] {
-    return collab.jours_feries_travailles ?? [];
-  }
 
   get payeMonthStr(): string {
     const y = this.payeDate.getFullYear();
