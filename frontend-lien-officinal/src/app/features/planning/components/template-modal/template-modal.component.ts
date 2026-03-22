@@ -42,7 +42,7 @@ export class TemplateModalComponent implements OnInit {
   // État apply par lettre
   applyWeeks:   Record<Letter, string>   = { A: '', B: '', C: '', D: '' };
   applyForces:  Record<Letter, boolean>  = { A: false, B: false, C: false, D: false };
-  applyResults: Record<Letter, { created: number; skipped: number; replaced: number; absence_protected: number; day_protected: number } | null> = { A: null, B: null, C: null, D: null };
+  applyResults: Record<Letter, { created: number; skipped: number; replaced: number; absence_protected: number; day_protected: number; violations: { shift_date: string; collaborator: string; error: string }[] } | null> = { A: null, B: null, C: null, D: null };
   applyings:    Record<Letter, boolean>  = { A: false, B: false, C: false, D: false };
 
   team: Collaborator[] = [];
@@ -272,7 +272,7 @@ export class TemplateModalComponent implements OnInit {
     this.planningService.applyTemplate(letter, week, this.applyForces[letter]).subscribe({
       next: res => {
         this.applyings[letter]    = false;
-        this.applyResults[letter] = { created: res.created, skipped: res.skipped, replaced: res.replaced ?? 0, absence_protected: res.absence_protected ?? 0, day_protected: res.day_protected ?? 0 };
+        this.applyResults[letter] = { created: res.created, skipped: res.skipped, replaced: res.replaced ?? 0, absence_protected: res.absence_protected ?? 0, day_protected: res.day_protected ?? 0, violations: res.violations ?? [] };
         this.weekChanged.emit();
       },
       error: () => { this.applyings[letter] = false; },

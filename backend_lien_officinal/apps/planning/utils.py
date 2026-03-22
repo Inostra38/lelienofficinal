@@ -63,6 +63,9 @@ def parse_ai_planning_response(text: str) -> dict:
     """
     json_str = _extract_json_str(text)
 
+    # Correction des virgules traînantes que l'IA peut insérer (ex: [1, 2,])
+    json_str = re.sub(r',\s*([}\]])', r'\1', json_str)
+
     try:
         data = json.loads(json_str)
     except json.JSONDecodeError as exc:

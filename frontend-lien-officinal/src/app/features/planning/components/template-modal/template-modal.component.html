@@ -98,12 +98,21 @@
 
           <!-- Appliquer -->
           <div class="flex items-center gap-2 flex-wrap justify-end">
-            <span *ngIf="applyResults[activeLetter]"
-                  class="text-xs text-green-700 bg-green-50 rounded-lg px-3 py-1.5 font-medium">
-              ✓ {{ applyResults[activeLetter]!.created }} créé{{ applyResults[activeLetter]!.created > 1 ? 's' : '' }}
-              <ng-container *ngIf="applyResults[activeLetter]!.replaced">, {{ applyResults[activeLetter]!.replaced }} remplacé{{ applyResults[activeLetter]!.replaced > 1 ? 's' : '' }}</ng-container>
-              <ng-container *ngIf="applyResults[activeLetter]!.skipped">, {{ applyResults[activeLetter]!.skipped }} ignoré{{ applyResults[activeLetter]!.skipped > 1 ? 's' : '' }}</ng-container>
-            </span>
+            @if (applyResults[activeLetter]) {
+              <span class="text-xs text-green-700 bg-green-50 rounded-lg px-3 py-1.5 font-medium">
+                ✓ {{ applyResults[activeLetter]!.created }} créé{{ applyResults[activeLetter]!.created > 1 ? 's' : '' }}
+                @if (applyResults[activeLetter]!.replaced) { , {{ applyResults[activeLetter]!.replaced }} remplacé{{ applyResults[activeLetter]!.replaced > 1 ? 's' : '' }} }
+                @if (applyResults[activeLetter]!.skipped) { , {{ applyResults[activeLetter]!.skipped }} ignoré{{ applyResults[activeLetter]!.skipped > 1 ? 's' : '' }} }
+              </span>
+              @if (applyResults[activeLetter]!.violations.length > 0) {
+                <div class="w-full mt-2 rounded-lg border border-orange-200 bg-orange-50 px-3 py-2 text-xs text-orange-700 space-y-1">
+                  <p class="font-semibold">⚠ {{ applyResults[activeLetter]!.violations.length }} conflit{{ applyResults[activeLetter]!.violations.length > 1 ? 's' : '' }} réglementaire{{ applyResults[activeLetter]!.violations.length > 1 ? 's' : '' }} :</p>
+                  @for (v of applyResults[activeLetter]!.violations; track v.shift_date + v.collaborator) {
+                    <p>{{ v.collaborator }} · {{ v.shift_date }} — {{ v.error }}</p>
+                  }
+                </div>
+              }
+            }
             <label class="flex items-center gap-1.5 cursor-pointer">
               <input type="checkbox" [(ngModel)]="applyForces[activeLetter]"
                      class="w-3.5 h-3.5 rounded accent-orange-600"/>

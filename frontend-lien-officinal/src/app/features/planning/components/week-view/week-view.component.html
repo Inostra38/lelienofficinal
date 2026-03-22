@@ -9,25 +9,26 @@
   <div class="tl-hours-header">
     <div class="tl-collab-spacer"></div>
     <div class="tl-hours-scale">
-      <div class="tl-h" *ngFor="let h of hours" [style.left.%]="getHourLeft(h)">{{ h }}h</div>
+      <div class="tl-h" *ngFor="let h of _hours; trackBy: trackByHour" [style.left.%]="getHourLeft(h)">{{ h }}h</div>
     </div>
     <div class="tl-add-spacer"></div>
   </div>
 
   <!-- ── Un bloc par jour ────────────────────────────────────────────────── -->
-  <div class="tl-day" *ngFor="let day of weekDays; let i = index">
+  <div class="tl-day" *ngFor="let dayObj of _weekDaysWithIso; let i = index; trackBy: trackByDay">
 
     <div class="tl-day-label"
-         [class.today]="isToday(day)"
-         [class.closed]="isClosed(day)">
-      {{ getDayLabel(day) }}
-      <span *ngFor="let badge of getDayBadges(day)"
+         [class.today]="isToday(dayObj.date)"
+         [class.closed]="isClosed(dayObj.date)">
+      {{ dayObj.label }}
+      <span *ngFor="let badge of getDayBadges(dayObj.date)"
             class="week-day-badge"
             [ngClass]="badge.cls">{{ badge.label }}</span>
     </div>
 
-    <!-- Une ligne par collaborateur -->
-    <div class="tl-collab-row" *ngFor="let summary of visibleSummary">
+    <!-- Une ligne par collaborateur (filtré selon le contrat actif ce jour) -->
+    <div class="tl-collab-row"
+         *ngFor="let summary of _summaryByDay.get(dayObj.iso) || []; trackBy: trackByCollabId">
 
       <div class="tl-collab-name">
         <div class="tl-collab-avatar" [style.background]="getShiftBg(summary.color, true)">
@@ -46,15 +47,15 @@
         </div>
       </div>
 
-      <div class="tl-row" [class.closed]="isClosed(day)" [style.background]="getRowGradient(i)">
+      <div class="tl-row" [class.closed]="isClosed(dayObj.date)" [style.background]="_rowGradients.get(i)">
 
-        <!-- Repères horaires — trait fin chaque heure, trait marqué toutes les 3h -->
-        <div *ngFor="let h of hours"
+        <!-- Repères horaires -->
+        <div *ngFor="let h of _hours; trackBy: trackByHour"
              [class]="'tl-slot' + (h % 3 === 0 ? ' major' : '')"
              [style.left.%]="getHourLeft(h)"></div>
 
         <!-- Shifts du collaborateur ce jour -->
-        <div *ngFor="let shift of getShiftsForCollabDay(summary.collaborator_id, getDayIso(day))"
+        <div *ngFor="let shift of getShiftsForCollabDay(summary.collaborator_id, dayObj.iso); trackBy: trackByShiftId"
              class="tl-block"
              [class.published]="shift.is_published"
              [class.draft]="!shift.is_published && isManager"
@@ -71,19 +72,20 @@
         </div>
 
         <!-- Absence du collaborateur ce jour -->
-        <div *ngIf="getAbsenceType(summary.collaborator_id, getDayIso(day)) as absType"
-             class="tl-block absence"
-             [class.pending]="getAbsenceStatus(summary.collaborator_id, getDayIso(day)) === 'pending'"
-             [class.approved]="getAbsenceStatus(summary.collaborator_id, getDayIso(day)) === 'approved'"
-             [style.left.%]="0"
-             [style.width.%]="100">
-          <b>{{ absType }}</b>
-          <span *ngIf="getAbsenceStatus(summary.collaborator_id, getDayIso(day)) === 'pending'"
-                style="font-size:9px; margin-left:4px; opacity:0.8">(en attente)</span>
-        </div>
+        <ng-container *ngIf="getAbsenceType(summary.collaborator_id, dayObj.iso) as absType">
+          <div class="tl-block absence"
+               [class.pending]="getAbsenceStatus(summary.collaborator_id, dayObj.iso) === 'pending'"
+               [class.approved]="getAbsenceStatus(summary.collaborator_id, dayObj.iso) === 'approved'"
+               [style.left.%]="0"
+               [style.width.%]="100">
+            <b>{{ absType }}</b>
+            <span *ngIf="getAbsenceStatus(summary.collaborator_id, dayObj.iso) === 'pending'"
+                  style="font-size:9px; margin-left:4px; opacity:0.8">(en attente)</span>
+          </div>
+        </ng-container>
 
-        <!-- Ajustements horaires (heures sup / départ anticipé) -->
-        <div *ngFor="let adj of getAdjustmentsForDay(summary.collaborator_id, getDayIso(day))"
+        <!-- Ajustements horaires -->
+        <div *ngFor="let adj of getAdjustmentsForDay(summary.collaborator_id, dayObj.iso); trackBy: trackByAdjId"
              class="tl-adjustment-badge"
              [class.overtime]="adj.type === 'overtime'"
              [class.early]="adj.type === 'early_departure'"
@@ -93,10 +95,10 @@
 
       </div>
 
-      <!-- Bouton + (manager uniquement, visible au hover de la ligne) -->
+      <!-- Bouton + (manager uniquement) -->
       <button *ngIf="isManager"
               class="tl-add-btn"
-              (click)="openShiftForm(summary.collaborator_id, getDayIso(day))">
+              (click)="openShiftForm(summary.collaborator_id, dayObj.iso)">
         <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
         </svg>
@@ -120,9 +122,7 @@
 
 <!-- ── Popover ajustement ────────────────────────────────────────────────── -->
 <ng-container *ngIf="activeAdjPopover">
-  <!-- Backdrop transparent -->
   <div class="fixed inset-0 z-40" (click)="closeAdjPopover()"></div>
-  <!-- Carte -->
   <div class="tl-adj-popover z-50"
        [style.left.px]="activeAdjPopover.x"
        [style.top.px]="activeAdjPopover.y">

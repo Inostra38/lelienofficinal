@@ -11,8 +11,8 @@ Règles appliquées :
 - Repos quotidien : 11h minimum (validé côté modèle Shift.clean)
 """
 
+from collections import defaultdict
 from datetime import date, timedelta
-from decimal import Decimal
 from typing import TypedDict
 
 from apps.planning.models import AbsenceRequest, Shift, TimeAdjustment
@@ -74,7 +74,6 @@ class CollaboratorWeekSummary(TypedDict):
 # ── Helpers ──────────────────────────────────────────────────────────────────
 
 def _week_bounds(week_start: date) -> tuple[date, date]:
-    """Retourne (lundi, dimanche) de la semaine contenant week_start."""
     monday = week_start - timedelta(days=week_start.weekday())
     sunday = monday + timedelta(days=6)
     return monday, sunday
@@ -96,45 +95,18 @@ def _absence_on_date(absences, d: date) -> str | None:
     return None
 
 
-# ── Calcul par collaborateur ─────────────────────────────────────────────────
+# ── Calcul à partir des données pré-chargées (sans requêtes DB) ──────────────
 
-def week_summary(collaborator, week_start: date) -> CollaboratorWeekSummary:
+def _week_summary_from_data(collaborator, monday: date, sunday: date,
+                             shifts: list, absences: list, adjustments: list) -> CollaboratorWeekSummary:
     """
-    Retourne le résumé hebdomadaire complet d'un collaborateur.
-
-    :param collaborator: instance de team.Collaborator
-    :param week_start:   n'importe quel jour de la semaine cible (sera normalisé au lundi)
+    Calcule le résumé hebdomadaire d'un collaborateur à partir de données déjà chargées.
+    N'effectue aucune requête DB.
     """
-    monday, sunday = _week_bounds(week_start)
-
-    # Shifts de la semaine
-    shifts_qs = Shift.objects.filter(
-        collaborator=collaborator,
-        start_datetime__date__gte=monday,
-        start_datetime__date__lte=sunday,
-    ).order_by('start_datetime')
-
-    # Absences qui chevauchent la semaine (tous statuts — filtré ensuite)
-    absences_qs = AbsenceRequest.objects.filter(
-        collaborator=collaborator,
-        start_date__lte=sunday,
-        end_date__gte=monday,
-    )
-
-    # Ajustements horaires (heures sup / départ anticipé)
-    adjustments_qs = TimeAdjustment.objects.filter(
-        collaborator=collaborator,
-        date__gte=monday,
-        date__lte=sunday,
-    )
-
     # ── Résumé shifts ────────────────────────────────────────────────────────
     shift_summaries: list[ShiftSummary] = []
-    shifts_total_h = 0.0
-
-    for s in shifts_qs:
+    for s in sorted(shifts, key=lambda x: x.start_datetime):
         dur = _duration_h(s)
-        shifts_total_h += dur
         shift_summaries.append(ShiftSummary(
             shift_id=s.id,
             date=s.start_datetime.date().isoformat(),
@@ -145,59 +117,62 @@ def week_summary(collaborator, week_start: date) -> CollaboratorWeekSummary:
             is_published=s.is_published,
         ))
 
-    contract_h = float(collaborator.weekly_hours)
+    # Heures contractuelles : snapshot du 1er shift de la semaine si disponible,
+    # sinon valeur actuelle du collaborateur (cas semaine vide ou anciens shifts sans snapshot)
+    snapshot = next(
+        (s.contract_hours_snapshot for s in sorted(shifts, key=lambda x: x.start_datetime)
+         if s.contract_hours_snapshot is not None),
+        None
+    )
+    contract_h = float(snapshot) if snapshot is not None else float(collaborator.weekly_hours)
+    approved_absences = [a for a in absences if a.status == AbsenceRequest.Status.APPROVED]
 
     # ── Résumé par jour ──────────────────────────────────────────────────────
     day_summaries: list[DaySummary] = []
-    approved_absences = [a for a in absences_qs if a.status == AbsenceRequest.Status.APPROVED]
-
     for i in range(7):
         d = monday + timedelta(days=i)
-        day_shifts = [s for s in shift_summaries if s['date'] == d.isoformat()]
+        d_iso = d.isoformat()
+        day_shifts = [s for s in shift_summaries if s['date'] == d_iso]
         worked = round(sum(s['duration_h'] for s in day_shifts), 2)
 
-        # Appliquer les ajustements du jour
-        day_adjs = [a for a in adjustments_qs if a.date == d]
+        day_adjs = [a for a in adjustments if a.date == d]
         adj_minutes = 0
         for a in day_adjs:
             if a.type == TimeAdjustment.Type.OVERTIME:
                 adj_minutes += a.duration_minutes
-            else:  # early_departure
+            else:
                 adj_minutes -= a.duration_minutes
         worked = round(worked + adj_minutes / 60, 2)
 
         day_summaries.append(DaySummary(
-            date=d.isoformat(),
+            date=d_iso,
             worked_h=worked,
             absence_type=_absence_on_date(approved_absences, d),
         ))
 
-    # planned_h = total des heures travaillées (shifts + ajustements)
     planned_h = round(sum(d['worked_h'] for d in day_summaries), 2)
 
-    # ── Heures supplémentaires (Convention Collective) ───────────────────────
-    balance_h = round(planned_h - contract_h, 2)
-    extra_h   = max(0.0, balance_h)
-
-    # Majoration : 25% sur les 8 premières heures sup, 50% au-delà
+    # ── Heures supplémentaires ───────────────────────────────────────────────
+    balance_h  = round(planned_h - contract_h, 2)
+    extra_h    = max(0.0, balance_h)
     extra_h_25 = round(min(extra_h, 8.0), 2)
     extra_h_50 = round(max(0.0, extra_h - 8.0), 2)
 
     # ── Absences (toutes) ────────────────────────────────────────────────────
-    absence_summaries: list[AbsenceSummary] = []
-    for a in absences_qs:
-        absence_summaries.append(AbsenceSummary(
+    absence_summaries: list[AbsenceSummary] = [
+        AbsenceSummary(
             absence_id=a.id,
             start_date=a.start_date.isoformat(),
             end_date=a.end_date.isoformat(),
             type=a.type,
             status=a.status,
-        ))
+        )
+        for a in absences
+    ]
 
-    # ── Ajustements (tous) ────────────────────────────────────────────────────
-    adjustment_summaries: list[AdjustmentSummary] = []
-    for a in adjustments_qs:
-        adjustment_summaries.append(AdjustmentSummary(
+    # ── Ajustements (tous) ───────────────────────────────────────────────────
+    adjustment_summaries: list[AdjustmentSummary] = [
+        AdjustmentSummary(
             adjustment_id=a.id,
             date=a.date.isoformat(),
             type=a.type,
@@ -205,7 +180,9 @@ def week_summary(collaborator, week_start: date) -> CollaboratorWeekSummary:
             reference_time=str(a.reference_time)[:5],
             duration_minutes=a.duration_minutes,
             note=a.note,
-        ))
+        )
+        for a in adjustments
+    ]
 
     return CollaboratorWeekSummary(
         collaborator_id=collaborator.id,
@@ -225,16 +202,35 @@ def week_summary(collaborator, week_start: date) -> CollaboratorWeekSummary:
     )
 
 
-# ── Résumé pharmacie ─────────────────────────────────────────────────────────
+def week_summary(collaborator, week_start: date) -> CollaboratorWeekSummary:
+    """Résumé hebdomadaire d'un seul collaborateur (effectue 3 requêtes DB)."""
+    monday, sunday = _week_bounds(week_start)
+    shifts = list(Shift.objects.filter(
+        collaborator=collaborator,
+        start_datetime__date__gte=monday,
+        start_datetime__date__lte=sunday,
+    ))
+    absences = list(AbsenceRequest.objects.filter(
+        collaborator=collaborator,
+        start_date__lte=sunday,
+        end_date__gte=monday,
+    ))
+    adjustments = list(TimeAdjustment.objects.filter(
+        collaborator=collaborator,
+        date__gte=monday,
+        date__lte=sunday,
+    ))
+    return _week_summary_from_data(collaborator, monday, sunday, shifts, absences, adjustments)
+
+
+# ── Résumé pharmacie (batch — 3 requêtes quelle que soit la taille de l'équipe) ─
 
 def pharmacy_week_summary(pharmacy, week_start: date) -> list[CollaboratorWeekSummary]:
     """
-    Résumé hebdomadaire pour toute l'équipe d'une pharmacie.
-
-    :param pharmacy:   instance du modèle User (pharmacie)
-    :param week_start: n'importe quel jour de la semaine cible
+    Résumé hebdomadaire pour toute l'équipe.
+    Effectue exactement 5 requêtes DB indépendamment du nombre de collaborateurs.
     """
-    from apps.team.models import Collaborator  # import local pour éviter les circular imports
+    from apps.team.models import Collaborator  # évite les circular imports
 
     monday, sunday = _week_bounds(week_start)
 
@@ -245,8 +241,7 @@ def pharmacy_week_summary(pharmacy, week_start: date) -> list[CollaboratorWeekSu
     )
     active_ids = {c.id for c in active_collabs}
 
-    # Collaborateurs archivés ayant des shifts publiés dans cette semaine
-    # (préserve l'historique des semaines déjà publiées)
+    # Collaborateurs archivés avec shifts publiés cette semaine
     archived_with_shifts = list(
         Collaborator.objects.filter(
             pharmacy=pharmacy,
@@ -257,4 +252,45 @@ def pharmacy_week_summary(pharmacy, week_start: date) -> list[CollaboratorWeekSu
         ).exclude(id__in=active_ids).distinct().order_by('display_order', 'id')
     )
 
-    return [week_summary(c, week_start) for c in active_collabs + archived_with_shifts]
+    all_collabs = active_collabs + archived_with_shifts
+    if not all_collabs:
+        return []
+
+    all_ids = [c.id for c in all_collabs]
+
+    # ── 3 requêtes batch ─────────────────────────────────────────────────────
+
+    shifts_by_collab: dict[int, list] = defaultdict(list)
+    for s in Shift.objects.filter(
+        collaborator_id__in=all_ids,
+        start_datetime__date__gte=monday,
+        start_datetime__date__lte=sunday,
+    ).select_related('collaborator'):
+        shifts_by_collab[s.collaborator_id].append(s)
+
+    absences_by_collab: dict[int, list] = defaultdict(list)
+    for a in AbsenceRequest.objects.filter(
+        collaborator_id__in=all_ids,
+        start_date__lte=sunday,
+        end_date__gte=monday,
+    ):
+        absences_by_collab[a.collaborator_id].append(a)
+
+    adjustments_by_collab: dict[int, list] = defaultdict(list)
+    for adj in TimeAdjustment.objects.filter(
+        collaborator_id__in=all_ids,
+        date__gte=monday,
+        date__lte=sunday,
+    ):
+        adjustments_by_collab[adj.collaborator_id].append(adj)
+
+    # ── Calcul (aucune requête DB supplémentaire) ────────────────────────────
+    return [
+        _week_summary_from_data(
+            c, monday, sunday,
+            shifts_by_collab[c.id],
+            absences_by_collab[c.id],
+            adjustments_by_collab[c.id],
+        )
+        for c in all_collabs
+    ]

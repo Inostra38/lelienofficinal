@@ -42,6 +42,7 @@ INSTALLED_APPS = [
     'rest_framework_simplejwt',                   # Authentification Token
     'rest_framework_simplejwt.token_blacklist',    # Invalidation des tokens après changement de mdp
     'corsheaders',              # Communication Angular <-> Django
+    'encrypted_model_fields',   # Chiffrement au repos (messagerie)
 
     # --- NOS APPS (Le Lien Officinal) ---
     'apps.core',           # Auth Pharmacie
@@ -188,7 +189,8 @@ REST_FRAMEWORK = {
         'rest_framework.permissions.IsAuthenticated',
     ),
     'DEFAULT_THROTTLE_RATES': {
-        'user': '1000/day',  # limite globale par défaut
+        'user': '1000/day',       # limite globale par défaut
+        'messaging': '30/minute', # envoi de messages (REST fallback)
     },
 }
 

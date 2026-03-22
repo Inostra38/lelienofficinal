@@ -370,10 +370,32 @@
     <!-- Contenu -->
     <div class="flex-1 overflow-auto p-0">
 
-      <!-- Loader -->
-      <div *ngIf="loading" class="flex items-center justify-center h-32">
+      <!-- Loader semaine -->
+      <div *ngIf="loading && viewMode !== 'month'" class="flex items-center justify-center h-32">
         <div class="animate-spin rounded-full h-8 w-8 border-2 border-green-700 border-t-transparent"></div>
       </div>
+
+      <!-- Skeleton mois -->
+      @if (loading && viewMode === 'month') {
+        <div class="p-4">
+          <!-- En-têtes jours -->
+          <div class="grid grid-cols-[32px_repeat(7,1fr)] gap-1 mb-1">
+            <div></div>
+            @for (d of [0,1,2,3,4,5,6]; track d) {
+              <div class="h-4 rounded bg-gray-100 animate-pulse mx-1"></div>
+            }
+          </div>
+          <!-- Lignes semaines -->
+          @for (row of [0,1,2,3,4]; track row) {
+            <div class="grid grid-cols-[32px_repeat(7,1fr)] gap-1 mb-1">
+              <div class="h-24 w-6 rounded bg-gray-100 animate-pulse self-center"></div>
+              @for (d of [0,1,2,3,4,5,6]; track d) {
+                <div class="h-24 rounded-xl bg-gray-100 animate-pulse"></div>
+              }
+            </div>
+          }
+        </div>
+      }
 
       <!-- Vue semaine -->
       <app-week-view

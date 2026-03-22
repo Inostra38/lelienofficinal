@@ -14,7 +14,7 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 from rest_framework_simplejwt.authentication import JWTAuthentication
 
-from apps.team.models import Collaborator
+from apps.team.models import Collaborator, ContractHistory
 from .calculator import pharmacy_week_summary
 from .models import AbsenceRequest, Constraint, ConstraintSet, OpeningHours, PharmacyDayStatus, PlanningSettings, Shift, TemplateShift, TimeAdjustment, WeekTemplate, WeekTemplateApplication
 from .serializers import (
@@ -103,6 +103,27 @@ class WeekView(APIView):
             pharmacy=request.user, week_start=monday
         ).first()
 
+        # Contrat le plus récent par collaborateur (pour filtrage front-end jour par jour)
+        from django.db.models import Max
+        latest_starts = (
+            ContractHistory.objects
+            .filter(collaborator__pharmacy=request.user)
+            .values('collaborator_id')
+            .annotate(latest=Max('start_date'))
+        )
+        latest_map = {row['collaborator_id']: row['latest'] for row in latest_starts}
+
+        contracts_by_collab = {}
+        for c in ContractHistory.objects.filter(
+            collaborator__pharmacy=request.user,
+        ).values('collaborator_id', 'start_date', 'end_date'):
+            cid = c['collaborator_id']
+            if latest_map.get(cid) == c['start_date']:
+                contracts_by_collab[cid] = {
+                    'start_date': c['start_date'].isoformat(),
+                    'end_date': c['end_date'].isoformat() if c['end_date'] else None,
+                }
+
         return Response({
             'week_start': monday.isoformat(),
             'week_end': sunday.isoformat(),
@@ -110,6 +131,7 @@ class WeekView(APIView):
             'day_statuses': PharmacyDayStatusSerializer(day_statuses, many=True).data,
             'summary': summary,
             'template_letter': tpl_app.letter if tpl_app else None,
+            'contracts': contracts_by_collab,
         })
 
 
@@ -756,6 +778,7 @@ class TemplateApplyView(APIView):
         monday = _parse_week(request.data.get('week'))
         force   = bool(request.data.get('force', False))
         created = skipped = replaced = absence_protected = day_protected = 0
+        violations = []
 
         from datetime import datetime as dt
         from zoneinfo import ZoneInfo
@@ -816,14 +839,14 @@ class TemplateApplyView(APIView):
             )
             try:
                 shift.save()
+                created += 1
             except ValidationError as e:
                 collab_name = f"{tshift.collaborator.first_name} {tshift.collaborator.last_name}"
-                return Response({
-                    'error': e.messages[0] if e.messages else str(e),
+                violations.append({
                     'shift_date': str(target_date),
                     'collaborator': collab_name,
-                }, status=status.HTTP_400_BAD_REQUEST)
-            created += 1
+                    'error': e.messages[0] if e.messages else str(e),
+                })
 
         WeekTemplateApplication.objects.update_or_create(
             pharmacy=request.user,
@@ -831,7 +854,7 @@ class TemplateApplyView(APIView):
             defaults={'letter': letter.upper()},
         )
 
-        return Response({'created': created, 'skipped': skipped, 'replaced': replaced, 'absence_protected': absence_protected, 'day_protected': day_protected, 'week_start': monday.isoformat()})
+        return Response({'created': created, 'skipped': skipped, 'replaced': replaced, 'absence_protected': absence_protected, 'day_protected': day_protected, 'week_start': monday.isoformat(), 'violations': violations})
 
 
 # ── OpeningHours ───────────────────────────────────────────────────────────────
@@ -864,57 +887,56 @@ class BulkShiftUpdateView(APIView):
         except (KeyError, ValueError) as e:
             return Response({'detail': f'Format de date invalide : {e}'}, status=status.HTTP_400_BAD_REQUEST)
 
-        with transaction.atomic():
-            # Supprimer tous les shifts existants sur ces dates pour cette pharmacie
-            Shift.objects.filter(
-                collaborator__pharmacy=request.user,
-                start_datetime__date__in=dates,
-            ).delete()
+        # Supprimer tous les shifts existants sur ces dates pour cette pharmacie
+        Shift.objects.filter(
+            collaborator__pharmacy=request.user,
+            start_datetime__date__in=dates,
+        ).delete()
 
-            created_shifts = []
-            for item in items:
-                try:
-                    collab_id  = item['collaborator_id']
-                    shift_date = date.fromisoformat(item['date'])
-                    start_time = dt.strptime(item['start'], '%H:%M').time()
-                    end_time   = dt.strptime(item['end'], '%H:%M').time()
-                except (KeyError, ValueError) as e:
-                    return Response(
-                        {'detail': f'Données invalides dans le shift : {e}'},
-                        status=status.HTTP_400_BAD_REQUEST,
-                    )
-
-                try:
-                    collaborator = Collaborator.objects.get(id=collab_id, pharmacy=request.user)
-                except Collaborator.DoesNotExist:
-                    return Response(
-                        {'detail': f'Collaborateur {collab_id} introuvable ou non autorisé.'},
-                        status=status.HTTP_400_BAD_REQUEST,
-                    )
-
-                start_dt = timezone.make_aware(dt.combine(shift_date, start_time), tz)
-                end_dt   = timezone.make_aware(dt.combine(shift_date, end_time), tz)
-
-                shift = Shift(
-                    collaborator=collaborator,
-                    start_datetime=start_dt,
-                    end_datetime=end_dt,
-                    is_published=False,
-                    note=item.get('post', '') or item.get('note', ''),
+        created_shifts = []
+        violations = []
+        for item in items:
+            try:
+                collab_id  = item['collaborator_id']
+                shift_date = date.fromisoformat(item['date'])
+                start_time = dt.strptime(item['start'], '%H:%M').time()
+                end_time   = dt.strptime(item['end'], '%H:%M').time()
+            except (KeyError, ValueError) as e:
+                return Response(
+                    {'detail': f'Données invalides dans le shift : {e}'},
+                    status=status.HTTP_400_BAD_REQUEST,
                 )
-                try:
-                    shift.save()
-                except ValidationError as e:
-                    collab_name = f"{collaborator.first_name} {collaborator.last_name}"
-                    return Response({
-                        'error': e.messages[0] if e.messages else str(e),
-                        'shift_date': str(shift_date),
-                        'collaborator': collab_name,
-                    }, status=status.HTTP_400_BAD_REQUEST)
 
+            try:
+                collaborator = Collaborator.objects.get(id=collab_id, pharmacy=request.user)
+            except Collaborator.DoesNotExist:
+                return Response(
+                    {'detail': f'Collaborateur {collab_id} introuvable ou non autorisé.'},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+
+            start_dt = timezone.make_aware(dt.combine(shift_date, start_time), tz)
+            end_dt   = timezone.make_aware(dt.combine(shift_date, end_time), tz)
+
+            shift = Shift(
+                collaborator=collaborator,
+                start_datetime=start_dt,
+                end_datetime=end_dt,
+                is_published=False,
+                note=item.get('post', '') or item.get('note', ''),
+            )
+            try:
+                shift.save()
                 created_shifts.append(shift)
+            except ValidationError as e:
+                collab_name = f"{collaborator.first_name} {collaborator.last_name}"
+                violations.append({
+                    'shift_date': str(shift_date),
+                    'collaborator': collab_name,
+                    'error': e.messages[0] if e.messages else str(e),
+                })
 
-        return Response(ShiftSerializer(created_shifts, many=True).data)
+        return Response({'shifts': ShiftSerializer(created_shifts, many=True).data, 'violations': violations})
 
 
 class OpeningHoursView(APIView):

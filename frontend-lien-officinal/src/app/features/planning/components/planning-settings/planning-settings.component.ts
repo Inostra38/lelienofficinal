@@ -13,7 +13,6 @@ interface CollabContract {
   last_name: string;
   role: string;
   color: string;
-  contract_type: string;
   weekly_hours: number;
 }
 
@@ -88,7 +87,6 @@ export class PlanningSettingsComponent implements OnInit {
             last_name:     c.last_name,
             role:          c.role,
             color:         c.color,
-            contract_type: c.contract_type ?? 'cdi',
             weekly_hours:  c.weekly_hours  ?? 35,
           }));
         this._distributeSlots(openingHours);
@@ -151,8 +149,7 @@ export class PlanningSettingsComponent implements OnInit {
 
     const contractUpdates = this.collaborators.map(c =>
       this.collaboratorService.updateCollaborator(c.id, {
-        contract_type: c.contract_type,
-        weekly_hours:  c.weekly_hours,
+        weekly_hours: c.weekly_hours,
       } as any)
     );
 

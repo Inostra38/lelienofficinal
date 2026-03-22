@@ -2,7 +2,12 @@ from django.shortcuts import get_object_or_404
 from rest_framework import status
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
+from rest_framework.throttling import UserRateThrottle
 from rest_framework.views import APIView
+
+
+class MessagingThrottle(UserRateThrottle):
+    scope = 'messaging'
 
 from apps.team.models import Collaborator
 from apps.team.serializers import CollaboratorSerializer
@@ -133,6 +138,7 @@ class MessageListCreateView(APIView):
     POST /api/messaging/conversations/{id}/messages/  — Envoyer un message (fallback HTTP)
     """
     permission_classes = [IsAuthenticated]
+    throttle_classes = [MessagingThrottle]
 
     def get(self, request, conversation_id):
         collaborator = _get_collaborator(request)

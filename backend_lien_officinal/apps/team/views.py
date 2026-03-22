@@ -7,11 +7,12 @@ from rest_framework_simplejwt.authentication import JWTAuthentication
 from rest_framework_simplejwt.tokens import RefreshToken
 from django.shortcuts import get_object_or_404
 from django.utils import timezone
-from .models import Collaborator
+from .models import Collaborator, ContractHistory
 from .serializers import (
     CollaboratorSerializer,
     CollaboratorCreateSerializer,
     CollaboratorPermissionsSerializer,
+    ContractHistorySerializer,
     PinVerificationSerializer,
 )
 from apps.core.views import PinVerifyThrottle
@@ -228,3 +229,35 @@ class CollaboratorViewSet(viewsets.ModelViewSet):
                 return Response({"success": False, "message": "Code PIN incorrect"}, status=status.HTTP_403_FORBIDDEN)
 
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+    @action(detail=True, methods=['get', 'post'], url_path='contracts')
+    def contracts(self, request, pk=None):
+        """
+        GET  /api/team/{id}/contracts/ — historique des contrats
+        POST /api/team/{id}/contracts/ — nouveau contrat (ferme l'actuel automatiquement)
+        """
+        collab = get_object_or_404(Collaborator, pk=pk, pharmacy=request.user)
+        actor = _get_collaborator(request)
+        if actor and not actor.can_manage_team:
+            return Response({'detail': 'Permission insuffisante.'}, status=status.HTTP_403_FORBIDDEN)
+
+        if request.method == 'GET':
+            contracts = collab.contracts.all()
+            return Response(ContractHistorySerializer(contracts, many=True).data)
+
+        serializer = ContractHistorySerializer(data=request.data)
+        if serializer.is_valid():
+            serializer.save(collaborator=collab)
+            return Response(ContractHistorySerializer(collab.contracts.all(), many=True).data, status=status.HTTP_201_CREATED)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+    @action(detail=True, methods=['delete'], url_path='contracts/(?P<contract_id>[0-9]+)')
+    def contract_delete(self, request, pk=None, contract_id=None):
+        """DELETE /api/team/{id}/contracts/{contract_id}/"""
+        collab = get_object_or_404(Collaborator, pk=pk, pharmacy=request.user)
+        actor = _get_collaborator(request)
+        if actor and not actor.can_manage_team:
+            return Response({'detail': 'Permission insuffisante.'}, status=status.HTTP_403_FORBIDDEN)
+        contract = get_object_or_404(ContractHistory, pk=contract_id, collaborator=collab)
+        contract.delete()
+        return Response(status=status.HTTP_204_NO_CONTENT)

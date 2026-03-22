@@ -95,6 +95,12 @@ class Shift(models.Model):
     is_published   = models.BooleanField(default=False)
     is_extra_hour  = models.BooleanField(default=False)
     note           = models.TextField(blank=True)
+    # Snapshot des heures contractuelles au moment de la création du shift
+    # Permet de préserver l'exactitude des stats historiques si le contrat évolue
+    contract_hours_snapshot = models.DecimalField(
+        max_digits=4, decimal_places=1, null=True, blank=True,
+        help_text="Heures hebdo contractuelles du collaborateur à la date de création du shift"
+    )
     created_at     = models.DateTimeField(auto_now_add=True)
     updated_at     = models.DateTimeField(auto_now=True)
 
@@ -161,6 +167,9 @@ class Shift(models.Model):
             )
 
     def save(self, *args, **kwargs):
+        # Capture les heures contractuelles à la création uniquement
+        if self._state.adding and self.collaborator and self.contract_hours_snapshot is None:
+            self.contract_hours_snapshot = self.collaborator.weekly_hours
         self.full_clean()
         super().save(*args, **kwargs)
 

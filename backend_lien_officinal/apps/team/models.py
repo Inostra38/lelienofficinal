@@ -1,6 +1,9 @@
 
+from datetime import date as date_type, timedelta
 from django.db import models
 from django.conf import settings
+from django.db.models.signals import post_save
+from django.dispatch import receiver
 from django.utils.translation import gettext_lazy as _
 from django.contrib.auth.hashers import make_password, check_password
 
@@ -55,16 +58,6 @@ class Collaborator(models.Model):
     can_close_nonconformities = models.BooleanField(_("Clôturer les non-conformités"), default=False)
     can_assign_task = models.BooleanField(_("Assigner des tâches"), default=False)
 
-    # Contrat de travail (utilisé par le planning)
-    class ContractType(models.TextChoices):
-        CDI  = 'cdi',  'CDI'
-        CDD  = 'cdd',  'CDD'
-        APPRENTI = 'apprenti', 'Apprentissage'
-        INTERIM  = 'interim',  'Intérim'
-
-    contract_type  = models.CharField(
-        max_length=10, choices=ContractType.choices, default=ContractType.CDI, blank=True
-    )
     weekly_hours   = models.DecimalField(
         max_digits=4, decimal_places=1, default=35.0,
         verbose_name="Heures hebdomadaires contractuelles"
@@ -107,3 +100,63 @@ class Collaborator(models.Model):
     def check_pin(self, raw_pin):
         """Vérifie si le PIN fourni correspond au hash stocké."""
         return check_password(raw_pin, self.pin_hash)
+
+    def active_contract_on(self, target_date: date_type):
+        """Retourne le ContractHistory actif à la date donnée, ou None."""
+        return self.contracts.filter(
+            start_date__lte=target_date
+        ).filter(
+            models.Q(end_date__isnull=True) | models.Q(end_date__gte=target_date)
+        ).order_by('-start_date').first()
+
+
+class ContractHistory(models.Model):
+    """Historique des contrats d'un collaborateur."""
+
+    class ContractType(models.TextChoices):
+        CDI          = 'CDI',          'CDI'
+        CDD          = 'CDD',          'CDD'
+        APPRENTISSAGE = 'APPRENTISSAGE', 'Apprentissage'
+        INTERIM      = 'INTERIM',      'Intérim'
+        TNS          = 'TNS',          'TNS'
+
+    collaborator  = models.ForeignKey(
+        Collaborator, on_delete=models.CASCADE, related_name='contracts'
+    )
+    contract_type = models.CharField(max_length=20, choices=ContractType.choices)
+    weekly_hours  = models.DecimalField(max_digits=4, decimal_places=1)
+    start_date    = models.DateField()
+    end_date      = models.DateField(null=True, blank=True)
+
+    class Meta:
+        ordering = ['-start_date']
+
+    def __str__(self):
+        end = self.end_date.isoformat() if self.end_date else 'en cours'
+        return f"{self.collaborator} — {self.contract_type} {self.weekly_hours}h ({self.start_date} → {end})"
+
+
+@receiver(post_save, sender=ContractHistory)
+def on_contract_saved(sender, instance, created, **kwargs):
+    """
+    À la création d'un nouveau contrat :
+    - Ferme l'ancien (end_date = start_date - 1 jour)
+    - Met à jour weekly_hours sur le collaborateur si le contrat est en cours
+    """
+    if not created:
+        return
+
+    # Fermer le contrat précédent
+    ContractHistory.objects.filter(
+        collaborator=instance.collaborator,
+        end_date__isnull=True,
+    ).exclude(pk=instance.pk).update(
+        end_date=instance.start_date - timedelta(days=1)
+    )
+
+    # Mettre à jour weekly_hours si contrat en cours (pas de end_date ou end_date >= aujourd'hui)
+    today = date_type.today()
+    if instance.end_date is None or instance.end_date >= today:
+        Collaborator.objects.filter(pk=instance.collaborator_id).update(
+            weekly_hours=instance.weekly_hours
+        )

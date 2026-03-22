@@ -29,8 +29,17 @@ export interface Collaborator extends CollaboratorPermissions {
   is_active?: boolean;
   archived_at?: string | null;
   created_at?: string;
-  contract_type?: string;
   weekly_hours?: number;
+}
+
+export type ContractType = 'CDI' | 'CDD' | 'APPRENTISSAGE' | 'INTERIM' | 'TNS';
+
+export interface ContractHistory {
+  id: number;
+  contract_type: ContractType;
+  weekly_hours: number;
+  start_date: string;
+  end_date: string | null;
 }
 
 export interface CollaboratorCreate {
@@ -90,5 +99,17 @@ export class CollaboratorService {
 
   reorderCollaborators(order: number[]): Observable<void> {
     return this.http.post<void>(`${this.apiUrl}/reorder/`, { order });
+  }
+
+  getContracts(collaboratorId: number): Observable<ContractHistory[]> {
+    return this.http.get<ContractHistory[]>(`${this.apiUrl}/${collaboratorId}/contracts/`);
+  }
+
+  addContract(collaboratorId: number, data: Omit<ContractHistory, 'id'>): Observable<ContractHistory[]> {
+    return this.http.post<ContractHistory[]>(`${this.apiUrl}/${collaboratorId}/contracts/`, data);
+  }
+
+  deleteContract(collaboratorId: number, contractId: number): Observable<void> {
+    return this.http.delete<void>(`${this.apiUrl}/${collaboratorId}/contracts/${contractId}/`);
   }
 }

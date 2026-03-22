@@ -1,4 +1,4 @@
-import { Component, Input, Output, EventEmitter, inject } from '@angular/core';
+import { Component, Input, Output, EventEmitter, inject, OnChanges, SimpleChanges, ChangeDetectionStrategy } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { CdkDragDrop } from '@angular/cdk/drag-drop';
 import {
@@ -18,8 +18,9 @@ import { ShiftFormComponent, ShiftFormCollab } from '../shift-form/shift-form.co
   imports: [CommonModule, ShiftFormComponent],
   templateUrl: './week-view.component.html',
   styleUrl: './week-view.component.css',
+  changeDetection: ChangeDetectionStrategy.OnPush,
 })
-export class WeekViewComponent {
+export class WeekViewComponent implements OnChanges {
   @Input() weekData!: WeekResponse;
   @Input() isManager = false;
   @Input() currentWeekStr = '';
@@ -29,6 +30,87 @@ export class WeekViewComponent {
   @Output() shiftChanged = new EventEmitter<void>();
 
   private planningService = inject(PlanningService);
+
+  // ── Cache pré-calculé (rebuil dans ngOnChanges) ───────────────────────────
+
+  _weekDaysWithIso: { date: Date; iso: string; label: string }[] = [];
+  _hours: number[] = [];
+  _shiftsIndex = new Map<string, Shift[]>();
+  _summaryByDay = new Map<string, CollaboratorWeekSummary[]>();
+  _rowGradients = new Map<number, string>();
+  _summaryMap = new Map<number, CollaboratorWeekSummary>();
+
+  ngOnChanges(_changes: SimpleChanges) {
+    this._rebuild();
+  }
+
+  private _rebuild() {
+    if (!this.weekData) return;
+
+    // Jours de la semaine
+    const monday = new Date(this.weekData.week_start + 'T00:00:00');
+    this._weekDaysWithIso = Array.from({ length: 7 }, (_, i) => {
+      const d = new Date(monday);
+      d.setDate(monday.getDate() + i);
+      const iso = this.getDayIso(d);
+      return {
+        date: d,
+        iso,
+        label: d.toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' }),
+      };
+    });
+
+    // Index des collaborateurs (O(1) lookup)
+    this._summaryMap.clear();
+    for (const s of this.weekData.summary) {
+      this._summaryMap.set(s.collaborator_id, s);
+    }
+
+    // Index des shifts (O(1) lookup par collabId:dayIso)
+    this._shiftsIndex.clear();
+    for (const shift of this.weekData.shifts) {
+      if (!shift.collaborator) continue;
+      const key = `${shift.collaborator.id}:${shift.start_datetime.substring(0, 10)}`;
+      const list = this._shiftsIndex.get(key);
+      if (list) list.push(shift);
+      else this._shiftsIndex.set(key, [shift]);
+    }
+
+    // Plage horaire
+    this._hours = Array.from({ length: this.totalHours + 1 }, (_, i) => this.dayStartHour + i);
+
+    // Gradients CSS (1 par index de jour, pas par collab×jour)
+    this._rowGradients.clear();
+    for (let i = 0; i < 7; i++) {
+      this._rowGradients.set(i, this._computeRowGradient(i));
+    }
+
+    // Résumé filtré par jour (contrats)
+    const contracts = this.weekData.contracts;
+    const visible = this.visibleSummary;
+    this._summaryByDay.clear();
+    for (const dayObj of this._weekDaysWithIso) {
+      if (!contracts) {
+        this._summaryByDay.set(dayObj.iso, visible);
+      } else {
+        this._summaryByDay.set(dayObj.iso, visible.filter(s => {
+          const c = contracts[s.collaborator_id];
+          if (!c) return true;
+          if (dayObj.iso < c.start_date) return false;
+          if (c.end_date && dayObj.iso > c.end_date) return false;
+          return true;
+        }));
+      }
+    }
+  }
+
+  // ── TrackBy ───────────────────────────────────────────────────────────────
+
+  trackByDay = (_: number, d: { date: Date; iso: string }) => d.iso;
+  trackByCollabId = (_: number, s: CollaboratorWeekSummary) => s.collaborator_id;
+  trackByShiftId = (_: number, s: Shift) => s.id;
+  trackByHour = (_: number, h: number) => h;
+  trackByAdjId = (_: number, a: AdjustmentSummary) => a.adjustment_id;
 
   // ── Shift form ────────────────────────────────────────────────────────────
   showShiftForm             = false;
@@ -74,6 +156,13 @@ export class WeekViewComponent {
       return base.filter(s => this.filteredCollaboratorIds!.includes(s.collaborator_id));
     }
     return base;
+  }
+
+  // ── Filtrage par contrat ──────────────────────────────────────────────────
+
+  /** Lookup O(1) depuis le cache pré-calculé */
+  getVisibleSummaryForDay(dayIso: string): CollaboratorWeekSummary[] {
+    return this._summaryByDay.get(dayIso) ?? this.visibleSummary;
   }
 
   // ── Jours de la semaine ────────────────────────────────────────────────────
@@ -164,7 +253,7 @@ export class WeekViewComponent {
   // ── Résumé collaborateur ──────────────────────────────────────────────────
 
   getSummary(collaboratorId: number): CollaboratorWeekSummary | null {
-    return this.weekData.summary.find(s => s.collaborator_id === collaboratorId) ?? null;
+    return this._summaryMap.get(collaboratorId) ?? null;
   }
 
   getBalanceClass(balance: number): string {
@@ -327,8 +416,13 @@ export class WeekViewComponent {
   get dayEndHour():   number { return this.timelineMode === 'zoom' ? this.zoomEnd   : 24; }
   get totalHours():   number { return this.dayEndHour - this.dayStartHour; }
 
-  /** Gradient CSS blanc/lavande selon les créneaux d'ouverture du jour */
+  /** Lecture du cache — O(1) */
   getRowGradient(dayOfWeek: number): string {
+    return this._rowGradients.get(dayOfWeek) ?? '#eef2ff';
+  }
+
+  /** Calcul effectif du gradient (appelé uniquement par _rebuild) */
+  private _computeRowGradient(dayOfWeek: number): string {
     if (dayOfWeek === 6) return '#eef2ff';
 
     const slots = this.openingHours
@@ -387,11 +481,8 @@ export class WeekViewComponent {
   }
 
   getShiftsForCollabDay(collabId: number, dayIso: string): Shift[] {
-    return this.weekData.shifts.filter(s =>
-      s.collaborator?.id === collabId &&
-      s.start_datetime.startsWith(dayIso) &&
-      (this.isManager || s.is_published)
-    );
+    const all = this._shiftsIndex.get(`${collabId}:${dayIso}`) ?? [];
+    return this.isManager ? all : all.filter(s => s.is_published);
   }
 
   formatTime(isoStr: string): string {

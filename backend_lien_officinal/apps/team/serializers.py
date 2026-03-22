@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from .models import Collaborator
+from .models import Collaborator, ContractHistory
 
 PERMISSION_FIELDS = [
     'can_manage_account', 'can_manage_team', 'can_manage_planning', 'can_manage_quality',
@@ -18,7 +18,7 @@ class CollaboratorSerializer(serializers.ModelSerializer):
             'is_active', 'archived_at', 'created_at', 'pin',
             'can_manage_account', 'can_manage_team', 'can_manage_planning', 'can_manage_quality',
             'can_manage_procedures', 'can_publish_procedures', 'can_close_nonconformities', 'can_assign_task',
-            'contract_type', 'weekly_hours',
+            'weekly_hours',
         ]
         read_only_fields = ['id', 'created_at', 'archived_at']
 
@@ -66,6 +66,13 @@ class CollaboratorPermissionsSerializer(serializers.ModelSerializer):
     class Meta:
         model = Collaborator
         fields = PERMISSION_FIELDS
+
+
+class ContractHistorySerializer(serializers.ModelSerializer):
+    class Meta:
+        model = ContractHistory
+        fields = ['id', 'contract_type', 'weekly_hours', 'start_date', 'end_date']
+        read_only_fields = ['id']
 
 
 class PinVerificationSerializer(serializers.Serializer):

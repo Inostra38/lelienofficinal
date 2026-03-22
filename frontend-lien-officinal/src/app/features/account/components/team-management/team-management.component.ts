@@ -5,6 +5,8 @@ import {
   CollaboratorService,
   Collaborator,
   CollaboratorCreate,
+  ContractHistory,
+  ContractType,
   MemberRole,
   MemberCivility,
 } from '../../../../core/services/collaborator.service';
@@ -117,6 +119,21 @@ export class TeamManagementComponent implements OnInit {
 
   // Archivés
   showArchived = false;
+
+  // Contrats
+  selectedMemberForContracts: TeamMember | null = null;
+  contracts: ContractHistory[] = [];
+  contractsLoading = false;
+  showContractForm = false;
+  contractFormData: { contract_type: ContractType; weekly_hours: number; start_date: string; end_date: string } = this.emptyContractForm();
+
+  contractTypes: { value: ContractType; label: string }[] = [
+    { value: 'CDI', label: 'CDI' },
+    { value: 'CDD', label: 'CDD' },
+    { value: 'APPRENTISSAGE', label: 'Apprentissage' },
+    { value: 'INTERIM', label: 'Intérim' },
+    { value: 'TNS', label: 'TNS' },
+  ];
 
   ngOnInit() {
     this.loadTeamMembers();
@@ -379,6 +396,66 @@ export class TeamManagementComponent implements OnInit {
 
   getColorOption(colorValue: string): ColorOption | undefined {
     return this.colors.find(c => c.value === colorValue);
+  }
+
+  // ── Contrats ───────────────────────────────────────────────────────────────
+
+  openContractsPanel(member: TeamMember) {
+    this.selectedMemberForContracts = member;
+    this.showContractForm = false;
+    this.contractFormData = this.emptyContractForm();
+    this.loadContracts(member);
+  }
+
+  closeContractsPanel() {
+    this.selectedMemberForContracts = null;
+    this.contracts = [];
+    this.showContractForm = false;
+  }
+
+  loadContracts(member: TeamMember) {
+    this.contractsLoading = true;
+    this.collaboratorService.getContracts(parseInt(member.id)).subscribe({
+      next: (contracts) => { this.contracts = contracts; this.contractsLoading = false; },
+      error: () => { this.contractsLoading = false; }
+    });
+  }
+
+  saveContract() {
+    if (!this.selectedMemberForContracts) return;
+    const data = {
+      contract_type: this.contractFormData.contract_type,
+      weekly_hours: this.contractFormData.weekly_hours,
+      start_date: this.contractFormData.start_date,
+      end_date: this.contractFormData.end_date || null,
+    };
+    this.collaboratorService.addContract(parseInt(this.selectedMemberForContracts.id), data as any).subscribe({
+      next: (contracts) => {
+        this.contracts = contracts;
+        this.showContractForm = false;
+        this.contractFormData = this.emptyContractForm();
+        this.loadTeamMembers();
+      },
+      error: (err) => { this.errorMessage = err.error?.detail || 'Erreur lors de l\'ajout du contrat'; }
+    });
+  }
+
+  deleteContract(contractId: number) {
+    if (!this.selectedMemberForContracts) return;
+    if (!confirm('Supprimer ce contrat ?')) return;
+    this.collaboratorService.deleteContract(parseInt(this.selectedMemberForContracts.id), contractId).subscribe({
+      next: () => this.loadContracts(this.selectedMemberForContracts!),
+      error: (err) => { this.errorMessage = err.error?.detail || 'Erreur lors de la suppression'; }
+    });
+  }
+
+  private emptyContractForm() {
+    return { contract_type: 'CDI' as ContractType, weekly_hours: 35, start_date: '', end_date: '' };
+  }
+
+  formatContractDate(date: string | null): string {
+    if (!date) return 'en cours';
+    return new Date(date + 'T00:00:00').toLocaleDateString('fr-FR', { day: 'numeric', month: 'short', year: 'numeric' });
   }
 
   getRoleBadgeClass(role: MemberRole): string {

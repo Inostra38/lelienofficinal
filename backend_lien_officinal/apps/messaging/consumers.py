@@ -1,9 +1,28 @@
 import json
+import time
+from collections import defaultdict, deque
 
 from channels.generic.websocket import AsyncWebsocketConsumer
 from channels.db import database_sync_to_async
 
 from .models import Conversation, Message
+
+# Rate limiting WebSocket : 30 messages par minute par collaborateur
+_WS_RATE_LIMIT = 30
+_WS_RATE_WINDOW = 60  # secondes
+_ws_message_timestamps: dict[int, deque] = defaultdict(deque)
+
+
+def _is_rate_limited(collaborator_id: int) -> bool:
+    now = time.monotonic()
+    timestamps = _ws_message_timestamps[collaborator_id]
+    # Supprime les timestamps hors de la fenêtre
+    while timestamps and now - timestamps[0] > _WS_RATE_WINDOW:
+        timestamps.popleft()
+    if len(timestamps) >= _WS_RATE_LIMIT:
+        return True
+    timestamps.append(now)
+    return False
 
 
 class ConversationConsumer(AsyncWebsocketConsumer):
@@ -37,6 +56,13 @@ class ConversationConsumer(AsyncWebsocketConsumer):
             data = json.loads(text_data)
             content = data.get('content', '').strip()
             if not content:
+                return
+
+            if _is_rate_limited(self.collaborator.id):
+                await self.send(text_data=json.dumps({
+                    'error': 'rate_limited',
+                    'detail': 'Trop de messages. Merci de patienter.'
+                }))
                 return
 
             message = await self.save_message(self.collaborator, self.conversation_id, content)

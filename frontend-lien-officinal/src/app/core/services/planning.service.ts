@@ -12,7 +12,6 @@ export interface PlanningCollaborator {
   color: string;
   role: string;
   weekly_hours: number;
-  contract_type: string;
 }
 
 export interface Shift {
@@ -110,6 +109,7 @@ export interface WeekResponse {
   day_statuses: PharmacyDayStatus[];
   summary: CollaboratorWeekSummary[];
   template_letter?: string | null;
+  contracts?: Record<number, { start_date: string; end_date: string | null }>;
 }
 
 export interface AbsenceRequest {
@@ -416,8 +416,8 @@ export class PlanningService {
     return this.http.post<TemplateShift[]>(`${this.apiUrl}/templates/${letter}/bulk-replace/`, shifts);
   }
 
-  applyTemplate(letter: string, week: string, force = false): Observable<{ created: number; skipped: number; replaced: number; absence_protected: number; day_protected: number; week_start: string }> {
-    return this.http.post<{ created: number; skipped: number; replaced: number; absence_protected: number; day_protected: number; week_start: string }>(
+  applyTemplate(letter: string, week: string, force = false): Observable<{ created: number; skipped: number; replaced: number; absence_protected: number; day_protected: number; week_start: string; violations: { shift_date: string; collaborator: string; error: string }[] }> {
+    return this.http.post<{ created: number; skipped: number; replaced: number; absence_protected: number; day_protected: number; week_start: string; violations: { shift_date: string; collaborator: string; error: string }[] }>(
       `${this.apiUrl}/templates/${letter}/apply/`,
       { week, force }
     );
