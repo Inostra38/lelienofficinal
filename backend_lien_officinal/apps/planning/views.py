@@ -15,6 +15,7 @@ from rest_framework.views import APIView
 from rest_framework_simplejwt.authentication import JWTAuthentication
 
 from apps.team.models import Collaborator, ContractHistory
+from apps.core.auth_helpers import get_collaborator_from_jwt as _get_collaborator
 from .calculator import pharmacy_week_summary
 from .utils import get_jours_feries
 from .models import AbsenceRequest, Constraint, ConstraintSet, OpeningHours, PharmacyDayStatus, PlanningSettings, Shift, TemplateShift, TimeAdjustment, WeekTemplate, WeekTemplateApplication
@@ -34,22 +35,6 @@ from .serializers import (
     WeekTemplateListSerializer,
     WeekTemplateSerializer,
 )
-
-
-# ── Helpers ──────────────────────────────────────────────────────────────────
-
-def _get_collaborator(request):
-    """Lit le collaborateur actif depuis le claim JWT."""
-    token = request.auth
-    if not token or token.get('auth_type') != 'collaborator':
-        return None
-    collab_id = token.get('collaborator_id')
-    if not collab_id:
-        return None
-    try:
-        return Collaborator.objects.get(id=int(collab_id), pharmacy=request.user, is_active=True)
-    except (Collaborator.DoesNotExist, ValueError):
-        return None
 
 
 def _parse_week(week_str) -> date:

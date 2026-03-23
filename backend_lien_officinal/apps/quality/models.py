@@ -19,6 +19,8 @@ class ProcedureGroup(models.Model):
         on_delete=models.SET_NULL,
         related_name='created_procedure_groups',
     )
+    is_active = models.BooleanField(default=True)
+    archived_at = models.DateTimeField(null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
@@ -47,6 +49,8 @@ class ProcedureCategory(models.Model):
         on_delete=models.SET_NULL,
         related_name='created_procedure_categories',
     )
+    is_active = models.BooleanField(default=True)
+    archived_at = models.DateTimeField(null=True, blank=True)
 
     class Meta:
         unique_together = ('name', 'pharmacy')
@@ -288,7 +292,7 @@ class NonConformity(models.Model):
     procedure = models.ForeignKey(
         Procedure,
         null=True, blank=True,
-        on_delete=models.SET_NULL,
+        on_delete=models.PROTECT,
         related_name='nonconformities',
     )
     reported_by = models.ForeignKey(

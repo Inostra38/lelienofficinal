@@ -284,7 +284,7 @@ class ProcedureCategoryViewSet(viewsets.ModelViewSet):
     serializer_class = ProcedureCategorySerializer
 
     def get_queryset(self):
-        return ProcedureCategory.objects.filter(pharmacy=self.request.user)
+        return ProcedureCategory.objects.filter(pharmacy=self.request.user, is_active=True)
 
     def get_permissions(self):
         if self.action in ('list', 'retrieve'):
@@ -295,6 +295,13 @@ class ProcedureCategoryViewSet(viewsets.ModelViewSet):
         collaborator = _get_collaborator(self.request, self.request.user)
         serializer.save(pharmacy=self.request.user, created_by=collaborator)
 
+    def destroy(self, request, *args, **kwargs):
+        instance = self.get_object()
+        instance.is_active = False
+        instance.archived_at = timezone.now()
+        instance.save(update_fields=['is_active', 'archived_at'])
+        return Response(status=status.HTTP_204_NO_CONTENT)
+
 
 # ── ProcedureGroup ────────────────────────────────────────────────────────────
 
@@ -304,7 +311,7 @@ class ProcedureGroupViewSet(viewsets.ModelViewSet):
     def get_queryset(self):
         return (
             ProcedureGroup.objects
-            .filter(pharmacy=self.request.user)
+            .filter(pharmacy=self.request.user, is_active=True)
             .annotate(procedure_count=Count('procedures', distinct=True))
             .order_by('order')
         )
@@ -317,6 +324,13 @@ class ProcedureGroupViewSet(viewsets.ModelViewSet):
     def perform_create(self, serializer):
         collaborator = _get_collaborator(self.request, self.request.user)
         serializer.save(pharmacy=self.request.user, created_by=collaborator)
+
+    def destroy(self, request, *args, **kwargs):
+        instance = self.get_object()
+        instance.is_active = False
+        instance.archived_at = timezone.now()
+        instance.save(update_fields=['is_active', 'archived_at'])
+        return Response(status=status.HTTP_204_NO_CONTENT)
 
     @action(detail=False, methods=['post'], url_path='reorder')
     def reorder(self, request):

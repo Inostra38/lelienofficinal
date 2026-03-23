@@ -1,3 +1,4 @@
+from datetime import timedelta
 from rest_framework import viewsets, status
 from rest_framework.decorators import action
 from rest_framework.response import Response
@@ -17,22 +18,7 @@ from .serializers import (
     PinVerificationSerializer,
 )
 from apps.core.views import PinVerifyThrottle
-
-
-def _get_collaborator(request):
-    """Lit le collaborateur actif depuis le claim JWT (auth_type='collaborator')."""
-    token = request.auth
-    if not token:
-        return None
-    if token.get('auth_type') != 'collaborator':
-        return None
-    collab_id = token.get('collaborator_id')
-    if not collab_id:
-        return None
-    try:
-        return Collaborator.objects.get(id=int(collab_id), pharmacy=request.user, is_active=True)
-    except (Collaborator.DoesNotExist, ValueError):
-        return None
+from apps.core.auth_helpers import get_collaborator_from_jwt as _get_collaborator
 
 
 
@@ -194,7 +180,22 @@ class CollaboratorViewSet(viewsets.ModelViewSet):
         except (Collaborator.DoesNotExist, ValueError):
             return Response({"detail": "Collaborateur introuvable."}, status=status.HTTP_404_NOT_FOUND)
 
+        # Verrouillage PIN : vérifier avant la tentative
+        if collaborator.pin_locked_until and collaborator.pin_locked_until > timezone.now():
+            remaining = max(1, int((collaborator.pin_locked_until - timezone.now()).total_seconds() / 60))
+            return Response(
+                {"detail": f"Compte verrouillé. Réessayez dans {remaining} minute(s)."},
+                status=status.HTTP_423_LOCKED,
+            )
+
         if not collaborator.check_pin(str(pin_code)):
+            collaborator.pin_fail_count += 1
+            if collaborator.pin_fail_count >= 50:
+                collaborator.pin_locked_until = timezone.now() + timedelta(hours=24)
+                collaborator.pin_fail_count = 0
+                collaborator.save(update_fields=["pin_fail_count", "pin_locked_until"])
+            else:
+                collaborator.save(update_fields=["pin_fail_count"])
             CollaboratorLoginLog.objects.create(
                 collaborator=collaborator,
                 pharmacy=request.user,
@@ -219,6 +220,12 @@ class CollaboratorViewSet(viewsets.ModelViewSet):
         token['can_publish_procedures'] = collaborator.can_publish_procedures
         token['can_close_nonconformities'] = collaborator.can_close_nonconformities
         token['can_assign_task'] = collaborator.can_assign_task
+
+        # Réinitialiser le compteur d'échecs
+        if collaborator.pin_fail_count > 0 or collaborator.pin_locked_until:
+            collaborator.pin_fail_count = 0
+            collaborator.pin_locked_until = None
+            collaborator.save(update_fields=["pin_fail_count", "pin_locked_until"])
 
         CollaboratorLoginLog.objects.create(
             collaborator=collaborator,
@@ -283,3 +290,15 @@ class CollaboratorViewSet(viewsets.ModelViewSet):
         contract = get_object_or_404(ContractHistory, pk=contract_id, collaborator=collab)
         contract.delete()
         return Response(status=status.HTTP_204_NO_CONTENT)
+
+    @action(detail=True, methods=['post'], url_path='unlock-pin')
+    def unlock_pin(self, request, pk=None):
+        """POST /api/team/{id}/unlock-pin/ — Déverrouillage manuel du PIN (titulaire uniquement)."""
+        actor = _get_collaborator(request)
+        if actor and not actor.can_manage_team:
+            return Response({'detail': 'Permission insuffisante.'}, status=status.HTTP_403_FORBIDDEN)
+        collaborator = get_object_or_404(Collaborator, pk=pk, pharmacy=request.user)
+        collaborator.pin_fail_count = 0
+        collaborator.pin_locked_until = None
+        collaborator.save(update_fields=['pin_fail_count', 'pin_locked_until'])
+        return Response({'detail': 'PIN déverrouillé.'})

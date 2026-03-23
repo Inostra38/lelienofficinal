@@ -14,6 +14,7 @@ from django.contrib.auth.password_validation import validate_password
 from django.core.exceptions import ValidationError
 from .models import Pharmacy
 from .serializers import PharmacySerializer, PharmacyUpdateSerializer, RegisterSerializer, ProfileSetupSerializer
+from .auth_helpers import get_collaborator_from_jwt
 from apps.team.models import Collaborator
 
 
@@ -28,20 +29,7 @@ class PinVerifyThrottle(UserRateThrottle):
         return (10, 5 * 60)  # 10 requêtes par 300 secondes
 
 
-def _get_collaborator(request):
-    """Lit le collaborateur actif depuis le claim JWT (auth_type='collaborator')."""
-    token = request.auth
-    if not token:
-        return None
-    if token.get('auth_type') != 'collaborator':
-        return None
-    collab_id = token.get('collaborator_id')
-    if not collab_id:
-        return None
-    try:
-        return Collaborator.objects.get(id=int(collab_id), pharmacy=request.user, is_active=True)
-    except (Collaborator.DoesNotExist, ValueError):
-        return None
+_get_collaborator = get_collaborator_from_jwt  # alias rétrocompat interne
 
 
 def _verify_sensitive_action(request, collaborator):

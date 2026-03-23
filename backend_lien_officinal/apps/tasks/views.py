@@ -21,21 +21,7 @@ def _notify_tasks(pharmacy_id):
 from apps.team.models import Collaborator
 from .models import Task, TaskComment
 from .serializers import TaskSerializer, TaskCreateSerializer, TaskUpdateSerializer, TaskCommentSerializer
-
-
-def _get_collaborator(request):
-    token = request.auth
-    if not token:
-        return None
-    if token.get('auth_type') != 'collaborator':
-        return None
-    collab_id = token.get('collaborator_id')
-    if not collab_id:
-        return None
-    try:
-        return Collaborator.objects.get(id=int(collab_id), pharmacy=request.user, is_active=True)
-    except (Collaborator.DoesNotExist, ValueError):
-        return None
+from apps.core.auth_helpers import get_collaborator_from_jwt as _get_collaborator
 
 
 def _sort_tasks(tasks):

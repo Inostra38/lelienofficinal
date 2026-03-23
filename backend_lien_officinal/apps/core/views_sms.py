@@ -1,8 +1,11 @@
+import logging
 from rest_framework import viewsets, status
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated, AllowAny
 from rest_framework.throttling import UserRateThrottle
+
+logger = logging.getLogger(__name__)
 from django.db.models import F
 
 from .models import SMSTemplate, SMSLog
@@ -11,21 +14,7 @@ from .serializers_sms import (
     SMSPreviewSerializer, SMSSendSerializer,
 )
 from .services import TemplateResolver, OVHService
-
-
-def _get_collaborator(request):
-    """Lit le collaborateur actif depuis le claim JWT (auth_type='collaborator')."""
-    token = request.auth
-    if not token or token.get('auth_type') != 'collaborator':
-        return None
-    collab_id = token.get('collaborator_id')
-    if not collab_id:
-        return None
-    try:
-        from apps.team.models import Collaborator
-        return Collaborator.objects.get(id=int(collab_id), pharmacy=request.user, is_active=True)
-    except Exception:
-        return None
+from .auth_helpers import get_collaborator_from_jwt as _get_collaborator
 
 
 class SMSSendThrottle(UserRateThrottle):
@@ -121,6 +110,13 @@ class SMSSendView(APIView):
             )
 
         pharmacy.refresh_from_db(fields=['sms_credits'])
+
+        if pharmacy.sms_credits < 10:
+            logger.warning(
+                "Crédits SMS bas — pharmacy_id=%s nom=%s credits=%s",
+                pharmacy.id, pharmacy.nom_officine, pharmacy.sms_credits,
+            )
+
         phone = data['to'].replace(' ', '')
         to_hash = OVHService.hash_phone(phone)
 
@@ -148,13 +144,14 @@ class SMSSendView(APIView):
 class SMSLogViewSet(viewsets.ReadOnlyModelViewSet):
     serializer_class = SMSLogSerializer
     permission_classes = [IsAuthenticated]
+    pagination_class = None  # Pas de pagination globale — liste complète plafonnée ci-dessous
 
     def get_queryset(self):
         return (
             SMSLog.objects
             .filter(pharmacy=self.request.user)
             .select_related('template', 'sent_by')
-            .order_by('-sent_at')[:100]
+            .order_by('-sent_at')[:200]
         )
 
 

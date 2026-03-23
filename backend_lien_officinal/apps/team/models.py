@@ -6,6 +6,12 @@ from django.db.models.signals import post_save
 from django.dispatch import receiver
 from django.utils.translation import gettext_lazy as _
 from django.contrib.auth.hashers import make_password, check_password
+from django.core.validators import RegexValidator
+
+_hex_color_validator = RegexValidator(
+    regex=r'^#[0-9A-Fa-f]{6}$',
+    message="La couleur doit être au format hexadécimal #RRGGBB.",
+)
 
 class Collaborator(models.Model):
     """
@@ -46,7 +52,10 @@ class Collaborator(models.Model):
     email = models.EmailField(_("Email personnel"), blank=True, null=True)
 
     # Couleur pour l'identification visuelle
-    color = models.CharField(_("Couleur"), max_length=20, default='blue')
+    color = models.CharField(
+        _("Couleur"), max_length=7, default='#3B82F6',
+        validators=[_hex_color_validator],
+    )
 
     # Permissions fonctionnelles (indépendantes du rôle sauf Titulaire)
     can_manage_account = models.BooleanField(_("Gérer le compte"), default=False)
@@ -74,6 +83,10 @@ class Collaborator(models.Model):
 
     # Ordre d'affichage dans le planning (modifiable par le manager)
     display_order = models.PositiveIntegerField(default=0, verbose_name="Ordre d'affichage")
+
+    # Verrouillage PIN après échecs répétés
+    pin_fail_count = models.PositiveIntegerField(default=0, verbose_name="Échecs PIN consécutifs")
+    pin_locked_until = models.DateTimeField(null=True, blank=True, verbose_name="Verrouillé jusqu'à")
 
     class Meta:
         verbose_name = _("Collaborateur")

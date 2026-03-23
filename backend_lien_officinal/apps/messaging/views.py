@@ -5,6 +5,7 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.throttling import UserRateThrottle
 from rest_framework.views import APIView
+from apps.core.auth_helpers import get_collaborator_from_jwt as _get_collaborator
 
 
 class MessagingThrottle(UserRateThrottle):
@@ -19,25 +20,6 @@ from .serializers import (
     MessageSerializer,
     MessageCreateSerializer,
 )
-
-
-def _get_collaborator(request):
-    """
-    Récupère le collaborateur actif depuis le claim JWT (auth_type='collaborator').
-    Retourne None si absent ou invalide.
-    """
-    token = request.auth
-    if not token:
-        return None
-    if token.get('auth_type') != 'collaborator':
-        return None
-    collab_id = token.get('collaborator_id')
-    if not collab_id:
-        return None
-    try:
-        return Collaborator.objects.get(id=int(collab_id), pharmacy=request.user, is_active=True)
-    except (Collaborator.DoesNotExist, ValueError):
-        return None
 
 
 def _get_conversation_for_participant(conversation_id, request, collaborator):
