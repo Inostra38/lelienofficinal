@@ -6,6 +6,7 @@ import { startWith, switchMap, takeUntil } from 'rxjs/operators';
 
 import { AuthService } from '../../../core/auth/auth.service';
 import { CollaboratorService, Collaborator } from '../../../core/services/collaborator.service';
+import { resolveColor } from '../../../core/utils/collaborator-colors';
 import { InactivityService } from '../../../core/services/inactivity.service';
 import { MessagingService } from '../../../core/services/messaging.service';
 import { PharmacyService } from '../../../core/services/pharmacy.service';
@@ -99,13 +100,7 @@ export class MainLayoutComponent implements OnInit, OnDestroy {
   }
 
   getCollaboratorColor(c: Collaborator): string {
-    const colors = ['#1B5E20', '#0D47A1', '#4A148C', '#E65100', '#880E4F', '#006064', '#37474F'];
-    const name = (c.first_name ?? '') + (c.last_name ?? '');
-    let hash = 0;
-    for (let i = 0; i < name.length; i++) {
-      hash = name.charCodeAt(i) + ((hash << 5) - hash);
-    }
-    return colors[Math.abs(hash) % colors.length];
+    return resolveColor(c.color ?? '').base;
   }
 
   private startQualityNotifPolling() {
