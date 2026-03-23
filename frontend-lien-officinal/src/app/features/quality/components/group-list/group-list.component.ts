@@ -3,6 +3,7 @@ import { CommonModule } from '@angular/common';
 import { RouterLink } from '@angular/router';
 import { QualityService } from '../../services/quality.service';
 import { ProcedureGroup } from '../../models/procedure.model';
+import { ConfirmService } from '../../../../core/services/confirm.service';
 
 @Component({
   selector: 'app-group-list',
@@ -12,6 +13,7 @@ import { ProcedureGroup } from '../../models/procedure.model';
 })
 export class GroupListComponent implements OnInit {
   private qualityService = inject(QualityService);
+  private confirmService = inject(ConfirmService);
 
   groups: ProcedureGroup[] = [];
   loading = true;
@@ -27,10 +29,10 @@ export class GroupListComponent implements OnInit {
     });
   }
 
-  delete(group: ProcedureGroup, event: Event) {
+  async delete(group: ProcedureGroup, event: Event) {
     event.stopPropagation();
     event.preventDefault();
-    if (!confirm(`Supprimer le tableau "${group.name}" ?\nLes procédures seront libérées vers la bibliothèque.`)) return;
+    if (!await this.confirmService.ask({ title: 'Supprimer le tableau', message: `Supprimer "${group.name}" ? Les procédures seront libérées vers la bibliothèque.`, danger: true })) return;
     this.qualityService.deleteGroup(group.id).subscribe({ next: () => this.load() });
   }
 

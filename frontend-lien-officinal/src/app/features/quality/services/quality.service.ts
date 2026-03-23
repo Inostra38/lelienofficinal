@@ -75,6 +75,10 @@ export class QualityService {
     return this.http.post<Procedure>(`${this.api}/procedures/${id}/publish/`, { change_summary: changeSummary });
   }
 
+  markProcedureRead(id: number): Observable<void> {
+    return this.http.post<void>(`${this.api}/procedures/${id}/mark-read/`, {});
+  }
+
   archiveProcedure(id: number): Observable<Procedure> {
     return this.http.post<Procedure>(`${this.api}/procedures/${id}/archive/`, {});
   }

@@ -16,3 +16,4 @@ sqlparse==0.5.5
 anthropic>=0.40.0
 python-dotenv>=1.0.0
 bleach>=6.3.0
+celery>=5.4.0

@@ -11,6 +11,7 @@ import {
   OpeningHours,
 } from '../../../../core/services/planning.service';
 import { CollaboratorService, Collaborator } from '../../../../core/services/collaborator.service';
+import { ConfirmService } from '../../../../core/services/confirm.service';
 import { ConstraintManagerComponent } from '../constraint-manager/constraint-manager.component';
 import { TemplateAiAssistantComponent } from '../template-ai-assistant/template-ai-assistant.component';
 
@@ -32,6 +33,7 @@ export class TemplateModalComponent implements OnInit {
 
   private planningService     = inject(PlanningService);
   private collaboratorService = inject(CollaboratorService);
+  private confirmService      = inject(ConfirmService);
 
   readonly letters: Letter[] = ['A', 'B', 'C', 'D'];
 
@@ -252,8 +254,8 @@ export class TemplateModalComponent implements OnInit {
     });
   }
 
-  deleteShift(shiftId: number) {
-    if (!confirm('Supprimer ce shift du template ?')) return;
+  async deleteShift(shiftId: number) {
+    if (!await this.confirmService.ask({ title: 'Supprimer le shift', message: 'Supprimer ce shift du template ?', danger: true })) return;
     this.planningService.deleteTemplateShift(this.activeLetter, shiftId).subscribe(() => {
       this.showAddForm  = false;
       this.editingShift = null;

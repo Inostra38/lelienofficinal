@@ -145,7 +145,9 @@ class AbsenceRequest(models.Model):
 
     collaborator = models.ForeignKey(
         'team.Collaborator',
-        on_delete=models.CASCADE,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
         related_name='absence_requests',
     )
     start_date  = models.DateField()

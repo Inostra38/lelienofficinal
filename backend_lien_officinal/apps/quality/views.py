@@ -1,5 +1,5 @@
 from django.db import transaction
-from django.db.models import Count, OuterRef, Subquery
+from django.db.models import BooleanField, Count, Exists, OuterRef, Subquery, Value
 from django.utils import timezone
 from rest_framework import viewsets, status
 from rest_framework.decorators import action
@@ -55,6 +55,21 @@ class ProcedureViewSet(viewsets.ModelViewSet):
         status_param = self.request.query_params.get('status')
         if status_param:
             qs = qs.filter(status=status_param)
+
+        # Annotation is_unread : notification non lue pour le collaborateur courant
+        collab_id = self.request.auth.get('collaborator_id') if self.request.auth else None
+        if collab_id:
+            qs = qs.annotate(
+                is_unread=Exists(
+                    ProcedureNotification.objects.filter(
+                        procedure=OuterRef('pk'),
+                        recipient_id=collab_id,
+                        is_read=False,
+                    )
+                )
+            )
+        else:
+            qs = qs.annotate(is_unread=Value(False, output_field=BooleanField()))
 
         group_param = self.request.query_params.get('group')
         if group_param == 'none':
@@ -123,17 +138,18 @@ class ProcedureViewSet(viewsets.ModelViewSet):
             procedure.version += 1
             procedure.save(update_fields=['status', 'version'])
 
-            # Notifier les pilotes (sauf celui qui publie)
+            # Notifier tous les collaborateurs actifs (sauf celui qui publie)
+            from apps.team.models import Collaborator as CollaboratorModel
             published_version = procedure.version - 1  # version qui vient d'être publiée
-            publisher = collaborator
+            all_collabs = CollaboratorModel.objects.filter(pharmacy=procedure.pharmacy, is_active=True)
             notif_bulk = [
                 ProcedureNotification(
-                    recipient=pilot,
+                    recipient=collab,
                     procedure=procedure,
                     version_number=published_version,
                 )
-                for pilot in procedure.pilots.all()
-                if pilot != publisher
+                for collab in all_collabs
+                if collab != collaborator
             ]
             ProcedureNotification.objects.bulk_create(notif_bulk)
 
@@ -150,6 +166,18 @@ class ProcedureViewSet(viewsets.ModelViewSet):
         # Promouvoir les sous-procédures en racine
         procedure.children.update(parent=None)
         return Response(ProcedureDetailSerializer(procedure, context={'request': request}).data)
+
+    @action(detail=True, methods=['post'], url_path='mark-read')
+    def mark_read(self, request, pk=None):
+        collaborator = _get_collaborator(request, request.user)
+        if not collaborator:
+            return Response(status=status.HTTP_204_NO_CONTENT)
+        ProcedureNotification.objects.filter(
+            procedure_id=pk,
+            recipient=collaborator,
+            is_read=False,
+        ).update(is_read=True)
+        return Response(status=status.HTTP_204_NO_CONTENT)
 
     @action(detail=True, methods=['post'])
     def unarchive(self, request, pk=None):

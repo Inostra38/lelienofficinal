@@ -101,6 +101,18 @@ class OVHService:
         )
         return all(c in gsm7 for c in text)
 
+    def send_raw(self, to: str, message: str) -> str:
+        """Appel OVH brut — retourne l'ID du message OVH (utilisé par la tâche Celery)."""
+        result = self.client.post(
+            f'/sms/{self.service_name}/jobs',
+            message=message,
+            receivers=[to],
+            senderForResponse=True,
+            noStopClause=False,
+        )
+        ids = result.get('ids', []) if isinstance(result, dict) else []
+        return ids[0] if ids else ''
+
     def send_sms(self, pharmacy, to: str, message: str,
                  template=None, recipient_civilite='', recipient_name='', motif=''):
         from apps.core.models import SMSLog

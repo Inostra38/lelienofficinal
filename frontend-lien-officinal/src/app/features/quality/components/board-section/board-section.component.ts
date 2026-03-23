@@ -6,6 +6,7 @@ import { Subscription } from 'rxjs';
 import { QualityService } from '../../services/quality.service';
 import { DragDropService } from '../../services/drag-drop.service';
 import { AuthService } from '../../../../core/auth/auth.service';
+import { ConfirmService } from '../../../../core/services/confirm.service';
 import { Procedure, ProcedureGroup, ProcedureStatus, ReorderPayload } from '../../models/procedure.model';
 
 type DropPos = 'before' | 'after';
@@ -20,6 +21,7 @@ export class BoardSectionComponent implements OnInit, OnDestroy {
   private qualityService = inject(QualityService);
   private dnd = inject(DragDropService);
   private authService = inject(AuthService);
+  private confirmService = inject(ConfirmService);
   private reloadSub?: Subscription;
 
   @Input() group: ProcedureGroup | null = null;
@@ -149,10 +151,10 @@ export class BoardSectionComponent implements OnInit, OnDestroy {
     this.isEditing = false;
   }
 
-  confirmDelete(event: Event) {
+  async confirmDelete(event: Event) {
     event.stopPropagation();
     if (!this.group) return;
-    if (!confirm(`Supprimer le tableau "${this.group.name}" ? Les procédures qu'il contient seront déplacées dans la bibliothèque générale.`)) return;
+    if (!await this.confirmService.ask({ title: 'Supprimer le tableau', message: `Supprimer le tableau "${this.group.name}" ? Les procédures qu'il contient seront déplacées dans la bibliothèque générale.`, danger: true })) return;
     this.qualityService.deleteGroup(this.group.id).subscribe({
       next: () => this.groupDeleted.emit(this.group!.id),
     });
@@ -311,9 +313,9 @@ export class BoardSectionComponent implements OnInit, OnDestroy {
     this.pendingPublishProc = null;
   }
 
-  archive(p: Procedure, event: Event) {
+  async archive(p: Procedure, event: Event) {
     event.stopPropagation(); event.preventDefault();
-    if (!confirm(`Archiver "${p.title}" ?\n\nElle n'apparaîtra plus dans le tableau principal. Vous pourrez la retrouver dans les archives.`)) return;
+    if (!await this.confirmService.ask({ title: 'Archiver la procédure', message: `Archiver "${p.title}" ? Elle n'apparaîtra plus dans le tableau principal.`, danger: true })) return;
     this.qualityService.archiveProcedure(p.id).subscribe({
       next: () => this.load(),
     });
@@ -321,9 +323,9 @@ export class BoardSectionComponent implements OnInit, OnDestroy {
 
   // ── Helpers ─────────────────────────────────────────────────────────────────
 
-  /** Version affichée : pour une proc active, la version publiée est version-1. */
+  /** Version affichée : dernière version publiée si connue, sinon version courante. */
   displayVersion(proc: Procedure): number {
-    return proc.status === 'active' ? proc.version - 1 : proc.version;
+    return proc.last_published_version ?? proc.version;
   }
 
   statusLabel(s: ProcedureStatus): string {

@@ -11,6 +11,7 @@ import {
   MemberCivility,
 } from '../../../../core/services/collaborator.service';
 import { AuthService } from '../../../../core/auth/auth.service';
+import { ConfirmService } from '../../../../core/services/confirm.service';
 
 interface TeamMember {
   id: string;
@@ -67,6 +68,7 @@ interface ColorOption {
 export class TeamManagementComponent implements OnInit {
   private collaboratorService = inject(CollaboratorService);
   private authService = inject(AuthService);
+  private confirmService = inject(ConfirmService);
 
   teamMembers: TeamMember[] = [];
   isLoading = false;
@@ -336,9 +338,9 @@ export class TeamManagementComponent implements OnInit {
 
   // ── Suppression ────────────────────────────────────────────────────────────
 
-  confirmDelete(member: TeamMember) {
+  async confirmDelete(member: TeamMember) {
     if (!this.canManageTeam) return;
-    if (!confirm(`Supprimer ${member.firstName} ${member.lastName} de l'équipe ?`)) return;
+    if (!await this.confirmService.ask({ title: 'Supprimer le collaborateur', message: `Supprimer ${member.firstName} ${member.lastName} de l'équipe ?`, danger: true })) return;
     this.isLoading = true;
     this.collaboratorService.deleteCollaborator(parseInt(member.id)).subscribe({
       next: () => { this.loadTeamMembers(); this.isLoading = false; },
@@ -440,9 +442,9 @@ export class TeamManagementComponent implements OnInit {
     });
   }
 
-  deleteContract(contractId: number) {
+  async deleteContract(contractId: number) {
     if (!this.selectedMemberForContracts) return;
-    if (!confirm('Supprimer ce contrat ?')) return;
+    if (!await this.confirmService.ask({ title: 'Supprimer le contrat', message: 'Supprimer ce contrat ?', danger: true })) return;
     this.collaboratorService.deleteContract(parseInt(this.selectedMemberForContracts.id), contractId).subscribe({
       next: () => this.loadContracts(this.selectedMemberForContracts!),
       error: (err) => { this.errorMessage = err.error?.detail || 'Erreur lors de la suppression'; }

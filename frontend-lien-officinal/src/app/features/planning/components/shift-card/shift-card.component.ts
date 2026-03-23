@@ -1,6 +1,7 @@
-import { Component, Input, Output, EventEmitter } from '@angular/core';
+import { Component, Input, Output, EventEmitter, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { Shift } from '../../../../core/services/planning.service';
+import { ConfirmService } from '../../../../core/services/confirm.service';
 
 @Component({
   selector: 'app-shift-card',
@@ -10,6 +11,8 @@ import { Shift } from '../../../../core/services/planning.service';
   styleUrl: './shift-card.component.css',
 })
 export class ShiftCardComponent {
+  private confirmService = inject(ConfirmService);
+
   @Input() shift!: Shift;
   @Input() isManager = false;
 
@@ -45,9 +48,9 @@ export class ShiftCardComponent {
     this.publish.emit(this.shift.id);
   }
 
-  onDelete(event: MouseEvent) {
+  async onDelete(event: MouseEvent) {
     event.stopPropagation();
-    if (confirm('Supprimer ce shift ?')) {
+    if (await this.confirmService.ask({ title: 'Supprimer le shift', message: 'Supprimer ce shift ?', danger: true })) {
       this.delete.emit(this.shift.id);
     }
   }

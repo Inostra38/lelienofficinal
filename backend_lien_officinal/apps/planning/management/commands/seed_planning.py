@@ -106,11 +106,17 @@ class Command(BaseCommand):
                 start_date__gte=date_from,
                 start_date__lte=date_to,
             ).delete()
+            PharmacyDayStatus.objects.filter(
+                pharmacy=pharmacy,
+                date__gte=date_from,
+                date__lte=date_to,
+            ).delete()
 
             self._seed_shifts(pharmacy, sophie, marc, julie, thomas, date_from, date_to)
             self._seed_absences(pharmacy, marc, julie, thomas, date_from, date_to)
             self._seed_adjustments(pharmacy, marc, julie, thomas, date_from, date_to)
             self._seed_day_statuses(pharmacy, date_from, date_to)
+            self._seed_sunday_gardes(pharmacy, marc, julie, date_from, date_to)
 
         self.stdout.write(self.style.SUCCESS(
             f"\n✅ Planning peuplé du {date_from} au {date_to}\n"
@@ -371,8 +377,6 @@ class Command(BaseCommand):
         cur = d_from
         while cur <= d_to:
             if cur in FERIES:
-                # 1er mai : toujours fermé
-                # Autres fériés : fermé (pas de garde configurée dans les données test)
                 _, ok = PharmacyDayStatus.objects.get_or_create(
                     pharmacy=pharmacy,
                     date=cur,
@@ -383,3 +387,59 @@ class Command(BaseCommand):
             cur += timedelta(1)
 
         self.stdout.write(f"  📆  {created} statuts jours fériés créés")
+
+    # ── Gardes dimanche ──────────────────────────────────────────────────────────
+
+    def _seed_sunday_gardes(self, pharmacy, marc, julie, d_from, d_to):
+        """
+        Quelques dimanches en garde de jour, avec shifts correspondants.
+        Horaires : 9h–12h (garde légère, 3h).
+        """
+        GARDES = [
+            # (date, collaborateur, garde_nuit?)
+            (date(2026, 4, 12), marc,  False),
+            (date(2026, 4, 26), marc,  True),   # garde nuit uniquement (pas de shift)
+            (date(2026, 5, 17), marc,  False),
+            (date(2026, 5, 31), julie, False),
+            (date(2026, 6,  7), marc,  False),
+            (date(2026, 6, 28), julie, False),
+        ]
+
+        shifts_created = 0
+        statuts_created = 0
+
+        for (d, collab, nuit_only) in GARDES:
+            if d < d_from or d > d_to:
+                continue
+
+            on_call_day   = not nuit_only
+            on_call_night = nuit_only
+
+            _, ok = PharmacyDayStatus.objects.get_or_create(
+                pharmacy=pharmacy,
+                date=d,
+                defaults={
+                    "status": "open",
+                    "on_call_day": on_call_day,
+                    "on_call_night": on_call_night,
+                },
+            )
+            if ok:
+                statuts_created += 1
+
+            # Shift uniquement pour les gardes de jour
+            if on_call_day:
+                _, created = Shift.objects.get_or_create(
+                    collaborator=collab,
+                    start_datetime=make_dt(d, 9, 0),
+                    defaults={
+                        "collaborator_snapshot": f"{collab.first_name} {collab.last_name}",
+                        "end_datetime": make_dt(d, 12, 0),
+                        "is_published": True,
+                        "contract_hours_snapshot": collab.weekly_hours,
+                    },
+                )
+                if created:
+                    shifts_created += 1
+
+        self.stdout.write(f"  🌞  {statuts_created} gardes dimanche + {shifts_created} shifts créés")

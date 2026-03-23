@@ -37,6 +37,7 @@ export interface Procedure {
   parent_id?: number | null;
   last_published_version?: number | null;
   next_review_date?: string | null;
+  is_unread?: boolean;
   group?: number | null;
   pilots?: { id: number; full_name: string; initials: string }[];
   created_by?: { id: number; full_name: string };

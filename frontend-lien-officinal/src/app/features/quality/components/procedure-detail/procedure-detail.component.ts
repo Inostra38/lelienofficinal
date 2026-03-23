@@ -5,7 +5,8 @@ import { ActivatedRoute, RouterLink } from '@angular/router';
 import { DomSanitizer, SafeHtml } from '@angular/platform-browser';
 import { QualityService } from '../../services/quality.service';
 import { AuthService } from '../../../../core/auth/auth.service';
-import { Procedure } from '../../models/procedure.model';
+import { ConfirmService } from '../../../../core/services/confirm.service';
+import { Procedure, ProcedureVersion } from '../../models/procedure.model';
 
 @Component({
   selector: 'app-procedure-detail',
@@ -18,6 +19,7 @@ export class ProcedureDetailComponent implements OnInit {
   private route = inject(ActivatedRoute);
   private qualityService = inject(QualityService);
   private authService = inject(AuthService);
+  private confirmService = inject(ConfirmService);
   private sanitizer = inject(DomSanitizer);
   private el = inject(ElementRef);
 
@@ -51,12 +53,21 @@ export class ProcedureDetailComponent implements OnInit {
     return this.procedure.history?.[0] ?? null;
   }
 
-  /** Contenu à afficher : version publiée si brouillon avec historique, sinon contenu courant. */
+  /** Contenu à afficher : version sélectionnée > version publiée (si brouillon) > contenu courant. */
   get displayContent(): string {
-    return this.publishedVersion?.content ?? this.procedure?.content ?? '';
+    return this.selectedVersion?.content ?? this.publishedVersion?.content ?? this.procedure?.content ?? '';
+  }
+
+  viewVersion(v: ProcedureVersion) {
+    this.selectedVersion = v;
+  }
+
+  resetVersion() {
+    this.selectedVersion = null;
   }
 
   procedure: Procedure | null = null;
+  selectedVersion: ProcedureVersion | null = null;
   loading = true;
   error = '';
   lightboxImage: string | null = null;
@@ -67,7 +78,11 @@ export class ProcedureDetailComponent implements OnInit {
   ngOnInit() {
     const id = +(this.route.snapshot.paramMap.get('id') || 0);
     this.qualityService.getProcedure(id).subscribe({
-      next: (p) => { this.procedure = p; this.loading = false; },
+      next: (p) => {
+        this.procedure = p;
+        this.loading = false;
+        this.qualityService.markProcedureRead(id).subscribe();
+      },
       error: () => { this.error = 'Procédure introuvable.'; this.loading = false; },
     });
   }
@@ -90,8 +105,9 @@ export class ProcedureDetailComponent implements OnInit {
     this.showPublishModal = false;
   }
 
-  archive() {
-    if (!this.procedure || !confirm('Archiver cette procédure ?')) return;
+  async archive() {
+    if (!this.procedure) return;
+    if (!await this.confirmService.ask({ title: 'Archiver la procédure', message: `Archiver cette procédure ? Elle n'apparaîtra plus dans le tableau principal.`, danger: true })) return;
     this.qualityService.archiveProcedure(this.procedure.id).subscribe({
       next: (p) => { this.procedure = p; },
     });

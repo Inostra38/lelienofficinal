@@ -5,10 +5,11 @@ import { RouterLink } from '@angular/router';
 import { Subject, Subscription, of } from 'rxjs';
 import { debounceTime, switchMap, takeUntil } from 'rxjs/operators';
 
-import { SmsService, SmsTemplate, SmsLog } from '../../core/services/sms.service';
+import { SmsService, SmsTemplate, SmsLog, SmsStatus } from '../../core/services/sms.service';
 import { PharmacyService, PharmacyData } from '../../core/services/pharmacy.service';
 import { CollaboratorService, Collaborator } from '../../core/services/collaborator.service';
 import { AuthService } from '../../core/auth/auth.service';
+import { ConfirmService } from '../../core/services/confirm.service';
 import { PinModalComponent } from '../messaging/components/pin-modal/pin-modal.component';
 
 const GSM7_CHARS =
@@ -29,6 +30,7 @@ export class SmsDashboardComponent implements OnInit, OnDestroy {
   private pharmacyService = inject(PharmacyService);
   private collaboratorService = inject(CollaboratorService);
   private authService = inject(AuthService);
+  private confirmService = inject(ConfirmService);
   private destroy$ = new Subject<void>();
   private subs = new Subscription();
   private patientChange$ = new Subject<void>();
@@ -341,14 +343,39 @@ export class SmsDashboardComponent implements OnInit, OnDestroy {
     }).subscribe({
       next: (res) => {
         this.sending = false;
-        this.successMessage = `SMS envoyé — ${res.credits_remaining} crédits restants`;
+        this.successMessage = `SMS en cours d'envoi — ${res.credits_remaining} crédits restants`;
         this.resetForm();
       },
       error: (err) => {
         this.sending = false;
-        this.errorMessage = err.error?.error || 'Erreur lors de l\'envoi';
+        const code = err.status;
+        if (code === 402) {
+          this.errorMessage = err.error?.error || 'Crédits insuffisants';
+        } else if (code === 429) {
+          this.errorMessage = 'Trop d\'envois — réessayez dans quelques minutes';
+        } else {
+          this.errorMessage = err.error?.error || 'Erreur lors de l\'envoi';
+        }
       }
     });
+  }
+
+  statusIcon(s: SmsStatus): string {
+    return ({
+      PENDING:   '⏳',
+      SUCCESS:   '✓',
+      DELIVERED: '✓✓',
+      FAILED:    '✗',
+    } as Record<SmsStatus, string>)[s] ?? '';
+  }
+
+  statusClass(s: SmsStatus): string {
+    return ({
+      PENDING:   'text-amber-500',
+      SUCCESS:   'text-green-600',
+      DELIVERED: 'text-green-700 font-semibold',
+      FAILED:    'text-red-600',
+    } as Record<SmsStatus, string>)[s] ?? '';
   }
 
   private resetForm() {
@@ -420,8 +447,8 @@ export class SmsDashboardComponent implements OnInit, OnDestroy {
     });
   }
 
-  deleteTemplate(t: SmsTemplate) {
-    if (!confirm(`Supprimer le template "${t.title}" ?`)) return;
+  async deleteTemplate(t: SmsTemplate) {
+    if (!await this.confirmService.ask({ title: 'Supprimer le template', message: `Supprimer le template "${t.title}" ?`, danger: true })) return;
     this.smsService.deleteTemplate(t.id).subscribe({
       next: () => this.loadTemplates(),
       error: () => {}

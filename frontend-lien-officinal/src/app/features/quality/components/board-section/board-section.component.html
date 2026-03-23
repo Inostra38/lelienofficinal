@@ -107,10 +107,13 @@
             <a [routerLink]="['/quality/procedures', root.id]"
                class="flex items-center gap-1.5 flex-1 min-w-0 hover:text-green-700 transition-colors"
                (click)="$event.stopPropagation()">
+              <span class="text-sm font-medium text-gray-800 truncate">{{ root.title }}</span>
               @if (root.status === 'draft') {
                 <span class="w-1.5 h-1.5 rounded-full bg-amber-400 flex-shrink-0" title="Révision en cours"></span>
               }
-              <span class="text-sm font-medium text-gray-800 truncate">{{ root.title }}</span>
+              @if (root.is_unread) {
+                <span class="w-1.5 h-1.5 rounded-full bg-green-500 flex-shrink-0" title="Nouvelle version publiée"></span>
+              }
               @if (root.reference) {
                 <span class="text-xs font-mono text-gray-400 flex-shrink-0">{{ root.reference }}</span>
               }
@@ -174,10 +177,13 @@
               <a [routerLink]="['/quality/procedures', child.id]"
                  class="flex items-center gap-1.5 flex-1 min-w-0 hover:text-green-700 transition-colors"
                  (click)="$event.stopPropagation()">
+                <span class="text-sm text-gray-700 truncate">{{ child.title }}</span>
                 @if (child.status === 'draft') {
                   <span class="w-1.5 h-1.5 rounded-full bg-amber-400 flex-shrink-0" title="Révision en cours"></span>
                 }
-                <span class="text-sm text-gray-700 truncate">{{ child.title }}</span>
+                @if (child.is_unread) {
+                  <span class="w-1.5 h-1.5 rounded-full bg-green-500 flex-shrink-0" title="Nouvelle version publiée"></span>
+                }
                 @if (child.reference) {
                   <span class="text-xs font-mono text-gray-400 flex-shrink-0">{{ child.reference }}</span>
                 }

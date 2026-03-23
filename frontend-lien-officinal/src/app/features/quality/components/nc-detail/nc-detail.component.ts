@@ -7,6 +7,7 @@ import { CollaboratorService, Collaborator } from '../../../../core/services/col
 import { NonConformity, CorrectiveAction } from '../../models/nonconformity.model';
 import { AuthService } from '../../../../core/auth/auth.service';
 import { AiService, CorrectiveActionSuggestion } from '../../../../core/services/ai.service';
+import { ConfirmService } from '../../../../core/services/confirm.service';
 import { DatePickerDirective } from '../../../../shared/directives/date-picker.directive';
 
 @Component({
@@ -22,6 +23,7 @@ export class NcDetailComponent implements OnInit {
   private authService = inject(AuthService);
   private fb = inject(FormBuilder);
   private aiService = inject(AiService);
+  private confirmService = inject(ConfirmService);
 
   nc: NonConformity | null = null;
   loading = true;
@@ -69,8 +71,9 @@ export class NcDetailComponent implements OnInit {
     });
   }
 
-  reopen() {
-    if (!this.nc || !confirm('Réouvrir cette non-conformité ?')) return;
+  async reopen() {
+    if (!this.nc) return;
+    if (!await this.confirmService.ask({ title: 'Réouvrir la non-conformité', message: `Confirmer la réouverture de cette non-conformité ?`, danger: false })) return;
     this.ncService.reopenNonConformity(this.nc.id).subscribe({
       next: (nc) => { this.nc = nc; },
     });

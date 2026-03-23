@@ -109,11 +109,34 @@
       </div>
     </div>
 
+    <!-- Zone de danger -->
+    <div class="border border-red-200 rounded-xl overflow-hidden">
+      <div class="px-6 py-4 bg-red-50 border-b border-red-200 flex items-center gap-3">
+        <svg class="w-5 h-5 text-red-500 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                d="M12 9v2m0 4h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/>
+        </svg>
+        <h3 class="text-sm font-bold text-red-800">Zone de danger</h3>
+      </div>
+      <div class="px-6 py-5 bg-white flex items-center justify-between gap-6">
+        <div>
+          <p class="text-sm font-medium text-gray-800">Supprimer le compte</p>
+          <p class="text-xs text-gray-500 mt-0.5">
+            Supprime définitivement la pharmacie, ses collaborateurs, ressources, messages et toutes les données associées.
+          </p>
+        </div>
+        <button type="button" (click)="showDeleteWarning = true"
+                class="flex-shrink-0 px-4 py-2 text-sm font-medium text-red-600 border border-red-300 rounded-lg hover:bg-red-50 transition-colors whitespace-nowrap">
+          Supprimer le compte
+        </button>
+      </div>
+    </div>
+
   }
 
 </div>
 
-<!-- Modale PIN -->
+<!-- Modale PIN (déverrouillage sécurité) -->
 @if (showPinGate) {
   <app-confirm-sensitive-action-modal
     actionLabel="Accès aux paramètres de sécurité"
@@ -122,5 +145,25 @@
     [errorMessage]="pinGateError"
     (confirmed)="onPinGateConfirmed($event)"
     (cancelled)="onPinGateCancelled()"
+  />
+}
+
+<!-- Modale avertissement suppression -->
+@if (showDeleteWarning) {
+  <app-delete-account-warning-modal
+    (confirmed)="onDeleteWarningConfirmed()"
+    (cancelled)="showDeleteWarning = false"
+  />
+}
+
+<!-- Modale confirmation mot de passe pour suppression -->
+@if (showDeleteConfirm) {
+  <app-confirm-sensitive-action-modal
+    actionLabel="Supprimer définitivement le compte"
+    confirmationType="password"
+    hint="Confirmez votre mot de passe pour supprimer définitivement le compte"
+    [errorMessage]="deleteError"
+    (confirmed)="deleteAccount($event)"
+    (cancelled)="showDeleteConfirm = false; deleteError = ''"
   />
 }

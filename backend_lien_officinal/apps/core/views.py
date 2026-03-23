@@ -1,3 +1,5 @@
+import logging
+
 from rest_framework import viewsets, status
 from rest_framework.decorators import action
 from rest_framework.response import Response
@@ -6,6 +8,8 @@ from rest_framework.throttling import UserRateThrottle
 from rest_framework.views import APIView
 from rest_framework_simplejwt.tokens import RefreshToken
 from rest_framework_simplejwt.exceptions import TokenError
+
+logger = logging.getLogger(__name__)
 from django.contrib.auth.password_validation import validate_password
 from django.core.exceptions import ValidationError
 from .models import Pharmacy
@@ -310,3 +314,69 @@ class AccountVerifySecurityAccessView(APIView):
             {"detail": "PIN incorrect ou droits insuffisants."},
             status=status.HTTP_403_FORBIDDEN
         )
+
+
+class AccountDeleteView(APIView):
+    """
+    DELETE /api/account/delete/
+    Supprime définitivement le compte pharmacie et toutes ses données (cascade complète).
+
+    Authentification acceptée :
+    - Session directe (pharmacie) → champ `password` requis dans le body
+    - Session collaborateur (PIN)  → champ `confirmation_pin` requis dans le body
+
+    Permission requise : can_manage_account (ou session directe pharmacie).
+    """
+    permission_classes = [IsAuthenticated]
+    throttle_classes = [PinVerifyThrottle]
+
+    def delete(self, request):
+        pharmacy = request.user
+        actor = _get_collaborator(request)
+
+        # Vérification de permission (collaborateur seulement — la session directe
+        # pharmacie a les droits implicites de titulaire)
+        err = _check_permission(actor, 'can_manage_account')
+        if err:
+            return err
+
+        # Validation de l'identité selon le type de session
+        if actor:
+            # Session collaborateur → PIN
+            err = _verify_sensitive_action(request, actor)
+            if err:
+                return err
+        else:
+            # Session directe pharmacie → mot de passe
+            password = request.data.get('password', '').strip()
+            if not password:
+                return Response(
+                    {"detail": "Le mot de passe est requis pour supprimer le compte."},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+            if not pharmacy.check_password(password):
+                return Response(
+                    {"detail": "Mot de passe incorrect."},
+                    status=status.HTTP_401_UNAUTHORIZED,
+                )
+
+        # Blacklister tous les tokens JWT actifs liés à cette pharmacie
+        try:
+            from rest_framework_simplejwt.token_blacklist.models import (
+                OutstandingToken, BlacklistedToken,
+            )
+            outstanding = OutstandingToken.objects.filter(user=pharmacy)
+            for token in outstanding:
+                BlacklistedToken.objects.get_or_create(token=token)
+        except Exception:
+            pass  # token_blacklist non configuré — on continue
+
+        logger.warning(
+            "ACCOUNT DELETION — pharmacy_id=%s email=%s nom=%s",
+            pharmacy.id, pharmacy.email, pharmacy.nom_officine,
+        )
+
+        # Suppression en cascade (voir audit Prompt 1 — aucun PROTECT bloquant)
+        pharmacy.delete()
+
+        return Response(status=status.HTTP_204_NO_CONTENT)

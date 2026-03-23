@@ -10,6 +10,7 @@ import {
   PharmacyDayStatus,
   OpeningHours,
 } from '../../../../core/services/planning.service';
+import { ConfirmService } from '../../../../core/services/confirm.service';
 import type { AdjustmentSummary } from '../../../../core/services/planning.service';
 import { ShiftFormComponent, ShiftFormCollab } from '../shift-form/shift-form.component';
 
@@ -32,6 +33,7 @@ export class WeekViewComponent implements OnChanges {
 
   private planningService = inject(PlanningService);
   private cdr             = inject(ChangeDetectorRef);
+  private confirmService  = inject(ConfirmService);
 
   // ── Cache pré-calculé (rebuil dans ngOnChanges) ───────────────────────────
 
@@ -267,8 +269,8 @@ export class WeekViewComponent implements OnChanges {
 
   // ── Actions manager ───────────────────────────────────────────────────────
 
-  deleteShift(shiftId: number) {
-    if (!confirm('Supprimer ce shift ?')) return;
+  async deleteShift(shiftId: number) {
+    if (!await this.confirmService.ask({ title: 'Supprimer le shift', message: 'Supprimer ce shift ?', danger: true })) return;
     this.planningService.deleteShift(shiftId).subscribe(() => this.shiftChanged.emit());
   }
 

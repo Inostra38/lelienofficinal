@@ -4,6 +4,7 @@ import { Router } from '@angular/router';
 import { interval, Subscription, switchMap } from 'rxjs';
 
 import { MessagingService, Conversation } from '../../core/services/messaging.service';
+import { ConfirmService } from '../../core/services/confirm.service';
 import { AuthService } from '../../core/auth/auth.service';
 import { CollaboratorService, Collaborator } from '../../core/services/collaborator.service';
 import { ConversationListComponent } from './components/conversation-list/conversation-list.component';
@@ -23,6 +24,7 @@ export class MessagingComponent implements OnInit, OnDestroy {
   private authService = inject(AuthService);
   private collaboratorService = inject(CollaboratorService);
   private router = inject(Router);
+  private confirmService = inject(ConfirmService);
 
   // ── État ────────────────────────────────────────────────────────────────
   conversations: Conversation[] = [];
@@ -186,8 +188,8 @@ export class MessagingComponent implements OnInit, OnDestroy {
     this.loadConversations();
   }
 
-  onDeleteConversation(conv: Conversation): void {
-    if (!confirm(`Supprimer définitivement le fil "${conv.subject}" et tous ses messages ?`)) return;
+  async onDeleteConversation(conv: Conversation): Promise<void> {
+    if (!await this.confirmService.ask({ title: 'Supprimer le fil', message: `Supprimer définitivement le fil "${conv.subject}" et tous ses messages ?`, danger: true })) return;
     this.conversations = this.conversations.filter(c => c.id !== conv.id);
     if (this.selectedConversation?.id === conv.id) this.selectedConversation = null;
     this.messagingService.deleteConversation(conv.id).subscribe({
@@ -195,8 +197,8 @@ export class MessagingComponent implements OnInit, OnDestroy {
     });
   }
 
-  onHideConversation(conv: Conversation): void {
-    if (!confirm(`Masquer le fil "${conv.subject}" ? Il réapparaîtra si quelqu'un écrit un nouveau message.`)) return;
+  async onHideConversation(conv: Conversation): Promise<void> {
+    if (!await this.confirmService.ask({ title: 'Masquer le fil', message: `Masquer le fil "${conv.subject}" ? Il réapparaîtra si quelqu'un écrit un nouveau message.`, danger: true })) return;
     this.conversations = this.conversations.filter(c => c.id !== conv.id);
     if (this.selectedConversation?.id === conv.id) this.selectedConversation = null;
     this.messagingService.hideConversation(conv.id).subscribe({

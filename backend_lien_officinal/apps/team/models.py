@@ -126,7 +126,7 @@ class ContractHistory(models.Model):
         TNS          = 'TNS',          'TNS'
 
     collaborator  = models.ForeignKey(
-        Collaborator, on_delete=models.CASCADE, related_name='contracts'
+        Collaborator, on_delete=models.SET_NULL, null=True, blank=True, related_name='contracts'
     )
     contract_type = models.CharField(max_length=20, choices=ContractType.choices)
     weekly_hours  = models.DecimalField(max_digits=4, decimal_places=1)

@@ -12,13 +12,15 @@ class SMSTemplateSerializer(serializers.ModelSerializer):
 class SMSLogSerializer(serializers.ModelSerializer):
     template_title = serializers.SerializerMethodField()
     sent_by_display = serializers.SerializerMethodField()
+    status_label = serializers.SerializerMethodField()
 
     class Meta:
         model = SMSLog
         fields = [
             'id', 'template_title', 'sent_by_display',
             'recipient_civilite', 'recipient_name',
-            'to_hash', 'status', 'credits_used', 'sent_at', 'error_message', 'motif',
+            'to_hash', 'status', 'status_label', 'ovh_message_id',
+            'credits_used', 'sent_at', 'error_message', 'motif',
         ]
         read_only_fields = fields
 
@@ -27,6 +29,9 @@ class SMSLogSerializer(serializers.ModelSerializer):
 
     def get_sent_by_display(self, obj):
         return obj.sent_by.nom_officine if obj.sent_by else 'Inconnu'
+
+    def get_status_label(self, obj):
+        return obj.get_status_display()
 
 
 class SMSPreviewSerializer(serializers.Serializer):

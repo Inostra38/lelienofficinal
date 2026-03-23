@@ -18,6 +18,8 @@ export interface SmsPreviewResponse {
   encoding: 'GSM-7' | 'Unicode';
 }
 
+export type SmsStatus = 'PENDING' | 'SUCCESS' | 'DELIVERED' | 'FAILED';
+
 export interface SmsLog {
   id: number;
   template_title: string;
@@ -25,11 +27,18 @@ export interface SmsLog {
   recipient_civilite: string;
   recipient_name: string;
   to_hash: string;
-  status: 'SUCCESS' | 'FAILED';
+  status: SmsStatus;
+  status_label: string;
+  ovh_message_id: string;
   credits_used: number;
   sent_at: string;
   error_message: string;
   motif: string;
+}
+
+export interface SmsSendResponse {
+  log_id: number;
+  credits_remaining: number;
 }
 
 @Injectable({ providedIn: 'root' })
@@ -72,10 +81,8 @@ export class SmsService {
     recipient_civilite?: string;
     recipient_name?: string;
     motif?: string;
-  }): Observable<{ success: boolean; credits_remaining: number }> {
-    return this.http.post<{ success: boolean; credits_remaining: number }>(
-      `${this.apiUrl}/send/`, payload
-    );
+  }): Observable<SmsSendResponse> {
+    return this.http.post<SmsSendResponse>(`${this.apiUrl}/send/`, payload);
   }
 
   // ── Logs ──────────────────────────────────────────────────────────────────
@@ -84,4 +91,9 @@ export class SmsService {
     return this.http.get<SmsLog[]>(`${this.apiUrl}/logs/`);
   }
 
+  // ── Crédits ───────────────────────────────────────────────────────────────
+
+  getCredits(): Observable<{ credits: number }> {
+    return this.http.get<{ credits: number }>(`${this.apiUrl}/credits/`);
+  }
 }

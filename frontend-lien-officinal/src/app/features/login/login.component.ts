@@ -20,6 +20,7 @@ export class LoginComponent {
   password = '';
   isLoading = false;
   errorMessage = '';
+  accountDeleted = this.route.snapshot.queryParams['deleted'] === 'true';
 
   onSubmit(event: Event) {
     event.preventDefault();

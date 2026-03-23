@@ -49,7 +49,7 @@
     <!-- Titre + version -->
     <div class="proc-title-row">
       <h1 class="proc-title">{{ procedure.title }}</h1>
-      <span class="proc-version">v{{ procedure.status === 'active' ? procedure.version - 1 : procedure.version }}</span>
+      <span class="proc-version">v{{ procedure.history?.[0]?.version_number ?? procedure.version }}</span>
     </div>
 
     <!-- Référence -->
@@ -146,8 +146,26 @@
 
     <hr class="proc-divider">
 
+      <!-- Bannière version sélectionnée dans l'historique -->
+      @if (selectedVersion) {
+        <div class="flex items-center justify-between gap-2 bg-blue-50 border border-blue-200 rounded-xl px-4 py-3 mb-4 text-sm text-blue-700">
+          <div class="flex items-center gap-2">
+            <svg class="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                    d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/>
+            </svg>
+            Prévisualisation de la version v{{ selectedVersion.version_number }}
+            ({{ selectedVersion.created_at | date:'dd/MM/yyyy' }})
+          </div>
+          <button (click)="resetVersion()"
+                  class="text-blue-600 hover:text-blue-800 font-medium underline underline-offset-2 text-xs whitespace-nowrap">
+            Retour à la version actuelle
+          </button>
+        </div>
+      }
+
       <!-- Bannière brouillon avec version publiée disponible -->
-      @if (publishedVersion) {
+      @if (!selectedVersion && publishedVersion) {
         <div class="flex items-center gap-2 bg-amber-50 border border-amber-200 rounded-xl px-4 py-3 mb-4 text-sm text-amber-700">
           <svg class="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
@@ -232,10 +250,18 @@
       @if (procedure.history && procedure.history.length > 0) {
         <div class="divide-y divide-gray-100">
           @for (version of procedure.history; track version.id) {
-            <div class="px-4 py-3 hover:bg-gray-50 transition-colors">
+            <button (click)="viewVersion(version)"
+                    class="w-full text-left px-4 py-3 transition-colors"
+                    [class.bg-blue-50]="selectedVersion?.id === version.id"
+                    [class.hover:bg-gray-50]="selectedVersion?.id !== version.id"
+                    [class.hover:bg-blue-100]="selectedVersion?.id === version.id">
               <div class="flex items-center justify-between mb-1">
                 <div class="flex items-center gap-2">
-                  <span class="px-1.5 py-0.5 rounded bg-gray-100 text-gray-600 text-xs font-bold font-mono">
+                  <span class="px-1.5 py-0.5 rounded text-xs font-bold font-mono"
+                        [class.bg-blue-200]="selectedVersion?.id === version.id"
+                        [class.text-blue-700]="selectedVersion?.id === version.id"
+                        [class.bg-gray-100]="selectedVersion?.id !== version.id"
+                        [class.text-gray-600]="selectedVersion?.id !== version.id">
                     v{{ version.version_number }}
                   </span>
                   <span class="text-sm font-medium text-gray-800">{{ version.created_by?.full_name || 'Système' }}</span>
@@ -247,7 +273,7 @@
               <p class="text-xs text-gray-500 leading-relaxed">
                 {{ version.change_summary || 'Aucun résumé fourni.' }}
               </p>
-            </div>
+            </button>
           }
         </div>
       } @else {

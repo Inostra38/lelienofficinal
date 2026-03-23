@@ -191,6 +191,7 @@ REST_FRAMEWORK = {
     'DEFAULT_THROTTLE_RATES': {
         'user': '1000/day',       # limite globale par défaut
         'messaging': '30/minute', # envoi de messages (REST fallback)
+        'sms_send': '200/hour',   # envoi SMS (les crédits sont le vrai limiteur)
     },
 }
 
@@ -237,3 +238,13 @@ OVH_APP_KEY = os.environ.get('OVH_APP_KEY', 'DUMMY_KEY')
 OVH_APP_SECRET = os.environ.get('OVH_APP_SECRET', 'DUMMY_SECRET')
 OVH_CONSUMER_KEY = os.environ.get('OVH_CONSUMER_KEY', 'DUMMY_CONSUMER')
 OVH_SMS_SERVICE = os.environ.get('OVH_SMS_SERVICE', 'sms-XXXX-1')
+
+# Clé secrète pour valider les webhooks OVH (accusés de réception)
+SMS_WEBHOOK_SECRET = os.environ.get('SMS_WEBHOOK_SECRET', '')
+
+# --- CELERY ---
+CELERY_BROKER_URL = os.environ.get('REDIS_URL', 'redis://localhost:6379/0')
+CELERY_RESULT_BACKEND = os.environ.get('REDIS_URL', 'redis://localhost:6379/0')
+CELERY_ACCEPT_CONTENT = ['json']
+CELERY_TASK_SERIALIZER = 'json'
+CELERY_TIMEZONE = 'Europe/Paris'

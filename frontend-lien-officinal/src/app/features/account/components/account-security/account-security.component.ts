@@ -2,20 +2,23 @@ import { Component, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { HttpClient, HttpHeaders } from '@angular/common/http';
+import { Router } from '@angular/router';
 import { AuthService } from '../../../../core/auth/auth.service';
 import { ConfirmSensitiveActionModalComponent } from '../../../../shared/ui/confirm-sensitive-action-modal/confirm-sensitive-action-modal.component';
+import { DeleteAccountWarningModalComponent } from '../delete-account-warning-modal/delete-account-warning-modal.component';
 import { environment } from '../../../../../environments/environment';
 
 @Component({
   selector: 'app-account-security',
   standalone: true,
-  imports: [CommonModule, FormsModule, ConfirmSensitiveActionModalComponent],
+  imports: [CommonModule, FormsModule, ConfirmSensitiveActionModalComponent, DeleteAccountWarningModalComponent],
   templateUrl: './account-security.component.html',
   styleUrl: './account-security.component.css'
 })
 export class AccountSecurityComponent {
   private http = inject(HttpClient);
   private authService = inject(AuthService);
+  private router = inject(Router);
 
   isUnlocked = false;
   showPinGate = false;
@@ -37,6 +40,12 @@ export class AccountSecurityComponent {
   emailError = '';
   emailSuccess = '';
   isChangingEmail = false;
+
+  // Suppression du compte
+  showDeleteWarning = false;
+  showDeleteConfirm = false;
+  deleteError = '';
+  isDeletingAccount = false;
 
   requestUnlock() {
     this.pinGateError = '';
@@ -117,6 +126,34 @@ export class AccountSecurityComponent {
           this.passwordError = errors?.detail || 'Erreur lors du changement de mot de passe.';
         }
       }
+    });
+  }
+
+  onDeleteWarningConfirmed() {
+    this.showDeleteWarning = false;
+    this.deleteError = '';
+    this.showDeleteConfirm = true;
+  }
+
+  deleteAccount(password: string) {
+    this.isDeletingAccount = true;
+    this.deleteError = '';
+    const token = localStorage.getItem('access_token');
+    this.http.delete(
+      `${environment.apiUrl}/api/account/delete/`,
+      {
+        body: { password },
+        headers: new HttpHeaders({ Authorization: `Bearer ${token ?? ''}` }),
+      }
+    ).subscribe({
+      next: () => {
+        this.authService.logout();
+        this.router.navigate(['/login'], { queryParams: { deleted: 'true' } });
+      },
+      error: (err) => {
+        this.isDeletingAccount = false;
+        this.deleteError = err.error?.detail || 'Erreur lors de la suppression du compte.';
+      },
     });
   }
 

@@ -135,8 +135,10 @@ class SMSTemplate(models.Model):
 
 class SMSLog(models.Model):
     class Status(models.TextChoices):
-        SUCCESS = 'SUCCESS', 'SUCCESS'
-        FAILED = 'FAILED', 'FAILED'
+        PENDING   = 'PENDING',   "En cours d'envoi"
+        SUCCESS   = 'SUCCESS',   'Envoyé'      # rétrocompat données existantes
+        DELIVERED = 'DELIVERED', 'Livré'
+        FAILED    = 'FAILED',    'Échec'
 
     pharmacy = models.ForeignKey(
         'Pharmacy', on_delete=models.CASCADE, related_name='sms_logs'
@@ -151,7 +153,8 @@ class SMSLog(models.Model):
     recipient_civilite = models.CharField(max_length=3, blank=True)
     recipient_name = models.CharField(max_length=200, blank=True)
     motif = models.CharField(max_length=255, blank=True, default='')
-    status = models.CharField(max_length=10, choices=Status.choices)
+    status = models.CharField(max_length=10, choices=Status.choices, default=Status.PENDING)
+    ovh_message_id = models.CharField(max_length=100, blank=True, default='')
     credits_used = models.PositiveIntegerField(default=0)
     sent_at = models.DateTimeField(auto_now_add=True)
     error_message = models.TextField(blank=True, default='')

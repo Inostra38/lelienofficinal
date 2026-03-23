@@ -4,6 +4,7 @@ import { FormsModule } from '@angular/forms';
 
 import { PharmacyService } from '../../core/services/pharmacy.service';
 import { ToastService } from '../../core/services/toast.service';
+import { ConfirmService } from '../../core/services/confirm.service';
 import { DashboardApiService } from './services/dashboard-api.service';
 import { DashboardDisplayService } from './services/dashboard-display.service';
 
@@ -66,6 +67,7 @@ export class DashboardComponent implements OnInit {
   private display = inject(DashboardDisplayService);
   private pharmacyService = inject(PharmacyService);
   private toast = inject(ToastService);
+  private confirmService = inject(ConfirmService);
 
   // Données
   allCategories: Category[] = [];
@@ -178,12 +180,12 @@ export class DashboardComponent implements OnInit {
     });
   }
 
-  deleteCategory(category: Category) {
+  async deleteCategory(category: Category) {
     const count = category.cards?.length || 0;
     const msg = count > 0
       ? `Supprimer "${category.nom}" et ses ${count} carte(s) ?`
       : `Supprimer la catégorie "${category.nom}" ?`;
-    if (!confirm(msg)) return;
+    if (!await this.confirmService.ask({ title: 'Supprimer la catégorie', message: msg, danger: true })) return;
 
     const idx = this.allCategories.findIndex(c => c.id === category.id);
     if (idx >= 0) this.allCategories.splice(idx, 1);
@@ -284,12 +286,12 @@ export class DashboardComponent implements OnInit {
     });
   }
 
-  hideOrDeleteCard(card: ResourceCard, event: Event) {
+  async hideOrDeleteCard(card: ResourceCard, event: Event) {
     event.stopPropagation();
     if (card.type === 'PRIVATE') {
-      if (!confirm(`Supprimer définitivement la carte "${card.titre}" ?`)) return;
+      if (!await this.confirmService.ask({ title: 'Supprimer la carte', message: `Supprimer définitivement la carte "${card.titre}" ?`, danger: true })) return;
     } else {
-      if (!confirm(`Masquer la carte "${card.titre}" de votre tableau de bord ?`)) return;
+      if (!await this.confirmService.ask({ title: 'Masquer la carte', message: `Masquer la carte "${card.titre}" de votre tableau de bord ?`, danger: true })) return;
     }
 
     this._removeCardFromAll(card.id);

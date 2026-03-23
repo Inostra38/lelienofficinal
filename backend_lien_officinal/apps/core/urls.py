@@ -4,9 +4,9 @@ from .views import (
     PharmacyViewSet, RegisterView, ProfileSetupView, CompleteOnboardingView,
     ChangePasswordView, ChangeEmailView,
     AccountChangePasswordView, AccountChangeEmailView,
-    AccountVerifySecurityAccessView,
+    AccountVerifySecurityAccessView, AccountDeleteView,
 )
-from .views_sms import SMSTemplateViewSet, SMSLogViewSet, SMSPreviewView, SMSSendView
+from .views_sms import SMSTemplateViewSet, SMSLogViewSet, SMSPreviewView, SMSSendView, SMSWebhookView, SMSCreditsView
 
 router = DefaultRouter()
 router.register(r'pharmacy', PharmacyViewSet, basename='pharmacy')
@@ -23,7 +23,10 @@ urlpatterns = [
     path('account/change-password/', AccountChangePasswordView.as_view(), name='account-change-password'),
     path('account/change-email/', AccountChangeEmailView.as_view(), name='account-change-email'),
     path('account/verify-security-access/', AccountVerifySecurityAccessView.as_view(), name='account-verify-security-access'),
+    path('account/delete/', AccountDeleteView.as_view(), name='account-delete'),
     path('sms/preview/', SMSPreviewView.as_view(), name='sms-preview'),
     path('sms/send/', SMSSendView.as_view(), name='sms-send'),
+    path('sms/webhook/', SMSWebhookView.as_view(), name='sms-webhook'),
+    path('sms/credits/', SMSCreditsView.as_view(), name='sms-credits'),
     path('', include(router.urls)),
 ]

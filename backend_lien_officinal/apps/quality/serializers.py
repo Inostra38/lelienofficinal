@@ -70,7 +70,7 @@ class ProcedureVersionSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = ProcedureVersion
-        fields = ['id', 'version_number', 'change_summary', 'created_by', 'created_at']
+        fields = ['id', 'version_number', 'content', 'change_summary', 'created_by', 'created_at']
 
     def get_created_by(self, obj):
         return _collab_repr(obj.created_by)
@@ -100,6 +100,7 @@ class ProcedureListSerializer(serializers.ModelSerializer):
     group = serializers.PrimaryKeyRelatedField(read_only=True)
     group_name = serializers.SerializerMethodField()
     last_published_version = serializers.IntegerField(read_only=True, allow_null=True)
+    is_unread = serializers.BooleanField(read_only=True)
 
     class Meta:
         model = Procedure
@@ -107,6 +108,7 @@ class ProcedureListSerializer(serializers.ModelSerializer):
             'id', 'title', 'reference', 'categories', 'status',
             'version', 'position', 'parent_id', 'group', 'group_name', 'pilots',
             'updated_at', 'archived_at', 'archived_by', 'last_published_version', 'next_review_date',
+            'is_unread',
         ]
 
     def get_pilots(self, obj):

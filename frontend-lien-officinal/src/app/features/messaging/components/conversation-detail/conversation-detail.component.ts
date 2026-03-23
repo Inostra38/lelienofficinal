@@ -8,6 +8,7 @@ import { FormsModule } from '@angular/forms';
 import { Subject, takeUntil } from 'rxjs';
 
 import { MessagingService, Conversation, Message, CollaboratorMinimal } from '../../../../core/services/messaging.service';
+import { ConfirmService } from '../../../../core/services/confirm.service';
 
 @Component({
   selector: 'app-conversation-detail',
@@ -24,6 +25,7 @@ export class ConversationDetailComponent implements OnChanges, OnDestroy {
   @ViewChild('messagesEnd') messagesEnd!: ElementRef;
 
   private messagingService = inject(MessagingService);
+  private confirmService = inject(ConfirmService);
   private destroy$ = new Subject<void>();
 
   // ── État ────────────────────────────────────────────────────────────────
@@ -122,15 +124,15 @@ export class ConversationDetailComponent implements OnChanges, OnDestroy {
 
   // ── Suppression du fil ───────────────────────────────────────────────────
 
-  deleteConversation(): void {
-    if (!confirm(`Supprimer définitivement le fil "${this.conversation.subject}" et tous ses messages ?`)) return;
+  async deleteConversation(): Promise<void> {
+    if (!await this.confirmService.ask({ title: 'Supprimer le fil', message: `Supprimer définitivement le fil "${this.conversation.subject}" et tous ses messages ?`, danger: true })) return;
     this.messagingService.deleteConversation(this.conversation.id).subscribe({
       next: () => this.deleted.emit()
     });
   }
 
-  hideConversation(): void {
-    if (!confirm(`Masquer le fil "${this.conversation.subject}" ? Il réapparaîtra si quelqu'un écrit un nouveau message.`)) return;
+  async hideConversation(): Promise<void> {
+    if (!await this.confirmService.ask({ title: 'Masquer le fil', message: `Masquer le fil "${this.conversation.subject}" ? Il réapparaîtra si quelqu'un écrit un nouveau message.`, danger: true })) return;
     this.messagingService.hideConversation(this.conversation.id).subscribe({
       next: () => this.deleted.emit()
     });

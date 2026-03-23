@@ -9,6 +9,15 @@
       <p class="text-gray-500 text-sm">Connexion à votre espace pharmacie</p>
     </div>
 
+    @if (accountDeleted) {
+      <div class="mb-6 bg-gray-50 border border-gray-200 text-gray-600 text-sm px-4 py-3 rounded-lg flex items-center gap-2">
+        <svg class="w-4 h-4 flex-shrink-0 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/>
+        </svg>
+        Votre compte a été supprimé définitivement.
+      </div>
+    }
+
     <form (submit)="onSubmit($event)" class="space-y-6">
       
       <div>
