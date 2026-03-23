@@ -387,3 +387,31 @@ class AccountDeleteView(APIView):
         pharmacy.delete()
 
         return Response(status=status.HTTP_204_NO_CONTENT)
+
+
+# ── Health-check ──────────────────────────────────────────────────────────────
+
+from django.http import JsonResponse
+from django.db import connection as db_connection
+
+
+def health_check(request):
+    """
+    GET /api/health/ — Pas d'authentification requise.
+    Vérifie la connexion DB avant de répondre.
+    """
+    try:
+        db_connection.ensure_connection()
+        db_status = "ok"
+    except Exception:
+        db_status = "error"
+
+    status_code = 200 if db_status == "ok" else 503
+    return JsonResponse(
+        {
+            "status": "ok" if db_status == "ok" else "degraded",
+            "db": db_status,
+            "version": "1.0.0",
+        },
+        status=status_code,
+    )
