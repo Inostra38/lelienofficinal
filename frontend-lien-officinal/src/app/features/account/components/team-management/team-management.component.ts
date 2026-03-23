@@ -12,6 +12,7 @@ import {
 } from '../../../../core/services/collaborator.service';
 import { AuthService } from '../../../../core/auth/auth.service';
 import { ConfirmService } from '../../../../core/services/confirm.service';
+import { COLLABORATOR_COLOR_PALETTE } from '../../../../core/utils/collaborator-colors';
 
 interface TeamMember {
   id: string;
@@ -53,9 +54,8 @@ interface MemberFormData {
 }
 
 interface ColorOption {
-  value: string;
+  hex: string;
   label: string;
-  bgClass: string;
 }
 
 @Component({
@@ -88,28 +88,7 @@ export class TeamManagementComponent implements OnInit {
     { value: 'Autre', label: 'Autre' }
   ];
 
-  colors: ColorOption[] = [
-    { value: 'blue', label: 'Bleu', bgClass: 'bg-blue-500' },
-    { value: 'indigo', label: 'Indigo', bgClass: 'bg-indigo-500' },
-    { value: 'purple', label: 'Violet', bgClass: 'bg-purple-500' },
-    { value: 'pink', label: 'Rose', bgClass: 'bg-pink-500' },
-    { value: 'red', label: 'Rouge', bgClass: 'bg-red-500' },
-    { value: 'orange', label: 'Orange', bgClass: 'bg-orange-500' },
-    { value: 'amber', label: 'Ambre', bgClass: 'bg-amber-500' },
-    { value: 'yellow', label: 'Jaune', bgClass: 'bg-yellow-500' },
-    { value: 'lime', label: 'Citron', bgClass: 'bg-lime-500' },
-    { value: 'green', label: 'Vert', bgClass: 'bg-green-500' },
-    { value: 'emerald', label: 'Émeraude', bgClass: 'bg-emerald-500' },
-    { value: 'teal', label: 'Sarcelle', bgClass: 'bg-teal-500' },
-    { value: 'cyan', label: 'Cyan', bgClass: 'bg-cyan-500' },
-    { value: 'sky', label: 'Ciel', bgClass: 'bg-sky-500' },
-    { value: 'violet', label: 'Violette', bgClass: 'bg-violet-500' },
-    { value: 'fuchsia', label: 'Fuchsia', bgClass: 'bg-fuchsia-500' },
-    { value: 'rose', label: 'Rose pâle', bgClass: 'bg-rose-500' },
-    { value: 'slate', label: 'Ardoise', bgClass: 'bg-slate-500' },
-    { value: 'gray', label: 'Gris', bgClass: 'bg-gray-500' },
-    { value: 'stone', label: 'Pierre', bgClass: 'bg-stone-500' }
-  ];
+  colors: ColorOption[] = COLLABORATOR_COLOR_PALETTE;
 
   // Modal ajouter/modifier
   showModal = false;
@@ -264,7 +243,7 @@ export class TeamManagementComponent implements OnInit {
       lastName: '',
       role: 'Préparateur',
       pin: '',
-      color: 'blue',
+      color: '#3b82f6',
       email: '',
       can_manage_account: false,
       can_manage_team: false,
@@ -392,12 +371,8 @@ export class TeamManagementComponent implements OnInit {
       || member.can_close_nonconformities || member.can_assign_task;
   }
 
-  getColorClass(color: string): string {
-    return `bg-${color}-500`;
-  }
-
   getColorOption(colorValue: string): ColorOption | undefined {
-    return this.colors.find(c => c.value === colorValue);
+    return this.colors.find(c => c.hex === colorValue);
   }
 
   // ── Contrats ───────────────────────────────────────────────────────────────

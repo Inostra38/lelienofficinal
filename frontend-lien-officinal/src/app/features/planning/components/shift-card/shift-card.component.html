@@ -1,10 +1,14 @@
 <div class="shift-card group/card rounded-lg border px-2 py-1.5 cursor-default select-none transition-shadow"
-     [ngClass]="cardClasses">
+     [class.bg-white]="isDraft"
+     [class.border-dashed]="isDraft"
+     [class.border-gray-300]="isDraft"
+     [class.text-gray-500]="isDraft"
+     [ngStyle]="cardStyle">
 
   <!-- Ligne principale : heure + durée -->
   <div class="flex items-center justify-between gap-1">
     <div class="flex items-center gap-1.5">
-      <span class="w-1.5 h-1.5 rounded-full flex-shrink-0" [ngClass]="dotClass"></span>
+      <span class="w-1.5 h-1.5 rounded-full flex-shrink-0" [style.background-color]="dotColor"></span>
       <span class="text-xs font-bold tabular-nums">
         {{ formatTime(shift.start_datetime) }}–{{ formatTime(shift.end_datetime) }}
       </span>

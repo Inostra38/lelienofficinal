@@ -1,5 +1,6 @@
 import { Component, Input, Output, EventEmitter, inject, HostListener, OnChanges, SimpleChanges } from '@angular/core';
 import { CommonModule } from '@angular/common';
+import { resolveColor } from '../../../../core/utils/collaborator-colors';
 import {
   WeekResponse,
   Shift,
@@ -268,8 +269,9 @@ export class MonthViewComponent implements OnChanges {
     return dots;
   }
 
-  getBgClass(color: string): string {
-    return `bg-${color}-400`;
+  getAbsenceStyle(color: string): Record<string, string> {
+    const c = resolveColor(color);
+    return { 'background-color': c.light, 'color': c.text };
   }
 
   /** Badges J / N / F(fermé) / F(férié) dans la cellule */

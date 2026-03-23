@@ -70,7 +70,4 @@ export class ConversationListComponent implements OnChanges {
     return fullName.split(' ').map(p => p[0]).join('').toUpperCase().slice(0, 2);
   }
 
-  getColorClass(color: string): string {
-    return `bg-${color || 'gray'}-500`;
-  }
 }

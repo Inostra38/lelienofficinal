@@ -84,9 +84,6 @@ export class TaskCreateDialogComponent implements OnInit {
     });
   }
 
-  getBgClass(color: string): string {
-    return `bg-${color}-500`;
-  }
 
   getInitials(c: Collaborator): string {
     return `${c.first_name.charAt(0)}${c.last_name.charAt(0)}`.toUpperCase();

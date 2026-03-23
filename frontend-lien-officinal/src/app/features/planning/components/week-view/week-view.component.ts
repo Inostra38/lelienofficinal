@@ -1,5 +1,5 @@
 import { Component, Input, Output, EventEmitter, inject, OnChanges, SimpleChanges, ChangeDetectionStrategy, ChangeDetectorRef } from '@angular/core';
-import { COLLABORATOR_COLORS } from '../../../../core/utils/collaborator-colors';
+import { resolveColor } from '../../../../core/utils/collaborator-colors';
 import { CommonModule } from '@angular/common';
 import { CdkDragDrop } from '@angular/cdk/drag-drop';
 import {
@@ -309,10 +309,6 @@ export class WeekViewComponent implements OnChanges {
 
   // ── Helpers ───────────────────────────────────────────────────────────────
 
-  getBgClass(color: string): string {
-    return `bg-${color}-500`;
-  }
-
   getInitials(summary: CollaboratorWeekSummary): string {
     const parts = summary.full_name.split(' ');
     return parts.map(p => p.charAt(0)).join('').substring(0, 2).toUpperCase();
@@ -343,7 +339,7 @@ export class WeekViewComponent implements OnChanges {
   // ── Timeline — couleurs collaborateurs ────────────────────────────────────
 
   getShiftBg(color: string, published: boolean, absent = false): string {
-    const c    = COLLABORATOR_COLORS[color] ?? COLLABORATOR_COLORS['gray'];
+    const c    = resolveColor(color);
     const base = published ? c.base : c.light;
     if (!absent) return base;
     const stripe = published ? 'rgba(255,255,255,0.28)' : 'rgba(0,0,0,0.10)';
@@ -351,12 +347,11 @@ export class WeekViewComponent implements OnChanges {
   }
 
   getShiftText(color: string, published: boolean): string {
-    const c = COLLABORATOR_COLORS[color] ?? COLLABORATOR_COLORS['gray'];
-    return published ? '#ffffff' : c.text;
+    return published ? '#ffffff' : resolveColor(color).text;
   }
 
   getShiftBorderColor(color: string): string {
-    return (COLLABORATOR_COLORS[color] ?? COLLABORATOR_COLORS['gray']).base;
+    return resolveColor(color).base;
   }
 
   // ── Timeline ──────────────────────────────────────────────────────────────

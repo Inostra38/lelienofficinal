@@ -163,7 +163,4 @@ export class AbsenceModalComponent implements OnInit {
     return `${collab.first_name.charAt(0)}${collab.last_name.charAt(0)}`.toUpperCase();
   }
 
-  getBgClass(color: string): string {
-    return `bg-${color}-500`;
-  }
 }

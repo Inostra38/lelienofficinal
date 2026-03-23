@@ -160,9 +160,6 @@ export class ConversationDetailComponent implements OnChanges, OnDestroy {
     return this.conversation.participants.map(p => p.first_name).join(', ');
   }
 
-  getColorClass(color: string): string {
-    return `bg-${color || 'gray'}-500`;
-  }
 
   getRoleBadgeClass(role: string): string {
     switch (role) {

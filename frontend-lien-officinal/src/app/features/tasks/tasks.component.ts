@@ -192,9 +192,6 @@ export class TasksComponent implements OnInit, OnDestroy {
     return `${collab.first_name.charAt(0)}${collab.last_name.charAt(0)}`.toUpperCase();
   }
 
-  getBgClass(color: string): string {
-    return `bg-${color}-500`;
-  }
 
   onDrop(event: CdkDragDrop<Task[]>, group: 'personal' | 'assigned_to_me' | 'assigned_by_me') {
     if (event.previousIndex === event.currentIndex) return;

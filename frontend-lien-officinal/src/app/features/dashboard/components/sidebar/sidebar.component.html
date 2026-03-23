@@ -101,7 +101,7 @@
         </button>
         <div class="w-px h-8 bg-gray-100"></div>
         <div class="w-9 h-9 rounded-full text-white flex items-center justify-center font-bold text-xs shadow-sm tracking-widest uppercase shrink-0"
-             [ngClass]="getCollaboratorBgClass(activeCollaborator.color)">
+             [style.background-color]="activeCollaborator.color">
           {{ activeCollaborator.first_name.charAt(0) }}{{ activeCollaborator.last_name.charAt(0) }}
         </div>
         <div class="overflow-hidden flex-1 min-w-0">
@@ -117,7 +117,7 @@
     <div *ngIf="activeCollaborator && isCollapsed" class="flex justify-center mb-2">
       <button (click)="logout.emit()"
               class="w-9 h-9 rounded-full text-white flex items-center justify-center font-bold text-xs relative"
-              [ngClass]="getCollaboratorBgClass(activeCollaborator.color)"
+              [style.background-color]="activeCollaborator.color"
               [title]="activeCollaborator.first_name + ' — Fermer la session'">
         {{ activeCollaborator.first_name.charAt(0) }}{{ activeCollaborator.last_name.charAt(0) }}
         <span class="absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 bg-green-500 rounded-full border-2 border-white"></span>
@@ -130,8 +130,9 @@
       <div class="grid grid-cols-4 gap-2">
         <button *ngFor="let collab of team"
                 (click)="sessionClick.emit(collab)"
-                class="aspect-square rounded-xl hover:shadow-md transition-all active:scale-95 flex items-center justify-center group relative"
-                [ngClass]="getCollaboratorColorClasses(collab.color)">
+                class="aspect-square rounded-xl hover:shadow-md transition-all active:scale-95 flex items-center justify-center group relative border-2"
+                [style.background-color]="collab.color"
+                [style.border-color]="collab.color">
           <span class="text-xs font-bold uppercase tracking-tight text-white">
             {{ collab.first_name.charAt(0) }}{{ collab.last_name.charAt(0) }}
           </span>

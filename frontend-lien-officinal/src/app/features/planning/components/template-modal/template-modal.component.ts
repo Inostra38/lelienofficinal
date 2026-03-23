@@ -10,6 +10,7 @@ import {
   PlanningSettings,
   OpeningHours,
 } from '../../../../core/services/planning.service';
+import { resolveColor } from '../../../../core/utils/collaborator-colors';
 import { CollaboratorService, Collaborator } from '../../../../core/services/collaborator.service';
 import { ConfirmService } from '../../../../core/services/confirm.service';
 import { ConstraintManagerComponent } from '../constraint-manager/constraint-manager.component';
@@ -86,19 +87,6 @@ export class TemplateModalComponent implements OnInit {
   readonly dayEndHour   = 24;
   readonly totalHours   = 24;
 
-  private readonly colorPalette: Record<string, { base: string; light: string; text: string }> = {
-    green:  { base: '#15803d', light: '#dcfce7', text: '#14532d' },
-    blue:   { base: '#1d4ed8', light: '#dbeafe', text: '#1e3a8a' },
-    purple: { base: '#7c3aed', light: '#ede9fe', text: '#4c1d95' },
-    red:    { base: '#b91c1c', light: '#fee2e2', text: '#7f1d1d' },
-    orange: { base: '#c2410c', light: '#ffedd5', text: '#7c2d12' },
-    yellow: { base: '#a16207', light: '#fef9c3', text: '#713f12' },
-    pink:   { base: '#be185d', light: '#fce7f3', text: '#831843' },
-    indigo: { base: '#4338ca', light: '#e0e7ff', text: '#312e81' },
-    teal:   { base: '#0f766e', light: '#ccfbf1', text: '#134e4a' },
-    cyan:   { base: '#0e7490', light: '#cffafe', text: '#164e63' },
-    gray:   { base: '#4b5563', light: '#f3f4f6', text: '#1f2937' },
-  };
 
   // ── Lifecycle ─────────────────────────────────────────────────────────────
 
@@ -193,7 +181,7 @@ export class TemplateModalComponent implements OnInit {
   }
 
   getColor(color: string): { base: string; light: string; text: string } {
-    return this.colorPalette[color] ?? this.colorPalette['gray'];
+    return resolveColor(color);
   }
 
   // ── Ajout / édition shift template ───────────────────────────────────────

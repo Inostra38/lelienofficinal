@@ -222,7 +222,4 @@ export class MessagingComponent implements OnInit, OnDestroy {
     return `${collab.first_name[0]}${collab.last_name[0]}`.toUpperCase();
   }
 
-  getCollaboratorBgClass(color: string): string {
-    return `bg-${color}-500`;
-  }
 }

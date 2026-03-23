@@ -12,7 +12,7 @@
                 class="flex flex-col items-center gap-2 p-3 rounded-xl border border-gray-100 hover:border-green-300 hover:bg-green-50 transition-all group">
           <div class="relative">
             <div class="w-10 h-10 rounded-full text-white flex items-center justify-center font-bold text-sm"
-                 [ngClass]="getBgClass(collab.color)">
+                 [style.background-color]="collab.color">
               {{ getInitials(collab) }}
             </div>
             <!-- Badge manager -->
@@ -314,7 +314,7 @@
       @if (activeCollaborator) {
       <div class="flex items-center gap-1.5 ml-1 pl-2 border-l border-gray-200 shrink-0">
         <div class="w-6 h-6 rounded-full text-white text-[11px] font-bold flex items-center justify-center shrink-0"
-             [ngClass]="getBgClass(activeCollaborator.color)">
+             [style.background-color]="activeCollaborator.color">
           {{ getInitials(activeCollaborator) }}
         </div>
         <span class="text-xs text-gray-700 font-medium">{{ activeCollaborator.first_name }}</span>
@@ -349,7 +349,7 @@
               class="collab-pill"
               [class.collab-pill--active]="isCollaboratorSelected(c.id!)">
         <div class="collab-pill-avatar"
-             [ngClass]="getBgClass(c.color)">
+             [style.background-color]="c.color">
           {{ getInitials(c) }}
         </div>
         <span>{{ c.first_name }}</span>
@@ -375,7 +375,7 @@
                   [class.text-blue-700]="isCollaboratorSelected(c.id!)"
                   [class.font-semibold]="isCollaboratorSelected(c.id!)">
             <div class="w-5 h-5 rounded-full text-white text-[10px] font-bold flex items-center justify-center shrink-0"
-                 [ngClass]="getBgClass(c.color)">
+                 [style.background-color]="c.color">
               {{ getInitials(c) }}
             </div>
             {{ c.first_name }} {{ c.last_name }}

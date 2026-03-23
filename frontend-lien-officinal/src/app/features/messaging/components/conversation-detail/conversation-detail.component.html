@@ -55,7 +55,7 @@
 
           <!-- Avatar expéditeur -->
           <div class="w-7 h-7 rounded-full text-white flex items-center justify-center text-[10px] font-bold shrink-0 mb-4"
-               [ngClass]="getColorClass(msg.sender.color)">
+               [style.background-color]="msg.sender.color">
             {{ getInitials(msg.sender) }}
           </div>
 

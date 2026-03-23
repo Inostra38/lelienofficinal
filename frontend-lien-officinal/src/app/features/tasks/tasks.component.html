@@ -11,7 +11,7 @@
             <button (click)="selectCollaborator(collab)"
                     class="flex flex-col items-center gap-2 p-3 rounded-xl border border-gray-100 hover:border-green-300 hover:bg-green-50 transition-all">
               <div class="w-10 h-10 rounded-full text-white flex items-center justify-center font-bold text-sm"
-                   [ngClass]="getBgClass(collab.color)">
+                   [style.background-color]="collab.color">
                 {{ getInitials(collab) }}
               </div>
               <span class="text-xs text-gray-600 font-medium text-center leading-tight">{{ collab.first_name }}</span>
@@ -30,7 +30,7 @@
 
       @if (activeCollaborator) {
         <div class="w-8 h-8 rounded-full text-white flex items-center justify-center text-xs font-bold shrink-0"
-             [ngClass]="getBgClass(activeCollaborator.color)">
+             [style.background-color]="activeCollaborator.color">
           {{ getInitials(activeCollaborator) }}
         </div>
         <div class="flex flex-col leading-tight">

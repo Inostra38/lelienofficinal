@@ -25,7 +25,7 @@
     <div class="flex items-center gap-1 shrink-0">
       @if (task.created_by) {
         <div class="w-5 h-5 rounded-full text-white flex items-center justify-center text-[9px] font-bold"
-             [ngClass]="getBgClass(task.created_by.color)"
+             [style.background-color]="task.created_by.color"
              [title]="task.created_by.first_name + ' ' + task.created_by.last_name">
           {{ getInitials(task.created_by) }}
         </div>
@@ -33,7 +33,7 @@
       <span class="text-gray-300 text-xs">→</span>
       @if (task.assigned_to) {
         <div class="w-5 h-5 rounded-full text-white flex items-center justify-center text-[9px] font-bold"
-             [ngClass]="getBgClass(task.assigned_to.color)"
+             [style.background-color]="task.assigned_to.color"
              [title]="task.assigned_to.first_name + ' ' + task.assigned_to.last_name">
           {{ getInitials(task.assigned_to) }}
         </div>

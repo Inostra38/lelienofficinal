@@ -61,7 +61,7 @@
 
           <!-- Avatar du créateur -->
           <div class="w-9 h-9 rounded-full text-white flex items-center justify-center text-xs font-bold shrink-0 mt-0.5"
-               [ngClass]="getColorClass(conv.created_by.color)">
+               [style.background-color]="conv.created_by.color">
             {{ getInitials(conv.created_by.full_name) }}
           </div>
 

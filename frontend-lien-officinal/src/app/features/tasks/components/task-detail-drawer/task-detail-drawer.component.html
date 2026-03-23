@@ -88,7 +88,7 @@
         <div class="flex items-center gap-2">
           @if (task.created_by) {
             <div class="w-7 h-7 rounded-full text-white flex items-center justify-center text-xs font-bold"
-                 [ngClass]="getBgClass(task.created_by.color)">
+                 [style.background-color]="task.created_by.color">
               {{ getInitials(task.created_by) }}
             </div>
             <div class="flex-1 min-w-0">
@@ -99,7 +99,7 @@
           <span class="text-gray-300 text-sm">→</span>
           @if (task.assigned_to) {
             <div class="w-7 h-7 rounded-full text-white flex items-center justify-center text-xs font-bold"
-                 [ngClass]="getBgClass(task.assigned_to.color)">
+                 [style.background-color]="task.assigned_to.color">
               {{ getInitials(task.assigned_to) }}
             </div>
             <div class="flex-1 min-w-0">
@@ -146,7 +146,7 @@
           <div class="flex gap-2.5">
             @if (c.author) {
               <div class="w-6 h-6 rounded-full text-white flex items-center justify-center text-[9px] font-bold shrink-0 mt-0.5"
-                   [ngClass]="getBgClass(c.author.color)">
+                   [style.background-color]="c.author.color">
                 {{ getInitials(c.author) }}
               </div>
             }

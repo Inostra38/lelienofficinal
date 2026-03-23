@@ -55,9 +55,6 @@ export class TaskCardComponent {
     return `${collab.first_name.charAt(0)}${collab.last_name.charAt(0)}`.toUpperCase();
   }
 
-  getBgClass(color: string): string {
-    return `bg-${color}-500`;
-  }
 
   formatDate(date: string): string {
     return new Date(date).toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit' });

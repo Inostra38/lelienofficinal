@@ -86,7 +86,7 @@
 
           <!-- En-tête : couleur + nom + badge "Vous" -->
           <div class="flex items-start gap-3 mb-3">
-            <div [class]="getColorClass(member.color) + ' w-10 h-10 rounded-full flex-shrink-0 mt-0.5'"></div>
+            <div class="w-10 h-10 rounded-full flex-shrink-0 mt-0.5" [style.background-color]="member.color"></div>
             <div class="flex-1 min-w-0">
               <p class="font-semibold text-gray-900 text-sm leading-tight truncate">
                 {{ member.civility }} {{ member.firstName }} {{ member.lastName }}
@@ -184,7 +184,7 @@
           <!-- Corps de la carte -->
           <div class="p-5 flex-1">
             <div class="flex items-start gap-3 mb-3">
-              <div [class]="getColorClass(member.color) + ' w-10 h-10 rounded-full flex-shrink-0 mt-0.5 grayscale'"></div>
+              <div class="w-10 h-10 rounded-full flex-shrink-0 mt-0.5 grayscale" [style.background-color]="member.color"></div>
               <div class="flex-1 min-w-0">
                 <p class="font-semibold text-gray-500 text-sm leading-tight truncate line-through">
                   {{ member.civility }} {{ member.firstName }} {{ member.lastName }}
@@ -422,8 +422,13 @@
       <div>
         <label class="block text-sm font-medium text-gray-700 mb-2">Couleur d'identification <span class="text-red-500">*</span></label>
         <div class="grid grid-cols-10 gap-2">
-          <button *ngFor="let color of colors" type="button" (click)="formData.color = color.value"
-                  [class]="color.bgClass + ' w-full aspect-square rounded-lg transition-all hover:scale-110 ' + (formData.color === color.value ? 'ring-4 ring-offset-2 ring-gray-400 scale-110' : '')"
+          <button *ngFor="let color of colors" type="button" (click)="formData.color = color.hex"
+                  class="w-full aspect-square rounded-lg transition-all hover:scale-110"
+                  [class.ring-4]="formData.color === color.hex"
+                  [class.ring-offset-2]="formData.color === color.hex"
+                  [class.ring-gray-400]="formData.color === color.hex"
+                  [class.scale-110]="formData.color === color.hex"
+                  [style.background-color]="color.hex"
                   [title]="color.label">
           </button>
         </div>

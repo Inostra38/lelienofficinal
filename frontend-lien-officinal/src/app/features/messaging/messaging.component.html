@@ -12,7 +12,7 @@
                 (click)="selectCollaborator(collab)"
                 class="flex flex-col items-center gap-2 p-3 rounded-xl border border-gray-100 hover:border-green-300 hover:bg-green-50 transition-all group">
           <div class="w-10 h-10 rounded-full text-white flex items-center justify-center font-bold text-sm"
-               [ngClass]="getCollaboratorBgClass(collab.color)">
+               [style.background-color]="collab.color">
             {{ getInitials(collab) }}
           </div>
           <span class="text-xs text-gray-600 font-medium text-center leading-tight">
@@ -40,7 +40,7 @@
           </svg>
         </button>
         <div class="w-7 h-7 rounded-full text-white flex items-center justify-center text-xs font-bold shrink-0"
-             [ngClass]="getCollaboratorBgClass(activeCollaborator.color)">
+             [style.background-color]="activeCollaborator.color">
           {{ getInitials(activeCollaborator) }}
         </div>
         <div class="flex-1 min-w-0">

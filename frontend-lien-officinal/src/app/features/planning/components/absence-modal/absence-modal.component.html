@@ -70,7 +70,7 @@
 
         <!-- Avatar collaborateur -->
         <div class="w-8 h-8 rounded-full text-white text-xs font-bold flex items-center justify-center flex-shrink-0"
-             [ngClass]="getBgClass(absence.collaborator.color)">
+             [style.background-color]="absence.collaborator.color">
           {{ getInitials(absence.collaborator) }}
         </div>
 
@@ -96,7 +96,7 @@
           <p *ngIf="absence.reviewed_by && absence.status !== 'pending'"
              class="text-xs text-gray-400 mt-0.5 flex items-center gap-1">
             <span class="inline-flex items-center justify-center w-4 h-4 rounded-full text-white font-bold text-[9px]"
-                  [ngClass]="getBgClass(absence.reviewed_by.color)">
+                  [style.background-color]="absence.reviewed_by.color">
               {{ absence.reviewed_by.first_name.charAt(0) }}{{ absence.reviewed_by.last_name.charAt(0) }}
             </span>
             {{ absence.status === 'approved' ? 'Approuvé' : 'Refusé' }} par

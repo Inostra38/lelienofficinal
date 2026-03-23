@@ -9,7 +9,7 @@
               (click)="selectCollaborator(collab)"
               class="flex flex-col items-center gap-2 p-3 rounded-xl border border-gray-100 hover:border-green-300 hover:bg-green-50 transition-all">
         <div class="w-10 h-10 rounded-full text-white flex items-center justify-center font-bold text-sm"
-             [ngClass]="getCollaboratorBgClass(collab.color)">
+             [style.background-color]="collab.color">
           {{ getInitials(collab) }}
         </div>
         <span class="text-xs text-gray-600 font-medium text-center leading-tight">
@@ -54,7 +54,7 @@
       <div *ngIf="activeCollaborator"
            class="flex items-center gap-2 bg-green-50 border border-green-100 rounded-xl px-3 py-1.5">
         <div class="w-6 h-6 rounded-full text-white flex items-center justify-center text-xs font-bold shrink-0"
-             [ngClass]="getCollaboratorBgClass(activeCollaborator.color)">
+             [style.background-color]="activeCollaborator.color">
           {{ getInitials(activeCollaborator) }}
         </div>
         <span class="text-xs font-medium text-gray-700">{{ activeCollaborator.first_name }}</span>

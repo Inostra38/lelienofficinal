@@ -2,6 +2,7 @@ import { Component, Input, Output, EventEmitter, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { Shift } from '../../../../core/services/planning.service';
 import { ConfirmService } from '../../../../core/services/confirm.service';
+import { resolveColor } from '../../../../core/utils/collaborator-colors';
 
 @Component({
   selector: 'app-shift-card',
@@ -30,17 +31,17 @@ export class ShiftCardComponent {
     return `${h.toFixed(1).replace('.0', '')}h`;
   }
 
-  get cardClasses(): string {
-    const color = this.shift.collaborator?.color ?? 'gray';
-    if (!this.shift.is_published) {
-      return 'bg-white border-dashed border-gray-300 text-gray-500';
-    }
-    return `bg-${color}-50 border-${color}-300 text-${color}-900`;
+  get cardStyle(): Record<string, string> {
+    if (!this.shift.is_published) return {};
+    const c = resolveColor(this.shift.collaborator?.color ?? 'gray');
+    return { 'background-color': c.light, 'border-color': c.base, 'color': c.text };
   }
 
-  get dotClass(): string {
-    const color = this.shift.collaborator?.color ?? 'gray';
-    return this.shift.is_published ? `bg-${color}-500` : 'bg-gray-300';
+  get isDraft(): boolean { return !this.shift.is_published; }
+
+  get dotColor(): string {
+    if (!this.shift.is_published) return '#d1d5db'; // gray-300
+    return resolveColor(this.shift.collaborator?.color ?? 'gray').base;
   }
 
   onPublish(event: MouseEvent) {

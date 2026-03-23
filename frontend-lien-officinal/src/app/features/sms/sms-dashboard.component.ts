@@ -210,9 +210,6 @@ export class SmsDashboardComponent implements OnInit, OnDestroy {
     return `${collab.first_name[0]}${collab.last_name[0]}`.toUpperCase();
   }
 
-  getCollaboratorBgClass(color: string): string {
-    return `bg-${color}-500`;
-  }
 
   // ── Value getters (send tab badges) ───────────────────────────────────────
 
