@@ -98,6 +98,12 @@ class Pharmacy(AbstractBaseUser, PermissionsMixin):
     class Meta:
         verbose_name = _("Pharmacie")
         verbose_name_plural = _("Pharmacies")
+        constraints = [
+            models.CheckConstraint(
+                condition=models.Q(sms_credits__gte=0),
+                name='pharmacy_sms_credits_non_negative',
+            ),
+        ]
 
     def generate_email_verification_token(self):
         """

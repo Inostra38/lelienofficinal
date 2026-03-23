@@ -116,10 +116,25 @@ class Procedure(models.Model):
     archived_at = models.DateTimeField(null=True, blank=True)
 
     class Meta:
-        unique_together = ('pharmacy', 'reference')
         verbose_name = 'Procédure'
         verbose_name_plural = 'Procédures'
         ordering = ['position', 'id']
+        indexes = [
+            models.Index(fields=['pharmacy', 'status'], name='proc_pharmacy_status_idx'),
+            models.Index(
+                fields=['pharmacy'],
+                condition=models.Q(status='active'),
+                name='proc_active_idx',
+            ),
+        ]
+        constraints = [
+            # BLOC 6c — NULL-safe : plusieurs procédures sans référence autorisées par pharmacie
+            models.UniqueConstraint(
+                fields=['pharmacy', 'reference'],
+                condition=models.Q(reference__isnull=False),
+                name='proc_unique_pharmacy_reference',
+            ),
+        ]
 
     def __str__(self):
         ref = f"[{self.reference}] " if self.reference else ""

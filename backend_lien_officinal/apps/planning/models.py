@@ -1,5 +1,6 @@
 from django.conf import settings
 from django.db import models
+from django.db.models import F
 
 
 class PharmacyDayStatus(models.Model):
@@ -116,6 +117,16 @@ class Shift(models.Model):
 
     class Meta:
         ordering = ['start_datetime']
+        indexes = [
+            models.Index(fields=['start_datetime'], name='shift_start_idx'),
+            models.Index(fields=['collaborator', 'start_datetime'], name='shift_collab_start_idx'),
+        ]
+        constraints = [
+            models.CheckConstraint(
+                condition=models.Q(end_datetime__gt=F('start_datetime')),
+                name='shift_end_after_start',
+            ),
+        ]
 
     def __str__(self):
         name = self.collaborator_snapshot or str(self.collaborator) or "—"
@@ -170,6 +181,9 @@ class AbsenceRequest(models.Model):
 
     class Meta:
         ordering = ['-created_at']
+        indexes = [
+            models.Index(fields=['collaborator', 'status', 'start_date'], name='absence_collab_status_idx'),
+        ]
 
     def __str__(self):
         return f"{self.collaborator} — {self.type} — {self.status}"
@@ -256,6 +270,15 @@ class TimeAdjustment(models.Model):
 
     class Meta:
         ordering = ['-date', '-created_at']
+        indexes = [
+            models.Index(fields=['collaborator', 'date'], name='timeadj_collab_date_idx'),
+        ]
+        constraints = [
+            models.CheckConstraint(
+                condition=models.Q(duration_minutes__gt=0),
+                name='timeadj_duration_positive',
+            ),
+        ]
 
 
 # ── Contraintes planning ────────────────────────────────────────────────────────

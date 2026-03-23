@@ -53,11 +53,22 @@ class TaskListCreateView(APIView):
                 status=status.HTTP_400_BAD_REQUEST
             )
 
-        base_qs = Task.objects.filter(pharmacy=request.user).select_related('created_by', 'assigned_to').annotate(comments_count=Count('comments'))
+        # BLOC 4 — 1 seul SELECT au lieu de 3 : partition en Python
+        all_tasks = list(
+            Task.objects.filter(pharmacy=request.user)
+            .select_related('created_by', 'assigned_to')
+            .annotate(comments_count=Count('comments'))
+        )
 
-        personal = _sort_tasks(list(base_qs.filter(created_by=collaborator, type='PERSONAL')))
-        assigned_to_me = _sort_tasks(list(base_qs.filter(assigned_to=collaborator)))
-        assigned_by_me = _sort_tasks(list(base_qs.filter(created_by=collaborator, type='ASSIGNED')))
+        personal = _sort_tasks([
+            t for t in all_tasks if t.created_by_id == collaborator.id and t.type == 'PERSONAL'
+        ])
+        assigned_to_me = _sort_tasks([
+            t for t in all_tasks if t.assigned_to_id == collaborator.id
+        ])
+        assigned_by_me = _sort_tasks([
+            t for t in all_tasks if t.created_by_id == collaborator.id and t.type == 'ASSIGNED'
+        ])
 
         return Response({
             'personal_tasks': TaskSerializer(personal, many=True).data,

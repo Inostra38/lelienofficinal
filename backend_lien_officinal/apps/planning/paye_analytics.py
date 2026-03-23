@@ -369,6 +369,19 @@ def compute_paye_summary(pharmacy, year: int, month: int) -> dict:
     for absence in all_annual_rcr:
         annual_rcr_by_collab.setdefault(absence.collaborator_id, []).append(absence)
 
+    # BLOC 3 — pré-chargement formations annuelles : évite N*52 requêtes dans la boucle RCR
+    all_annual_formations = AbsenceRequest.objects.filter(
+        collaborator__pharmacy=pharmacy,
+        type='formation',
+        status='approved',
+        start_date__lte=month_end,
+        end_date__gte=jan_1,
+    ).select_related('collaborator')
+
+    annual_formations_by_collab = {}
+    for absence in all_annual_formations:
+        annual_formations_by_collab.setdefault(absence.collaborator_id, []).append(absence)
+
     collaborateurs_data = []
 
     totaux_jours            = 0
@@ -605,13 +618,8 @@ def compute_paye_summary(pharmacy, year: int, month: int) -> dict:
             week_early_annual = sum(a.duration_minutes / 60 for a in week_adjs_annual if a.type == 'early_departure')
 
             week_form_h = 0.0
-            for fa in AbsenceRequest.objects.filter(
-                collaborator=collab,
-                type='formation',
-                status='approved',
-                start_date__lte=w_sunday,
-                end_date__gte=w_monday,
-            ):
+            collab_annual_formations = annual_formations_by_collab.get(collab.id, [])
+            for fa in [f for f in collab_annual_formations if f.start_date <= w_sunday and f.end_date >= w_monday]:
                 fa_start = max(fa.start_date, w_monday)
                 fa_end   = min(fa.end_date, w_sunday)
                 d = fa_start

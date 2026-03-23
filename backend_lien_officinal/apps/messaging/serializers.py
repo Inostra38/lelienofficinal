@@ -60,9 +60,11 @@ class ConversationSerializer(serializers.ModelSerializer):
 
     def get_unread_count(self, obj):
         """
-        Nombre de messages non lus pour le collaborateur passé en contexte.
-        Si aucun collaborateur en contexte, retourne 0.
+        Nombre de messages non lus. Utilise l'annotation `unread_count_ann` si disponible
+        (injectée par la vue en 1 sous-requête), sinon fallback sur COUNT() individuel.
         """
+        if hasattr(obj, 'unread_count_ann'):
+            return obj.unread_count_ann or 0
         collaborator = self.context.get('collaborator')
         if not collaborator:
             return 0

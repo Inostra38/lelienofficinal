@@ -176,6 +176,14 @@ class CollaboratorLoginLog(models.Model):
         verbose_name = _("Journal connexion collaborateur")
         verbose_name_plural = _("Journaux connexions collaborateurs")
         ordering = ['-timestamp']
+        indexes = [
+            models.Index(fields=['pharmacy', '-timestamp'], name='loginlog_pharmacy_ts_idx'),
+            models.Index(
+                fields=['pharmacy'],
+                condition=models.Q(success=False),
+                name='loginlog_failures_idx',
+            ),
+        ]
 
     def __str__(self):
         status = "OK" if self.success else "ÉCHEC"

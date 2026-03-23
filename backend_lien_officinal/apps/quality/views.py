@@ -506,7 +506,10 @@ class ProcedureNotificationViewSet(
         )
 
     def list(self, request, *args, **kwargs):
-        qs = list(self.get_queryset())
+        full_qs = self.get_queryset()
+        # BLOC 7 — unread_count exact même avec la limite [:50]
+        unread_count = full_qs.filter(is_read=False).count()
+        qs = list(full_qs[:50])
         data = [
             {
                 'id': n.id,
@@ -518,7 +521,6 @@ class ProcedureNotificationViewSet(
             }
             for n in qs
         ]
-        unread_count = sum(1 for n in data if not n['is_read'])
         return Response({'results': data, 'unread_count': unread_count})
 
     @action(detail=False, methods=['post'], url_path='mark-read')

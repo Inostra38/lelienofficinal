@@ -1,3 +1,4 @@
+from django.db.models import Count, IntegerField, OuterRef, Subquery
 from django.shortcuts import get_object_or_404
 from rest_framework import status
 from rest_framework.permissions import IsAuthenticated
@@ -69,6 +70,21 @@ class ConversationListCreateView(APIView):
         conversations = Conversation.objects.filter(
             pharmacy=request.user, participants=collaborator
         ).exclude(hidden_by=collaborator)
+
+        # BLOC 2 — annotation unread_count : 1 sous-requête SQL au lieu de N COUNT()
+        unread_sq = (
+            Message.objects
+            .filter(conversation_id=OuterRef('pk'))
+            .exclude(is_read_by=collaborator)
+            .exclude(sender=collaborator)
+            .values('conversation_id')
+            .annotate(cnt=Count('id'))
+            .values('cnt')
+        )
+        conversations = conversations.annotate(
+            unread_count_ann=Subquery(unread_sq, output_field=IntegerField())
+        )
+
         serializer = ConversationSerializer(
             conversations, many=True, context={'request': request, 'collaborator': collaborator}
         )
@@ -191,8 +207,19 @@ class MarkReadView(APIView):
             )
         conversation = _get_conversation_for_participant(conversation_id, request, collaborator)
 
-        for message in conversation.messages.exclude(sender=collaborator):
-            message.is_read_by.add(collaborator)
+        # BLOC 1 — bulk_create : 2 requêtes au lieu de N INSERT M2M
+        ThroughModel = Message.is_read_by.through
+        message_ids = list(
+            conversation.messages
+            .exclude(sender=collaborator)
+            .exclude(is_read_by=collaborator)
+            .values_list("id", flat=True)
+        )
+        if message_ids:
+            ThroughModel.objects.bulk_create(
+                [ThroughModel(message_id=mid, collaborator_id=collaborator.id) for mid in message_ids],
+                ignore_conflicts=True,
+            )
 
         return Response({"detail": "Messages marqués comme lus."})
 

@@ -50,6 +50,7 @@ INSTALLED_APPS = [
     'django.contrib.staticfiles',
 
     # --- TIERCE PARTIES ---
+    'django.contrib.postgres',  # Index partiels, CheckConstraints PostgreSQL
     'rest_framework',
     'rest_framework_simplejwt',                   # Authentification Token
     'rest_framework_simplejwt.token_blacklist',    # Invalidation des tokens après changement de mdp
