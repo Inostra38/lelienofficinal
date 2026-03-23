@@ -203,6 +203,9 @@ SIMPLE_JWT = {
     'BLACKLIST_AFTER_ROTATION': True,
 }
 
+# Durée de vie réduite pour les tokens collaborateurs (session PIN)
+COLLABORATOR_TOKEN_LIFETIME = timedelta(minutes=30)
+
 # URL de base du backend (pour les fichiers media)
 BACKEND_BASE_URL = 'http://127.0.0.1:8000'
 

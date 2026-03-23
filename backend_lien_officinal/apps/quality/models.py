@@ -79,7 +79,6 @@ class Procedure(models.Model):
     )
     status = models.CharField(max_length=20, choices=Status.choices, default=Status.DRAFT)
     content = models.TextField(blank=True)
-    file = models.FileField(upload_to='quality/procedures/', null=True, blank=True)
     version = models.PositiveIntegerField(default=1)
     position = models.PositiveIntegerField(default=0)
     group = models.ForeignKey(
@@ -199,6 +198,30 @@ class ProcedureVersion(models.Model):
 
     def __str__(self):
         return f"{self.procedure.title} - v{self.version_number}"
+
+
+class ProcedureReadLog(models.Model):
+    """Trace de lecture complète d'une procédure (scroll ≥ 90 %)."""
+    procedure = models.ForeignKey(
+        Procedure,
+        on_delete=models.CASCADE,
+        related_name='read_logs',
+    )
+    collaborator = models.ForeignKey(
+        'team.Collaborator',
+        on_delete=models.CASCADE,
+        related_name='procedure_read_logs',
+    )
+    version_number = models.PositiveIntegerField()
+    read_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['-read_at']
+        verbose_name = 'Lecture de procédure'
+        verbose_name_plural = 'Lectures de procédures'
+
+    def __str__(self):
+        return f"{self.collaborator} — {self.procedure} v{self.version_number}"
 
 
 class ProcedureNotification(models.Model):

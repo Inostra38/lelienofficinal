@@ -4,10 +4,11 @@ from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.views import APIView
 from rest_framework_simplejwt.authentication import JWTAuthentication
-from rest_framework_simplejwt.tokens import RefreshToken
+from rest_framework_simplejwt.tokens import RefreshToken, AccessToken
+from django.conf import settings as django_settings
 from django.shortcuts import get_object_or_404
 from django.utils import timezone
-from .models import Collaborator, ContractHistory
+from .models import Collaborator, ContractHistory, CollaboratorLoginLog
 from .serializers import (
     CollaboratorSerializer,
     CollaboratorCreateSerializer,
@@ -180,6 +181,10 @@ class CollaboratorViewSet(viewsets.ModelViewSet):
         if not collaborator_id or not pin_code:
             return Response({"detail": "collaborator_id et pin_code requis."}, status=status.HTTP_400_BAD_REQUEST)
 
+        ip = request.META.get('HTTP_X_FORWARDED_FOR', request.META.get('REMOTE_ADDR', ''))
+        if ip and ',' in ip:
+            ip = ip.split(',')[0].strip()
+
         try:
             collaborator = Collaborator.objects.get(
                 id=int(collaborator_id),
@@ -190,23 +195,40 @@ class CollaboratorViewSet(viewsets.ModelViewSet):
             return Response({"detail": "Collaborateur introuvable."}, status=status.HTTP_404_NOT_FOUND)
 
         if not collaborator.check_pin(str(pin_code)):
+            CollaboratorLoginLog.objects.create(
+                collaborator=collaborator,
+                pharmacy=request.user,
+                ip_address=ip or None,
+                success=False,
+                failure_reason='PIN incorrect',
+            )
             return Response({"detail": "Code PIN incorrect."}, status=status.HTTP_403_FORBIDDEN)
 
-        refresh = RefreshToken.for_user(request.user)
-        refresh['auth_type'] = 'collaborator'
-        refresh['collaborator_id'] = collaborator.id
-        refresh['can_manage_account'] = collaborator.can_manage_account
-        refresh['can_manage_team'] = collaborator.can_manage_team
-        refresh['can_manage_planning'] = collaborator.can_manage_planning
-        refresh['can_manage_quality'] = collaborator.can_manage_quality
-        refresh['can_manage_procedures'] = collaborator.can_manage_procedures
-        refresh['can_publish_procedures'] = collaborator.can_publish_procedures
-        refresh['can_close_nonconformities'] = collaborator.can_close_nonconformities
-        refresh['can_assign_task'] = collaborator.can_assign_task
+        # Token collaborateur : AccessToken direct, durée réduite, non rafraîchissable
+        lifetime = getattr(django_settings, 'COLLABORATOR_TOKEN_LIFETIME', None)
+        token = AccessToken.for_user(request.user)
+        if lifetime:
+            token.set_exp(lifetime=lifetime)
+        token['auth_type'] = 'collaborator'
+        token['collaborator_id'] = collaborator.id
+        token['can_manage_account'] = collaborator.can_manage_account
+        token['can_manage_team'] = collaborator.can_manage_team
+        token['can_manage_planning'] = collaborator.can_manage_planning
+        token['can_manage_quality'] = collaborator.can_manage_quality
+        token['can_manage_procedures'] = collaborator.can_manage_procedures
+        token['can_publish_procedures'] = collaborator.can_publish_procedures
+        token['can_close_nonconformities'] = collaborator.can_close_nonconformities
+        token['can_assign_task'] = collaborator.can_assign_task
+
+        CollaboratorLoginLog.objects.create(
+            collaborator=collaborator,
+            pharmacy=request.user,
+            ip_address=ip or None,
+            success=True,
+        )
 
         return Response({
-            'access': str(refresh.access_token),
-            'refresh': str(refresh),
+            'access': str(token),
             'collaborator_id': collaborator.id,
         })
 

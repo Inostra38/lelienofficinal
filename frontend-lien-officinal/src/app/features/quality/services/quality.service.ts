@@ -79,6 +79,10 @@ export class QualityService {
     return this.http.post<void>(`${this.api}/procedures/${id}/mark-read/`, {});
   }
 
+  logProcedureRead(id: number): Observable<void> {
+    return this.http.post<void>(`${this.api}/procedures/${id}/log-read/`, {});
+  }
+
   archiveProcedure(id: number): Observable<Procedure> {
     return this.http.post<Procedure>(`${this.api}/procedures/${id}/archive/`, {});
   }

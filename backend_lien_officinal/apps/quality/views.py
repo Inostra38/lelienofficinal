@@ -9,7 +9,7 @@ from rest_framework.response import Response
 from .models import (
     Procedure, ProcedureAttachment, ProcedureImage, NonConformity,
     CorrectiveAction, ProcedureGroup, ProcedureVersion, ProcedureCategory,
-    ProcedureNotification,
+    ProcedureNotification, ProcedureReadLog,
 )
 from .serializers import (
     ProcedureGroupSerializer, ProcedureCategorySerializer,
@@ -177,6 +177,20 @@ class ProcedureViewSet(viewsets.ModelViewSet):
             recipient=collaborator,
             is_read=False,
         ).update(is_read=True)
+        return Response(status=status.HTTP_204_NO_CONTENT)
+
+    @action(detail=True, methods=['post'], url_path='log-read')
+    def log_read(self, request, pk=None):
+        """POST /api/quality/procedures/{id}/log-read/ — enregistre une lecture complète (scroll ≥ 90 %)."""
+        collaborator = _get_collaborator(request, request.user)
+        if not collaborator:
+            return Response(status=status.HTTP_204_NO_CONTENT)
+        procedure = self.get_object()
+        ProcedureReadLog.objects.create(
+            procedure=procedure,
+            collaborator=collaborator,
+            version_number=procedure.version,
+        )
         return Response(status=status.HTTP_204_NO_CONTENT)
 
     @action(detail=True, methods=['post'])

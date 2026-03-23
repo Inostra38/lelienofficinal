@@ -301,19 +301,26 @@ class AccountVerifySecurityAccessView(APIView):
         if not pin:
             return Response({"detail": "PIN requis."}, status=status.HTTP_403_FORBIDDEN)
 
-        authorized = Collaborator.objects.filter(
+        authorized = list(Collaborator.objects.filter(
             pharmacy=request.user,
             can_manage_account=True,
             is_active=True,
-        )
+        ))
+        # Parcourir TOUS les collaborateurs sans arrêt prématuré
+        # pour éviter une fuite temporelle (timing attack).
+        # check_pin utilise check_password (PBKDF2 constant-time),
+        # mais une sortie anticipée rendrait le nombre d'itérations mesurable.
+        matched = None
         for collab in authorized:
             if collab.check_pin(str(pin)):
-                return Response({"valid": True})
+                matched = collab  # ne pas break — continuer jusqu'au bout
 
-        return Response(
-            {"detail": "PIN incorrect ou droits insuffisants."},
-            status=status.HTTP_403_FORBIDDEN
-        )
+        if matched is None:
+            return Response(
+                {"detail": "PIN incorrect ou droits insuffisants."},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+        return Response({"valid": True})
 
 
 class AccountDeleteView(APIView):

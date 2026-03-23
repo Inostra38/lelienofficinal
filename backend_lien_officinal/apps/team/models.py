@@ -141,6 +141,48 @@ class ContractHistory(models.Model):
         return f"{self.collaborator} — {self.contract_type} {self.weekly_hours}h ({self.start_date} → {end})"
 
 
+class CollaboratorLoginLog(models.Model):
+    """Journal des tentatives de connexion PIN des collaborateurs."""
+
+    collaborator = models.ForeignKey(
+        Collaborator,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='login_logs',
+        verbose_name=_("Collaborateur"),
+    )
+    pharmacy = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name='collaborator_login_logs',
+        verbose_name=_("Pharmacie"),
+    )
+    ip_address = models.GenericIPAddressField(
+        verbose_name=_("Adresse IP"),
+        null=True,
+        blank=True,
+    )
+    success = models.BooleanField(verbose_name=_("Succès"), default=False)
+    timestamp = models.DateTimeField(auto_now_add=True, verbose_name=_("Date/heure"))
+    failure_reason = models.CharField(
+        max_length=100,
+        blank=True,
+        default='',
+        verbose_name=_("Raison de l'échec"),
+    )
+
+    class Meta:
+        verbose_name = _("Journal connexion collaborateur")
+        verbose_name_plural = _("Journaux connexions collaborateurs")
+        ordering = ['-timestamp']
+
+    def __str__(self):
+        status = "OK" if self.success else "ÉCHEC"
+        name = str(self.collaborator) if self.collaborator else "?"
+        return f"[{status}] {name} — {self.timestamp:%Y-%m-%d %H:%M}"
+
+
 @receiver(post_save, sender=ContractHistory)
 def on_contract_saved(sender, instance, created, **kwargs):
     """

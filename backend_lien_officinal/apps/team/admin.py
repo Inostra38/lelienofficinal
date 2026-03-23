@@ -1,6 +1,6 @@
 from django.contrib import admin
 from django import forms
-from .models import Collaborator
+from .models import Collaborator, CollaboratorLoginLog
 
 class CollaboratorForm(forms.ModelForm):
     """Formulaire personnalisé pour gérer le PIN."""
@@ -40,3 +40,18 @@ class CollaboratorAdmin(admin.ModelAdmin):
         # Rend le champ PIN obligatoire uniquement à la création (pas à l'édition)
         form.base_fields['pin_code'].required = (obj is None)
         return form
+
+
+@admin.register(CollaboratorLoginLog)
+class CollaboratorLoginLogAdmin(admin.ModelAdmin):
+    list_display = ('timestamp', 'collaborator', 'pharmacy', 'success', 'ip_address', 'failure_reason')
+    list_filter = ('success', 'pharmacy')
+    search_fields = ('collaborator__first_name', 'collaborator__last_name', 'ip_address')
+    readonly_fields = ('collaborator', 'pharmacy', 'ip_address', 'success', 'timestamp', 'failure_reason')
+    ordering = ('-timestamp',)
+
+    def has_add_permission(self, request):
+        return False
+
+    def has_change_permission(self, request, obj=None):
+        return False

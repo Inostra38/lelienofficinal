@@ -162,7 +162,7 @@ class ProcedureDetailSerializer(serializers.ModelSerializer):
         fields = [
             'id', 'title', 'reference', 'categories', 'category_ids', 'status',
             'version', 'position', 'group', 'pilots', 'pilot_ids', 'updated_at',
-            'content', 'file', 'created_by', 'created_at', 'archived_by', 'archived_at',
+            'content', 'created_by', 'created_at', 'archived_by', 'archived_at',
             'next_review_date', 'attachments', 'images', 'history',
         ]
         validators = []  # Gestion manuelle pour l'unicité de la référence

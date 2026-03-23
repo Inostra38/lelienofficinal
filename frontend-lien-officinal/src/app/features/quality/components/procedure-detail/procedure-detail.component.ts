@@ -24,6 +24,7 @@ export class ProcedureDetailComponent implements OnInit {
   private el = inject(ElementRef);
 
   readProgress = 0;
+  private readLogged = false;
 
   canManageQuality(): boolean { return this.authService.canManageQuality(); }
 
@@ -41,6 +42,10 @@ export class ProcedureDetailComponent implements OnInit {
     const scrolled = window.scrollY || document.documentElement.scrollTop;
     const total = document.documentElement.scrollHeight - window.innerHeight;
     this.readProgress = total > 0 ? Math.min(100, (scrolled / total) * 100) : 0;
+    if (this.readProgress >= 90 && !this.readLogged && this.procedure) {
+      this.readLogged = true;
+      this.qualityService.logProcedureRead(this.procedure.id).subscribe();
+    }
   }
 
   safeHtml(content: string): SafeHtml {
