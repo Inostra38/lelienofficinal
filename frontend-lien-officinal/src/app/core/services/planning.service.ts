@@ -269,6 +269,10 @@ export interface PayeDetailSemaine {
   sup_tranche2: number;
   heures_dues: number;
   alerte_46h: boolean;
+  alerte_10h: boolean;
+  jours_alerte_10h: { date: string; heures: number }[];
+  alerte_6j: boolean;
+  jours_travailles_sem: number;
   rattachement: string;
   a_cheval: boolean;
 }
@@ -285,7 +289,10 @@ export interface PayeAnnuel {
   rcr_consomme: number;
   rcr_solde: number;
   rcr_alerte: boolean;
+  rcr_droit_ouvert: boolean;
   contingent_consomme: number;
+  moy_44h_12sem: number;
+  alerte_44h_moy: boolean;
 }
 
 export interface PayeCollaborateur {

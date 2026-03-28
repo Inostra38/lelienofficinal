@@ -85,6 +85,10 @@ export class PlanningAnalyticsComponent implements OnInit {
 
   getColor(color: string) { return resolveColor(color); }
 
+  formatAlerte10h(jours: { date: string; heures: number }[]): string {
+    return 'Journée > 10h : ' + jours.map(j => j.date + ' (' + j.heures + 'h)').join(', ');
+  }
+
   contingentWidth(n: number): string {
     return `${Math.min(100, (n / 150) * 100).toFixed(1)}%`;
   }

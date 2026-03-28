@@ -399,8 +399,14 @@ def compute_paye_summary(pharmacy, year: int, month: int) -> dict:
     totaux_feries           = 0.0
 
     for collab in collaborators:
-        is_tns       = getattr(collab, 'is_tns', False)
-        weekly_hours = float(collab.weekly_hours)
+        # Contrat actif au dernier jour du mois (source de vérité pour TNS + heures)
+        active_contract = collab.active_contract_on(month_end)
+        if active_contract:
+            is_tns       = active_contract.contract_type == 'TNS'
+            weekly_hours = float(active_contract.weekly_hours)
+        else:
+            is_tns       = getattr(collab, 'is_tns', False)
+            weekly_hours = float(collab.weekly_hours)
 
         bg_hex, text_hex = get_collaborator_color(collab.color)
         initiales = (collab.first_name[:1] + collab.last_name[:1]).upper()
@@ -523,6 +529,23 @@ def compute_paye_summary(pharmacy, year: int, month: int) -> dict:
             heures_dues_sem = -max(0.0, injust_net)
             alerte_46h = total_semaine > 46.0
 
+            # CCN art. 13.3.b — durée quotidienne max 10h
+            day_hours: dict[date, float] = {}
+            for s in week_shifts:
+                if not s.is_absent:
+                    d = _strip_tz(s.start_datetime).date()
+                    day_hours[d] = day_hours.get(d, 0.0) + shift_duration_hours(s)
+            jours_travailles_sem = len(day_hours)
+            jours_alerte_10h = [
+                {'date': d.isoformat(), 'heures': round(h, 2)}
+                for d, h in sorted(day_hours.items())
+                if h > 10.0
+            ]
+            alerte_10h = len(jours_alerte_10h) > 0
+
+            # CCN art. 13.4.b — max 6 jours/semaine
+            alerte_6j = jours_travailles_sem > 6
+
             rattachement = f"{FRENCH_MONTHS_FULL[friday.month]} {friday.year}"
 
             detail_semaines.append({
@@ -538,6 +561,10 @@ def compute_paye_summary(pharmacy, year: int, month: int) -> dict:
                 'sup_tranche2':              round(tr2, 2),
                 'heures_dues':               round(heures_dues_sem, 2),
                 'alerte_46h':                alerte_46h,
+                'alerte_10h':                alerte_10h,
+                'jours_alerte_10h':          jours_alerte_10h,
+                'alerte_6j':                 alerte_6j,
+                'jours_travailles_sem':      jours_travailles_sem,
                 'rattachement':              rattachement,
                 'a_cheval':                  a_cheval,
             })
@@ -606,6 +633,7 @@ def compute_paye_summary(pharmacy, year: int, month: int) -> dict:
         collab_annual_rcr         = annual_rcr_by_collab.get(collab.id, [])
 
         rcr_acquis_h = 0.0
+        weekly_totals_annuel: list[float] = []
         for (w_monday, w_sunday, w_friday) in annual_weeks:
             week_shift_h = sum(
                 shift_duration_hours(s)
@@ -627,8 +655,21 @@ def compute_paye_summary(pharmacy, year: int, month: int) -> dict:
                         week_form_h += 7.0
                     d += timedelta(days=1)
 
-            week_sup = max(0.0, week_shift_h + week_ot_annual - week_early_annual + week_form_h - weekly_hours)
+            week_total_annuel = week_shift_h + week_ot_annual - week_early_annual + week_form_h
+            week_sup = max(0.0, week_total_annuel - weekly_hours)
             rcr_acquis_h += week_sup
+            weekly_totals_annuel.append(week_total_annuel)
+
+        # CCN art. 13.3.c — moyenne max 44h sur toute période de 12 semaines consécutives
+        alerte_44h_moy = False
+        moy_44h_12sem  = 0.0
+        for i in range(len(weekly_totals_annuel)):
+            window = weekly_totals_annuel[max(0, i - 11):i + 1]
+            avg = sum(window) / len(window)
+            if avg > 44.0:
+                alerte_44h_moy = True
+            if i == len(weekly_totals_annuel) - 1:
+                moy_44h_12sem = round(avg, 2)
 
         rcr_consomme_h = 0.0
         for absence in collab_annual_rcr:
@@ -638,13 +679,18 @@ def compute_paye_summary(pharmacy, year: int, month: int) -> dict:
 
         rcr_solde_h = rcr_acquis_h - rcr_consomme_h
         rcr_alerte  = rcr_solde_h > 150.0
+        # Contingent = heures sup NON compensées par RCR (CCN art. 13.2.d)
+        contingent_h = max(0.0, rcr_solde_h)
 
         annuel = {
             'rcr_acquis':          round(rcr_acquis_h, 2),
             'rcr_consomme':        round(rcr_consomme_h, 2),
             'rcr_solde':           round(rcr_solde_h, 2),
             'rcr_alerte':          rcr_alerte,
-            'contingent_consomme': round(rcr_acquis_h, 2),
+            'rcr_droit_ouvert':    rcr_solde_h >= 7.0,
+            'contingent_consomme': round(contingent_h, 2),
+            'moy_44h_12sem':       moy_44h_12sem,
+            'alerte_44h_moy':      alerte_44h_moy,
         }
 
         collaborateurs_data.append({
