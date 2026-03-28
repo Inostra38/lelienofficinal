@@ -28,6 +28,11 @@ from .views import (
     ConstraintsView,
     ConstraintDetailView,
     GenerateTemplateView,
+    SplitShiftView,
+    TransformShiftView,
+    EarlyDepartureView,
+    OvertimeView,
+    RCRView,
 )
 
 urlpatterns = [
@@ -38,6 +43,11 @@ urlpatterns = [
     path('planning/shifts/', ShiftListCreateView.as_view(), name='shift-list-create'),
     path('planning/shifts/<int:pk>/', ShiftDetailView.as_view(), name='shift-detail'),
     path('planning/shifts/<int:pk>/publish/', ShiftPublishView.as_view(), name='shift-publish'),
+    path('planning/shifts/<int:pk>/split/', SplitShiftView.as_view(), name='shift-split'),
+    path('planning/shifts/<int:pk>/transform/', TransformShiftView.as_view(), name='shift-transform'),
+    path('planning/shifts/<int:pk>/early-departure/', EarlyDepartureView.as_view(), name='shift-early-departure'),
+    path('planning/shifts/<int:pk>/overtime/', OvertimeView.as_view(), name='shift-overtime'),
+    path('planning/shifts/<int:pk>/rcr/', RCRView.as_view(), name='shift-rcr'),
     path('planning/publish-week/', PublishWeekView.as_view(), name='publish-week'),
     path('planning/unpublish-week/', UnpublishWeekView.as_view(), name='unpublish-week'),
 

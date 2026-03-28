@@ -587,4 +587,30 @@ export class PlanningService {
   generateTemplate(rotation: number, conversation: ChatMessage[]): Observable<GenerateTemplateResponse> {
     return this.http.post<GenerateTemplateResponse>(`${this.apiUrl}/constraints/generate/`, { rotation, conversation });
   }
+
+  // ── Drawer shift — actions ────────────────────────────────────────────────
+
+  splitShift(id: number, splitTime: string): Observable<{ shift_1: Shift; shift_2: Shift }> {
+    return this.http.post<{ shift_1: Shift; shift_2: Shift }>(
+      `${this.apiUrl}/shifts/${id}/split/`, { split_time: splitTime }
+    );
+  }
+
+  transformShift(id: number, transformType: string): Observable<Shift> {
+    return this.http.post<Shift>(
+      `${this.apiUrl}/shifts/${id}/transform/`, { transform_type: transformType }
+    );
+  }
+
+  earlyDeparture(id: number, dto: { actual_end_time: string; note?: string }): Observable<TimeAdjustment> {
+    return this.http.post<TimeAdjustment>(`${this.apiUrl}/shifts/${id}/early-departure/`, dto);
+  }
+
+  overtimeShift(id: number, dto: { duration_minutes: number; note?: string }): Observable<TimeAdjustment> {
+    return this.http.post<TimeAdjustment>(`${this.apiUrl}/shifts/${id}/overtime/`, dto);
+  }
+
+  rcrShift(id: number): Observable<AbsenceRequest> {
+    return this.http.post<AbsenceRequest>(`${this.apiUrl}/shifts/${id}/rcr/`, {});
+  }
 }

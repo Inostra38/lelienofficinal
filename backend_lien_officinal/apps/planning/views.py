@@ -393,6 +393,7 @@ class AbsenceListCreateView(APIView):
             )
 
         # Créer une absence par segment
+        absence_type = request.data.get('type', 'injustifiee')
         base_data = {k: v for k, v in request.data.items() if k not in ('start_date', 'end_date')}
         created_absences = []
         for seg_s, seg_e in segments:
@@ -403,7 +404,24 @@ class AbsenceListCreateView(APIView):
             )
             if not serializer.is_valid():
                 return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-            created_absences.append(serializer.save())
+            absence = serializer.save()
+
+            # Pour les CP : calcul des jours ouvrés réels (lun–sam, hors fériés)
+            if absence_type == 'cp':
+                n_days = (seg_e - seg_s).days + 1
+                seg_dates = [seg_s + timedelta(days=i) for i in range(n_days)]
+                seg_years = {d.year for d in seg_dates}
+                seg_feries = set()
+                for y in seg_years:
+                    seg_feries.update(get_jours_feries(y))
+                working_days = sum(
+                    1 for d in seg_dates
+                    if d.weekday() < 6 and d not in seg_feries
+                )
+                AbsenceRequest.objects.filter(pk=absence.pk).update(working_days_count=working_days)
+                absence.working_days_count = working_days
+
+            created_absences.append(absence)
 
         return Response({
             'absences':     AbsenceRequestSerializer(created_absences, many=True).data,
@@ -782,8 +800,9 @@ class TemplateApplyView(APIView):
 
         monday = _parse_week(request.data.get('week'))
         force   = bool(request.data.get('force', False))
-        created = skipped = replaced = absence_protected = day_protected = 0
+        created = skipped = replaced = absence_protected = day_protected = ferie_skipped = 0
         violations = []
+        ferie_days = []
 
         from datetime import datetime as dt
         from zoneinfo import ZoneInfo
@@ -799,8 +818,23 @@ class TemplateApplyView(APIView):
             )
         }
 
+        # Jours fériés des années concernées (dict date → label)
+        from .utils import get_label_ferie
+        feries_map = {}
+        for y in {d.year for d in week_dates}:
+            for ferie_date in get_jours_feries(y):
+                feries_map[ferie_date] = get_label_ferie(ferie_date, y)
+
         for tshift in template.shifts.select_related('collaborator'):
             target_date = monday + timedelta(days=tshift.day_of_week)
+
+            # Jour férié → skip
+            if target_date in feries_map:
+                ferie_skipped += 1
+                iso = target_date.isoformat()
+                if not any(f['date'] == iso for f in ferie_days):
+                    ferie_days.append({'date': iso, 'reason': f"Jour férié — {feries_map[target_date]}"})
+                continue
 
             # Jour fermé ou en garde de jour → template non appliqué
             # (garde de nuit seule n'affecte pas les shifts de la journée)
@@ -859,7 +893,7 @@ class TemplateApplyView(APIView):
             defaults={'letter': letter.upper()},
         )
 
-        return Response({'created': created, 'skipped': skipped, 'replaced': replaced, 'absence_protected': absence_protected, 'day_protected': day_protected, 'week_start': monday.isoformat(), 'violations': violations})
+        return Response({'created': created, 'skipped': skipped, 'replaced': replaced, 'absence_protected': absence_protected, 'day_protected': day_protected, 'ferie_skipped': ferie_skipped, 'ferie_days': ferie_days, 'week_start': monday.isoformat(), 'violations': violations})
 
 
 # ── OpeningHours ───────────────────────────────────────────────────────────────
@@ -1413,3 +1447,232 @@ class PayeAnalyticsView(APIView):
         from .paye_analytics import compute_paye_summary
         data = compute_paye_summary(request.user, year, month)
         return Response(data)
+
+
+# ── Drawer shift — actions ─────────────────────────────────────────────────────
+
+class SplitShiftView(APIView):
+    """POST /api/planning/shifts/<pk>/split/  { split_time: "HH:MM" }"""
+    authentication_classes = [JWTAuthentication]
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request, pk):
+        actor = _get_collaborator(request)
+        if not actor or not actor.can_manage_planning:
+            return Response({'detail': 'Permission insuffisante.'}, status=status.HTTP_403_FORBIDDEN)
+
+        try:
+            shift = Shift.objects.get(pk=pk, collaborator__pharmacy=request.user)
+        except Shift.DoesNotExist:
+            return Response({'detail': 'Shift introuvable.'}, status=status.HTTP_404_NOT_FOUND)
+
+        split_time_str = request.data.get('split_time', '')
+        try:
+            from datetime import time as dt_time
+            h, m = map(int, split_time_str.split(':'))
+            split_time_obj = dt_time(h, m)
+        except (ValueError, AttributeError):
+            return Response({'detail': 'split_time requis au format HH:MM.'}, status=status.HTTP_400_BAD_REQUEST)
+
+        from datetime import datetime as dt_cls
+        from zoneinfo import ZoneInfo
+        tz = ZoneInfo('Europe/Paris')
+
+        orig_start = shift.start_datetime.astimezone(tz)
+        orig_end   = shift.end_datetime.astimezone(tz)
+
+        split_dt = timezone.make_aware(dt_cls.combine(orig_start.date(), split_time_obj), tz)
+        # Si l'heure de coupure est avant le début (cross-midnight), on essaie le lendemain
+        if split_dt <= orig_start:
+            split_dt = timezone.make_aware(
+                dt_cls.combine(orig_start.date() + timedelta(days=1), split_time_obj), tz
+            )
+
+        if split_dt >= orig_end:
+            return Response(
+                {'detail': 'L\'heure de coupure doit être comprise entre le début et la fin du shift.'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        dur_1_h = (split_dt - orig_start).total_seconds() / 3600
+        dur_2_h = (orig_end - split_dt).total_seconds() / 3600
+        if dur_1_h > 12 or dur_2_h > 12:
+            return Response(
+                {'detail': 'Un des deux shifts résultants dépasse l\'amplitude maximale de 12h.'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        common = dict(
+            collaborator=shift.collaborator,
+            collaborator_snapshot=shift.collaborator_snapshot,
+            is_published=shift.is_published,
+            is_extra_hour=shift.is_extra_hour,
+            note=shift.note,
+        )
+        with transaction.atomic():
+            shift.delete()
+            s1 = Shift.objects.create(start_datetime=orig_start, end_datetime=split_dt, **common)
+            s2 = Shift.objects.create(start_datetime=split_dt, end_datetime=orig_end, **common)
+
+        return Response({'shift_1': ShiftSerializer(s1).data, 'shift_2': ShiftSerializer(s2).data},
+                        status=status.HTTP_201_CREATED)
+
+
+class TransformShiftView(APIView):
+    """POST /api/planning/shifts/<pk>/transform/  { transform_type: "cp"|... }"""
+    authentication_classes = [JWTAuthentication]
+    permission_classes = [IsAuthenticated]
+
+    _VALID = {'cp', 'injustifiee', 'conge_exceptionnel', 'maladie', 'rcr', 'sans_solde', 'formation'}
+
+    def post(self, request, pk):
+        actor = _get_collaborator(request)
+        if not actor or not actor.can_manage_planning:
+            return Response({'detail': 'Permission insuffisante.'}, status=status.HTTP_403_FORBIDDEN)
+
+        try:
+            shift = Shift.objects.get(pk=pk, collaborator__pharmacy=request.user)
+        except Shift.DoesNotExist:
+            return Response({'detail': 'Shift introuvable.'}, status=status.HTTP_404_NOT_FOUND)
+
+        t = request.data.get('transform_type', '')
+        if t not in self._VALID:
+            return Response({'detail': f'transform_type invalide. Valeurs acceptées : {", ".join(sorted(self._VALID))}.'}, status=status.HTTP_400_BAD_REQUEST)
+
+        shift.is_absent = True
+        shift.absence_type = t
+        shift.save(update_fields=['is_absent', 'absence_type'])
+
+        if t == 'cp' and shift.collaborator:
+            shift_date = shift.start_datetime.astimezone(__import__('zoneinfo').ZoneInfo('Europe/Paris')).date()
+            AbsenceRequest.objects.get_or_create(
+                collaborator=shift.collaborator,
+                start_date=shift_date,
+                end_date=shift_date,
+                type=AbsenceRequest.AbsenceType.CP,
+                defaults={'status': AbsenceRequest.Status.APPROVED, 'posted_by_manager': True},
+            )
+
+        shift.refresh_from_db()
+        return Response(ShiftSerializer(shift).data)
+
+
+class EarlyDepartureView(APIView):
+    """POST /api/planning/shifts/<pk>/early-departure/  { actual_end_time, note }"""
+    authentication_classes = [JWTAuthentication]
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request, pk):
+        actor = _get_collaborator(request)
+        if not actor or not actor.can_manage_planning:
+            return Response({'detail': 'Permission insuffisante.'}, status=status.HTTP_403_FORBIDDEN)
+
+        try:
+            shift = Shift.objects.get(pk=pk, collaborator__pharmacy=request.user)
+        except Shift.DoesNotExist:
+            return Response({'detail': 'Shift introuvable.'}, status=status.HTTP_404_NOT_FOUND)
+
+        actual_end_str = request.data.get('actual_end_time', '')
+        note = request.data.get('note', '')
+        try:
+            h, m = map(int, actual_end_str.split(':'))
+        except (ValueError, AttributeError):
+            return Response({'detail': 'actual_end_time requis au format HH:MM.'}, status=status.HTTP_400_BAD_REQUEST)
+
+        from datetime import datetime as dt_cls, time as dt_time
+        from zoneinfo import ZoneInfo
+        tz = ZoneInfo('Europe/Paris')
+        shift_date  = shift.start_datetime.astimezone(tz).date()
+        planned_end = shift.end_datetime.astimezone(tz)
+        actual_end_dt = timezone.make_aware(dt_cls.combine(shift_date, dt_time(h, m)), tz)
+
+        duration_minutes = int((planned_end - actual_end_dt).total_seconds() / 60)
+        if duration_minutes <= 0:
+            return Response({'detail': 'L\'heure réelle doit être antérieure à la fin planifiée.'}, status=status.HTTP_400_BAD_REQUEST)
+
+        adj = TimeAdjustment.objects.create(
+            collaborator=shift.collaborator,
+            date=shift_date,
+            type='early_departure',
+            actual_time=actual_end_str,
+            reference_time=planned_end.strftime('%H:%M'),
+            duration_minutes=duration_minutes,
+            shift=shift,
+            note=note,
+            declared_by=actor,
+        )
+        return Response(TimeAdjustmentSerializer(adj).data, status=status.HTTP_201_CREATED)
+
+
+class OvertimeView(APIView):
+    """POST /api/planning/shifts/<pk>/overtime/  { duration_minutes, note }"""
+    authentication_classes = [JWTAuthentication]
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request, pk):
+        actor = _get_collaborator(request)
+        if not actor or not actor.can_manage_planning:
+            return Response({'detail': 'Permission insuffisante.'}, status=status.HTTP_403_FORBIDDEN)
+
+        try:
+            shift = Shift.objects.get(pk=pk, collaborator__pharmacy=request.user)
+        except Shift.DoesNotExist:
+            return Response({'detail': 'Shift introuvable.'}, status=status.HTTP_404_NOT_FOUND)
+
+        try:
+            duration_minutes = int(request.data.get('duration_minutes', 0))
+        except (ValueError, TypeError):
+            return Response({'detail': 'duration_minutes doit être un entier positif.'}, status=status.HTTP_400_BAD_REQUEST)
+        if duration_minutes <= 0:
+            return Response({'detail': 'La durée doit être positive.'}, status=status.HTTP_400_BAD_REQUEST)
+
+        note = request.data.get('note', '')
+        from zoneinfo import ZoneInfo
+        tz = ZoneInfo('Europe/Paris')
+        shift_date  = shift.start_datetime.astimezone(tz).date()
+        planned_end = shift.end_datetime.astimezone(tz)
+        actual_end_dt = planned_end + timedelta(minutes=duration_minutes)
+
+        adj = TimeAdjustment.objects.create(
+            collaborator=shift.collaborator,
+            date=shift_date,
+            type='overtime',
+            actual_time=actual_end_dt.strftime('%H:%M'),
+            reference_time=planned_end.strftime('%H:%M'),
+            duration_minutes=duration_minutes,
+            shift=shift,
+            note=note,
+            declared_by=actor,
+        )
+        return Response(TimeAdjustmentSerializer(adj).data, status=status.HTTP_201_CREATED)
+
+
+class RCRView(APIView):
+    """POST /api/planning/shifts/<pk>/rcr/"""
+    authentication_classes = [JWTAuthentication]
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request, pk):
+        actor = _get_collaborator(request)
+        if not actor or not actor.can_manage_planning:
+            return Response({'detail': 'Permission insuffisante.'}, status=status.HTTP_403_FORBIDDEN)
+
+        try:
+            shift = Shift.objects.get(pk=pk, collaborator__pharmacy=request.user)
+        except Shift.DoesNotExist:
+            return Response({'detail': 'Shift introuvable.'}, status=status.HTTP_404_NOT_FOUND)
+
+        if not shift.collaborator:
+            return Response({'detail': 'Ce shift n\'a pas de collaborateur associé.'}, status=status.HTTP_400_BAD_REQUEST)
+
+        from zoneinfo import ZoneInfo
+        shift_date = shift.start_datetime.astimezone(ZoneInfo('Europe/Paris')).date()
+        absence = AbsenceRequest.objects.create(
+            collaborator=shift.collaborator,
+            start_date=shift_date,
+            end_date=shift_date,
+            type=AbsenceRequest.AbsenceType.RCR,
+            status=AbsenceRequest.Status.APPROVED,
+            posted_by_manager=True,
+        )
+        return Response(AbsenceRequestSerializer(absence).data, status=status.HTTP_201_CREATED)

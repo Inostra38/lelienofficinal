@@ -29,7 +29,9 @@ export class WeekViewComponent implements OnChanges {
   @Input() activeCollaboratorId: number | null = null;
   @Input() openingHours: OpeningHours[] = [];
 
-  @Output() shiftChanged = new EventEmitter<void>();
+  @Output() shiftChanged  = new EventEmitter<void>();
+  @Output() shiftClicked  = new EventEmitter<Shift>();
+  @Output() cellClicked   = new EventEmitter<{ collaboratorId: number; date: string }>();
 
   private planningService = inject(PlanningService);
   private cdr             = inject(ChangeDetectorRef);
@@ -133,9 +135,8 @@ export class WeekViewComponent implements OnChanges {
   shiftFormDate             = '';
 
   openShiftForm(collaboratorId: number, dayIso: string) {
-    this.shiftFormCollaboratorId = collaboratorId;
-    this.shiftFormDate           = dayIso;
-    this.showShiftForm           = true;
+    // Délègue au drawer dans le composant parent
+    this.cellClicked.emit({ collaboratorId, date: dayIso });
   }
 
   onShiftCreated() {
@@ -623,8 +624,7 @@ export class WeekViewComponent implements OnChanges {
   onShiftClick(shift: Shift, event: MouseEvent): void {
     if (!this.isManager) return;
     event.stopPropagation();
-    const rect = (event.currentTarget as HTMLElement).getBoundingClientRect();
-    this.activeShiftPopover = { shift, x: rect.left, y: rect.bottom + 6 };
+    this.shiftClicked.emit(shift);
   }
 
   closeShiftPopover(): void {

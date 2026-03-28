@@ -178,6 +178,10 @@ class AbsenceRequest(models.Model):
         default=False,
         help_text="True si posé directement par un manager sans demande du collaborateur",
     )
+    working_days_count = models.IntegerField(
+        null=True, blank=True,
+        help_text="Nombre de jours ouvrés réellement déduits (fériés exclus pour les CP)",
+    )
 
     class Meta:
         ordering = ['-created_at']

@@ -163,4 +163,49 @@ export class AbsenceModalComponent implements OnInit {
     return `${collab.first_name.charAt(0)}${collab.last_name.charAt(0)}`.toUpperCase();
   }
 
+  // ── Feedback jours ouvrés CP (calcul côté client) ──────────────────────────
+
+  /** Retourne { workingDays, ferieCount } pour la plage CP sélectionnée. */
+  get cpWorkingDaysFeedback(): { workingDays: number; ferieCount: number } | null {
+    if (this.form.type !== 'cp' || !this.form.start_date || !this.form.end_date) return null;
+    if (this.form.start_date > this.form.end_date) return null;
+    const start = new Date(this.form.start_date + 'T00:00:00');
+    const end   = new Date(this.form.end_date   + 'T00:00:00');
+    const years = new Set<number>();
+    for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) years.add(d.getFullYear());
+    const feries = new Set<string>();
+    for (const y of years) {
+      for (const f of this._getJoursFeries(y)) feries.add(this._isoDate(f));
+    }
+    let workingDays = 0, ferieCount = 0;
+    for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
+      if (d.getDay() === 0) continue; // dimanche
+      const iso = this._isoDate(d);
+      if (feries.has(iso)) { ferieCount++; continue; }
+      workingDays++;
+    }
+    return { workingDays, ferieCount };
+  }
+
+  private _isoDate(d: Date): string {
+    const p = (n: number) => String(n).padStart(2, '0');
+    return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`;
+  }
+
+  private _getJoursFeries(year: number): Date[] {
+    const a = year % 19, b = Math.floor(year / 100), c = year % 100;
+    const d = Math.floor(b / 4), e = b % 4, f = Math.floor((b + 8) / 25);
+    const g = Math.floor((b - f + 1) / 3), h = (19 * a + b - d - g + 15) % 30;
+    const ii = Math.floor(c / 4), k = c % 4, l = (32 + 2 * e + 2 * ii - h - k) % 7;
+    const m = Math.floor((a + 11 * h + 22 * l) / 451);
+    const eMonth = Math.floor((h + l - 7 * m + 114) / 31);
+    const eDay   = ((h + l - 7 * m + 114) % 31) + 1;
+    const add = (n: number) => new Date(year, eMonth - 1, eDay + n);
+    return [
+      new Date(year, 0, 1), add(1), new Date(year, 4, 1), new Date(year, 4, 8),
+      add(39), add(50), new Date(year, 6, 14), new Date(year, 7, 15),
+      new Date(year, 10, 1), new Date(year, 10, 11), new Date(year, 11, 25),
+    ];
+  }
+
 }

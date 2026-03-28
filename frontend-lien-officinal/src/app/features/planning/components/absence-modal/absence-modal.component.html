@@ -171,6 +171,16 @@
           </textarea>
         </div>
 
+        <!-- Feedback jours ouvrés CP -->
+        @if (cpWorkingDaysFeedback; as fb) {
+          <p class="text-xs text-gray-500 bg-gray-50 rounded-lg px-3 py-2">
+            <span class="font-medium text-gray-700">{{ fb.workingDays }} jour{{ fb.workingDays > 1 ? 's' : '' }} ouvré{{ fb.workingDays > 1 ? 's' : '' }} déduit{{ fb.workingDays > 1 ? 's' : '' }}</span>
+            @if (fb.ferieCount > 0) {
+              <span> · {{ fb.ferieCount }} férié{{ fb.ferieCount > 1 ? 's' : '' }} exclu{{ fb.ferieCount > 1 ? 's' : '' }}</span>
+            }
+          </p>
+        }
+
         <!-- Message info (staff uniquement) -->
         <p *ngIf="!isManager" class="text-xs text-amber-600 bg-amber-50 rounded-lg px-3 py-2">
           Votre demande sera soumise à validation par un responsable.

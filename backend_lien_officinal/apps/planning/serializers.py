@@ -75,7 +75,7 @@ class AbsenceRequestSerializer(serializers.ModelSerializer):
         fields = [
             'id', 'collaborator', 'start_date', 'end_date',
             'type', 'status', 'note', 'created_at', 'reviewed_at', 'reviewed_by',
-            'posted_by_manager',
+            'posted_by_manager', 'working_days_count',
         ]
 
 

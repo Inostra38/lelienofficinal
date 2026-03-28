@@ -121,36 +121,6 @@
 
 </div>
 
-<!-- ── Popover shift ──────────────────────────────────────────────────────── -->
-@if (activeShiftPopover) {
-  <div class="fixed inset-0 z-40" (click)="closeShiftPopover()"></div>
-  <div class="tl-shift-popover z-50"
-       [style.left.px]="activeShiftPopover.x"
-       [style.top.px]="activeShiftPopover.y">
-    <div class="tl-shift-popover-time">
-      {{ formatTime(activeShiftPopover.shift.start_datetime) }} – {{ formatTime(activeShiftPopover.shift.end_datetime) }}
-    </div>
-    <label class="tl-shift-popover-row">
-      <input type="checkbox"
-             [checked]="activeShiftPopover.shift.is_absent"
-             [disabled]="savingAbsent"
-             (change)="toggleAbsent(activeShiftPopover.shift)">
-      <span>Absent</span>
-    </label>
-    @if (activeShiftPopover.shift.is_absent) {
-      <select class="tl-shift-popover-select"
-              (change)="updateAbsenceType(activeShiftPopover.shift, $any($event.target).value)">
-        @for (t of ABSENCE_TYPES; track t.value) {
-          <option [value]="t.value"
-                  [selected]="t.value === (activeShiftPopover.shift.absence_type ?? 'injustifiee')">
-            {{ t.label }}
-          </option>
-        }
-      </select>
-    }
-  </div>
-}
-
 <!-- ── Popover ajustement ────────────────────────────────────────────────── -->
 @if (activeAdjPopover) {
   <div class="fixed inset-0 z-40" (click)="closeAdjPopover()"></div>
@@ -184,14 +154,4 @@
   </div>
 }
 
-<!-- ── Modale création shift ─────────────────────────────────────────────── -->
-@if (showShiftForm) {
-  <app-shift-form
-    [collaborators]="_shiftFormCollaborators"
-    [weekDays]="_weekDays"
-    [prefilledCollaboratorId]="shiftFormCollaboratorId"
-    [prefilledDate]="shiftFormDate"
-    (saved)="onShiftCreated()"
-    (closed)="showShiftForm = false">
-  </app-shift-form>
-}
+

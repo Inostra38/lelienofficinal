@@ -468,7 +468,9 @@
         [timelineMode]="weekTimelineMode"
         [showFullTeam]="showFullTeam"
         [filteredCollaboratorIds]="filteredCollaboratorIds"
-        (shiftChanged)="onShiftChanged()">
+        (shiftChanged)="onShiftChanged()"
+        (shiftClicked)="openDrawerForShift($event)"
+        (cellClicked)="openDrawerForCell($event)">
       </app-week-view>
       }
 
@@ -498,3 +500,16 @@
     </div>
   </div>
 </div>
+
+<!-- ── Drawer shift ──────────────────────────────────────────────────────── -->
+@if (showShiftDrawer) {
+  <app-shift-drawer
+    [shift]="drawerShift"
+    [date]="drawerDate"
+    [collaboratorId]="drawerCollaboratorId"
+    (saved)="onDrawerSaved($event)"
+    (deleted)="onDrawerDeleted($event)"
+    (transformed)="onDrawerTransformed()"
+    (closed)="closeDrawer()">
+  </app-shift-drawer>
+}

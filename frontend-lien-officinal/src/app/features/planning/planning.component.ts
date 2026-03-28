@@ -5,7 +5,7 @@ import { takeUntil } from 'rxjs/operators';
 
 import { AuthService } from '../../core/auth/auth.service';
 import { CollaboratorService, Collaborator } from '../../core/services/collaborator.service';
-import { PlanningService, WeekResponse, OpeningHours } from '../../core/services/planning.service';
+import { PlanningService, WeekResponse, OpeningHours, Shift } from '../../core/services/planning.service';
 import { PinModalComponent } from '../messaging/components/pin-modal/pin-modal.component';
 import { WeekViewComponent } from './components/week-view/week-view.component';
 import { MonthViewComponent } from './components/month-view/month-view.component';
@@ -14,12 +14,13 @@ import { PlanningSettingsComponent } from './components/planning-settings/planni
 import { TemplateModalComponent } from './components/template-modal/template-modal.component';
 import { TimeAdjustmentsComponent } from './components/time-adjustments/time-adjustments.component';
 import { PlanningAnalyticsComponent } from './components/planning-analytics/planning-analytics.component';
+import { ShiftDrawerComponent } from './components/shift-drawer/shift-drawer.component';
 import { PlanningSettings } from '../../core/services/planning.service';
 
 @Component({
   selector: 'app-planning',
   standalone: true,
-  imports: [CommonModule, PinModalComponent, WeekViewComponent, MonthViewComponent, AbsenceModalComponent, PlanningSettingsComponent, TemplateModalComponent, TimeAdjustmentsComponent, PlanningAnalyticsComponent],
+  imports: [CommonModule, PinModalComponent, WeekViewComponent, MonthViewComponent, AbsenceModalComponent, PlanningSettingsComponent, TemplateModalComponent, TimeAdjustmentsComponent, PlanningAnalyticsComponent, ShiftDrawerComponent],
   templateUrl: './planning.component.html',
   styleUrl: './planning.component.css',
 })
@@ -60,6 +61,12 @@ export class PlanningComponent implements OnInit, OnDestroy {
   showAnalyticsPanel     = false;
   planningSettings: PlanningSettings | null = null;
   openingHours: OpeningHours[] = [];
+
+  // ── Drawer shift ──────────────────────────────────────────────────────────
+  showShiftDrawer     = false;
+  drawerShift: Shift | null = null;
+  drawerDate: string | null = null;
+  drawerCollaboratorId: number | null = null;
 
   // ── Filtrage collaborateurs (pills niveau 2) ───────────────────────────────
   selectedCollaboratorIds: number[] = [];
@@ -120,6 +127,39 @@ export class PlanningComponent implements OnInit, OnDestroy {
     this.showSettingsModal = false;
     this.planningService.getSettings().subscribe(s => { this.planningSettings = s; });
     this.planningService.getOpeningHours().subscribe(h => { this.openingHours = h; });
+  }
+
+  // ── Drawer shift ──────────────────────────────────────────────────────────
+
+  openDrawerForShift(shift: Shift) {
+    this.drawerShift         = shift;
+    this.drawerDate          = null;
+    this.drawerCollaboratorId = null;
+    this.showShiftDrawer     = true;
+  }
+
+  openDrawerForCell(event: { collaboratorId: number; date: string }) {
+    this.drawerShift         = null;
+    this.drawerDate          = event.date;
+    this.drawerCollaboratorId = event.collaboratorId;
+    this.showShiftDrawer     = true;
+  }
+
+  onDrawerSaved(_shift: Shift) {
+    this.loadWeek();
+  }
+
+  onDrawerDeleted(_id: number) {
+    this.loadWeek();
+  }
+
+  onDrawerTransformed() {
+    this.loadWeek();
+  }
+
+  closeDrawer() {
+    this.showShiftDrawer = false;
+    this.drawerShift     = null;
   }
 
   changeCollaborator() {
