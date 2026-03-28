@@ -1,4 +1,8 @@
+import logging
+
 from celery import shared_task
+
+logger = logging.getLogger(__name__)
 
 
 @shared_task(bind=True, max_retries=2, default_retry_delay=30)
@@ -33,3 +37,19 @@ def send_sms_task(self, log_id: int, phone: str, message: str):
             Pharmacy.objects.filter(pk=log.pharmacy_id).update(
                 sms_credits=F('sms_credits') + log.credits_used
             )
+
+
+@shared_task(name='sms.cleanup_old_sms_logs')
+def cleanup_old_sms_logs():
+    """
+    Supprime les SMSLog de plus de 30 jours.
+    TTL RGPD : rétention maximale 30 jours.
+    """
+    from datetime import timedelta
+    from django.utils import timezone
+    from apps.core.models import SMSLog
+
+    cutoff = timezone.now() - timedelta(days=30)
+    deleted_count, _ = SMSLog.objects.filter(sent_at__lt=cutoff).delete()
+    logger.info(f"[SMS Cleanup] {deleted_count} logs supprimés (antérieurs au {cutoff.date()})")
+    return deleted_count

@@ -220,7 +220,8 @@ REST_FRAMEWORK = {
     'DEFAULT_THROTTLE_RATES': {
         'user': '1000/day',       # limite globale par défaut
         'messaging': '30/minute', # envoi de messages (REST fallback)
-        'sms_send': '200/hour',   # envoi SMS (les crédits sont le vrai limiteur)
+        'sms_send': '200/hour',             # envoi SMS par pharmacie
+        'sms_send_collaborator': '50/hour', # envoi SMS par collaborateur
     },
 }
 
@@ -280,6 +281,15 @@ CELERY_RESULT_BACKEND = os.environ.get('REDIS_URL', 'redis://localhost:6379/0')
 CELERY_ACCEPT_CONTENT = ['json']
 CELERY_TASK_SERIALIZER = 'json'
 CELERY_TIMEZONE = 'Europe/Paris'
+
+from celery.schedules import crontab  # noqa: E402
+
+CELERY_BEAT_SCHEDULE = {
+    'sms-cleanup-old-logs': {
+        'task': 'sms.cleanup_old_sms_logs',
+        'schedule': crontab(hour=2, minute=0),  # chaque nuit à 2h00
+    },
+}
 
 # --- LOGGING ---
 LOGGING = {

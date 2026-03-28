@@ -153,7 +153,8 @@ class SMSLog(models.Model):
         SMSTemplate, on_delete=models.SET_NULL, null=True, blank=True
     )
     sent_by = models.ForeignKey(
-        'Pharmacy', on_delete=models.SET_NULL, null=True, related_name='sms_sent'
+        'team.Collaborator', on_delete=models.SET_NULL, null=True, blank=True,
+        related_name='sms_sent'
     )
     to_hash = models.CharField(max_length=64)
     recipient_civilite = models.CharField(max_length=3, blank=True)

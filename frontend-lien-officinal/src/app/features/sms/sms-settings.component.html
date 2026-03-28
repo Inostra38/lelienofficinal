@@ -51,15 +51,6 @@
   <div class="bg-white rounded-2xl border border-gray-100 p-6">
     <h2 class="text-sm font-semibold text-gray-700 mb-4">Aide & Conformité</h2>
 
-    <a routerLink="/sms"
-       class="flex items-center gap-2 text-sm text-green-700 hover:text-green-800 font-medium mb-5 transition-colors">
-      <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-          d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"/>
-      </svg>
-      Gérer mes templates SMS
-    </a>
-
     <div class="bg-blue-50 border border-blue-100 rounded-xl p-4 text-sm text-blue-800 leading-relaxed">
       <p class="font-semibold mb-2 flex items-center gap-2">
         <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -74,6 +65,120 @@
         dans les journaux d'envoi à des fins de traçabilité interne.
       </p>
     </div>
+  </div>
+
+  <!-- ── Section Protection des données (RGPD) ── -->
+  <div class="bg-white rounded-2xl border border-gray-100 p-6 mt-4">
+    <h2 class="text-sm font-semibold text-gray-700 mb-4 flex items-center gap-2">
+      <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-green-700" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+          d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/>
+      </svg>
+      Protection des données (RGPD)
+    </h2>
+
+    <div class="overflow-x-auto">
+      <table class="w-full text-sm text-left">
+        <thead>
+          <tr class="border-b border-gray-100">
+            <th class="pb-2 pr-4 font-semibold text-gray-600">Donnée</th>
+            <th class="pb-2 pr-4 font-semibold text-gray-600">Collectée ?</th>
+            <th class="pb-2 font-semibold text-gray-600">Durée de conservation</th>
+          </tr>
+        </thead>
+        <tbody class="divide-y divide-gray-50">
+          <tr>
+            <td class="py-2 pr-4 text-gray-700">Numéro de téléphone</td>
+            <td class="py-2 pr-4">
+              <span class="inline-flex items-center gap-1 text-red-600 font-medium">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+                </svg>
+                Non
+              </span>
+            </td>
+            <td class="py-2 text-gray-400">—</td>
+          </tr>
+          <tr>
+            <td class="py-2 pr-4 text-gray-700">Contenu du message</td>
+            <td class="py-2 pr-4">
+              <span class="inline-flex items-center gap-1 text-red-600 font-medium">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+                </svg>
+                Non
+              </span>
+            </td>
+            <td class="py-2 text-gray-400">—</td>
+          </tr>
+          <tr>
+            <td class="py-2 pr-4 text-gray-700">Nom / Prénom du destinataire</td>
+            <td class="py-2 pr-4">
+              <span class="inline-flex items-center gap-1 text-amber-600 font-medium">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/>
+                </svg>
+                Oui
+              </span>
+            </td>
+            <td class="py-2 text-gray-500">30 jours</td>
+          </tr>
+          <tr>
+            <td class="py-2 pr-4 text-gray-700">Civilité du destinataire</td>
+            <td class="py-2 pr-4">
+              <span class="inline-flex items-center gap-1 text-amber-600 font-medium">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/>
+                </svg>
+                Oui
+              </span>
+            </td>
+            <td class="py-2 text-gray-500">30 jours</td>
+          </tr>
+          <tr>
+            <td class="py-2 pr-4 text-gray-700">Motif de l'envoi</td>
+            <td class="py-2 pr-4">
+              <span class="inline-flex items-center gap-1 text-amber-600 font-medium">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/>
+                </svg>
+                Oui
+              </span>
+            </td>
+            <td class="py-2 text-gray-500">30 jours</td>
+          </tr>
+          <tr>
+            <td class="py-2 pr-4 text-gray-700">Statut de livraison</td>
+            <td class="py-2 pr-4">
+              <span class="inline-flex items-center gap-1 text-amber-600 font-medium">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/>
+                </svg>
+                Oui
+              </span>
+            </td>
+            <td class="py-2 text-gray-500">30 jours</td>
+          </tr>
+          <tr>
+            <td class="py-2 pr-4 text-gray-700">Date et heure d'envoi</td>
+            <td class="py-2 pr-4">
+              <span class="inline-flex items-center gap-1 text-amber-600 font-medium">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/>
+                </svg>
+                Oui
+              </span>
+            </td>
+            <td class="py-2 text-gray-500">30 jours</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <p class="mt-4 text-xs text-gray-500 leading-relaxed border-t border-gray-50 pt-4">
+      Les journaux d'envoi sont automatiquement supprimés après 30 jours. Aucun numéro de téléphone
+      ni contenu de message n'est conservé sur nos serveurs.
+    </p>
   </div>
 
   <!-- ── Modale Acheter des crédits ── -->

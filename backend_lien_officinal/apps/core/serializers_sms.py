@@ -12,12 +12,13 @@ class SMSTemplateSerializer(serializers.ModelSerializer):
 class SMSLogSerializer(serializers.ModelSerializer):
     template_title = serializers.SerializerMethodField()
     sent_by_display = serializers.SerializerMethodField()
+    sent_by_color = serializers.SerializerMethodField()
     status_label = serializers.SerializerMethodField()
 
     class Meta:
         model = SMSLog
         fields = [
-            'id', 'template_title', 'sent_by_display',
+            'id', 'template_title', 'sent_by_display', 'sent_by_color',
             'recipient_civilite', 'recipient_name',
             'to_hash', 'status', 'status_label', 'ovh_message_id',
             'credits_used', 'sent_at', 'error_message', 'motif',
@@ -28,7 +29,12 @@ class SMSLogSerializer(serializers.ModelSerializer):
         return obj.template.title if obj.template else 'Message libre'
 
     def get_sent_by_display(self, obj):
-        return obj.sent_by.nom_officine if obj.sent_by else 'Inconnu'
+        if not obj.sent_by:
+            return 'Inconnu'
+        return f"{obj.sent_by.first_name} {obj.sent_by.last_name}".strip()
+
+    def get_sent_by_color(self, obj):
+        return obj.sent_by.color if obj.sent_by else None
 
     def get_status_label(self, obj):
         return obj.get_status_display()

@@ -6,6 +6,8 @@ import { Subject, Subscription, of } from 'rxjs';
 import { debounceTime, switchMap, takeUntil } from 'rxjs/operators';
 
 import { SmsService, SmsTemplate, SmsLog, SmsStatus } from '../../core/services/sms.service';
+import { SmsWebSocketService } from '../../core/services/sms-websocket.service';
+import { resolveColor } from '../../core/utils/collaborator-colors';
 import { PharmacyService, PharmacyData } from '../../core/services/pharmacy.service';
 import { CollaboratorService, Collaborator } from '../../core/services/collaborator.service';
 import { AuthService } from '../../core/auth/auth.service';
@@ -27,6 +29,7 @@ const GSM7 = new Set([...GSM7_CHARS]);
 })
 export class SmsDashboardComponent implements OnInit, OnDestroy {
   private smsService = inject(SmsService);
+  private smsWs = inject(SmsWebSocketService);
   private pharmacyService = inject(PharmacyService);
   private collaboratorService = inject(CollaboratorService);
   private authService = inject(AuthService);
@@ -78,7 +81,10 @@ export class SmsDashboardComponent implements OnInit, OnDestroy {
 
   // History
   logs: SmsLog[] = [];
+  logsCount = 0;
+  logsNextPage: number | null = null;
   loadingLogs = false;
+  loadingMoreLogs = false;
   expandedLogId: number | null = null;
 
   // Templates CRUD
@@ -123,6 +129,12 @@ export class SmsDashboardComponent implements OnInit, OnDestroy {
   ];
 
   ngOnInit() {
+    this.smsWs.connect();
+    this.smsWs.statusUpdates$.pipe(takeUntil(this.destroy$)).subscribe(update => {
+      const log = this.logs.find(l => String(l.id) === update.log_id);
+      if (log) log.status = update.status as SmsStatus;
+    });
+
     this.loadTemplates();
 
     this.pharmacyService.getCurrentPharmacy().pipe(takeUntil(this.destroy$)).subscribe({
@@ -150,6 +162,7 @@ export class SmsDashboardComponent implements OnInit, OnDestroy {
   }
 
   ngOnDestroy() {
+    this.smsWs.disconnect();
     this.subs.unsubscribe();
     this.destroy$.next();
     this.destroy$.complete();
@@ -208,6 +221,17 @@ export class SmsDashboardComponent implements OnInit, OnDestroy {
 
   getInitials(collab: Collaborator): string {
     return `${collab.first_name[0]}${collab.last_name[0]}`.toUpperCase();
+  }
+
+  getLogInitials(display: string): string {
+    const parts = display.trim().split(' ');
+    if (parts.length >= 2) return (parts[0][0] + parts[1][0]).toUpperCase();
+    return display.slice(0, 2).toUpperCase();
+  }
+
+  getLogAvatarStyle(color: string | null): Record<string, string> {
+    const c = resolveColor(color ?? '');
+    return { background: c.base, color: '#fff' };
   }
 
 
@@ -357,22 +381,34 @@ export class SmsDashboardComponent implements OnInit, OnDestroy {
     });
   }
 
-  statusIcon(s: SmsStatus): string {
-    return ({
-      PENDING:   '⏳',
-      SUCCESS:   '✓',
-      DELIVERED: '✓✓',
-      FAILED:    '✗',
-    } as Record<SmsStatus, string>)[s] ?? '';
+  getStatusLabel(status: string): string {
+    const labels: Record<string, string> = {
+      DELIVERED: 'Livré',
+      SUCCESS:   'Envoyé',
+      FAILED:    'Échec',
+      PENDING:   'En attente',
+    };
+    return labels[status] ?? status;
   }
 
-  statusClass(s: SmsStatus): string {
-    return ({
-      PENDING:   'text-amber-500',
+  getStatusClass(status: string): string {
+    const classes: Record<string, string> = {
+      DELIVERED: 'text-green-700',
       SUCCESS:   'text-green-600',
-      DELIVERED: 'text-green-700 font-semibold',
-      FAILED:    'text-red-600',
-    } as Record<SmsStatus, string>)[s] ?? '';
+      FAILED:    'text-red-700',
+      PENDING:   'text-amber-700',
+    };
+    return classes[status] ?? 'text-gray-500';
+  }
+
+  getDotClass(status: string): string {
+    const classes: Record<string, string> = {
+      DELIVERED: 'bg-green-600',
+      SUCCESS:   'bg-green-500',
+      FAILED:    'bg-red-500',
+      PENDING:   'bg-amber-500',
+    };
+    return classes[status] ?? 'bg-gray-400';
   }
 
   private resetForm() {
@@ -454,9 +490,30 @@ export class SmsDashboardComponent implements OnInit, OnDestroy {
 
   loadLogs() {
     this.loadingLogs = true;
-    this.smsService.getLogs().subscribe({
-      next: (logs) => { this.logs = logs; this.loadingLogs = false; },
+    this.logs = [];
+    this.logsNextPage = null;
+    this.smsService.getLogs(1).subscribe({
+      next: (page) => {
+        this.logs = page.results;
+        this.logsCount = page.count;
+        this.logsNextPage = page.next ? 2 : null;
+        this.loadingLogs = false;
+      },
       error: () => { this.loadingLogs = false; }
+    });
+  }
+
+  loadMoreLogs() {
+    if (!this.logsNextPage || this.loadingMoreLogs) return;
+    this.loadingMoreLogs = true;
+    const page = this.logsNextPage;
+    this.smsService.getLogs(page).subscribe({
+      next: (p) => {
+        this.logs = [...this.logs, ...p.results];
+        this.logsNextPage = p.next ? page + 1 : null;
+        this.loadingMoreLogs = false;
+      },
+      error: () => { this.loadingMoreLogs = false; }
     });
   }
 

@@ -28,13 +28,9 @@ export class SmsSettingsComponent implements OnInit {
     this.pharmacyService.getCurrentPharmacy().subscribe({
       next: (data) => { this.smsCredits = data.sms_credits ?? 0; }
     });
-    this.smsService.getLogs().subscribe({
-      next: (logs) => {
-        const now = new Date();
-        this.monthlySmsCount = logs.filter(l => {
-          const d = new Date(l.sent_at);
-          return d.getFullYear() === now.getFullYear() && d.getMonth() === now.getMonth();
-        }).length;
+    this.smsService.getStats().subscribe({
+      next: (stats) => {
+        this.monthlySmsCount = stats.monthly_count;
         this.isLoading = false;
       },
       error: () => { this.isLoading = false; }

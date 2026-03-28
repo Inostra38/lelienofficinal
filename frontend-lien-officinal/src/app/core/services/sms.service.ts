@@ -24,6 +24,7 @@ export interface SmsLog {
   id: number;
   template_title: string;
   sent_by_display: string;
+  sent_by_color: string | null;
   recipient_civilite: string;
   recipient_name: string;
   to_hash: string;
@@ -39,6 +40,13 @@ export interface SmsLog {
 export interface SmsSendResponse {
   log_id: number;
   credits_remaining: number;
+}
+
+export interface SmsLogPage {
+  count: number;
+  next: string | null;
+  previous: string | null;
+  results: SmsLog[];
 }
 
 @Injectable({ providedIn: 'root' })
@@ -87,13 +95,19 @@ export class SmsService {
 
   // ── Logs ──────────────────────────────────────────────────────────────────
 
-  getLogs(): Observable<SmsLog[]> {
-    return this.http.get<SmsLog[]>(`${this.apiUrl}/logs/`);
+  getLogs(page = 1): Observable<SmsLogPage> {
+    return this.http.get<SmsLogPage>(`${this.apiUrl}/logs/?page=${page}`);
   }
 
   // ── Crédits ───────────────────────────────────────────────────────────────
 
   getCredits(): Observable<{ credits: number }> {
     return this.http.get<{ credits: number }>(`${this.apiUrl}/credits/`);
+  }
+
+  // ── Stats ─────────────────────────────────────────────────────────────────
+
+  getStats(): Observable<{ total_count: number; monthly_count: number }> {
+    return this.http.get<{ total_count: number; monthly_count: number }>(`${this.apiUrl}/stats/`);
   }
 }

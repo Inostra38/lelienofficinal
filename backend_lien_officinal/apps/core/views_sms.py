@@ -1,12 +1,14 @@
 import logging
 from rest_framework import viewsets, status
+from rest_framework.pagination import PageNumberPagination
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated, AllowAny
-from rest_framework.throttling import UserRateThrottle
+from rest_framework.throttling import UserRateThrottle, SimpleRateThrottle
 
 logger = logging.getLogger(__name__)
 from django.db.models import F
+from django.utils import timezone
 
 from .models import SMSTemplate, SMSLog
 from .serializers_sms import (
@@ -17,8 +19,42 @@ from .services import TemplateResolver, OVHService
 from .auth_helpers import get_collaborator_from_jwt as _get_collaborator
 
 
+class SMSLogPagination(PageNumberPagination):
+    page_size = 20
+    page_size_query_param = 'page_size'
+    max_page_size = 100
+
+
 class SMSSendThrottle(UserRateThrottle):
+    """Rate limit global par pharmacie (200/heure)."""
     scope = 'sms_send'
+
+
+class SMSCollaboratorThrottle(SimpleRateThrottle):
+    """Rate limit par collaborateur connecté (50/heure)."""
+    scope = 'sms_send_collaborator'
+    rate = '50/hour'
+
+    def get_cache_key(self, request, view):
+        token = getattr(request, 'auth', None)
+        if not token:
+            return None
+        collab_id = token.get('collaborator_id') if hasattr(token, 'get') else None
+        if not collab_id:
+            return None
+        return self.cache_format % {
+            'scope': self.scope,
+            'ident': f'collab_{collab_id}',
+        }
+
+
+# IPs officielles OVH SMS (Europe)
+_OVH_SMS_IPS = frozenset({
+    '46.105.152.56', '46.105.152.57', '46.105.152.58',
+    '46.105.152.59', '46.105.152.60', '46.105.152.61',
+    '46.105.152.62', '46.105.152.63',
+    '87.98.129.90',  '87.98.129.91',
+})
 
 
 class SMSTemplateViewSet(viewsets.ModelViewSet):
@@ -79,7 +115,7 @@ class SMSPreviewView(APIView):
 
 class SMSSendView(APIView):
     permission_classes = [IsAuthenticated]
-    throttle_classes = [SMSSendThrottle]
+    throttle_classes = [SMSSendThrottle, SMSCollaboratorThrottle]
 
     def post(self, request):
         serializer = SMSSendSerializer(data=request.data)
@@ -88,6 +124,7 @@ class SMSSendView(APIView):
 
         data = serializer.validated_data
         pharmacy = request.user
+        collaborator = _get_collaborator(request)
         template = None
 
         if data.get('template_id'):
@@ -123,7 +160,7 @@ class SMSSendView(APIView):
         log = SMSLog.objects.create(
             pharmacy=pharmacy,
             template=template,
-            sent_by=pharmacy,
+            sent_by=collaborator,
             to_hash=to_hash,
             recipient_civilite=data.get('recipient_civilite', ''),
             recipient_name=data.get('recipient_name', ''),
@@ -144,33 +181,50 @@ class SMSSendView(APIView):
 class SMSLogViewSet(viewsets.ReadOnlyModelViewSet):
     serializer_class = SMSLogSerializer
     permission_classes = [IsAuthenticated]
-    pagination_class = None  # Pas de pagination globale — liste complète plafonnée ci-dessous
+    pagination_class = SMSLogPagination
 
     def get_queryset(self):
         return (
             SMSLog.objects
             .filter(pharmacy=self.request.user)
             .select_related('template', 'sent_by')
-            .order_by('-sent_at')[:200]
+            .order_by('-sent_at')
         )
 
 
 class SMSWebhookView(APIView):
-    """Accusé de réception OVH — endpoint public protégé par secret."""
+    """
+    Accusé de réception OVH — endpoint public.
+    Sécurité :
+      1. Token dans le path URL (/api/sms/webhook/<token>/) — invisible dans les logs query params
+      2. Whitelist IPs OVH (optionnelle, activée si SMS_OVH_IP_WHITELIST=true)
+    """
     permission_classes = [AllowAny]
     authentication_classes = []
 
-    def get(self, request):
-        return self._handle(request)
+    def get(self, request, token=''):
+        return self._handle(request, token)
 
-    def post(self, request):
-        return self._handle(request)
+    def post(self, request, token=''):
+        return self._handle(request, token)
 
-    def _handle(self, request):
+    def _handle(self, request, token):
         from django.conf import settings as s
+
+        # 1. Vérification du token dans le path
         secret = getattr(s, 'SMS_WEBHOOK_SECRET', '')
-        if secret and request.query_params.get('secret') != secret:
+        if secret and token != secret:
             return Response(status=status.HTTP_403_FORBIDDEN)
+
+        # 2. Whitelist IPs OVH (optionnelle)
+        if getattr(s, 'SMS_OVH_IP_WHITELIST', False):
+            client_ip = (
+                request.META.get('HTTP_X_FORWARDED_FOR', '').split(',')[0].strip()
+                or request.META.get('REMOTE_ADDR', '')
+            )
+            if client_ip not in _OVH_SMS_IPS:
+                logger.warning("[SMS Webhook] IP non autorisée : %s", client_ip)
+                return Response(status=status.HTTP_403_FORBIDDEN)
 
         # OVH envoie : msgid, status (OK/KO)
         msgid = request.query_params.get('msgid') or request.data.get('msgid', '')
@@ -182,7 +236,31 @@ class SMSWebhookView(APIView):
         new_status = (
             SMSLog.Status.DELIVERED if ovh_status == 'OK' else SMSLog.Status.FAILED
         )
-        SMSLog.objects.filter(ovh_message_id=msgid).update(status=new_status)
+
+        try:
+            log = SMSLog.objects.get(ovh_message_id=msgid)
+        except SMSLog.DoesNotExist:
+            return Response(status=status.HTTP_200_OK)
+
+        log.status = new_status
+        log.save(update_fields=['status'])
+
+        try:
+            from channels.layers import get_channel_layer
+            from asgiref.sync import async_to_sync
+            from django.utils import timezone as tz
+            channel_layer = get_channel_layer()
+            async_to_sync(channel_layer.group_send)(
+                f'sms_status_{log.pharmacy_id}',
+                {
+                    'type': 'sms_status_update',
+                    'log_id': str(log.id),
+                    'status': log.status,
+                    'updated_at': tz.now().isoformat(),
+                },
+            )
+        except Exception:
+            pass  # Ne pas bloquer la réponse webhook si Redis est indisponible
 
         return Response(status=status.HTTP_200_OK)
 
@@ -193,3 +271,21 @@ class SMSCreditsView(APIView):
     def get(self, request):
         request.user.refresh_from_db(fields=['sms_credits'])
         return Response({'credits': request.user.sms_credits})
+
+
+class SMSStatsView(APIView):
+    """Statistiques SMS de la pharmacie — compteurs calculés en DB."""
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        now = timezone.now()
+        month_start = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+
+        qs = SMSLog.objects.filter(pharmacy=request.user)
+        total = qs.count()
+        monthly = qs.filter(sent_at__gte=month_start).count()
+
+        return Response({
+            'total_count': total,
+            'monthly_count': monthly,
+        })

@@ -16,10 +16,11 @@ from apps.messaging.middleware import JWTAuthMiddleware
 from apps.messaging.routing import websocket_urlpatterns as messaging_ws
 from apps.tasks.routing import websocket_urlpatterns as tasks_ws
 from apps.quality.routing import websocket_urlpatterns as quality_ws
+from apps.core.routing import websocket_urlpatterns as sms_ws
 
 application = ProtocolTypeRouter({
     "http": django_asgi_app,
     "websocket": JWTAuthMiddleware(
-        URLRouter(messaging_ws + tasks_ws + quality_ws)
+        URLRouter(messaging_ws + tasks_ws + quality_ws + sms_ws)
     ),
 })

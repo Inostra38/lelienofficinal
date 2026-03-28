@@ -1,5 +1,8 @@
 import re
 import hashlib
+import logging
+
+logger = logging.getLogger(__name__)
 
 
 class TemplateResolver:
@@ -63,12 +66,19 @@ class OVHService:
     def __init__(self):
         import ovh
         from django.conf import settings
-        self.client = ovh.Client(
-            endpoint=settings.OVH_ENDPOINT,
-            application_key=settings.OVH_APP_KEY,
-            application_secret=settings.OVH_APP_SECRET,
-            consumer_key=settings.OVH_CONSUMER_KEY,
-        )
+        self.mock = settings.OVH_APP_KEY in ('', 'DUMMY_KEY')
+        if self.mock:
+            logger.warning(
+                "[SMS] MODE MOCK ACTIF — aucun SMS réel ne sera envoyé. "
+                "Configurez OVH_APP_KEY en production."
+            )
+        if not self.mock:
+            self.client = ovh.Client(
+                endpoint=settings.OVH_ENDPOINT,
+                application_key=settings.OVH_APP_KEY,
+                application_secret=settings.OVH_APP_SECRET,
+                consumer_key=settings.OVH_CONSUMER_KEY,
+            )
         self.service_name = settings.OVH_SMS_SERVICE
 
     @staticmethod
@@ -103,6 +113,9 @@ class OVHService:
 
     def send_raw(self, to: str, message: str) -> str:
         """Appel OVH brut — retourne l'ID du message OVH (utilisé par la tâche Celery)."""
+        if self.mock:
+            import uuid
+            return f'MOCK-{uuid.uuid4().hex[:8].upper()}'
         result = self.client.post(
             f'/sms/{self.service_name}/jobs',
             message=message,

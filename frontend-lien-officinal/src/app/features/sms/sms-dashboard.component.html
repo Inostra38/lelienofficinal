@@ -432,9 +432,11 @@
   <!-- ════════════════════════════════════════════
        ONGLET HISTORIQUE
   ════════════════════════════════════════════ -->
-  <div *ngIf="activeTab === 'history'">
+  @if (activeTab === 'history') {
     <div class="flex justify-between items-center mb-4">
-      <p class="text-sm text-gray-500">50 derniers envois</p>
+      <p class="text-sm text-gray-500">
+        {{ logs.length }} / {{ logsCount }} envoi{{ logsCount > 1 ? 's' : '' }}
+      </p>
       <button (click)="loadLogs()"
               class="flex items-center gap-1.5 text-sm text-gray-500 hover:text-green-700 transition-colors">
         <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -443,69 +445,182 @@
         Rafraîchir
       </button>
     </div>
-    <div *ngIf="loadingLogs" class="flex justify-center py-12">
-      <svg class="h-6 w-6 animate-spin text-green-600" fill="none" viewBox="0 0 24 24">
-        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/>
-        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"/>
-      </svg>
-    </div>
-    <div *ngIf="!loadingLogs" class="bg-white rounded-2xl border border-gray-100 overflow-hidden">
-      <div *ngIf="logs.length === 0" class="py-12 text-center text-sm text-gray-400">
-        Aucun SMS envoyé pour le moment.
+
+    @if (loadingLogs) {
+      <div class="flex justify-center py-12">
+        <svg class="h-6 w-6 animate-spin text-green-600" fill="none" viewBox="0 0 24 24">
+          <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/>
+          <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"/>
+        </svg>
       </div>
-      <table *ngIf="logs.length > 0" class="w-full text-sm">
-        <thead>
-          <tr class="bg-gray-50 border-b border-gray-100">
-            <th class="text-left text-xs font-medium text-gray-500 px-4 py-3">Date</th>
-            <th class="text-left text-xs font-medium text-gray-500 px-4 py-3">Template</th>
-            <th class="text-left text-xs font-medium text-gray-500 px-4 py-3">Motif</th>
-            <th class="text-left text-xs font-medium text-gray-500 px-4 py-3">Destinataire</th>
-            <th class="text-left text-xs font-medium text-gray-500 px-4 py-3">Envoyé par</th>
-            <th class="text-left text-xs font-medium text-gray-500 px-4 py-3">Statut</th>
-            <th class="text-right text-xs font-medium text-gray-500 px-4 py-3">Crédits</th>
-          </tr>
-        </thead>
-        <tbody>
-          <ng-container *ngFor="let log of logs">
-            <tr class="border-b border-gray-50 hover:bg-gray-50/50 transition-colors">
-              <td class="px-4 py-3 text-gray-600 whitespace-nowrap">{{ formatDate(log.sent_at) }}</td>
-              <td class="px-4 py-3 text-gray-700 font-medium">{{ log.template_title }}</td>
-              <td class="px-4 py-3 text-gray-500">{{ log.motif || '—' }}</td>
-              <td class="px-4 py-3 text-gray-600">{{ log.recipient_civilite }} {{ log.recipient_name || '—' }}</td>
-              <td class="px-4 py-3 text-gray-500 text-xs">{{ log.sent_by_display }}</td>
-              <td class="px-4 py-3">
+    } @else {
+      <div class="bg-white rounded-2xl border border-gray-100 overflow-hidden">
+        @if (logs.length === 0) {
+          <div class="py-12 text-center text-sm text-gray-400">
+            Aucun SMS envoyé pour le moment.
+          </div>
+        } @else {
+          <!-- Tableau desktop (md+) -->
+          <table class="hidden md:table w-full text-sm" style="table-layout:fixed">
+            <colgroup>
+              <col style="width:13%">
+              <col style="width:21%">
+              <col style="width:19%">
+              <col style="width:22%">
+              <col style="width:8%">
+              <col style="width:17%">
+            </colgroup>
+            <thead>
+              <tr class="bg-gray-50 border-b border-gray-100">
+                <th class="text-xs font-medium text-gray-400 uppercase tracking-wider py-3.5 px-4 text-left">Date</th>
+                <th class="text-xs font-medium text-gray-400 uppercase tracking-wider py-3.5 px-4 text-left">Destinataire</th>
+                <th class="text-xs font-medium text-gray-400 uppercase tracking-wider py-3.5 px-4 text-left">Motif</th>
+                <th class="text-xs font-medium text-gray-400 uppercase tracking-wider py-3.5 px-4 text-left">Template</th>
+                <th class="text-xs font-medium text-gray-400 uppercase tracking-wider py-3.5 px-4 text-left">Par</th>
+                <th class="text-xs font-medium text-gray-400 uppercase tracking-wider py-3.5 px-4 text-left">Statut</th>
+              </tr>
+            </thead>
+            <tbody>
+              @for (log of logs; track log.id) {
+                <tr class="border-b border-gray-100 last:border-0 hover:bg-gray-50 transition-colors duration-100">
+
+                  <!-- Date -->
+                  <td class="px-4 py-3.5">
+                    <div class="text-sm font-medium text-gray-900">{{ log.sent_at | date:'d MMM yyyy' }}</div>
+                    <div class="text-xs text-gray-400 mt-0.5">{{ log.sent_at | date:'HH:mm' }}</div>
+                  </td>
+
+                  <!-- Destinataire -->
+                  <td class="px-3 py-3.5 overflow-hidden">
+                    <div class="text-sm font-medium text-gray-900 truncate">{{ log.recipient_name || '—' }}</div>
+                    <div class="text-xs text-gray-500 mt-0.5">{{ log.recipient_civilite }}</div>
+                  </td>
+
+                  <!-- Motif -->
+                  <td class="px-3 py-3.5 overflow-hidden">
+                    <span class="text-sm text-gray-500 truncate block">{{ log.motif || '—' }}</span>
+                  </td>
+
+                  <!-- Template -->
+                  <td class="px-3 py-3.5 overflow-hidden">
+                    <span class="text-xs text-gray-500 bg-gray-100 border border-gray-200 rounded-full px-2.5 py-0.5 inline-block truncate max-w-full">
+                      {{ log.template_title || '—' }}
+                    </span>
+                  </td>
+
+                  <!-- Avatar (initiales uniquement) -->
+                  <td class="px-4 py-3.5">
+                    <div class="w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold"
+                         [ngStyle]="getLogAvatarStyle(log.sent_by_color)"
+                         [title]="log.sent_by_display">
+                      {{ getLogInitials(log.sent_by_display) }}
+                    </div>
+                  </td>
+
+                  <!-- Statut -->
+                  <td class="px-4 py-3.5">
+                    @if (log.status === 'FAILED') {
+                      <button (click)="toggleLogError(log.id)"
+                              class="inline-flex items-center gap-1.5 text-xs font-medium hover:opacity-80 transition-opacity"
+                              [ngClass]="getStatusClass(log.status)">
+                        <span class="w-1.5 h-1.5 rounded-full shrink-0" [ngClass]="getDotClass(log.status)"></span>
+                        {{ getStatusLabel(log.status) }}
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-3 w-3 opacity-60" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                        </svg>
+                      </button>
+                    } @else {
+                      <span class="inline-flex items-center gap-1.5 text-xs font-medium"
+                            [ngClass]="getStatusClass(log.status)">
+                        <span class="w-1.5 h-1.5 rounded-full shrink-0" [ngClass]="getDotClass(log.status)"></span>
+                        {{ getStatusLabel(log.status) }}
+                      </span>
+                    }
+                  </td>
+
+                </tr>
+
+                <!-- Ligne d'erreur dépliable -->
+                @if (expandedLogId === log.id) {
+                  <tr class="bg-red-50">
+                    <td colspan="6" class="px-3 py-3">
+                      <p class="text-xs font-medium text-red-700 mb-1">Détail de l'erreur :</p>
+                      <code class="text-xs text-red-600 break-all">{{ log.error_message }}</code>
+                    </td>
+                  </tr>
+                }
+              }
+            </tbody>
+          </table>
+
+          <!-- Cards mobile (< md) -->
+          <div class="md:hidden divide-y divide-gray-100">
+            @for (log of logs; track log.id) {
+              <div class="px-4 py-3.5">
+                <div class="flex items-start justify-between gap-3">
+                  <!-- Gauche : destinataire + date -->
+                  <div class="min-w-0">
+                    <p class="text-sm font-medium text-gray-900 truncate">{{ log.recipient_name || '—' }}</p>
+                    <p class="text-xs text-gray-400 mt-0.5">{{ log.sent_at | date:'d MMM yyyy · HH:mm' }}</p>
+                  </div>
+                  <!-- Droite : statut -->
+                  <span class="inline-flex items-center gap-1.5 text-xs font-medium shrink-0 mt-0.5"
+                        [ngClass]="getStatusClass(log.status)">
+                    <span class="w-1.5 h-1.5 rounded-full" [ngClass]="getDotClass(log.status)"></span>
+                    {{ getStatusLabel(log.status) }}
+                  </span>
+                </div>
+                <div class="flex items-center gap-3 mt-2">
+                  <!-- Avatar -->
+                  <div class="w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold shrink-0"
+                       [ngStyle]="getLogAvatarStyle(log.sent_by_color)"
+                       [title]="log.sent_by_display">
+                    {{ getLogInitials(log.sent_by_display) }}
+                  </div>
+                  <!-- Template pill -->
+                  <span class="text-xs text-gray-500 bg-gray-100 border border-gray-200 rounded-full px-2 py-0.5 truncate max-w-[120px]">
+                    {{ log.template_title || '—' }}
+                  </span>
+                  <!-- Motif -->
+                  @if (log.motif) {
+                    <span class="text-xs text-gray-400 truncate">{{ log.motif }}</span>
+                  }
+                </div>
                 @if (log.status === 'FAILED') {
                   <button (click)="toggleLogError(log.id)"
-                          class="inline-flex items-center gap-1 text-xs font-semibold px-2 py-0.5 rounded-full hover:opacity-80 transition-opacity bg-red-100 text-red-700">
-                    ✗ Échec
-                    <svg xmlns="http://www.w3.org/2000/svg" class="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
-                    </svg>
+                          class="mt-2 text-xs text-red-600 underline underline-offset-2">
+                    {{ expandedLogId === log.id ? 'Masquer l\'erreur' : 'Voir l\'erreur' }}
                   </button>
-                } @else {
-                  <span class="inline-flex items-center gap-1 text-xs font-semibold px-2 py-0.5 rounded-full"
-                        [class]="log.status === 'PENDING' ? 'bg-amber-100 text-amber-700' :
-                                 log.status === 'DELIVERED' ? 'bg-green-100 text-green-800' :
-                                 'bg-green-100 text-green-700'">
-                    {{ statusIcon(log.status) }} {{ log.status_label }}
-                  </span>
+                  @if (expandedLogId === log.id) {
+                    <code class="block mt-1 text-xs text-red-600 break-all bg-red-50 rounded p-2">{{ log.error_message }}</code>
+                  }
                 }
-              </td>
-              <td class="px-4 py-3 text-right text-gray-600">{{ log.credits_used }}</td>
-            </tr>
-            <tr *ngIf="expandedLogId === log.id" class="bg-red-50">
-              <td colspan="7" class="px-4 py-3">
-                <p class="text-xs font-medium text-red-700 mb-1">Détail de l'erreur :</p>
-                <code class="text-xs text-red-600 break-all">{{ log.error_message }}</code>
-              </td>
-            </tr>
-          </ng-container>
-        </tbody>
-      </table>
-    </div>
+              </div>
+            }
+          </div>
+        }
+      </div>
+
+      @if (logsNextPage) {
+        <div class="flex justify-center mt-4">
+          <button (click)="loadMoreLogs()"
+                  [disabled]="loadingMoreLogs"
+                  class="flex items-center gap-2 text-sm text-green-700 hover:text-green-800 font-medium disabled:opacity-50 transition-colors">
+            @if (loadingMoreLogs) {
+              <svg class="h-4 w-4 animate-spin" fill="none" viewBox="0 0 24 24">
+                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/>
+                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"/>
+              </svg>
+            }
+            Charger plus
+          </button>
+        </div>
+      }
+    }
+
     <p class="text-xs text-gray-400 mt-3 text-center">
       Les numéros de téléphone ne sont jamais affichés ni stockés.
     </p>
-  </div>
+  }
 
 </div>
