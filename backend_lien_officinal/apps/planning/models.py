@@ -125,9 +125,10 @@ class Shift(models.Model):
             ('injustifiee',        'Absence injustifiée'),
             ('conge_exceptionnel', 'Congé exceptionnel légal'),
             ('maladie',            'Maladie'),
-            ('cp',          'Congés payés'),
-            ('rcr',         'RCR'),
-            ('sans_solde',  'Sans solde'),
+            ('cp',                 'Congés payés'),
+            ('rcr',                'RCR'),
+            ('sans_solde',         'Sans solde'),
+            ('formation',          'Formation'),
         ],
         null=True, blank=True,
     )

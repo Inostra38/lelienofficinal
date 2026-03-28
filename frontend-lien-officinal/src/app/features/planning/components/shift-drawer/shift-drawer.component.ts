@@ -50,12 +50,13 @@ export class ShiftDrawerComponent implements OnChanges {
   activeTab: DrawerTab = 'define';
 
   // ── Formulaire Définir ────────────────────────────────────────────────────
-  startTime = '';
-  endTime   = '';
+  startTime   = '';
+  endTime     = '';
   isPublished = false;
-  note      = '';
-  saving    = false;
-  dirty     = false;
+  isFormation = false;
+  note        = '';
+  saving      = false;
+  dirty       = false;
 
   // ── État post-transformation ──────────────────────────────────────────────
   transformBadge: TransformBadge | null = null;
@@ -66,10 +67,11 @@ export class ShiftDrawerComponent implements OnChanges {
   transforming = false;
 
   readonly ABSENCE_TYPES = [
-    { value: 'cp',                 label: 'CP posé',               danger: false },
-    { value: 'maladie',            label: 'Maladie',               danger: false },
-    { value: 'conge_exceptionnel', label: 'Congé exceptionnel',    danger: false },
-    { value: 'injustifiee',        label: 'Absence injustifiée',   danger: true  },
+    { value: 'cp',                 label: 'CP posé',             danger: false },
+    { value: 'maladie',            label: 'Maladie',             danger: false },
+    { value: 'conge_exceptionnel', label: 'Congé exceptionnel',  danger: false },
+    { value: 'injustifiee',        label: 'Absence injustifiée', danger: true  },
+    { value: 'rcr',                label: 'RCR',                 danger: false },
   ];
 
   ngOnChanges(changes: SimpleChanges) {
@@ -82,12 +84,14 @@ export class ShiftDrawerComponent implements OnChanges {
       this.startTime   = this.shift.start_datetime.substring(11, 16);
       this.endTime     = this.shift.end_datetime.substring(11, 16);
       this.isPublished = this.shift.is_published;
+      this.isFormation = !!(this.shift.is_absent && this.shift.absence_type === 'formation');
       this.note        = this.shift.note ?? '';
     } else {
-      this.startTime = '08:00';
-      this.endTime   = '16:00';
+      this.startTime   = '08:00';
+      this.endTime     = '16:00';
       this.isPublished = false;
-      this.note = '';
+      this.isFormation = false;
+      this.note        = '';
     }
     this.dirty = false;
     this.activeTab = 'define';
@@ -146,6 +150,13 @@ export class ShiftDrawerComponent implements OnChanges {
     return (eh * 60 + em) <= (sh * 60 + sm);
   }
 
+  get shiftDateLabel(): string {
+    const iso = this.shift?.start_datetime?.substring(0, 10) ?? this.date;
+    if (!iso) return '';
+    const d = new Date(iso + 'T00:00:00');
+    return d.toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' });
+  }
+
   get amplitudeError(): string | null {
     if (!this.startTime || !this.endTime) return null;
     const [sh, sm] = this.startTime.split(':').map(Number);
@@ -166,8 +177,12 @@ export class ShiftDrawerComponent implements OnChanges {
     const startIso = this._buildDatetime(this.shift?.start_datetime ?? this.date ?? '', this.startTime);
     const endIso   = this._buildDatetime(this.shift?.start_datetime ?? this.date ?? '', this.endTime, this.isCrossMidnight);
 
+    const formationExtra = this.isFormation
+      ? { is_absent: true, absence_type: 'formation' }
+      : { is_absent: false, absence_type: null };
+
     const obs = this.shift
-      ? this.planningService.updateShift(this.shift.id, { start_datetime: startIso, end_datetime: endIso, is_published: this.isPublished, note: this.note })
+      ? this.planningService.updateShift(this.shift.id, { start_datetime: startIso, end_datetime: endIso, is_published: this.isPublished, note: this.note, ...formationExtra })
       : this.planningService.createShift({ collaborator_id: this.collaboratorId!, start_datetime: startIso, end_datetime: endIso, is_published: this.isPublished, note: this.note } as any);
 
     obs.subscribe({
@@ -195,16 +210,17 @@ export class ShiftDrawerComponent implements OnChanges {
     const collaboratorId = this.shift.collaborator?.id;
     const shiftDate      = this.shift.start_datetime.substring(0, 10);
     const cfg: Record<string, { label: string; color: TransformBadge['color'] }> = {
-      maladie:            { label: 'Maladie',             color: 'amber' },
-      conge_exceptionnel: { label: 'Congé exceptionnel',  color: 'blue'  },
-      injustifiee:        { label: 'Absence injustifiée', color: 'red'   },
+      maladie:            { label: 'Maladie',             color: 'amber'  },
+      conge_exceptionnel: { label: 'Congé exceptionnel',  color: 'blue'   },
+      injustifiee:        { label: 'Absence injustifiée', color: 'red'    },
+      formation:          { label: 'Formation',           color: 'purple' },
     };
     const badge = cfg[type] ?? { label: type, color: 'gray' as const };
 
     this.planningService.transformShift(this.shift.id, type).subscribe({
       next: () => {
         this.toastService.success(`Shift marqué : ${badge.label}`);
-        const createsAbsenceRequest = type === 'maladie' || type === 'conge_exceptionnel';
+        const createsAbsenceRequest = type === 'maladie' || type === 'conge_exceptionnel' || type === 'formation';
         if (collaboratorId && createsAbsenceRequest) {
           // Crée une AbsenceRequest journée entière (maladie et congé exceptionnel uniquement)
           this.planningService.createAbsence({
@@ -393,6 +409,7 @@ export class ShiftDrawerComponent implements OnChanges {
       injustifiee:        { label: 'Absence injustifiée',  color: 'red'    },
       rcr:                { label: 'RCR posé',             color: 'purple' },
       sans_solde:         { label: 'Sans solde',           color: 'gray'   },
+      formation:          { label: 'Formation',            color: 'purple' },
     };
     const c = cfg[shift.absence_type];
     return c ? { label: c.label, color: c.color } : null;

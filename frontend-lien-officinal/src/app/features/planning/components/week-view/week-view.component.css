@@ -269,6 +269,16 @@
   line-height: 1.2;
 }
 
+.tl-formation-label {
+  font-size: 9px;
+  font-weight: 600;
+  opacity: 0.8;
+  margin-left: 4px;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
 /* Couleurs appliquées via [style.*] inline (dynamiques par collaborateur) */
 .tl-block.published {
   border-left: 3px solid;   /* couleur via border-left-color inline */

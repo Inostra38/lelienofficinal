@@ -73,6 +73,9 @@
                    [style.border-left-color]="getShiftBorderColor(summary.color)"
                    (click)="onShiftClick(shift, $event)">
                 <b>{{ formatTime(shift.start_datetime) }}–{{ formatTime(shift.end_datetime) }}</b>
+                @if (shift.is_absent && shift.absence_type) {
+                  <span class="tl-formation-label">{{ ABSENCE_SHORT[shift.absence_type] || shift.absence_type }}</span>
+                }
                 @if (isManager) {
                   <button class="tl-delete-btn"
                           (click)="$event.stopPropagation(); deleteShift(shift.id)">×</button>

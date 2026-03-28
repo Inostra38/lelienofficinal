@@ -24,7 +24,7 @@ export interface Shift {
   is_published: boolean;
   is_extra_hour: boolean;
   is_absent: boolean;
-  absence_type: 'injustifiee' | 'justifiee' | 'maladie' | 'cp' | 'rcr' | 'sans_solde' | null;
+  absence_type: 'injustifiee' | 'justifiee' | 'maladie' | 'cp' | 'rcr' | 'sans_solde' | 'formation' | 'conge_exceptionnel' | null;
   note: string;
   created_at: string;
   updated_at: string;
@@ -294,8 +294,7 @@ export interface PayeCollaborateur {
   initiales: string;
   role: string;
   is_tns: boolean;
-  couleur: string;
-  couleur_texte: string;
+  color: string;
   weekly_hours: number;
   jours_travailles: number;
   heures_reelles: number;
@@ -339,67 +338,6 @@ export interface PayeSummaryResponse {
   totaux_salaries: PayeTotauxSalaries;
 }
 
-// ── Analytics interfaces ───────────────────────────────────────────────────────
-
-export interface HoursSummaryRow {
-  collaborator_id: number;
-  collaborator_name: string;
-  role: string;
-  total_hours: number;
-  contract_hours: number;
-  extra_hours: number;
-  presence_days: number;
-}
-
-export interface AbsencesByType {
-  cp: number;
-  maladie: number;
-  rcr: number;
-  sans_solde: number;
-}
-
-export interface AbsencesSummary {
-  by_type: AbsencesByType;
-  by_collaborator: Record<string, AbsencesByType>;
-}
-
-export interface CpBalanceRow {
-  collaborator_name: string;
-  cp_acquired: number;
-  cp_used: number;
-  cp_balance: number;
-}
-
-export interface CoverageData {
-  theoretical_hours: number;
-  actual_hours: number;
-  coverage_rate: number;
-}
-
-export interface OnCallSummary {
-  day_guards: number;
-  night_guards: number;
-  total: number;
-}
-
-export interface MonthlyEvolutionRow {
-  month: number;
-  month_label: string;
-  total_hours: number;
-  absences: number;
-}
-
-export interface AnalyticsData {
-  period: 'week' | 'month' | 'year';
-  date_from: string;
-  date_to: string;
-  hours_summary: HoursSummaryRow[];
-  absences: AbsencesSummary;
-  cp_balance: CpBalanceRow[];
-  coverage: CoverageData | null;
-  on_call: OnCallSummary;
-  monthly_evolution?: MonthlyEvolutionRow[];
-}
 
 // ── Service ───────────────────────────────────────────────────────────────────
 
@@ -581,14 +519,6 @@ export class PlanningService {
     return weekData.shifts.filter(s =>
       s.collaborator?.id === collaboratorId && s.start_datetime.startsWith(date)
     );
-  }
-
-  // ── Analytics ──────────────────────────────────────────────────────────────
-
-  getAnalytics(period: 'week' | 'month' | 'year', date: string): Observable<AnalyticsData> {
-    return this.http.get<AnalyticsData>(`${this.apiUrl}/analytics/`, {
-      params: { period, date },
-    });
   }
 
   getPayeSummary(month: string): Observable<PayeSummaryResponse> {

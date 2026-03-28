@@ -1,4 +1,3 @@
-<!-- ── Overlay plein écran ── -->
 <div class="fixed inset-0 z-50 bg-black/40 flex items-start justify-center overflow-y-auto p-4">
   <div class="bg-white rounded-2xl shadow-2xl border border-gray-200 w-full max-w-6xl my-6">
 
@@ -12,8 +11,8 @@
           </svg>
         </div>
         <div>
-          <h2 class="text-lg font-bold text-gray-800">Analytique planning</h2>
-          <p class="text-xs text-gray-400">Statistiques et indicateurs de l'équipe</p>
+          <h2 class="text-lg font-bold text-gray-800">Récap paie</h2>
+          <p class="text-xs text-gray-400">Récapitulatif mensuel CCN Pharmacie</p>
         </div>
       </div>
       <button (click)="closed.emit()"
@@ -24,884 +23,462 @@
       </button>
     </div>
 
-    <!-- ── Sélecteur d'onglets ── -->
-    <div class="flex border-b border-gray-100 px-6">
-      <button (click)="setTab('analytics')"
-              class="px-4 py-3 text-sm font-semibold transition-colors border-b-2 -mb-px"
-              [class.border-green-600]="activeTab === 'analytics'"
-              [class.text-green-700]="activeTab === 'analytics'"
-              [class.border-transparent]="activeTab !== 'analytics'"
-              [class.text-gray-500]="activeTab !== 'analytics'">
-        Analytique
+    <!-- ── Navigation mois ── -->
+    <div class="px-6 py-3 border-b border-gray-100 flex items-center gap-3 paye-no-print-hide">
+      <button (click)="prevPayeMonth()"
+              class="p-1.5 rounded-lg hover:bg-gray-100 text-gray-500 hover:text-gray-700 transition-colors">
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/>
+        </svg>
       </button>
-      <button (click)="setTab('paye')"
-              class="px-4 py-3 text-sm font-semibold transition-colors border-b-2 -mb-px"
-              [class.border-green-600]="activeTab === 'paye'"
-              [class.text-green-700]="activeTab === 'paye'"
-              [class.border-transparent]="activeTab !== 'paye'"
-              [class.text-gray-500]="activeTab !== 'paye'">
-        Récap paie
+      <span class="text-sm font-semibold text-gray-800 capitalize min-w-[160px] text-center">
+        {{ payeMonthLabel }}
+      </span>
+      <button (click)="nextPayeMonth()"
+              class="p-1.5 rounded-lg hover:bg-gray-100 text-gray-500 hover:text-gray-700 transition-colors">
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
+        </svg>
+      </button>
+
+      <span class="text-xs text-gray-400 ml-2">
+        @if (payeData) { {{ payeData.jours_ouvres_mois }} jours ouvrés }
+      </span>
+
+      <button onclick="window.print()"
+              class="ml-auto flex items-center gap-1.5 text-xs text-gray-600 hover:text-gray-800 border border-gray-200 rounded-lg px-3 py-1.5 hover:bg-gray-50 transition-colors paye-no-print-hide">
+        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"/>
+        </svg>
+        Imprimer
       </button>
     </div>
 
-    <!-- ═══════════════════════════════════════════════════════════ -->
-    <!-- TAB : ANALYTIQUE                                            -->
-    <!-- ═══════════════════════════════════════════════════════════ -->
+    <!-- ── Contenu ── -->
+    <div class="p-6 space-y-6 paye-content">
 
-    @if (activeTab === 'analytics') {
-
-      <!-- ── Barre période + navigation ── -->
-      <div class="px-6 py-3 border-b border-gray-100 flex flex-wrap items-center gap-3">
-        <!-- Toggle période -->
-        <div class="flex bg-gray-100 rounded-lg p-0.5 gap-0.5">
-          <button (click)="setPeriod('week')"
-                  class="px-3 py-1.5 rounded-md text-xs font-semibold transition-all"
-                  [class.bg-white]="period === 'week'"
-                  [class.text-gray-800]="period === 'week'"
-                  [class.shadow-sm]="period === 'week'"
-                  [class.text-gray-500]="period !== 'week'">
-            Semaine
-          </button>
-          <button (click)="setPeriod('month')"
-                  class="px-3 py-1.5 rounded-md text-xs font-semibold transition-all"
-                  [class.bg-white]="period === 'month'"
-                  [class.text-gray-800]="period === 'month'"
-                  [class.shadow-sm]="period === 'month'"
-                  [class.text-gray-500]="period !== 'month'">
-            Mois
-          </button>
-          <button (click)="setPeriod('year')"
-                  class="px-3 py-1.5 rounded-md text-xs font-semibold transition-all"
-                  [class.bg-white]="period === 'year'"
-                  [class.text-gray-800]="period === 'year'"
-                  [class.shadow-sm]="period === 'year'"
-                  [class.text-gray-500]="period !== 'year'">
-            Année
-          </button>
+      <!-- Loader -->
+      @if (payeLoading) {
+        <div class="flex items-center justify-center py-16">
+          <div class="animate-spin rounded-full h-10 w-10 border-2 border-green-700 border-t-transparent"></div>
         </div>
+      }
 
-        <!-- Navigation -->
-        <div class="flex items-center gap-2">
-          <button (click)="prevPeriod()"
-                  class="p-1.5 rounded-lg hover:bg-gray-100 text-gray-500 hover:text-gray-700 transition-colors">
-            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/>
-            </svg>
-          </button>
-          <span class="text-sm font-semibold text-gray-800 min-w-[180px] text-center capitalize">
-            {{ periodLabel }}
-          </span>
-          <button (click)="nextPeriod()"
-                  class="p-1.5 rounded-lg hover:bg-gray-100 text-gray-500 hover:text-gray-700 transition-colors">
-            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
-            </svg>
-          </button>
+      <!-- Erreur -->
+      @if (!payeLoading && payeError) {
+        <div class="text-center py-12 text-red-500 text-sm">
+          Impossible de charger le récap paie. Vérifiez votre connexion.
         </div>
+      }
 
-        <button (click)="goToToday()"
-                class="text-xs text-green-700 hover:text-green-800 font-medium border border-green-200 rounded-lg px-2 py-1 hover:bg-green-50 transition-colors">
-          Aujourd'hui
-        </button>
+      <!-- Données -->
+      @if (!payeLoading && !payeError && payeData) {
 
-        <!-- Dates effectives -->
-        @if (data) {
-          <span class="ml-auto text-xs text-gray-400">
-            Du {{ data.date_from }} au {{ data.date_to }}
-          </span>
-        }
-      </div>
-
-      <!-- ── Contenu analytique ── -->
-      <div class="p-6 space-y-6">
-
-        <!-- Loader -->
-        @if (loading) {
-          <div class="flex items-center justify-center py-16">
-            <div class="animate-spin rounded-full h-10 w-10 border-2 border-green-700 border-t-transparent"></div>
-          </div>
-        }
-
-        <!-- Erreur -->
-        @if (!loading && error) {
-          <div class="text-center py-12 text-red-500 text-sm">
-            Impossible de charger les données analytiques.
-          </div>
-        }
-
-        <!-- Données -->
-        @if (!loading && !error && data) {
-
-          <!-- ── 4 metric cards ── -->
-          <div class="analytics-cards">
-
-            <!-- Couverture -->
-            <div class="metric-card">
-              <div class="metric-icon bg-green-100">
-                <svg class="w-5 h-5 text-green-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                        d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
-                </svg>
-              </div>
-              <div>
-                <p class="metric-label">Couverture</p>
-                <p class="metric-value"
-                   [class.text-green-700]="coverageRate >= 80"
-                   [class.text-orange-500]="coverageRate >= 50 && coverageRate < 80"
-                   [class.text-red-500]="coverageRate < 50 && data.coverage !== null">
-                  {{ data.coverage ? coverageRate + ' %' : '—' }}
-                </p>
-                @if (data.coverage) {
-                  <p class="text-xs text-gray-400 mt-0.5">
-                    {{ data.coverage.actual_hours | number:'1.0-1' }}h / {{ data.coverage.theoretical_hours | number:'1.0-1' }}h
-                  </p>
-                }
-              </div>
-            </div>
-
-            <!-- Gardes de jour -->
-            <div class="metric-card">
-              <div class="metric-icon bg-amber-100">
-                <svg class="w-5 h-5 text-amber-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                        d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364-6.364l-.707.707M6.343 17.657l-.707.707M17.657 17.657l-.707-.707M6.343 6.343l-.707-.707"/>
-                </svg>
-              </div>
-              <div>
-                <p class="metric-label">Gardes de jour</p>
-                <p class="metric-value text-amber-600">{{ data.on_call.day_guards }}</p>
-                <p class="text-xs text-gray-400 mt-0.5">jours</p>
-              </div>
-            </div>
-
-            <!-- Gardes de nuit -->
-            <div class="metric-card">
-              <div class="metric-icon bg-indigo-100">
-                <svg class="w-5 h-5 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                        d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z"/>
-                </svg>
-              </div>
-              <div>
-                <p class="metric-label">Gardes de nuit</p>
-                <p class="metric-value text-indigo-600">{{ data.on_call.night_guards }}</p>
-                <p class="text-xs text-gray-400 mt-0.5">nuits</p>
-              </div>
-            </div>
-
-            <!-- Jours d'absence -->
-            <div class="metric-card">
-              <div class="metric-icon bg-red-100">
-                <svg class="w-5 h-5 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                        d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/>
-                </svg>
-              </div>
-              <div>
-                <p class="metric-label">Jours d'absence</p>
-                <p class="metric-value text-red-500">{{ totalAbsenceDays }}</p>
-                <p class="text-xs text-gray-400 mt-0.5">jours approuvés</p>
-              </div>
-            </div>
-
+        <!-- ── Tableau principal ── -->
+        <div class="rounded-xl border border-gray-200 overflow-hidden">
+          <div class="px-4 py-3 bg-gray-50 border-b border-gray-200">
+            <h3 class="text-sm font-semibold text-gray-700">
+              Récap paie — {{ payeMonthLabel | titlecase }}
+            </h3>
+            <p class="text-xs text-gray-400 mt-0.5">
+              Semaines rattachées = vendredi dans le mois · Les semaines en italique (à cheval) sont affichées uniquement pour contexte
+            </p>
           </div>
 
-          <!-- ── Tableau heures ── -->
-          <div class="rounded-xl border border-gray-200 overflow-hidden">
-            <div class="px-4 py-3 bg-gray-50 border-b border-gray-200">
-              <h3 class="text-sm font-semibold text-gray-700">Heures planifiées vs contrat</h3>
-            </div>
-            <div class="overflow-x-auto">
-              <table class="analytics-table">
-                <thead>
-                  <tr>
-                    <th>Collaborateur</th>
-                    <th>Rôle</th>
-                    <th class="text-right">Heures</th>
-                    <th class="text-right">Contrat</th>
-                    <th class="text-right">Écart</th>
-                    <th class="text-right">Présences</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  @for (row of data.hours_summary; track row.collaborator_id) {
-                    <tr>
-                      <td class="font-medium text-gray-800">{{ row.collaborator_name }}</td>
-                      <td class="text-gray-500">{{ row.role }}</td>
-                      <td class="text-right text-gray-700">{{ formatH(row.total_hours) }}</td>
-                      <td class="text-right text-gray-500">{{ formatH(row.contract_hours) }}</td>
-                      <td class="text-right" [class]="extraClass(row.extra_hours)">
-                        {{ row.extra_hours >= 0 ? '+' : '' }}{{ formatH(row.extra_hours) }}
-                      </td>
-                      <td class="text-right text-gray-600">{{ row.presence_days }}j</td>
-                    </tr>
-                  }
-                  @if (data.hours_summary.length === 0) {
-                    <tr>
-                      <td colspan="6" class="text-center text-gray-400 py-6">Aucun shift publié sur la période.</td>
-                    </tr>
-                  }
-                </tbody>
-                @if (data.hours_summary.length > 0) {
-                  <tfoot>
-                    <tr class="bg-green-50 font-semibold">
-                      <td colspan="2" class="text-gray-700">Total</td>
-                      <td class="text-right text-gray-800">{{ formatH(totalHours) }}</td>
-                      <td class="text-right text-gray-500">{{ formatH(totalContractHours) }}</td>
-                      <td class="text-right" [class]="extraClass(totalHours - totalContractHours)">
-                        {{ (totalHours - totalContractHours) >= 0 ? '+' : '' }}{{ formatH(totalHours - totalContractHours) }}
-                      </td>
-                      <td></td>
-                    </tr>
-                  </tfoot>
-                }
-              </table>
-            </div>
-          </div>
+          <div class="overflow-x-auto">
+            <div class="paye-grid">
 
-          <!-- ── 2 colonnes : Absences + CP ── -->
-          <div class="analytics-two-col">
+              <!-- ── En-tête groupe 1 ── -->
+              <div class="paye-group-header"></div>
+              <div class="paye-group-header paye-center" style="grid-column: span 2;">Temps</div>
+              <div class="paye-group-header paye-center">Base CCN</div>
+              <div class="paye-group-header paye-center" style="grid-column: span 2;">Heures sup CCN</div>
+              <div class="paye-group-header paye-center" style="grid-column: span 2;">Nuit CCN</div>
+              <div class="paye-group-header paye-center" style="grid-column: span 2;">Dim. / Fériés</div>
+              <div class="paye-group-header paye-center" style="grid-column: span 6;">Absences &amp; formation</div>
 
-            <!-- Absences par type -->
-            <div class="rounded-xl border border-gray-200 overflow-hidden">
-              <div class="px-4 py-3 bg-gray-50 border-b border-gray-200">
-                <h3 class="text-sm font-semibold text-gray-700">Absences par type</h3>
-              </div>
-              <div class="p-4 space-y-2">
-                <div class="flex justify-between items-center py-1 border-b border-gray-50">
-                  <span class="text-sm text-gray-600">Congés payés</span>
-                  <span class="text-sm font-semibold text-blue-600">{{ data.absences.by_type.cp }}j</span>
-                </div>
-                <div class="flex justify-between items-center py-1 border-b border-gray-50">
-                  <span class="text-sm text-gray-600">Maladie</span>
-                  <span class="text-sm font-semibold text-red-500">{{ data.absences.by_type.maladie }}j</span>
-                </div>
-                <div class="flex justify-between items-center py-1 border-b border-gray-50">
-                  <span class="text-sm text-gray-600">RCR</span>
-                  <span class="text-sm font-semibold text-orange-500">{{ data.absences.by_type.rcr }}j</span>
-                </div>
-                <div class="flex justify-between items-center py-1">
-                  <span class="text-sm text-gray-600">Sans solde</span>
-                  <span class="text-sm font-semibold text-gray-500">{{ data.absences.by_type.sans_solde }}j</span>
-                </div>
+              <!-- ── En-tête groupe 2 (labels) ── -->
+              <div class="paye-col-header">Collaborateur</div>
+              <div class="paye-col-header paye-center">Jours</div>
+              <div class="paye-col-header paye-center">Heures</div>
+              <div class="paye-col-header paye-center">H.contrat</div>
+              <div class="paye-col-header paye-center">Sup tr.1<br><span class="font-normal text-gray-400">+25%</span></div>
+              <div class="paye-col-header paye-center">Sup tr.2<br><span class="font-normal text-gray-400">+50%</span></div>
+              <div class="paye-col-header paye-center">Nuit<br><span class="font-normal text-gray-400">+20%</span></div>
+              <div class="paye-col-header paye-center">Nuit<br><span class="font-normal text-gray-400">+40%</span></div>
+              <div class="paye-col-header paye-center">Dim.</div>
+              <div class="paye-col-header paye-center">Fériés</div>
+              <div class="paye-col-header paye-center">CP</div>
+              <div class="paye-col-header paye-center">RCR</div>
+              <div class="paye-col-header paye-center" title="Congé exceptionnel légal (décès, etc.)">C.exc.</div>
+              <div class="paye-col-header paye-center" title="Sans solde">S.S.</div>
+              <div class="paye-col-header paye-center">H.dues</div>
+              <div class="paye-col-header paye-center">Formation</div>
 
-                <!-- Par collaborateur -->
-                @if (byCollaboratorEntries.length > 0) {
-                  <div class="mt-3 pt-3 border-t border-gray-100">
-                    <p class="text-xs text-gray-400 mb-2 font-medium uppercase tracking-wide">Par collaborateur</p>
-                    @for (entry of byCollaboratorEntries; track entry.name) {
-                      <div class="flex justify-between items-center py-1">
-                        <span class="text-xs text-gray-600">{{ entry.name }}</span>
-                        <span class="text-xs text-gray-500">
-                          CP: {{ entry.cp }}j
-                          @if (entry.maladie > 0) { · Mal: {{ entry.maladie }}j }
-                          @if (entry.rcr > 0) { · RCR: {{ entry.rcr }}j }
-                          @if (entry.sans_solde > 0) { · SS: {{ entry.sans_solde }}j }
-                        </span>
-                      </div>
+              <!-- ── Lignes collaborateurs ── -->
+              @for (collab of payeData.collaborateurs; track collab.id) {
+
+                <!-- Ligne principale -->
+                <div class="paye-cell paye-collab-name" [class.paye-cell-tns]="collab.is_tns">
+                  <div class="flex items-center gap-2">
+                    @if (!collab.is_tns && collab.detail_semaines && collab.detail_semaines.length > 0) {
+                      <button (click)="toggleRow(collab.id)"
+                              class="p-0.5 rounded hover:bg-gray-100 text-gray-400 hover:text-gray-600 transition-colors flex-shrink-0">
+                        <svg class="w-3.5 h-3.5 transition-transform"
+                             [class.rotate-90]="isExpanded(collab.id)"
+                             fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
+                        </svg>
+                      </button>
+                    } @else {
+                      <span class="w-4 flex-shrink-0"></span>
                     }
+                    <div class="w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold flex-shrink-0"
+                         [style.background-color]="getColor(collab.color).base"
+                         style="color: #fff">
+                      {{ collab.initiales }}
+                    </div>
+                    <div class="min-w-0">
+                      <p class="text-xs font-semibold text-gray-800 truncate">{{ collab.nom }}</p>
+                      <p class="text-xs text-gray-400 truncate">
+                        {{ collab.role }}
+                        @if (collab.is_tns) { <span class="text-purple-500 font-medium">· TNS</span> }
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
+                <div class="paye-cell paye-center" [class.paye-cell-tns]="collab.is_tns">{{ collab.jours_travailles }}</div>
+                <div class="paye-cell paye-center" [class.paye-cell-tns]="collab.is_tns">{{ formatH(collab.heures_reelles) }}</div>
+
+                @if (collab.is_tns) {
+                  <div class="paye-cell paye-tns-merged" style="grid-column: span 12;">
+                    <span class="text-xs text-gray-400 italic">Non applicable (TNS)</span>
+                  </div>
+                } @else {
+                  <!-- H.contrat -->
+                  <div class="paye-cell paye-center text-gray-500">
+                    {{ collab.heures_contrat !== null ? formatH(collab.heures_contrat) : '—' }}
+                  </div>
+                  <!-- Sup tr.1 -->
+                  <div class="paye-cell paye-center"
+                       [class.text-orange-600]="collab.heures_sup_planning !== null && collab.heures_sup_planning.tranche1 > 0"
+                       [class.text-gray-400]="collab.heures_sup_planning === null || collab.heures_sup_planning.tranche1 === 0">
+                    {{ collab.heures_sup_planning && collab.heures_sup_planning.tranche1 > 0 ? formatH(collab.heures_sup_planning.tranche1) : '—' }}
+                  </div>
+                  <!-- Sup tr.2 -->
+                  <div class="paye-cell paye-center"
+                       [class.text-orange-700]="collab.heures_sup_planning !== null && collab.heures_sup_planning.tranche2 > 0"
+                       [class.text-gray-400]="collab.heures_sup_planning === null || collab.heures_sup_planning.tranche2 === 0">
+                    {{ collab.heures_sup_planning && collab.heures_sup_planning.tranche2 > 0 ? formatH(collab.heures_sup_planning.tranche2) : '—' }}
+                  </div>
+                  <!-- Nuit +20% -->
+                  <div class="paye-cell paye-center"
+                       [class.text-indigo-600]="collab.heures_nuit_20 !== null && collab.heures_nuit_20 > 0"
+                       [class.text-gray-400]="collab.heures_nuit_20 === null || collab.heures_nuit_20 === 0">
+                    {{ collab.heures_nuit_20 !== null && collab.heures_nuit_20 > 0 ? formatH(collab.heures_nuit_20) : '—' }}
+                  </div>
+                  <!-- Nuit +40% -->
+                  <div class="paye-cell paye-center"
+                       [class.text-indigo-700]="collab.heures_nuit_40 !== null && collab.heures_nuit_40 > 0"
+                       [class.text-gray-400]="collab.heures_nuit_40 === null || collab.heures_nuit_40 === 0">
+                    {{ collab.heures_nuit_40 !== null && collab.heures_nuit_40 > 0 ? formatH(collab.heures_nuit_40) : '—' }}
+                  </div>
+                  <!-- Dimanche -->
+                  <div class="paye-cell paye-center"
+                       [class.text-amber-600]="collab.heures_dimanche !== null && collab.heures_dimanche > 0"
+                       [class.text-gray-400]="collab.heures_dimanche === null || collab.heures_dimanche === 0">
+                    {{ collab.heures_dimanche !== null && collab.heures_dimanche > 0 ? formatH(collab.heures_dimanche) : '—' }}
+                  </div>
+                  <!-- Fériés -->
+                  <div class="paye-cell paye-center"
+                       [class.text-amber-600]="collab.heures_feries_travaillees !== null && collab.heures_feries_travaillees > 0"
+                       [class.text-gray-400]="!collab.heures_feries_travaillees">
+                    {{ collab.heures_feries_travaillees && collab.heures_feries_travaillees > 0 ? formatH(collab.heures_feries_travaillees) : '—' }}
+                  </div>
+                  <!-- CP -->
+                  <div class="paye-cell paye-center text-gray-500">
+                    {{ collab.cp_poses !== null && collab.cp_poses > 0 ? collab.cp_poses + 'j' : '—' }}
+                  </div>
+                  <!-- RCR -->
+                  <div class="paye-cell paye-center text-gray-500">
+                    {{ collab.rcr_poses !== null && collab.rcr_poses > 0 ? collab.rcr_poses + 'j' : '—' }}
+                  </div>
+                  <!-- C.exc. -->
+                  <div class="paye-cell paye-center text-gray-500">
+                    {{ collab.conge_exc_poses !== null && collab.conge_exc_poses > 0 ? collab.conge_exc_poses + 'j' : '—' }}
+                  </div>
+                  <!-- Sans solde -->
+                  <div class="paye-cell paye-center text-gray-500">
+                    {{ collab.sans_solde_poses !== null && collab.sans_solde_poses > 0 ? collab.sans_solde_poses + 'j' : '—' }}
+                  </div>
+                  <!-- H.dues -->
+                  <div class="paye-cell paye-center"
+                       title="Heures redevables à la pharmacie (absences injustifiées + départs anticipés non compensés)"
+                       [class.text-red-600]="collab.heures_dues !== null && collab.heures_dues < 0"
+                       [class.text-gray-400]="collab.heures_dues === null || collab.heures_dues === 0">
+                    {{ collab.heures_dues !== null && collab.heures_dues < 0 ? formatH(-collab.heures_dues) : '—' }}
                   </div>
                 }
-              </div>
-            </div>
 
-            <!-- Solde CP -->
-            <div class="rounded-xl border border-gray-200 overflow-hidden">
-              <div class="px-4 py-3 bg-gray-50 border-b border-gray-200">
-                <h3 class="text-sm font-semibold text-gray-700">Solde CP par collaborateur</h3>
-                <p class="text-xs text-gray-400 mt-0.5">Estimation 2,5j/mois</p>
-              </div>
-              <div class="overflow-x-auto">
-                <table class="analytics-table">
-                  <thead>
-                    <tr>
-                      <th>Collaborateur</th>
-                      <th class="text-right">Acquis</th>
-                      <th class="text-right">Pris</th>
-                      <th class="text-right">Solde</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    @for (row of data.cp_balance; track row.collaborator_name) {
-                      <tr>
-                        <td class="font-medium text-gray-800">{{ row.collaborator_name }}</td>
-                        <td class="text-right text-gray-600">{{ row.cp_acquired }}j</td>
-                        <td class="text-right text-gray-600">{{ row.cp_used }}j</td>
-                        <td class="text-right font-semibold"
-                            [class.text-green-700]="row.cp_balance >= 0"
-                            [class.text-red-500]="row.cp_balance < 0">
-                          {{ row.cp_balance > 0 ? '+' : '' }}{{ row.cp_balance }}j
-                        </td>
-                      </tr>
-                    }
-                    @if (data.cp_balance.length === 0) {
-                      <tr>
-                        <td colspan="4" class="text-center text-gray-400 py-6">Aucun collaborateur.</td>
-                      </tr>
-                    }
-                  </tbody>
-                </table>
-              </div>
-            </div>
+                <!-- Formation (toujours) -->
+                <div class="paye-cell paye-center"
+                     [class.paye-cell-tns]="collab.is_tns"
+                     [class.text-blue-600]="!collab.is_tns && collab.heures_formation > 0"
+                     [class.text-gray-400]="!collab.is_tns && collab.heures_formation === 0">
+                  {{ collab.heures_formation > 0 ? formatH(collab.heures_formation) : '—' }}
+                </div>
 
-          </div>
+                <!-- Sous-lignes détail semaines -->
+                @if (!collab.is_tns && isExpanded(collab.id) && collab.detail_semaines) {
+                  <div class="paye-subgrid-wrapper" style="grid-column: span 16;">
+                    <div class="paye-subgrid">
+                      <div class="paye-sub-header">Semaine</div>
+                      <div class="paye-sub-header paye-center">H. shifts</div>
+                      <div class="paye-sub-header paye-center">Overtime</div>
+                      <div class="paye-sub-header paye-center">Départ ant.</div>
+                      <div class="paye-sub-header paye-center">Abs. inj.</div>
+                      <div class="paye-sub-header paye-center">Formation</div>
+                      <div class="paye-sub-header paye-center">Total</div>
+                      <div class="paye-sub-header paye-center">Seuil</div>
+                      <div class="paye-sub-header paye-center">Sup tr.1</div>
+                      <div class="paye-sub-header paye-center">Sup tr.2</div>
+                      <div class="paye-sub-header paye-center">H. dues</div>
+                      <div class="paye-sub-header paye-center">Rattachement</div>
 
-          <!-- ── Graphique annuel ── -->
-          @if (period === 'year') {
-            <div class="rounded-xl border border-gray-200 overflow-hidden">
-              <div class="px-4 py-3 bg-gray-50 border-b border-gray-200">
-                <h3 class="text-sm font-semibold text-gray-700">
-                  Evolution mensuelle {{ currentDate.getFullYear() }}
-                </h3>
-              </div>
-              <div class="p-4">
-                @if (chartAvailable) {
-                  <canvas id="monthlyChart" class="w-full" style="max-height: 280px;"></canvas>
-                }
-                @if (!chartAvailable && data.monthly_evolution) {
-                  <table class="analytics-table">
-                    <thead>
-                      <tr>
-                        <th>Mois</th>
-                        <th class="text-right">Heures planifiées</th>
-                        <th class="text-right">Jours absence</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      @for (row of data.monthly_evolution; track row.month) {
-                        <tr>
-                          <td class="font-medium text-gray-700">{{ row.month_label }}</td>
-                          <td class="text-right text-green-700 font-medium">{{ row.total_hours }}h</td>
-                          <td class="text-right text-red-500">{{ row.absences }}j</td>
-                        </tr>
+                      @for (sem of collab.detail_semaines; track sem.week_str) {
+                        <div class="paye-sub-cell"
+                             [class.paye-sub-row-alerte]="sem.alerte_46h"
+                             [class.italic]="sem.a_cheval"
+                             [class.text-blue-500]="sem.a_cheval"
+                             [class.text-gray-600]="!sem.a_cheval">
+                          {{ sem.week_str }}
+                        </div>
+                        <div class="paye-sub-cell paye-center"
+                             [class.paye-sub-row-alerte]="sem.alerte_46h"
+                             [class.italic]="sem.a_cheval"
+                             [class.text-blue-500]="sem.a_cheval">
+                          {{ formatH(sem.heures_shifts) }}
+                        </div>
+                        <div class="paye-sub-cell paye-center"
+                             [class.paye-sub-row-alerte]="sem.alerte_46h"
+                             [class.text-green-600]="sem.heures_overtime > 0"
+                             [class.text-gray-400]="sem.heures_overtime === 0">
+                          {{ sem.heures_overtime > 0 ? formatH(sem.heures_overtime) : '—' }}
+                        </div>
+                        <div class="paye-sub-cell paye-center"
+                             [class.paye-sub-row-alerte]="sem.alerte_46h"
+                             [class.text-red-500]="sem.heures_early > 0"
+                             [class.text-gray-400]="sem.heures_early === 0">
+                          {{ sem.heures_early > 0 ? formatH(sem.heures_early) : '—' }}
+                        </div>
+                        <div class="paye-sub-cell paye-center"
+                             [class.paye-sub-row-alerte]="sem.alerte_46h"
+                             [class.text-red-600]="sem.heures_absence_injustifiee > 0"
+                             [class.text-gray-400]="sem.heures_absence_injustifiee === 0">
+                          {{ sem.heures_absence_injustifiee > 0 ? formatH(sem.heures_absence_injustifiee) : '—' }}
+                        </div>
+                        <div class="paye-sub-cell paye-center"
+                             [class.paye-sub-row-alerte]="sem.alerte_46h"
+                             [class.text-blue-600]="sem.heures_formation > 0"
+                             [class.text-gray-400]="sem.heures_formation === 0">
+                          {{ sem.heures_formation > 0 ? formatH(sem.heures_formation) : '—' }}
+                        </div>
+                        <div class="paye-sub-cell paye-center"
+                             [class.paye-sub-row-alerte]="sem.alerte_46h"
+                             [class.font-bold]="sem.alerte_46h"
+                             [class.text-red-700]="sem.alerte_46h"
+                             [class.text-gray-700]="!sem.alerte_46h">
+                          @if (sem.alerte_46h) {
+                            <svg class="w-3 h-3 text-red-500 mr-0.5 flex-shrink-0"
+                                 title="Durée hebdomadaire maximale CCN dépassée (46h max)"
+                                 fill="currentColor" viewBox="0 0 20 20">
+                              <path fill-rule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clip-rule="evenodd"/>
+                            </svg>
+                          }
+                          {{ formatH(sem.total_semaine) }}
+                        </div>
+                        <div class="paye-sub-cell paye-center text-gray-400"
+                             [class.paye-sub-row-alerte]="sem.alerte_46h">
+                          {{ formatH(sem.seuil) }}
+                        </div>
+                        <div class="paye-sub-cell paye-center"
+                             [class.paye-sub-row-alerte]="sem.alerte_46h"
+                             [class.text-orange-500]="!sem.a_cheval && sem.sup_tranche1 > 0"
+                             [class.text-gray-400]="sem.a_cheval || sem.sup_tranche1 === 0">
+                          {{ sem.sup_tranche1 > 0 ? formatH(sem.sup_tranche1) : '—' }}
+                        </div>
+                        <div class="paye-sub-cell paye-center"
+                             [class.paye-sub-row-alerte]="sem.alerte_46h"
+                             [class.text-orange-700]="!sem.a_cheval && sem.sup_tranche2 > 0"
+                             [class.text-gray-400]="sem.a_cheval || sem.sup_tranche2 === 0">
+                          {{ sem.sup_tranche2 > 0 ? formatH(sem.sup_tranche2) : '—' }}
+                        </div>
+                        <div class="paye-sub-cell paye-center"
+                             [class.paye-sub-row-alerte]="sem.alerte_46h"
+                             [class.text-red-600]="sem.heures_dues < 0"
+                             [class.text-gray-400]="sem.heures_dues === 0">
+                          {{ sem.heures_dues < 0 ? formatH(-sem.heures_dues) : '—' }}
+                        </div>
+                        <div class="paye-sub-cell paye-center text-xs"
+                             [class.paye-sub-row-alerte]="sem.alerte_46h"
+                             [class.italic]="sem.a_cheval"
+                             [class.text-blue-400]="sem.a_cheval"
+                             [class.text-gray-400]="!sem.a_cheval">
+                          {{ sem.rattachement }}
+                          @if (sem.a_cheval) { <span class="ml-1 text-xs text-blue-300">→ mois suivant</span> }
+                        </div>
                       }
-                    </tbody>
-                  </table>
+                    </div>
+                  </div>
                 }
-              </div>
+
+              }
+
+              <!-- ── Ligne total salariés ── -->
+              @if (payeData.totaux_salaries) {
+                <div class="paye-cell paye-footer">
+                  <span class="text-xs font-bold text-gray-700">Total salariés (hors TNS)</span>
+                </div>
+                <div class="paye-cell paye-footer paye-center font-semibold text-gray-700">
+                  {{ payeData.totaux_salaries.jours_travailles }}
+                </div>
+                <div class="paye-cell paye-footer paye-center font-semibold text-gray-700">
+                  {{ formatH(payeData.totaux_salaries.heures_reelles) }}
+                </div>
+                <div class="paye-cell paye-footer paye-center text-gray-400">—</div>
+                <div class="paye-cell paye-footer paye-center font-semibold"
+                     [class.text-orange-600]="payeData.totaux_salaries.heures_sup_planning_total > 0"
+                     [class.text-gray-400]="payeData.totaux_salaries.heures_sup_planning_total === 0">
+                  {{ payeData.totaux_salaries.heures_sup_planning_total > 0 ? formatH(payeData.totaux_salaries.heures_sup_planning_total) : '—' }}
+                </div>
+                <div class="paye-cell paye-footer paye-center text-gray-400">—</div>
+                <div class="paye-cell paye-footer paye-center font-semibold"
+                     [class.text-indigo-600]="payeData.totaux_salaries.heures_nuit_20 > 0"
+                     [class.text-gray-400]="payeData.totaux_salaries.heures_nuit_20 === 0">
+                  {{ payeData.totaux_salaries.heures_nuit_20 > 0 ? formatH(payeData.totaux_salaries.heures_nuit_20) : '—' }}
+                </div>
+                <div class="paye-cell paye-footer paye-center font-semibold"
+                     [class.text-indigo-700]="payeData.totaux_salaries.heures_nuit_40 > 0"
+                     [class.text-gray-400]="payeData.totaux_salaries.heures_nuit_40 === 0">
+                  {{ payeData.totaux_salaries.heures_nuit_40 > 0 ? formatH(payeData.totaux_salaries.heures_nuit_40) : '—' }}
+                </div>
+                <div class="paye-cell paye-footer paye-center font-semibold"
+                     [class.text-amber-600]="payeData.totaux_salaries.heures_dimanche > 0"
+                     [class.text-gray-400]="payeData.totaux_salaries.heures_dimanche === 0">
+                  {{ payeData.totaux_salaries.heures_dimanche > 0 ? formatH(payeData.totaux_salaries.heures_dimanche) : '—' }}
+                </div>
+                <div class="paye-cell paye-footer paye-center font-semibold"
+                     [class.text-amber-600]="payeData.totaux_salaries.heures_feries_travaillees > 0"
+                     [class.text-gray-400]="payeData.totaux_salaries.heures_feries_travaillees === 0">
+                  {{ payeData.totaux_salaries.heures_feries_travaillees > 0 ? formatH(payeData.totaux_salaries.heures_feries_travaillees) : '—' }}
+                </div>
+                <div class="paye-cell paye-footer paye-center text-gray-500">
+                  {{ payeData.totaux_salaries.cp_poses > 0 ? payeData.totaux_salaries.cp_poses + 'j' : '—' }}
+                </div>
+                <div class="paye-cell paye-footer paye-center text-gray-500">
+                  {{ payeData.totaux_salaries.rcr_poses > 0 ? payeData.totaux_salaries.rcr_poses + 'j' : '—' }}
+                </div>
+                <div class="paye-cell paye-footer paye-center text-gray-500">
+                  {{ payeData.totaux_salaries.conge_exc_poses > 0 ? payeData.totaux_salaries.conge_exc_poses + 'j' : '—' }}
+                </div>
+                <div class="paye-cell paye-footer paye-center text-gray-500">
+                  {{ payeData.totaux_salaries.sans_solde_poses > 0 ? payeData.totaux_salaries.sans_solde_poses + 'j' : '—' }}
+                </div>
+                <div class="paye-cell paye-footer paye-center font-semibold"
+                     [class.text-red-600]="payeData.totaux_salaries.heures_dues < 0"
+                     [class.text-gray-400]="payeData.totaux_salaries.heures_dues === 0">
+                  {{ payeData.totaux_salaries.heures_dues < 0 ? formatH(-payeData.totaux_salaries.heures_dues) : '—' }}
+                </div>
+                <div class="paye-cell paye-footer paye-center font-semibold"
+                     [class.text-blue-600]="payeData.totaux_salaries.heures_formation > 0"
+                     [class.text-gray-400]="payeData.totaux_salaries.heures_formation === 0">
+                  {{ payeData.totaux_salaries.heures_formation > 0 ? formatH(payeData.totaux_salaries.heures_formation) : '—' }}
+                </div>
+              }
+
             </div>
-          }
-
-        }
-
-      </div>
-
-    }
-
-    <!-- ═══════════════════════════════════════════════════════════ -->
-    <!-- TAB : RÉCAP PAIE                                            -->
-    <!-- ═══════════════════════════════════════════════════════════ -->
-
-    @if (activeTab === 'paye') {
-
-      <!-- ── Navigation mois ── -->
-      <div class="px-6 py-3 border-b border-gray-100 flex items-center gap-3 paye-no-print-hide">
-        <button (click)="prevPayeMonth()"
-                class="p-1.5 rounded-lg hover:bg-gray-100 text-gray-500 hover:text-gray-700 transition-colors">
-          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/>
-          </svg>
-        </button>
-        <span class="text-sm font-semibold text-gray-800 capitalize min-w-[160px] text-center">
-          {{ payeMonthLabel }}
-        </span>
-        <button (click)="nextPayeMonth()"
-                class="p-1.5 rounded-lg hover:bg-gray-100 text-gray-500 hover:text-gray-700 transition-colors">
-          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
-          </svg>
-        </button>
-
-        <span class="text-xs text-gray-400 ml-2">
-          @if (payeData) { {{ payeData.jours_ouvres_mois }} jours ouvrés }
-        </span>
-
-        <button onclick="window.print()"
-                class="ml-auto flex items-center gap-1.5 text-xs text-gray-600 hover:text-gray-800 border border-gray-200 rounded-lg px-3 py-1.5 hover:bg-gray-50 transition-colors paye-no-print-hide">
-          <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                  d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"/>
-          </svg>
-          Imprimer
-        </button>
-      </div>
-
-      <!-- ── Contenu paie ── -->
-      <div class="p-6 space-y-6 paye-content">
-
-        <!-- Loader -->
-        @if (payeLoading) {
-          <div class="flex items-center justify-center py-16">
-            <div class="animate-spin rounded-full h-10 w-10 border-2 border-green-700 border-t-transparent"></div>
           </div>
-        }
+        </div>
 
-        <!-- Erreur -->
-        @if (!payeLoading && payeError) {
-          <div class="text-center py-12 text-red-500 text-sm">
-            Impossible de charger le récap paie. Vérifiez votre connexion.
-          </div>
-        }
+        <!-- Note de bas de page -->
+        <p class="text-xs text-gray-400">
+          * Heures sup CCN : tr.1 (+25%) = 0 à 8h au-delà du seuil hebdo · tr.2 (+50%) = au-delà de 8h sup ·
+          Nuit +20% = 5h–8h et 20h–22h · Nuit +40% = 22h–5h (CCN Pharmacie) ·
+          Formation assimilée à du temps de travail effectif (CCN art. 13.7) ·
+          H. dues = heures redevables à la pharmacie (absences injustifiées / départs anticipés non compensés) ·
+          Alerte ⚠ = durée hebdomadaire max. 46h dépassée (CCN art. 13.3.c)
+        </p>
 
-        <!-- Données -->
-        @if (!payeLoading && !payeError && payeData) {
-
-          <!-- ── Tableau principal ── -->
+        <!-- ── Bandeau annuel RCR ── -->
+        @if (getSalariesCollaborateurs().length > 0) {
           <div class="rounded-xl border border-gray-200 overflow-hidden">
             <div class="px-4 py-3 bg-gray-50 border-b border-gray-200">
-              <h3 class="text-sm font-semibold text-gray-700">
-                Récap paie — {{ payeMonthLabel | titlecase }}
-              </h3>
-              <p class="text-xs text-gray-400 mt-0.5">
-                Semaines rattachées = vendredi dans le mois · Les semaines en italique (à cheval) sont affichées uniquement pour contexte
-              </p>
+              <h3 class="text-sm font-semibold text-gray-700">Suivi RCR annuel (depuis jan. {{ payeDate.getFullYear() }})</h3>
+              <p class="text-xs text-gray-400 mt-0.5">Contingent CCN : 150h/an — alerte si solde dépasse 150h</p>
             </div>
-
-            <!-- Tableau scrollable -->
-            <div class="overflow-x-auto">
-              <div class="paye-grid">
-
-                <!-- ── En-tête groupe 1 ── -->
-                <div class="paye-group-header"></div>
-                <div class="paye-group-header paye-center" style="grid-column: span 2;">Temps</div>
-                <div class="paye-group-header paye-center">Base CCN</div>
-                <div class="paye-group-header paye-center" style="grid-column: span 2;">Heures sup CCN</div>
-                <div class="paye-group-header paye-center" style="grid-column: span 2;">Nuit CCN</div>
-                <div class="paye-group-header paye-center" style="grid-column: span 2;">Dim. / Fériés</div>
-                <div class="paye-group-header paye-center" style="grid-column: span 6;">Absences &amp; formation</div>
-
-                <!-- ── En-tête groupe 2 (labels) ── -->
-                <div class="paye-col-header">Collaborateur</div>
-                <div class="paye-col-header paye-center">Jours</div>
-                <div class="paye-col-header paye-center">Heures</div>
-                <div class="paye-col-header paye-center">H.contrat</div>
-                <div class="paye-col-header paye-center">Sup tr.1<br><span class="font-normal text-gray-400">+25%</span></div>
-                <div class="paye-col-header paye-center">Sup tr.2<br><span class="font-normal text-gray-400">+50%</span></div>
-                <div class="paye-col-header paye-center">Nuit<br><span class="font-normal text-gray-400">+20%</span></div>
-                <div class="paye-col-header paye-center">Nuit<br><span class="font-normal text-gray-400">+40%</span></div>
-                <div class="paye-col-header paye-center">Dim.</div>
-                <div class="paye-col-header paye-center">Fériés</div>
-                <div class="paye-col-header paye-center">CP</div>
-                <div class="paye-col-header paye-center">RCR</div>
-                <div class="paye-col-header paye-center" title="Congé exceptionnel légal (décès, etc.)">C.exc.</div>
-                <div class="paye-col-header paye-center" title="Sans solde">S.S.</div>
-                <div class="paye-col-header paye-center">H.dues</div>
-                <div class="paye-col-header paye-center">Formation</div>
-
-                <!-- ── Lignes collaborateurs ── -->
-                @for (collab of payeData.collaborateurs; track collab.id) {
-
-                  <!-- Ligne principale -->
-                  <div class="paye-cell paye-collab-name" [class.paye-cell-tns]="collab.is_tns">
+            <div class="p-4 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
+              @for (collab of getSalariesCollaborateurs(); track collab.id) {
+                @if (collab.annuel) {
+                  <div class="border rounded-lg p-3 space-y-2"
+                       [class.border-red-300]="collab.annuel.rcr_alerte"
+                       [class.border-gray-200]="!collab.annuel.rcr_alerte">
                     <div class="flex items-center gap-2">
-                      <!-- Chevron (si salarié avec détail semaines) -->
-                      @if (!collab.is_tns && collab.detail_semaines && collab.detail_semaines.length > 0) {
-                        <button (click)="toggleRow(collab.id)"
-                                class="p-0.5 rounded hover:bg-gray-100 text-gray-400 hover:text-gray-600 transition-colors flex-shrink-0">
-                          <svg class="w-3.5 h-3.5 transition-transform"
-                               [class.rotate-90]="isExpanded(collab.id)"
-                               fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
-                          </svg>
-                        </button>
-                      } @else {
-                        <span class="w-4 flex-shrink-0"></span>
-                      }
-                      <!-- Avatar -->
-                      <div class="w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold flex-shrink-0"
-                           [style.background-color]="collab.couleur"
-                           [style.color]="collab.couleur_texte">
+                      <div class="w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold flex-shrink-0"
+                           [style.background-color]="getColor(collab.color).base"
+                           style="color: #fff">
                         {{ collab.initiales }}
                       </div>
-                      <div class="min-w-0">
+                      <div class="flex-1 min-w-0">
                         <p class="text-xs font-semibold text-gray-800 truncate">{{ collab.nom }}</p>
-                        <p class="text-xs text-gray-400 truncate">
-                          {{ collab.role }}
-                          @if (collab.is_tns) { <span class="text-purple-500 font-medium">· TNS</span> }
-                        </p>
-                      </div>
-                    </div>
-                  </div>
-
-                  <!-- Jours travaillés -->
-                  <div class="paye-cell paye-center" [class.paye-cell-tns]="collab.is_tns">{{ collab.jours_travailles }}</div>
-
-                  <!-- Heures réelles -->
-                  <div class="paye-cell paye-center" [class.paye-cell-tns]="collab.is_tns">{{ formatH(collab.heures_reelles) }}</div>
-
-                  @if (collab.is_tns) {
-                    <!-- TNS : colonnes non applicables (grisées) -->
-                    <div class="paye-cell paye-tns-merged" style="grid-column: span 12;">
-                      <span class="text-xs text-gray-400 italic">Non applicable (TNS)</span>
-                    </div>
-                  } @else {
-                    <!-- Heures contrat -->
-                    <div class="paye-cell paye-center text-gray-500">
-                      {{ collab.heures_contrat !== null ? formatH(collab.heures_contrat) : '—' }}
-                    </div>
-
-                    <!-- Sup tr.1 -->
-                    <div class="paye-cell paye-center"
-                         [class.text-orange-600]="collab.heures_sup_planning !== null && collab.heures_sup_planning.tranche1 > 0"
-                         [class.text-gray-400]="collab.heures_sup_planning === null || collab.heures_sup_planning.tranche1 === 0">
-                      {{ collab.heures_sup_planning && collab.heures_sup_planning.tranche1 > 0 ? formatH(collab.heures_sup_planning.tranche1) : '—' }}
-                    </div>
-
-                    <!-- Sup tr.2 -->
-                    <div class="paye-cell paye-center"
-                         [class.text-orange-700]="collab.heures_sup_planning !== null && collab.heures_sup_planning.tranche2 > 0"
-                         [class.text-gray-400]="collab.heures_sup_planning === null || collab.heures_sup_planning.tranche2 === 0">
-                      {{ collab.heures_sup_planning && collab.heures_sup_planning.tranche2 > 0 ? formatH(collab.heures_sup_planning.tranche2) : '—' }}
-                    </div>
-
-                    <!-- Nuit +20% -->
-                    <div class="paye-cell paye-center"
-                         [class.text-indigo-600]="collab.heures_nuit_20 !== null && collab.heures_nuit_20 > 0"
-                         [class.text-gray-400]="collab.heures_nuit_20 === null || collab.heures_nuit_20 === 0">
-                      {{ collab.heures_nuit_20 !== null && collab.heures_nuit_20 > 0 ? formatH(collab.heures_nuit_20) : '—' }}
-                    </div>
-
-                    <!-- Nuit +40% -->
-                    <div class="paye-cell paye-center"
-                         [class.text-indigo-700]="collab.heures_nuit_40 !== null && collab.heures_nuit_40 > 0"
-                         [class.text-gray-400]="collab.heures_nuit_40 === null || collab.heures_nuit_40 === 0">
-                      {{ collab.heures_nuit_40 !== null && collab.heures_nuit_40 > 0 ? formatH(collab.heures_nuit_40) : '—' }}
-                    </div>
-
-                    <!-- Dimanche -->
-                    <div class="paye-cell paye-center"
-                         [class.text-amber-600]="collab.heures_dimanche !== null && collab.heures_dimanche > 0"
-                         [class.text-gray-400]="collab.heures_dimanche === null || collab.heures_dimanche === 0">
-                      {{ collab.heures_dimanche !== null && collab.heures_dimanche > 0 ? formatH(collab.heures_dimanche) : '—' }}
-                    </div>
-
-                    <!-- Fériés travaillés -->
-                    <div class="paye-cell paye-center"
-                         [class.text-amber-600]="collab.heures_feries_travaillees !== null && collab.heures_feries_travaillees > 0"
-                         [class.text-gray-400]="!collab.heures_feries_travaillees">
-                      {{ collab.heures_feries_travaillees && collab.heures_feries_travaillees > 0 ? formatH(collab.heures_feries_travaillees) : '—' }}
-                    </div>
-
-                    <!-- CP -->
-                    <div class="paye-cell paye-center text-gray-500">
-                      {{ collab.cp_poses !== null && collab.cp_poses > 0 ? collab.cp_poses + 'j' : '—' }}
-                    </div>
-
-                    <!-- RCR -->
-                    <div class="paye-cell paye-center text-gray-500">
-                      {{ collab.rcr_poses !== null && collab.rcr_poses > 0 ? collab.rcr_poses + 'j' : '—' }}
-                    </div>
-
-                    <!-- Congé exceptionnel légal -->
-                    <div class="paye-cell paye-center text-gray-500">
-                      {{ collab.conge_exc_poses !== null && collab.conge_exc_poses > 0 ? collab.conge_exc_poses + 'j' : '—' }}
-                    </div>
-
-                    <!-- Sans solde -->
-                    <div class="paye-cell paye-center text-gray-500">
-                      {{ collab.sans_solde_poses !== null && collab.sans_solde_poses > 0 ? collab.sans_solde_poses + 'j' : '—' }}
-                    </div>
-
-                    <!-- Heures dues (positif affiché, redevable pharmacie) -->
-                    <div class="paye-cell paye-center"
-                         title="Heures redevables à la pharmacie (absences injustifiées + départs anticipés non compensés)"
-                         [class.text-red-600]="collab.heures_dues !== null && collab.heures_dues < 0"
-                         [class.text-gray-400]="collab.heures_dues === null || collab.heures_dues === 0">
-                      {{ collab.heures_dues !== null && collab.heures_dues < 0 ? formatH(-collab.heures_dues) : '—' }}
-                    </div>
-                  }
-
-                  <!-- Formation (toujours) -->
-                  <div class="paye-cell paye-center"
-                       [class.paye-cell-tns]="collab.is_tns"
-                       [class.text-blue-600]="!collab.is_tns && collab.heures_formation > 0"
-                       [class.text-gray-400]="!collab.is_tns && collab.heures_formation === 0">
-                    {{ collab.heures_formation > 0 ? formatH(collab.heures_formation) : '—' }}
-                  </div>
-
-                  <!-- ── Sous-lignes détail semaines (si développé) ── -->
-                  @if (!collab.is_tns && isExpanded(collab.id) && collab.detail_semaines) {
-                    <div class="paye-subgrid-wrapper" style="grid-column: span 16;">
-                      <div class="paye-subgrid">
-                        <!-- En-têtes sous-grille -->
-                        <div class="paye-sub-header">Semaine</div>
-                        <div class="paye-sub-header paye-center">H. shifts</div>
-                        <div class="paye-sub-header paye-center">Overtime</div>
-                        <div class="paye-sub-header paye-center">Départ ant.</div>
-                        <div class="paye-sub-header paye-center">Abs. inj.</div>
-                        <div class="paye-sub-header paye-center">Formation</div>
-                        <div class="paye-sub-header paye-center">Total</div>
-                        <div class="paye-sub-header paye-center">Seuil</div>
-                        <div class="paye-sub-header paye-center">Sup tr.1</div>
-                        <div class="paye-sub-header paye-center">Sup tr.2</div>
-                        <div class="paye-sub-header paye-center">H. dues</div>
-                        <div class="paye-sub-header paye-center">Rattachement</div>
-
-                        <!-- Lignes semaines -->
-                        @for (sem of collab.detail_semaines; track sem.week_str) {
-                          <!-- Semaine -->
-                          <div class="paye-sub-cell"
-                               [class.paye-sub-row-alerte]="sem.alerte_46h"
-                               [class.italic]="sem.a_cheval"
-                               [class.text-blue-500]="sem.a_cheval"
-                               [class.text-gray-600]="!sem.a_cheval">
-                            {{ sem.week_str }}
-                          </div>
-                          <!-- H. shifts -->
-                          <div class="paye-sub-cell paye-center"
-                               [class.paye-sub-row-alerte]="sem.alerte_46h"
-                               [class.italic]="sem.a_cheval"
-                               [class.text-blue-500]="sem.a_cheval">
-                            {{ formatH(sem.heures_shifts) }}
-                          </div>
-                          <!-- Overtime -->
-                          <div class="paye-sub-cell paye-center"
-                               [class.paye-sub-row-alerte]="sem.alerte_46h"
-                               [class.text-green-600]="sem.heures_overtime > 0"
-                               [class.text-gray-400]="sem.heures_overtime === 0">
-                            {{ sem.heures_overtime > 0 ? formatH(sem.heures_overtime) : '—' }}
-                          </div>
-                          <!-- Départ anticipé -->
-                          <div class="paye-sub-cell paye-center"
-                               [class.paye-sub-row-alerte]="sem.alerte_46h"
-                               [class.text-red-500]="sem.heures_early > 0"
-                               [class.text-gray-400]="sem.heures_early === 0">
-                            {{ sem.heures_early > 0 ? formatH(sem.heures_early) : '—' }}
-                          </div>
-                          <!-- Abs. injustifiée -->
-                          <div class="paye-sub-cell paye-center"
-                               [class.paye-sub-row-alerte]="sem.alerte_46h"
-                               [class.text-red-600]="sem.heures_absence_injustifiee > 0"
-                               [class.text-gray-400]="sem.heures_absence_injustifiee === 0">
-                            {{ sem.heures_absence_injustifiee > 0 ? formatH(sem.heures_absence_injustifiee) : '—' }}
-                          </div>
-                          <!-- Formation -->
-                          <div class="paye-sub-cell paye-center"
-                               [class.paye-sub-row-alerte]="sem.alerte_46h"
-                               [class.text-blue-600]="sem.heures_formation > 0"
-                               [class.text-gray-400]="sem.heures_formation === 0">
-                            {{ sem.heures_formation > 0 ? formatH(sem.heures_formation) : '—' }}
-                          </div>
-                          <!-- Total semaine -->
-                          <div class="paye-sub-cell paye-center"
-                               [class.paye-sub-row-alerte]="sem.alerte_46h"
-                               [class.font-bold]="sem.alerte_46h"
-                               [class.text-red-700]="sem.alerte_46h"
-                               [class.text-gray-700]="!sem.alerte_46h">
-                            @if (sem.alerte_46h) {
-                              <svg class="w-3 h-3 text-red-500 mr-0.5 flex-shrink-0"
-                                   title="Durée hebdomadaire maximale CCN dépassée (46h max)"
-                                   fill="currentColor" viewBox="0 0 20 20">
-                                <path fill-rule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clip-rule="evenodd"/>
-                              </svg>
-                            }
-                            {{ formatH(sem.total_semaine) }}
-                          </div>
-                          <!-- Seuil -->
-                          <div class="paye-sub-cell paye-center text-gray-400"
-                               [class.paye-sub-row-alerte]="sem.alerte_46h">
-                            {{ formatH(sem.seuil) }}
-                          </div>
-                          <!-- Sup tr.1 -->
-                          <div class="paye-sub-cell paye-center"
-                               [class.paye-sub-row-alerte]="sem.alerte_46h"
-                               [class.text-orange-500]="!sem.a_cheval && sem.sup_tranche1 > 0"
-                               [class.text-gray-400]="sem.a_cheval || sem.sup_tranche1 === 0">
-                            {{ sem.sup_tranche1 > 0 ? formatH(sem.sup_tranche1) : '—' }}
-                          </div>
-                          <!-- Sup tr.2 -->
-                          <div class="paye-sub-cell paye-center"
-                               [class.paye-sub-row-alerte]="sem.alerte_46h"
-                               [class.text-orange-700]="!sem.a_cheval && sem.sup_tranche2 > 0"
-                               [class.text-gray-400]="sem.a_cheval || sem.sup_tranche2 === 0">
-                            {{ sem.sup_tranche2 > 0 ? formatH(sem.sup_tranche2) : '—' }}
-                          </div>
-                          <!-- H. dues -->
-                          <div class="paye-sub-cell paye-center"
-                               [class.paye-sub-row-alerte]="sem.alerte_46h"
-                               [class.text-red-600]="sem.heures_dues < 0"
-                               [class.text-gray-400]="sem.heures_dues === 0">
-                            {{ sem.heures_dues < 0 ? formatH(-sem.heures_dues) : '—' }}
-                          </div>
-                          <!-- Rattachement -->
-                          <div class="paye-sub-cell paye-center text-xs"
-                               [class.paye-sub-row-alerte]="sem.alerte_46h"
-                               [class.italic]="sem.a_cheval"
-                               [class.text-blue-400]="sem.a_cheval"
-                               [class.text-gray-400]="!sem.a_cheval">
-                            {{ sem.rattachement }}
-                            @if (sem.a_cheval) { <span class="ml-1 text-xs text-blue-300">→ mois suivant</span> }
-                          </div>
+                        @if (collab.annuel.rcr_alerte) {
+                          <span class="inline-flex items-center gap-0.5 text-xs text-red-600 font-medium">
+                            <svg class="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
+                              <path fill-rule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clip-rule="evenodd"/>
+                            </svg>
+                            Alerte contingent
+                          </span>
                         }
                       </div>
                     </div>
-                  }
-
-                }
-
-                <!-- ── Ligne total salariés ── -->
-                @if (payeData.totaux_salaries) {
-                  <div class="paye-cell paye-footer">
-                    <span class="text-xs font-bold text-gray-700">Total salariés (hors TNS)</span>
-                  </div>
-                  <div class="paye-cell paye-footer paye-center font-semibold text-gray-700">
-                    {{ payeData.totaux_salaries.jours_travailles }}
-                  </div>
-                  <div class="paye-cell paye-footer paye-center font-semibold text-gray-700">
-                    {{ formatH(payeData.totaux_salaries.heures_reelles) }}
-                  </div>
-                  <!-- H.contrat total : N/A -->
-                  <div class="paye-cell paye-footer paye-center text-gray-400">—</div>
-                  <!-- Sup tr.1 total -->
-                  <div class="paye-cell paye-footer paye-center font-semibold"
-                       [class.text-orange-600]="payeData.totaux_salaries.heures_sup_planning_total > 0"
-                       [class.text-gray-400]="payeData.totaux_salaries.heures_sup_planning_total === 0">
-                    {{ payeData.totaux_salaries.heures_sup_planning_total > 0 ? formatH(payeData.totaux_salaries.heures_sup_planning_total) : '—' }}
-                  </div>
-                  <!-- Sup tr.2 total : N/A (on n'a pas le détail tr1/tr2 dans totaux) -->
-                  <div class="paye-cell paye-footer paye-center text-gray-400">—</div>
-                  <!-- Nuit +20% -->
-                  <div class="paye-cell paye-footer paye-center font-semibold"
-                       [class.text-indigo-600]="payeData.totaux_salaries.heures_nuit_20 > 0"
-                       [class.text-gray-400]="payeData.totaux_salaries.heures_nuit_20 === 0">
-                    {{ payeData.totaux_salaries.heures_nuit_20 > 0 ? formatH(payeData.totaux_salaries.heures_nuit_20) : '—' }}
-                  </div>
-                  <!-- Nuit +40% -->
-                  <div class="paye-cell paye-footer paye-center font-semibold"
-                       [class.text-indigo-700]="payeData.totaux_salaries.heures_nuit_40 > 0"
-                       [class.text-gray-400]="payeData.totaux_salaries.heures_nuit_40 === 0">
-                    {{ payeData.totaux_salaries.heures_nuit_40 > 0 ? formatH(payeData.totaux_salaries.heures_nuit_40) : '—' }}
-                  </div>
-                  <!-- Dimanche -->
-                  <div class="paye-cell paye-footer paye-center font-semibold"
-                       [class.text-amber-600]="payeData.totaux_salaries.heures_dimanche > 0"
-                       [class.text-gray-400]="payeData.totaux_salaries.heures_dimanche === 0">
-                    {{ payeData.totaux_salaries.heures_dimanche > 0 ? formatH(payeData.totaux_salaries.heures_dimanche) : '—' }}
-                  </div>
-                  <!-- Fériés total -->
-                  <div class="paye-cell paye-footer paye-center font-semibold"
-                       [class.text-amber-600]="payeData.totaux_salaries.heures_feries_travaillees > 0"
-                       [class.text-gray-400]="payeData.totaux_salaries.heures_feries_travaillees === 0">
-                    {{ payeData.totaux_salaries.heures_feries_travaillees > 0 ? formatH(payeData.totaux_salaries.heures_feries_travaillees) : '—' }}
-                  </div>
-                  <!-- CP -->
-                  <div class="paye-cell paye-footer paye-center text-gray-500">
-                    {{ payeData.totaux_salaries.cp_poses > 0 ? payeData.totaux_salaries.cp_poses + 'j' : '—' }}
-                  </div>
-                  <!-- RCR -->
-                  <div class="paye-cell paye-footer paye-center text-gray-500">
-                    {{ payeData.totaux_salaries.rcr_poses > 0 ? payeData.totaux_salaries.rcr_poses + 'j' : '—' }}
-                  </div>
-                  <!-- Congé exceptionnel légal -->
-                  <div class="paye-cell paye-footer paye-center text-gray-500">
-                    {{ payeData.totaux_salaries.conge_exc_poses > 0 ? payeData.totaux_salaries.conge_exc_poses + 'j' : '—' }}
-                  </div>
-                  <!-- Sans solde -->
-                  <div class="paye-cell paye-footer paye-center text-gray-500">
-                    {{ payeData.totaux_salaries.sans_solde_poses > 0 ? payeData.totaux_salaries.sans_solde_poses + 'j' : '—' }}
-                  </div>
-                  <!-- Heures dues total -->
-                  <div class="paye-cell paye-footer paye-center font-semibold"
-                       [class.text-red-600]="payeData.totaux_salaries.heures_dues < 0"
-                       [class.text-gray-400]="payeData.totaux_salaries.heures_dues === 0">
-                    {{ payeData.totaux_salaries.heures_dues < 0 ? formatH(-payeData.totaux_salaries.heures_dues) : '—' }}
-                  </div>
-                  <!-- Formation -->
-                  <div class="paye-cell paye-footer paye-center font-semibold"
-                       [class.text-blue-600]="payeData.totaux_salaries.heures_formation > 0"
-                       [class.text-gray-400]="payeData.totaux_salaries.heures_formation === 0">
-                    {{ payeData.totaux_salaries.heures_formation > 0 ? formatH(payeData.totaux_salaries.heures_formation) : '—' }}
-                  </div>
-                }
-
-              </div><!-- /paye-grid -->
-            </div><!-- /overflow-x-auto -->
-          </div><!-- /tableau principal -->
-
-          <!-- Note de bas de page -->
-          <p class="text-xs text-gray-400">
-            * Heures sup CCN : tr.1 (+25%) = 0 à 8h au-delà du seuil hebdo · tr.2 (+50%) = au-delà de 8h sup ·
-            Nuit +20% = 5h–8h et 20h–22h · Nuit +40% = 22h–5h (CCN Pharmacie) ·
-            Formation assimilée à du temps de travail effectif (CCN art. 13.7) ·
-            H. dues = heures redevables à la pharmacie (absences injustifiées / départs anticipés non compensés) ·
-            Alerte ⚠ = durée hebdomadaire max. 46h dépassée (CCN art. 13.3.c)
-          </p>
-
-          <!-- ── Bandeau annuel RCR (salariés seulement) ── -->
-          @if (getSalariesCollaborateurs().length > 0) {
-            <div class="rounded-xl border border-gray-200 overflow-hidden">
-              <div class="px-4 py-3 bg-gray-50 border-b border-gray-200 flex items-center justify-between">
-                <div>
-                  <h3 class="text-sm font-semibold text-gray-700">Suivi RCR annuel (depuis jan. {{ payeDate.getFullYear() }})</h3>
-                  <p class="text-xs text-gray-400 mt-0.5">Contingent CCN : 150h/an — alerte si solde dépasse 150h</p>
-                </div>
-              </div>
-              <div class="p-4 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
-                @for (collab of getSalariesCollaborateurs(); track collab.id) {
-                  @if (collab.annuel) {
-                    <div class="border rounded-lg p-3 space-y-2"
-                         [class.border-red-300]="collab.annuel.rcr_alerte"
-                         [class.border-gray-200]="!collab.annuel.rcr_alerte">
-                      <!-- Avatar + Nom -->
-                      <div class="flex items-center gap-2">
-                        <div class="w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold flex-shrink-0"
-                             [style.background-color]="collab.couleur"
-                             [style.color]="collab.couleur_texte">
-                          {{ collab.initiales }}
-                        </div>
-                        <div class="flex-1 min-w-0">
-                          <p class="text-xs font-semibold text-gray-800 truncate">{{ collab.nom }}</p>
-                          @if (collab.annuel.rcr_alerte) {
-                            <span class="inline-flex items-center gap-0.5 text-xs text-red-600 font-medium">
-                              <svg class="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
-                                <path fill-rule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clip-rule="evenodd"/>
-                              </svg>
-                              Alerte contingent
-                            </span>
-                          }
-                        </div>
+                    <div class="flex justify-between items-center text-xs">
+                      <span class="text-gray-500">Solde RCR</span>
+                      <span class="font-bold"
+                            [class.text-red-600]="collab.annuel.rcr_alerte"
+                            [class.text-gray-800]="!collab.annuel.rcr_alerte">
+                        {{ formatH(collab.annuel.rcr_solde) }}
+                      </span>
+                    </div>
+                    <div class="flex justify-between items-center text-xs text-gray-400">
+                      <span>Acquis</span><span>{{ formatH(collab.annuel.rcr_acquis) }}</span>
+                    </div>
+                    <div class="flex justify-between items-center text-xs text-gray-400">
+                      <span>Consommé</span><span>{{ formatH(collab.annuel.rcr_consomme) }}</span>
+                    </div>
+                    <div>
+                      <div class="flex justify-between text-xs text-gray-400 mb-1">
+                        <span>Contingent</span>
+                        <span>{{ formatH(collab.annuel.contingent_consomme) }} / 150h</span>
                       </div>
-                      <!-- Solde RCR -->
-                      <div class="flex justify-between items-center text-xs">
-                        <span class="text-gray-500">Solde RCR</span>
-                        <span class="font-bold"
-                              [class.text-red-600]="collab.annuel.rcr_alerte"
-                              [class.text-gray-800]="!collab.annuel.rcr_alerte">
-                          {{ formatH(collab.annuel.rcr_solde) }}
-                        </span>
-                      </div>
-                      <div class="flex justify-between items-center text-xs text-gray-400">
-                        <span>Acquis</span><span>{{ formatH(collab.annuel.rcr_acquis) }}</span>
-                      </div>
-                      <div class="flex justify-between items-center text-xs text-gray-400">
-                        <span>Consommé</span><span>{{ formatH(collab.annuel.rcr_consomme) }}</span>
-                      </div>
-                      <!-- Barre contingent -->
-                      <div>
-                        <div class="flex justify-between text-xs text-gray-400 mb-1">
-                          <span>Contingent</span>
-                          <span>{{ formatH(collab.annuel.contingent_consomme) }} / 150h</span>
-                        </div>
-                        <div class="h-1.5 bg-gray-100 rounded-full overflow-hidden">
-                          <div class="h-full rounded-full transition-all"
-                               [class.bg-red-500]="collab.annuel.rcr_alerte"
-                               [class.bg-green-500]="!collab.annuel.rcr_alerte"
-                               [style.width]="contingentWidth(collab.annuel.contingent_consomme)">
-                          </div>
+                      <div class="h-1.5 bg-gray-100 rounded-full overflow-hidden">
+                        <div class="h-full rounded-full transition-all"
+                             [class.bg-red-500]="collab.annuel.rcr_alerte"
+                             [class.bg-green-500]="!collab.annuel.rcr_alerte"
+                             [style.width]="contingentWidth(collab.annuel.contingent_consomme)">
                         </div>
                       </div>
                     </div>
-                  }
+                  </div>
                 }
-              </div>
+              }
             </div>
-          }
-
+          </div>
         }
 
-      </div><!-- /p-6 space-y-6 -->
+      }
 
-    }
+    </div>
 
-  </div><!-- /bg-white -->
-</div><!-- /overlay -->
+  </div>
+</div>
