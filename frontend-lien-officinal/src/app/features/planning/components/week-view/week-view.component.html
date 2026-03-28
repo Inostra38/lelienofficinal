@@ -80,7 +80,40 @@
               </div>
             }
 
-            <!-- Ajustements horaires -->
+            <!-- Absences (CP, maladie, etc.) -->
+            @for (abs of getAbsencesForDay(summary.collaborator_id, dayObj.iso); track abs.absence_id) {
+              <div class="tl-absence-block"
+                   [class.pending]="abs.status === 'pending'"
+                   [class.deletable]="isManager"
+                   [style.left.%]="getAbsenceLeft(abs, dayObj.iso)"
+                   [style.width.%]="getAbsenceWidth(abs, dayObj.iso)"
+                   [style.background]="getShiftBg(summary.color, true, true)"
+                   [style.border-left-color]="getShiftBorderColor(summary.color)">
+                {{ ABSENCE_SHORT[abs.type] || abs.type }}
+                @if (isManager) {
+                  <button class="tl-delete-btn"
+                          (click)="$event.stopPropagation(); deleteAbsence(abs.absence_id)">×</button>
+                }
+              </div>
+            }
+
+            <!-- Blocs ajustements sur la timeline -->
+            @for (adj of getAdjustmentsForDay(summary.collaborator_id, dayObj.iso); track adj.adjustment_id) {
+              <div class="tl-adj-block"
+                   [class.early]="adj.type === 'early_departure'"
+                   [class.overtime]="adj.type === 'overtime'"
+                   [class.deletable]="isManager"
+                   [style.left.%]="getAdjBlockLeft(adj)"
+                   [style.width.%]="getAdjBlockWidth(adj)"
+                   [style.background]="adj.type === 'early_departure' ? getShiftBg(summary.color, true, true) : null">
+                @if (isManager) {
+                  <button class="tl-delete-btn"
+                          (click)="$event.stopPropagation(); deleteAdjustment(adj.adjustment_id)">×</button>
+                }
+              </div>
+            }
+
+            <!-- Badges ajustements (texte) -->
             @for (adj of getAdjustmentsForDay(summary.collaborator_id, dayObj.iso); track adj.adjustment_id) {
               <div class="tl-adjustment-badge"
                    [class.overtime]="adj.type === 'overtime'"

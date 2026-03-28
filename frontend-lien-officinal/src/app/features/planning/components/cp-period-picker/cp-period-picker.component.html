@@ -1,0 +1,85 @@
+<!-- CP Period Picker -->
+<div class="flex flex-col gap-3">
+
+  <!-- Sélecteurs Début / Fin -->
+  <div class="grid grid-cols-2 gap-2">
+
+    <!-- Début -->
+    <div>
+      <p class="text-xs font-medium text-gray-500 mb-1.5">Début</p>
+      <div class="flex rounded-xl overflow-hidden border border-gray-200 text-xs">
+        <button type="button" (click)="setStartPeriod('morning')"
+                class="flex-1 py-2 font-medium transition-colors"
+                [class.bg-green-700]="startPeriod === 'morning'"
+                [class.text-white]="startPeriod === 'morning'"
+                [class.text-gray-500]="startPeriod !== 'morning'">
+          Matin
+        </button>
+        <button type="button" (click)="setStartPeriod('afternoon')"
+                class="flex-1 py-2 font-medium transition-colors border-l border-gray-200"
+                [class.bg-green-700]="startPeriod === 'afternoon'"
+                [class.text-white]="startPeriod === 'afternoon'"
+                [class.text-gray-500]="startPeriod !== 'afternoon'">
+          Après-midi
+        </button>
+      </div>
+    </div>
+
+    <!-- Fin -->
+    <div>
+      <p class="text-xs font-medium text-gray-500 mb-1.5">Fin</p>
+      <div class="flex rounded-xl overflow-hidden border border-gray-200 text-xs">
+        <button type="button" (click)="setEndPeriod('morning')"
+                class="flex-1 py-2 font-medium transition-colors"
+                [class.bg-green-700]="endPeriod === 'morning'"
+                [class.text-white]="endPeriod === 'morning'"
+                [class.text-gray-500]="endPeriod !== 'morning'">
+          Matin
+        </button>
+        <button type="button" (click)="setEndPeriod('evening')"
+                class="flex-1 py-2 font-medium transition-colors border-l border-gray-200"
+                [class.bg-green-700]="endPeriod === 'evening'"
+                [class.text-white]="endPeriod === 'evening'"
+                [class.text-gray-500]="endPeriod !== 'evening'">
+          Soir
+        </button>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- Timeline (≤ 14 jours) -->
+  @if (timelineDays.length > 0) {
+    <div class="flex gap-px overflow-x-auto pb-0.5">
+      @for (day of timelineDays; track day.iso) {
+        <div class="flex-1 min-w-[18px] max-w-[36px]" [title]="day.label">
+          <div class="h-5 rounded-sm" [style.background]="day.bg"></div>
+          <div class="text-center text-[9px] text-gray-400 mt-0.5 truncate">{{ day.dayNum }}</div>
+        </div>
+      }
+    </div>
+  }
+
+  <!-- Résultat -->
+  @if (impossible) {
+    <p class="text-xs text-red-600 bg-red-50 rounded-lg px-3 py-2">
+      Combinaison impossible : début après-midi et fin matin le même jour.
+    </p>
+  } @else if (startDate && endDate) {
+    <p class="text-xs text-gray-500 bg-gray-50 rounded-lg px-3 py-2">
+      <span class="font-semibold text-gray-700">
+        @if (workingDays === 0.5) { 0,5 jour ouvré déduit }
+        @else if (workingDays === 1) { 1 jour ouvré déduit }
+        @else { {{ workingDays }} jours ouvrés déduits }
+      </span>
+      @if (startPeriod === 'afternoon' && endPeriod === 'morning') {
+        <span class="text-gray-400"> (début après-midi + fin matinée)</span>
+      } @else if (startPeriod === 'afternoon') {
+        <span class="text-gray-400"> (début après-midi)</span>
+      } @else if (endPeriod === 'morning') {
+        <span class="text-gray-400"> (fin matinée)</span>
+      }
+    </p>
+  }
+
+</div>

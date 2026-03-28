@@ -42,6 +42,8 @@ class AbsenceSummary(TypedDict):
     end_date: str
     type: str
     status: str        # pending / approved / rejected
+    start_period: str  # morning | afternoon
+    end_period: str    # morning | evening
 
 
 class AdjustmentSummary(TypedDict):
@@ -166,6 +168,8 @@ def _week_summary_from_data(collaborator, monday: date, sunday: date,
             end_date=a.end_date.isoformat(),
             type=a.type,
             status=a.status,
+            start_period=a.start_period,
+            end_period=a.end_period,
         )
         for a in absences
     ]

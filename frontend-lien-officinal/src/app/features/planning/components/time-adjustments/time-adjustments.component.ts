@@ -5,11 +5,13 @@ import { PlanningService, TimeAdjustment, WeekResponse, AbsenceRequest } from '.
 import { CollaboratorService, Collaborator } from '../../../../core/services/collaborator.service';
 import { DatePickerDirective } from '../../../../shared/directives/date-picker.directive';
 import { getCollaboratorColor } from '../../../../core/utils/collaborator-colors';
+import { CpPeriodPickerComponent } from '../cp-period-picker/cp-period-picker.component';
+import type { CpPeriodValue } from '../cp-period-picker/cp-period-picker.component';
 
 @Component({
   selector: 'app-time-adjustments',
   standalone: true,
-  imports: [CommonModule, FormsModule, DatePickerDirective],
+  imports: [CommonModule, FormsModule, DatePickerDirective, CpPeriodPickerComponent],
   templateUrl: './time-adjustments.component.html',
 })
 export class TimeAdjustmentsComponent implements OnInit {
@@ -49,6 +51,8 @@ export class TimeAdjustmentsComponent implements OnInit {
     end_date: '',
     type: 'cp' as 'cp' | 'maladie' | 'rcr' | 'sans_solde' | 'conge_exceptionnel',
     note: '',
+    start_period: 'morning' as 'morning' | 'afternoon',
+    end_period:   'evening' as 'morning' | 'evening',
   };
   submitting    = false;
   errorMessage  = '';
@@ -233,6 +237,11 @@ ngOnInit() {
     rejected: 'bg-red-100 text-red-700',
   };
 
+  onAbsencePeriodChange(v: CpPeriodValue) {
+    this.absenceForm.start_period = v.startPeriod;
+    this.absenceForm.end_period   = v.endPeriod;
+  }
+
   submitAbsence() {
     if (!this.absenceForm.start_date || !this.absenceForm.end_date) {
       this.errorMessage = 'Dates de début et de fin obligatoires.';
@@ -245,16 +254,19 @@ ngOnInit() {
     this.errorMessage = '';
     this.planningService.createAbsence({
       collaborator_id: collabId,
-      start_date: this.absenceForm.start_date,
-      end_date:   this.absenceForm.end_date,
-      type:       this.absenceForm.type,
-      note:       this.absenceForm.note,
+      start_date:   this.absenceForm.start_date,
+      end_date:     this.absenceForm.end_date,
+      type:         this.absenceForm.type,
+      note:         this.absenceForm.note,
+      start_period: this.absenceForm.type === 'cp' ? this.absenceForm.start_period : undefined,
+      end_period:   this.absenceForm.type === 'cp' ? this.absenceForm.end_period   : undefined,
     }).subscribe({
       next: () => {
         this.submitting = false;
         this.absenceForm = {
           collaborator_id: this.isManager && this.team.length > 0 ? this.team[0].id : undefined,
           start_date: '', end_date: '', type: 'cp', note: '',
+          start_period: 'morning', end_period: 'evening',
         };
         this.activeTab = 'list';
         this.weekChanged.emit();

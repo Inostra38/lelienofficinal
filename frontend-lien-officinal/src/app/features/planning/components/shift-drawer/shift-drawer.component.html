@@ -47,12 +47,12 @@
       <div class="grid grid-cols-2 gap-3">
         <div>
           <label class="block text-xs font-medium text-gray-600 mb-1">Début</label>
-          <input type="time" [(ngModel)]="startTime" (ngModelChange)="dirty = true"
+          <input type="time" [(ngModel)]="startTime" (ngModelChange)="onFieldChange()"
                  class="w-full text-sm border border-gray-200 rounded-xl px-3 py-2 focus:outline-none focus:border-green-500"/>
         </div>
         <div>
           <label class="block text-xs font-medium text-gray-600 mb-1">Fin</label>
-          <input type="time" [(ngModel)]="endTime" (ngModelChange)="dirty = true"
+          <input type="time" [(ngModel)]="endTime" (ngModelChange)="onFieldChange()"
                  class="w-full text-sm border border-gray-200 rounded-xl px-3 py-2 focus:outline-none focus:border-green-500"/>
           @if (isCrossMidnight) {
             <p class="text-xs text-gray-400 mt-1">(lendemain)</p>
@@ -68,6 +68,21 @@
       <!-- Erreur amplitude -->
       @if (amplitudeError) {
         <p class="text-sm text-red-600 bg-red-50 rounded-xl px-3 py-2">{{ amplitudeError }}</p>
+      }
+
+      <!-- Badge transformation -->
+      @if (transformBadge) {
+        <div class="transform-badge" [ngClass]="'badge-' + transformBadge.color">
+          <span class="transform-badge-label">{{ transformBadge.label }}</span>
+          @if (transformBadge.note) {
+            <span class="transform-badge-note">{{ transformBadge.note }}</span>
+          }
+        </div>
+        @if (splitShift2) {
+          <p class="text-xs text-gray-400 mt-0.5">
+            Shift 2 visible dans la grille — cliquez dessus pour l'ouvrir.
+          </p>
+        }
       }
 
       <!-- Statut -->
@@ -86,7 +101,7 @@
       <!-- Note -->
       <div>
         <label class="block text-xs font-medium text-gray-600 mb-1">Note interne</label>
-        <textarea [(ngModel)]="note" (ngModelChange)="dirty = true" rows="3"
+        <textarea [(ngModel)]="note" (ngModelChange)="onFieldChange()" rows="3"
                   placeholder="Optionnel…"
                   class="w-full text-sm border border-gray-200 rounded-xl px-3 py-2 resize-none focus:outline-none focus:border-green-500">
         </textarea>
@@ -121,18 +136,100 @@
       <p class="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-2">Marquer comme absent</p>
       <div class="grid grid-cols-2 gap-2">
         @for (t of ABSENCE_TYPES; track t.value) {
-          <button (click)="applyTransform(t.value)" [disabled]="transforming"
-                  class="rounded-xl border px-3 py-3 text-sm font-medium text-left transition-colors disabled:opacity-50"
-                  [class.border-gray-200]="!t.danger"
-                  [class.hover:bg-gray-50]="!t.danger"
-                  [class.text-gray-700]="!t.danger"
-                  [class.border-red-200]="t.danger"
-                  [class.hover:bg-red-50]="t.danger"
-                  [class.text-red-700]="t.danger">
-            {{ t.label }}
-          </button>
+          @if (t.value === 'cp') {
+            <button (click)="openSub('cp')" [disabled]="transforming"
+                    class="rounded-xl border px-3 py-3 text-sm font-medium text-left transition-colors disabled:opacity-50"
+                    [class.border-green-700]="sub.type === 'cp'"
+                    [class.bg-green-50]="sub.type === 'cp'"
+                    [class.text-green-700]="sub.type === 'cp'"
+                    [class.border-gray-200]="sub.type !== 'cp'"
+                    [class.text-gray-700]="sub.type !== 'cp'"
+                    [class.hover:bg-gray-50]="sub.type !== 'cp'">
+              {{ t.label }}
+            </button>
+          } @else {
+            <button (click)="applyTransform(t.value)" [disabled]="transforming"
+                    class="rounded-xl border px-3 py-3 text-sm font-medium text-left transition-colors disabled:opacity-50"
+                    [class.border-gray-200]="!t.danger"
+                    [class.hover:bg-gray-50]="!t.danger"
+                    [class.text-gray-700]="!t.danger"
+                    [class.border-red-200]="t.danger"
+                    [class.hover:bg-red-50]="t.danger"
+                    [class.text-red-700]="t.danger">
+              {{ t.label }}
+            </button>
+          }
         }
       </div>
+
+      <!-- Sous-formulaire CP posé -->
+      @if (sub.type === 'cp') {
+        <div class="bg-gray-50 rounded-xl p-4 space-y-3">
+          <p class="text-xs font-semibold text-gray-500">Poser un CP pour ce jour</p>
+
+          <!-- Début -->
+          <div>
+            <p class="text-xs text-gray-400 mb-1.5">Début</p>
+            <div class="flex rounded-xl overflow-hidden border border-gray-200 text-xs">
+              <button type="button" (click)="sub.cpStartPeriod = 'morning'"
+                      class="flex-1 py-2 font-medium transition-colors"
+                      [class.bg-green-700]="sub.cpStartPeriod === 'morning'"
+                      [class.text-white]="sub.cpStartPeriod === 'morning'"
+                      [class.text-gray-500]="sub.cpStartPeriod !== 'morning'">
+                Matin
+              </button>
+              <button type="button" (click)="sub.cpStartPeriod = 'afternoon'"
+                      class="flex-1 py-2 font-medium transition-colors border-l border-gray-200"
+                      [class.bg-green-700]="sub.cpStartPeriod === 'afternoon'"
+                      [class.text-white]="sub.cpStartPeriod === 'afternoon'"
+                      [class.text-gray-500]="sub.cpStartPeriod !== 'afternoon'">
+                Après-midi
+              </button>
+            </div>
+          </div>
+
+          <!-- Fin -->
+          <div>
+            <p class="text-xs text-gray-400 mb-1.5">Fin</p>
+            <div class="flex rounded-xl overflow-hidden border border-gray-200 text-xs">
+              <button type="button" (click)="sub.cpEndPeriod = 'morning'"
+                      class="flex-1 py-2 font-medium transition-colors"
+                      [class.bg-green-700]="sub.cpEndPeriod === 'morning'"
+                      [class.text-white]="sub.cpEndPeriod === 'morning'"
+                      [class.text-gray-500]="sub.cpEndPeriod !== 'morning'">
+                Matin
+              </button>
+              <button type="button" (click)="sub.cpEndPeriod = 'evening'"
+                      class="flex-1 py-2 font-medium transition-colors border-l border-gray-200"
+                      [class.bg-green-700]="sub.cpEndPeriod === 'evening'"
+                      [class.text-white]="sub.cpEndPeriod === 'evening'"
+                      [class.text-gray-500]="sub.cpEndPeriod !== 'evening'">
+                Soir
+              </button>
+            </div>
+          </div>
+
+          <!-- Résumé / erreur -->
+          @if (sub.cpStartPeriod === 'afternoon' && sub.cpEndPeriod === 'morning') {
+            <p class="text-xs text-red-600 bg-red-50 rounded-lg px-3 py-2">
+              Combinaison impossible sur un même jour.
+            </p>
+          } @else {
+            <p class="text-xs text-gray-500">
+              Déduction :
+              <span class="font-semibold text-gray-700">
+                {{ (sub.cpStartPeriod === 'afternoon' || sub.cpEndPeriod === 'morning') ? '0,5 jour' : '1 jour' }}
+              </span>
+            </p>
+          }
+
+          <button (click)="confirmCpTransform()"
+                  [disabled]="transforming || (sub.cpStartPeriod === 'afternoon' && sub.cpEndPeriod === 'morning')"
+                  class="w-full bg-green-700 hover:bg-green-800 text-white text-sm font-semibold py-2.5 rounded-xl transition-colors disabled:opacity-50">
+            Confirmer le CP
+          </button>
+        </div>
+      }
 
       <hr class="border-gray-100"/>
 

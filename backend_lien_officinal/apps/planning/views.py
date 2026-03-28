@@ -17,7 +17,7 @@ from rest_framework_simplejwt.authentication import JWTAuthentication
 from apps.team.models import Collaborator, ContractHistory
 from apps.core.auth_helpers import get_collaborator_from_jwt as _get_collaborator
 from .calculator import pharmacy_week_summary
-from .utils import get_jours_feries
+from .utils import get_jours_feries, compute_cp_days
 from .models import AbsenceRequest, Constraint, ConstraintSet, OpeningHours, PharmacyDayStatus, PlanningSettings, Shift, TemplateShift, TimeAdjustment, WeekTemplate, WeekTemplateApplication
 from .serializers import (
     AbsenceRequestCreateSerializer,
@@ -158,6 +158,12 @@ class ShiftDetailView(APIView):
             return Shift.objects.get(pk=pk, collaborator__pharmacy=pharmacy)
         except Shift.DoesNotExist:
             return None
+
+    def get(self, request, pk):
+        shift = self._get_shift(pk, request.user)
+        if not shift:
+            return Response({'detail': 'Shift introuvable.'}, status=status.HTTP_404_NOT_FOUND)
+        return Response(ShiftSerializer(shift).data)
 
     def patch(self, request, pk):
         actor = _get_collaborator(request)
@@ -326,6 +332,24 @@ class AbsenceListCreateView(APIView):
         if start_date > end_date:
             return Response({'detail': 'La date de début doit être avant la date de fin.'}, status=status.HTTP_400_BAD_REQUEST)
 
+        # ── start_period / end_period (CP demi-journées) ──────────────────────
+        start_period  = request.data.get('start_period', 'morning')
+        end_period    = request.data.get('end_period',   'evening')
+        absence_type  = request.data.get('type', 'injustifiee')
+
+        if start_period not in ('morning', 'afternoon'):
+            start_period = 'morning'
+        if end_period not in ('morning', 'evening'):
+            end_period = 'evening'
+
+        # Validation : afternoon+morning même jour = impossible
+        if (absence_type == 'cp' and start_period == 'afternoon'
+                and end_period == 'morning' and start_date == end_date):
+            return Response(
+                {'detail': 'Combinaison impossible : début après-midi et fin matin le même jour.'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
         # Récupérer les jours bloqués (fermé ou garde de jour) sur la période
         nb_days      = (end_date - start_date).days + 1
         period_dates = [start_date + timedelta(days=i) for i in range(nb_days)]
@@ -393,11 +417,20 @@ class AbsenceListCreateView(APIView):
             )
 
         # Créer une absence par segment
-        absence_type = request.data.get('type', 'injustifiee')
-        base_data = {k: v for k, v in request.data.items() if k not in ('start_date', 'end_date')}
+        base_data = {k: v for k, v in request.data.items() if k not in ('start_date', 'end_date', 'start_period', 'end_period')}
+        nb_segments = len(segments)
         created_absences = []
-        for seg_s, seg_e in segments:
-            seg_data = {**base_data, 'start_date': seg_s.isoformat(), 'end_date': seg_e.isoformat()}
+        for i, (seg_s, seg_e) in enumerate(segments):
+            # start_period s'applique au premier segment, end_period au dernier
+            seg_start_period = start_period if i == 0                  else 'morning'
+            seg_end_period   = end_period   if i == nb_segments - 1    else 'evening'
+            seg_data = {
+                **base_data,
+                'start_date':   seg_s.isoformat(),
+                'end_date':     seg_e.isoformat(),
+                'start_period': seg_start_period,
+                'end_period':   seg_end_period,
+            }
             serializer = AbsenceRequestCreateSerializer(
                 data=seg_data,
                 context={'collaborator': target, 'is_manager': is_manager, 'actor': actor},
@@ -408,18 +441,9 @@ class AbsenceListCreateView(APIView):
 
             # Pour les CP : calcul des jours ouvrés réels (lun–sam, hors fériés)
             if absence_type == 'cp':
-                n_days = (seg_e - seg_s).days + 1
-                seg_dates = [seg_s + timedelta(days=i) for i in range(n_days)]
-                seg_years = {d.year for d in seg_dates}
-                seg_feries = set()
-                for y in seg_years:
-                    seg_feries.update(get_jours_feries(y))
-                working_days = sum(
-                    1 for d in seg_dates
-                    if d.weekday() < 6 and d not in seg_feries
-                )
-                AbsenceRequest.objects.filter(pk=absence.pk).update(working_days_count=working_days)
-                absence.working_days_count = working_days
+                wd = compute_cp_days(seg_s, seg_e, seg_start_period, seg_end_period)
+                AbsenceRequest.objects.filter(pk=absence.pk).update(working_days_count=wd)
+                absence.working_days_count = wd
 
             created_absences.append(absence)
 
@@ -455,6 +479,25 @@ class AbsenceReviewView(APIView):
         absence.reviewed_at = timezone.now()
         absence.save(update_fields=['status', 'reviewed_by', 'reviewed_at'])
         return Response(AbsenceRequestSerializer(absence).data)
+
+
+class AbsenceDeleteView(APIView):
+    """DELETE /api/planning/absences/{pk}/"""
+    authentication_classes = [JWTAuthentication]
+    permission_classes = [IsAuthenticated]
+
+    def delete(self, request, pk):
+        actor = _get_collaborator(request)
+        if not actor or not actor.can_manage_planning:
+            return Response({'detail': 'Permission insuffisante.'}, status=status.HTTP_403_FORBIDDEN)
+
+        try:
+            absence = AbsenceRequest.objects.get(pk=pk, collaborator__pharmacy=request.user)
+        except AbsenceRequest.DoesNotExist:
+            return Response({'detail': 'Demande introuvable.'}, status=status.HTTP_404_NOT_FOUND)
+
+        absence.delete()
+        return Response(status=status.HTTP_204_NO_CONTENT)
 
 
 # ── PharmacyDayStatus ─────────────────────────────────────────────────────────

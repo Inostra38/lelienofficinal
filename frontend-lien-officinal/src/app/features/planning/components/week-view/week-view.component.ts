@@ -11,7 +11,7 @@ import {
   OpeningHours,
 } from '../../../../core/services/planning.service';
 import { ConfirmService } from '../../../../core/services/confirm.service';
-import type { AdjustmentSummary } from '../../../../core/services/planning.service';
+import type { AdjustmentSummary, AbsenceSummary } from '../../../../core/services/planning.service';
 import { ShiftFormComponent, ShiftFormCollab } from '../shift-form/shift-form.component';
 
 @Component({
@@ -128,6 +128,51 @@ export class WeekViewComponent implements OnChanges {
   trackByShiftId = (_: number, s: Shift) => s.id;
   trackByHour = (_: number, h: number) => h;
   trackByAdjId = (_: number, a: AdjustmentSummary) => a.adjustment_id;
+  trackByAbsenceId = (_: number, a: AbsenceSummary) => a.absence_id;
+
+  readonly ABSENCE_SHORT: Record<string, string> = {
+    cp: 'CP', conge_exceptionnel: 'Exceptionnel', maladie: 'Maladie',
+    rcr: 'RCR', sans_solde: 'Sans solde', injustifiee: 'Injustifiée',
+  };
+
+  getAbsencesForDay(collaboratorId: number, dayIso: string): AbsenceSummary[] {
+    const s = this._summaryMap.get(collaboratorId);
+    if (!s?.absences) return [];
+    return s.absences.filter(a => a.status !== 'rejected' && a.start_date <= dayIso && dayIso <= a.end_date);
+  }
+
+  /** Retourne '' | 'half-top' | 'half-bottom' pour les CP demi-journée. */
+  getAbsenceHalfClass(abs: AbsenceSummary, dayIso: string): string {
+    if (abs.type !== 'cp') return '';
+    if (dayIso === abs.start_date && abs.start_period === 'afternoon') return 'half-bottom';
+    if (dayIso === abs.end_date   && abs.end_period   === 'morning')   return 'half-top';
+    return '';
+  }
+
+  private readonly MIDDAY_HOUR = 13;
+
+  /**
+   * Position gauche (%) du bloc absence dans la timeline.
+   * CP après-midi → commence à 13h ; sinon à 0.
+   */
+  getAbsenceLeft(abs: AbsenceSummary, dayIso: string): number {
+    if (this.getAbsenceHalfClass(abs, dayIso) === 'half-bottom') {
+      return Math.min(100, Math.max(0, this.getHourLeft(this.MIDDAY_HOUR)));
+    }
+    return 0;
+  }
+
+  /**
+   * Largeur (%) du bloc absence dans la timeline.
+   * CP matin  → 0h → 13h ; CP après-midi → 13h → fin ; journée → 100 %.
+   */
+  getAbsenceWidth(abs: AbsenceSummary, dayIso: string): number {
+    const half = this.getAbsenceHalfClass(abs, dayIso);
+    const midPct = Math.min(100, Math.max(0, this.getHourLeft(this.MIDDAY_HOUR)));
+    if (half === 'half-top')    return midPct;
+    if (half === 'half-bottom') return 100 - midPct;
+    return 100;
+  }
 
   // ── Shift form ────────────────────────────────────────────────────────────
   showShiftForm             = false;
@@ -273,6 +318,16 @@ export class WeekViewComponent implements OnChanges {
   async deleteShift(shiftId: number) {
     if (!await this.confirmService.ask({ title: 'Supprimer le shift', message: 'Supprimer ce shift ?', danger: true })) return;
     this.planningService.deleteShift(shiftId).subscribe(() => this.shiftChanged.emit());
+  }
+
+  async deleteAdjustment(adjId: number) {
+    if (!await this.confirmService.ask({ title: 'Supprimer l\'ajustement', message: 'Supprimer cet ajustement ?', danger: true })) return;
+    this.planningService.deleteAdjustment(adjId).subscribe(() => this.shiftChanged.emit());
+  }
+
+  async deleteAbsence(absenceId: number) {
+    if (!await this.confirmService.ask({ title: 'Supprimer l\'absence', message: 'Supprimer cette absence ?', danger: true })) return;
+    this.planningService.deleteAbsence(absenceId).subscribe(() => this.shiftChanged.emit());
   }
 
   publishShift(shiftId: number) {
@@ -677,6 +732,27 @@ export class WeekViewComponent implements OnChanges {
     const summary = this.getSummary(collaboratorId);
     if (!summary) return [];
     return summary.adjustments?.filter(a => a.date === dayIso) ?? [];
+  }
+
+  /** Position gauche (%) du bloc ajustement dans la timeline. */
+  getAdjBlockLeft(adj: AdjustmentSummary): number {
+    // Départ anticipé : hachure commence à l'heure de départ réelle
+    // Heures sup : bloc commence à l'heure de fin prévue
+    const t = adj.type === 'early_departure' ? adj.actual_time : adj.reference_time;
+    const mins = this._timeToMins(t.substring(0, 5));
+    const viewStart = this.dayStartHour * 60;
+    return Math.max(0, Math.min(100, ((mins - viewStart) / (this.totalHours * 60)) * 100));
+  }
+
+  /** Largeur (%) du bloc ajustement dans la timeline. */
+  getAdjBlockWidth(adj: AdjustmentSummary): number {
+    // Départ anticipé : hachure jusqu'à l'heure de fin prévue
+    // Heures sup : bloc jusqu'à l'heure de fin réelle
+    const t = adj.type === 'early_departure' ? adj.reference_time : adj.actual_time;
+    const mins = this._timeToMins(t.substring(0, 5));
+    const viewStart = this.dayStartHour * 60;
+    const rightPct = Math.min(100, ((mins - viewStart) / (this.totalHours * 60)) * 100);
+    return Math.max(0, rightPct - this.getAdjBlockLeft(adj));
   }
 
   formatDuration(minutes: number): string {

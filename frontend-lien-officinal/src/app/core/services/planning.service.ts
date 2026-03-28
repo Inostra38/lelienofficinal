@@ -61,6 +61,8 @@ export interface AbsenceSummary {
   end_date: string;
   type: string;
   status: 'pending' | 'approved' | 'rejected';
+  start_period: 'morning' | 'afternoon';
+  end_period:   'morning' | 'evening';
 }
 
 export interface AdjustmentSummary {
@@ -131,6 +133,9 @@ export interface AbsenceRequest {
   reviewed_at: string | null;
   reviewed_by: PlanningCollaborator | null;
   posted_by_manager: boolean;
+  working_days_count: number | null;
+  start_period: 'morning' | 'afternoon';
+  end_period:   'morning' | 'evening';
 }
 
 export interface PlanningSettings {
@@ -163,8 +168,10 @@ export interface CreateAbsenceDto {
   collaborator_id?: number;
   start_date: string;
   end_date: string;
-  type?: 'cp' | 'maladie' | 'rcr' | 'sans_solde' | 'conge_exceptionnel';
+  type?: 'cp' | 'maladie' | 'rcr' | 'sans_solde' | 'conge_exceptionnel' | 'injustifiee';
   note?: string;
+  start_period?: 'morning' | 'afternoon';
+  end_period?:   'morning' | 'evening';
 }
 
 export interface OpeningHours {
@@ -405,6 +412,10 @@ export class PlanningService {
 
   // ── Shifts ────────────────────────────────────────────────────────────────
 
+  getShift(id: number): Observable<Shift> {
+    return this.http.get<Shift>(`${this.apiUrl}/shifts/${id}/`);
+  }
+
   createShift(dto: CreateShiftDto): Observable<Shift> {
     return this.http.post<Shift>(`${this.apiUrl}/shifts/`, dto);
   }
@@ -452,6 +463,10 @@ export class PlanningService {
 
   rejectAbsence(id: number): Observable<AbsenceRequest> {
     return this.http.post<AbsenceRequest>(`${this.apiUrl}/absences/${id}/reject/`, {});
+  }
+
+  deleteAbsence(id: number): Observable<void> {
+    return this.http.delete<void>(`${this.apiUrl}/absences/${id}/`);
   }
 
   // ── Statuts journaliers ───────────────────────────────────────────────────

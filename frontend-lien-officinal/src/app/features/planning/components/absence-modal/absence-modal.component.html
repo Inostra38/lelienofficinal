@@ -91,6 +91,9 @@
           <p class="text-xs text-gray-500 mt-0.5">
             {{ getTypeLabel(absence.type) }} —
             {{ formatDate(absence.start_date) }} → {{ formatDate(absence.end_date) }}
+            @if (absence.type === 'cp' && absence.working_days_count != null) {
+              <span class="text-gray-400"> · {{ absence.working_days_count }}j CP</span>
+            }
           </p>
           <p *ngIf="absence.note" class="text-xs text-gray-400 mt-0.5 italic">{{ absence.note }}</p>
           <p *ngIf="absence.reviewed_by && absence.status !== 'pending'"
@@ -162,6 +165,15 @@
           </div>
         </div>
 
+        <!-- Picker début/fin CP -->
+        @if (form.type === 'cp') {
+          <app-cp-period-picker
+            [startDate]="form.start_date || null"
+            [endDate]="form.end_date || null"
+            (periodChange)="onPeriodChange($event)">
+          </app-cp-period-picker>
+        }
+
         <!-- Note -->
         <div>
           <label class="block text-xs font-semibold text-gray-500 mb-1">Note (optionnelle)</label>
@@ -170,16 +182,6 @@
                     class="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-green-300">
           </textarea>
         </div>
-
-        <!-- Feedback jours ouvrés CP -->
-        @if (cpWorkingDaysFeedback; as fb) {
-          <p class="text-xs text-gray-500 bg-gray-50 rounded-lg px-3 py-2">
-            <span class="font-medium text-gray-700">{{ fb.workingDays }} jour{{ fb.workingDays > 1 ? 's' : '' }} ouvré{{ fb.workingDays > 1 ? 's' : '' }} déduit{{ fb.workingDays > 1 ? 's' : '' }}</span>
-            @if (fb.ferieCount > 0) {
-              <span> · {{ fb.ferieCount }} férié{{ fb.ferieCount > 1 ? 's' : '' }} exclu{{ fb.ferieCount > 1 ? 's' : '' }}</span>
-            }
-          </p>
-        }
 
         <!-- Message info (staff uniquement) -->
         <p *ngIf="!isManager" class="text-xs text-amber-600 bg-amber-50 rounded-lg px-3 py-2">

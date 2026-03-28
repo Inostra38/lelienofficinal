@@ -1,6 +1,7 @@
 import json
 import re
 from datetime import date, timedelta
+from decimal import Decimal
 
 
 # ── Jours fériés français ──────────────────────────────────────────────────────
@@ -63,6 +64,44 @@ def get_label_ferie(d: date, year: int) -> str:
     if d == paques + timedelta(days=50):
         return "Lundi de Pentecôte"
     return "Jour férié"
+
+
+def compute_cp_days(
+    start: date,
+    end: date,
+    start_period: str = 'morning',
+    end_period: str = 'evening',
+) -> Decimal:
+    """
+    Calcule le nombre de jours CP à déduire (CCN art. 13.2.c).
+    Compte les jours lun–sam hors fériés français. Coupure fixe à 13h.
+
+    Combinaisons :
+      morning  → evening  = journées complètes        (ex : 5j)
+      morning  → morning  = journées − 0,5j fin        (ex : 4,5j)
+      afternoon → evening  = journées − 0,5j début     (ex : 4,5j)
+      afternoon → morning  = journées − 1j (0,5+0,5)  (ex : 4j)
+    """
+    years = {start.year, end.year}
+    feries: set[date] = set()
+    for y in years:
+        feries.update(get_jours_feries(y))
+
+    working_days: list[date] = []
+    d = start
+    while d <= end:
+        if d.weekday() < 6 and d not in feries:
+            working_days.append(d)
+        d += timedelta(days=1)
+
+    total = Decimal(str(len(working_days)))
+
+    if start_period == 'afternoon' and start in working_days:
+        total -= Decimal('0.5')
+    if end_period == 'morning' and end in working_days:
+        total -= Decimal('0.5')
+
+    return max(Decimal('0'), total)
 
 
 class AIParseError(Exception):

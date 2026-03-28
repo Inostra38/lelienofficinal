@@ -178,9 +178,22 @@ class AbsenceRequest(models.Model):
         default=False,
         help_text="True si posé directement par un manager sans demande du collaborateur",
     )
-    working_days_count = models.IntegerField(
+    start_period = models.CharField(
+        max_length=9,
+        choices=[('morning', 'Matin'), ('afternoon', 'Après-midi')],
+        default='morning',
+        help_text="Période de début : morning=dès 08h, afternoon=dès 13h (CP uniquement)",
+    )
+    end_period = models.CharField(
+        max_length=7,
+        choices=[('morning', 'Matin'), ('evening', 'Soir')],
+        default='evening',
+        help_text="Période de fin : morning=jusqu'à 13h, evening=fin de journée (CP uniquement)",
+    )
+    working_days_count = models.DecimalField(
+        max_digits=4, decimal_places=1,
         null=True, blank=True,
-        help_text="Nombre de jours ouvrés réellement déduits (fériés exclus pour les CP)",
+        help_text="Nombre de jours ouvrés CP déduits (fériés et dimanches exclus)",
     )
 
     class Meta:

@@ -321,6 +321,14 @@
             </select>
           </div>
 
+          @if (absenceForm.type === 'cp') {
+            <app-cp-period-picker
+              [startDate]="absenceForm.start_date || null"
+              [endDate]="absenceForm.end_date || null"
+              (periodChange)="onAbsencePeriodChange($event)">
+            </app-cp-period-picker>
+          }
+
           <div>
             <label class="block text-xs font-semibold text-gray-500 mb-1">Note (optionnelle)</label>
             <input type="text" [(ngModel)]="absenceForm.note" name="abs_note"

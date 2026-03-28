@@ -8,6 +8,7 @@ from .views import (
     UnpublishWeekView,
     AbsenceListCreateView,
     AbsenceReviewView,
+    AbsenceDeleteView,
     DayStatusListCreateView,
     DayStatusDeleteView,
     MonthlyAbsenceSummaryView,
@@ -53,6 +54,7 @@ urlpatterns = [
 
     # Absences
     path('planning/absences/', AbsenceListCreateView.as_view(), name='absence-list-create'),
+    path('planning/absences/<int:pk>/', AbsenceDeleteView.as_view(), name='absence-delete'),
     path('planning/absences/<int:pk>/<str:action>/', AbsenceReviewView.as_view(), name='absence-review'),
 
     # Statuts journaliers

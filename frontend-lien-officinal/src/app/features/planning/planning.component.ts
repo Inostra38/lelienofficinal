@@ -312,8 +312,18 @@ export class PlanningComponent implements OnInit, OnDestroy {
     this.planningService.getWeek(this.currentWeekStr)
       .pipe(takeUntil(this.destroy$))
       .subscribe({
-        next:  data  => { this.weekData = data; this.loading = false; },
-        error: ()    => { this.loading = false; },
+        next: data => {
+          this.weekData = data;
+          this.loading = false;
+          // Si le drawer est ouvert sur un shift, on le synchronise avec
+          // la version fraîche de weekData (même ID) pour que ngOnChanges
+          // mette à jour les champs du formulaire sans réinitialiser le badge.
+          if (this.showShiftDrawer && this.drawerShift) {
+            const fresh = data.shifts.find(s => s.id === this.drawerShift!.id);
+            if (fresh) this.drawerShift = fresh;
+          }
+        },
+        error: () => { this.loading = false; },
       });
   }
 

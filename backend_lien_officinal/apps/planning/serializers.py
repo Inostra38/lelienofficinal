@@ -75,15 +75,32 @@ class AbsenceRequestSerializer(serializers.ModelSerializer):
         fields = [
             'id', 'collaborator', 'start_date', 'end_date',
             'type', 'status', 'note', 'created_at', 'reviewed_at', 'reviewed_by',
-            'posted_by_manager', 'working_days_count',
+            'posted_by_manager', 'working_days_count', 'start_period', 'end_period',
         ]
 
 
 class AbsenceRequestCreateSerializer(serializers.ModelSerializer):
     class Meta:
         model = AbsenceRequest
-        fields = ['start_date', 'end_date', 'type', 'note']
-        extra_kwargs = {'type': {'required': False}}
+        fields = ['start_date', 'end_date', 'type', 'note', 'start_period', 'end_period']
+        extra_kwargs = {
+            'type':         {'required': False},
+            'start_period': {'required': False},
+            'end_period':   {'required': False},
+        }
+
+    def validate(self, attrs):
+        start_period = attrs.get('start_period', 'morning')
+        end_period   = attrs.get('end_period',   'evening')
+        start        = attrs.get('start_date')
+        end          = attrs.get('end_date')
+
+        if (start_period == 'afternoon' and end_period == 'morning'
+                and start and end and start == end):
+            raise serializers.ValidationError(
+                'Combinaison impossible : début après-midi et fin matin le même jour.'
+            )
+        return attrs
 
     def create(self, validated_data):
         collaborator = self.context['collaborator']

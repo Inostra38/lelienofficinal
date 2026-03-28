@@ -252,9 +252,12 @@
   transition: opacity 0.1s, background 0.1s;
 }
 
-.tl-block:hover .tl-delete-btn {
+.tl-block:hover .tl-delete-btn,
+.tl-absence-block:hover .tl-delete-btn,
+.tl-adj-block:hover .tl-delete-btn {
   opacity: 1;
 }
+
 
 .tl-delete-btn:hover {
   background: rgba(0, 0, 0, 0.38);
@@ -274,6 +277,35 @@
 .tl-block.draft {
   border-left: 3px dashed;  /* couleur via border-left-color inline */
   opacity: 0.75;
+}
+
+/* ── Blocs absences ──────────────────────────────────────────────────────── */
+.tl-absence-block {
+  position: absolute;
+  /* left et width positionnés via [style.left.%] / [style.width.%] */
+  top: 8px;
+  height: 32px;
+  border-radius: 3px;
+  border-left: 3px solid;
+  display: flex;
+  align-items: center;
+  padding: 0 8px;
+  font-size: 10px;
+  font-weight: 700;
+  color: #fff;
+  text-shadow: 0 1px 2px rgba(0,0,0,0.45);
+  pointer-events: none;
+  overflow: hidden;
+  white-space: nowrap;
+}
+
+.tl-absence-block.deletable {
+  pointer-events: auto;
+}
+
+.tl-absence-block.pending {
+  border-left-style: dashed;
+  opacity: 0.6;
 }
 
 /* ── Bouton + ajout shift ────────────────────────────────────────────────── */
@@ -358,6 +390,32 @@
   border: 0.5px solid #c7d2fe;
 }
 
+/* ── Blocs ajustements horaires sur la timeline ──────────────────────────── */
+.tl-adj-block {
+  position: absolute;
+  top: 8px;
+  height: 32px;
+  pointer-events: none;
+  overflow: hidden;
+  border-radius: 0 3px 3px 0;
+}
+
+.tl-adj-block.deletable {
+  pointer-events: auto;
+  overflow: visible;
+}
+
+/* Départ anticipé : même hachure que les blocs d'absence (couleur via inline style) */
+.tl-adj-block.early {
+  border-left: 2px dashed rgba(0, 0, 0, 0.25);
+}
+
+/* Heures supplémentaires : période travaillée en plus (ambre) */
+.tl-adj-block.overtime {
+  background: rgba(251, 146, 60, 0.40);
+  border-left: 2px solid #f97316;
+}
+
 /* ── Badges ajustements horaires ─────────────────────────────────────────── */
 .tl-adjustment-badge {
   position: absolute;
@@ -369,6 +427,7 @@
   border-radius: 3px;
   white-space: nowrap;
   cursor: pointer;
+  overflow: visible;
 }
 
 /* ── Popover shift ────────────────────────────────────────────────────────── */
