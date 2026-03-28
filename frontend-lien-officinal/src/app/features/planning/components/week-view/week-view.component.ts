@@ -11,13 +11,14 @@ import {
   OpeningHours,
 } from '../../../../core/services/planning.service';
 import { ConfirmService } from '../../../../core/services/confirm.service';
+import { ToastService } from '../../../../core/services/toast.service';
 import type { AdjustmentSummary, AbsenceSummary } from '../../../../core/services/planning.service';
-import { ShiftFormComponent, ShiftFormCollab } from '../shift-form/shift-form.component';
+import type { ShiftFormCollab } from '../shift-form/shift-form.component';
 
 @Component({
   selector: 'app-week-view',
   standalone: true,
-  imports: [CommonModule, ShiftFormComponent],
+  imports: [CommonModule],
   templateUrl: './week-view.component.html',
   styleUrl: './week-view.component.css',
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -36,6 +37,7 @@ export class WeekViewComponent implements OnChanges {
   private planningService = inject(PlanningService);
   private cdr             = inject(ChangeDetectorRef);
   private confirmService  = inject(ConfirmService);
+  private toastService    = inject(ToastService);
 
   // ── Cache pré-calculé (rebuil dans ngOnChanges) ───────────────────────────
 
@@ -317,17 +319,26 @@ export class WeekViewComponent implements OnChanges {
 
   async deleteShift(shiftId: number) {
     if (!await this.confirmService.ask({ title: 'Supprimer le shift', message: 'Supprimer ce shift ?', danger: true })) return;
-    this.planningService.deleteShift(shiftId).subscribe(() => this.shiftChanged.emit());
+    this.planningService.deleteShift(shiftId).subscribe({
+      next: () => this.shiftChanged.emit(),
+      error: () => this.toastService.error('Impossible de supprimer le shift.'),
+    });
   }
 
   async deleteAdjustment(adjId: number) {
     if (!await this.confirmService.ask({ title: 'Supprimer l\'ajustement', message: 'Supprimer cet ajustement ?', danger: true })) return;
-    this.planningService.deleteAdjustment(adjId).subscribe(() => this.shiftChanged.emit());
+    this.planningService.deleteAdjustment(adjId).subscribe({
+      next: () => this.shiftChanged.emit(),
+      error: () => this.toastService.error('Impossible de supprimer l\'ajustement.'),
+    });
   }
 
   async deleteAbsence(absenceId: number) {
     if (!await this.confirmService.ask({ title: 'Supprimer l\'absence', message: 'Supprimer cette absence ?', danger: true })) return;
-    this.planningService.deleteAbsence(absenceId).subscribe(() => this.shiftChanged.emit());
+    this.planningService.deleteAbsence(absenceId).subscribe({
+      next: () => this.shiftChanged.emit(),
+      error: () => this.toastService.error('Impossible de supprimer l\'absence.'),
+    });
   }
 
   publishShift(shiftId: number) {

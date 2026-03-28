@@ -81,11 +81,21 @@ export class TemplateModalComponent implements OnInit {
   setH(field: 'start_time' | 'end_time', v: string) { this.addForm[field] = `${v}:${this.getM(field)}`; }
   setM(field: 'start_time' | 'end_time', v: string) { this.addForm[field] = `${this.getH(field)}:${v}`; }
 
-  // ── Timeline ──────────────────────────────────────────────────────────────
+  // ── Timeline — fenêtre dynamique calée sur les horaires d'ouverture ───────
 
-  readonly dayStartHour = 0;
-  readonly dayEndHour   = 24;
-  readonly totalHours   = 24;
+  get dayStartHour(): number {
+    if (this.openingHours.length === 0) return 8;
+    const minMins = Math.min(...this.openingHours.map(h => this._timeToMins(h.start_time)));
+    return Math.max(0, Math.floor(minMins / 60) - 1);
+  }
+
+  get dayEndHour(): number {
+    if (this.openingHours.length === 0) return 20;
+    const maxMins = Math.max(...this.openingHours.map(h => this._timeToMins(h.end_time)));
+    return Math.min(24, Math.ceil(maxMins / 60) + 1);
+  }
+
+  get totalHours(): number { return this.dayEndHour - this.dayStartHour; }
 
 
   // ── Lifecycle ─────────────────────────────────────────────────────────────
@@ -160,7 +170,12 @@ export class TemplateModalComponent implements OnInit {
 
   // ── Timeline positioning ──────────────────────────────────────────────────
 
-  get hours(): number[] { return [0, 3, 6, 9, 12, 15, 18, 21, 24]; }
+  get hours(): number[] {
+    const result: number[] = [];
+    for (let h = this.dayStartHour; h <= this.dayEndHour; h += 3) result.push(h);
+    if (result[result.length - 1] !== this.dayEndHour) result.push(this.dayEndHour);
+    return result;
+  }
 
   getHourLeft(hour: number): number {
     return ((hour - this.dayStartHour) / this.totalHours) * 100;
@@ -278,16 +293,18 @@ export class TemplateModalComponent implements OnInit {
       .map(h => ({ start: this._timeToMins(h.start_time), end: this._timeToMins(h.end_time) }))
       .sort((a, b) => a.start - b.start);
     if (slots.length === 0) return '#eef2ff';
-    const total = 24 * 60;
-    const pct = (m: number) => ((m / total) * 100).toFixed(3);
+    const viewStart = this.dayStartHour * 60;
+    const viewEnd   = this.dayEndHour   * 60;
+    const viewTotal = viewEnd - viewStart;
+    const pct = (m: number) => (((Math.max(viewStart, Math.min(viewEnd, m)) - viewStart) / viewTotal) * 100).toFixed(3);
     const stops: string[] = [];
-    let cur = 0;
+    let cur = viewStart;
     for (const { start, end } of slots) {
       if (start > cur) stops.push(`#eef2ff ${pct(cur)}%, #eef2ff ${pct(start)}%`);
       stops.push(`#ffffff ${pct(start)}%, #ffffff ${pct(end)}%`);
       cur = end;
     }
-    if (cur < total) stops.push(`#eef2ff ${pct(cur)}%, #eef2ff 100%`);
+    if (cur < viewEnd) stops.push(`#eef2ff ${pct(cur)}%, #eef2ff 100%`);
     return `linear-gradient(to right, ${stops.join(', ')})`;
   }
 
@@ -361,7 +378,7 @@ export class TemplateModalComponent implements OnInit {
 
   getPreviewShiftLeft(shift: any): number {
     const [h, m] = shift.start_time.split(':').map(Number);
-    const minutes = h * 60 + m;
+    const minutes = (h - this.dayStartHour) * 60 + m;
     return Math.max(0, (minutes / (this.totalHours * 60)) * 100);
   }
 

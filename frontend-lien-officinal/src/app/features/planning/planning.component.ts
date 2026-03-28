@@ -76,7 +76,7 @@ export class PlanningComponent implements OnInit, OnDestroy {
   ngOnInit() {
     this.currentWeekStr = this.toIsoWeek(this.currentMonday);
     this.planningService.getSettings().subscribe(s => { this.planningSettings = s; });
-    this.planningService.getOpeningHours().subscribe(h => { this.openingHours = h; });
+    this.planningService.getOpeningHours(this.currentWeekStr).subscribe(h => { this.openingHours = h; });
 
     this.collaboratorService.getTeam().subscribe(team => {
       this.team = team;
@@ -126,7 +126,7 @@ export class PlanningComponent implements OnInit, OnDestroy {
   onSettingsClosed() {
     this.showSettingsModal = false;
     this.planningService.getSettings().subscribe(s => { this.planningSettings = s; });
-    this.planningService.getOpeningHours().subscribe(h => { this.openingHours = h; });
+    this.planningService.getOpeningHours(this.currentWeekStr).subscribe(h => { this.openingHours = h; });
   }
 
   // ── Drawer shift ──────────────────────────────────────────────────────────
@@ -309,6 +309,7 @@ export class PlanningComponent implements OnInit, OnDestroy {
 
   loadWeek() {
     this.loading = true;
+    this.planningService.getOpeningHours(this.currentWeekStr).subscribe(h => { this.openingHours = h; });
     this.planningService.getWeek(this.currentWeekStr)
       .pipe(takeUntil(this.destroy$))
       .subscribe({

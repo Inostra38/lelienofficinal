@@ -181,6 +181,12 @@ export interface OpeningHours {
   end_time:   string;
 }
 
+export interface OpeningHoursVersion {
+  id: number;
+  effective_from: string; // "YYYY-MM-DD" (toujours un lundi)
+  slots: OpeningHours[];
+}
+
 export interface WeekTemplate {
   letter: 'A' | 'B' | 'C' | 'D';
   apply_from: string | null;
@@ -537,16 +543,24 @@ export class PlanningService {
 
   // ── Horaires d'ouverture ───────────────────────────────────────────────────
 
-  getOpeningHours(): Observable<OpeningHours[]> {
-    return this.http.get<OpeningHours[]>(`${this.apiUrl}/opening-hours/`);
+  getOpeningHours(week?: string, versionId?: number): Observable<OpeningHours[]> {
+    const params: Record<string, string> = {};
+    if (week)      params['week']       = week;
+    if (versionId) params['version_id'] = String(versionId);
+    return this.http.get<OpeningHours[]>(`${this.apiUrl}/opening-hours/`, { params });
   }
 
-  createOpeningHours(dto: { day_of_week: number; start_time: string; end_time: string }): Observable<OpeningHours> {
-    return this.http.post<OpeningHours>(`${this.apiUrl}/opening-hours/`, dto);
+  createOpeningHours(dto: { day_of_week: number; start_time: string; end_time: string }, versionId?: number): Observable<OpeningHours> {
+    const body = versionId ? { ...dto, version_id: versionId } : dto;
+    return this.http.post<OpeningHours>(`${this.apiUrl}/opening-hours/`, body);
   }
 
   deleteOpeningHours(id: number): Observable<void> {
     return this.http.delete<void>(`${this.apiUrl}/opening-hours/${id}/`);
+  }
+
+  createOpeningHoursVersion(effectiveFrom: string): Observable<OpeningHoursVersion> {
+    return this.http.post<OpeningHoursVersion>(`${this.apiUrl}/opening-hours/versions/`, { effective_from: effectiveFrom });
   }
 
   // ── Ajustements horaires ───────────────────────────────────────────────────

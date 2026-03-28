@@ -22,6 +22,7 @@ from .views import (
     BulkShiftUpdateView,
     OpeningHoursView,
     OpeningHoursDetailView,
+    OpeningHoursVersionCreateView,
     TimeAdjustmentListCreateView,
     TimeAdjustmentDeleteView,
     AnalyticsView,
@@ -69,6 +70,7 @@ urlpatterns = [
 
     # Horaires d'ouverture
     path('planning/opening-hours/', OpeningHoursView.as_view(), name='opening-hours-list'),
+    path('planning/opening-hours/versions/', OpeningHoursVersionCreateView.as_view(), name='opening-hours-version-create'),
     path('planning/opening-hours/<int:pk>/', OpeningHoursDetailView.as_view(), name='opening-hours-detail'),
 
     # Templates semaine

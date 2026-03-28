@@ -53,6 +53,25 @@ class PlanningSettings(models.Model):
         return f"Paramètres planning — {self.pharmacy}"
 
 
+class OpeningHoursVersion(models.Model):
+    """Version datée des horaires d'ouverture — s'applique à partir d'un lundi donné."""
+    pharmacy       = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name='opening_hours_versions',
+    )
+    effective_from = models.DateField(
+        help_text="Lundi de la semaine à partir de laquelle ces horaires s'appliquent"
+    )
+
+    class Meta:
+        unique_together = ('pharmacy', 'effective_from')
+        ordering = ['effective_from']
+
+    def __str__(self):
+        return f"Horaires {self.pharmacy} à partir du {self.effective_from}"
+
+
 class OpeningHours(models.Model):
     """Créneau d'ouverture hebdomadaire de la pharmacie (plusieurs possibles par jour)."""
     DAY_CHOICES = [
@@ -65,6 +84,13 @@ class OpeningHours(models.Model):
         settings.AUTH_USER_MODEL,
         on_delete=models.CASCADE,
         related_name='opening_hours',
+    )
+    # null = horaires par défaut (comportement actuel) ; non-null = version datée
+    version     = models.ForeignKey(
+        OpeningHoursVersion,
+        null=True, blank=True,
+        on_delete=models.CASCADE,
+        related_name='slots',
     )
     day_of_week = models.IntegerField(choices=DAY_CHOICES)
     start_time  = models.TimeField()

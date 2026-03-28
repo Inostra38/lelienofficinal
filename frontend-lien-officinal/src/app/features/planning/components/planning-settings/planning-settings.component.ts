@@ -4,7 +4,7 @@ import { FormsModule } from '@angular/forms';
 import { forkJoin } from 'rxjs';
 import { CdkDragDrop, DragDropModule, moveItemInArray } from '@angular/cdk/drag-drop';
 
-import { PlanningService, PlanningSettings, OpeningHours } from '../../../../core/services/planning.service';
+import { PlanningService, PlanningSettings, OpeningHours, OpeningHoursVersion } from '../../../../core/services/planning.service';
 import { CollaboratorService, Collaborator } from '../../../../core/services/collaborator.service';
 import { getCollaboratorColor } from '../../../../core/utils/collaborator-colors';
 
@@ -63,6 +63,12 @@ export class PlanningSettingsComponent implements OnInit {
   errorMsg   = '';
   successMsg = '';
 
+  // ── Versionnement des horaires ─────────────────────────────────────────────
+  editingVersion: OpeningHoursVersion | null = null;
+  applyFromWeek  = '';   // "YYYY-Www" depuis <input type="week">
+  applyFromSaving  = false;
+  applyFromError   = '';
+
   ngOnInit() {
     forkJoin({
       settings:      this.planningService.getSettings(),
@@ -115,7 +121,7 @@ export class PlanningSettingsComponent implements OnInit {
       day_of_week: day.dayIndex,
       start_time:  start_time + ':00',
       end_time:    end_time   + ':00',
-    }).subscribe({
+    }, this.editingVersion?.id).subscribe({
       next: slot => { day.slots.push(slot); day.slots.sort((a, b) => a.start_time.localeCompare(b.start_time)); day.addForm = null; },
       error: () => { day.addError = 'Erreur lors de la création.'; },
     });
@@ -129,6 +135,35 @@ export class PlanningSettingsComponent implements OnInit {
 
   formatSlot(slot: OpeningHours): string {
     return `${slot.start_time.substring(0, 5)} – ${slot.end_time.substring(0, 5)}`;
+  }
+
+  planifyFrom() {
+    if (!this.applyFromWeek) return;
+    this.applyFromSaving = true;
+    this.applyFromError  = '';
+    this.planningService.createOpeningHoursVersion(this.applyFromWeek).subscribe({
+      next: version => {
+        this.editingVersion = version;
+        this._distributeSlots(version.slots);
+        this.applyFromWeek   = '';
+        this.applyFromSaving = false;
+      },
+      error: err => {
+        this.applyFromSaving = false;
+        this.applyFromError  = err.error?.detail || 'Erreur lors de la création.';
+      },
+    });
+  }
+
+  backToDefault() {
+    this.editingVersion = null;
+    this.applyFromError = '';
+    this.planningService.getOpeningHours().subscribe(slots => this._distributeSlots(slots));
+  }
+
+  formatEffectiveFrom(iso: string): string {
+    const d = new Date(iso + 'T00:00:00');
+    return d.toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' });
   }
 
   // ── Sauvegarde settings généraux ───────────────────────────────────────────

@@ -18,12 +18,13 @@ from apps.team.models import Collaborator, ContractHistory
 from apps.core.auth_helpers import get_collaborator_from_jwt as _get_collaborator
 from .calculator import pharmacy_week_summary
 from .utils import get_jours_feries, compute_cp_days
-from .models import AbsenceRequest, Constraint, ConstraintSet, OpeningHours, PharmacyDayStatus, PlanningSettings, Shift, TemplateShift, TimeAdjustment, WeekTemplate, WeekTemplateApplication
+from .models import AbsenceRequest, Constraint, ConstraintSet, OpeningHours, OpeningHoursVersion, PharmacyDayStatus, PlanningSettings, Shift, TemplateShift, TimeAdjustment, WeekTemplate, WeekTemplateApplication
 from .serializers import (
     AbsenceRequestCreateSerializer,
     ConstraintSerializer,
     AbsenceRequestSerializer,
     OpeningHoursSerializer,
+    OpeningHoursVersionSerializer,
     PharmacyDayStatusSerializer,
     PlanningSettingsSerializer,
     ShiftCreateSerializer,
@@ -1023,14 +1024,32 @@ class BulkShiftUpdateView(APIView):
 
 class OpeningHoursView(APIView):
     """
-    GET  /api/planning/opening-hours/           → liste des créneaux de la pharmacie
-    POST /api/planning/opening-hours/           → créer un créneau
+    GET  /api/planning/opening-hours/                     → créneaux actifs pour la semaine (?week=) ou par défaut
+    GET  /api/planning/opening-hours/?version_id=<id>     → créneaux d'une version spécifique (settings)
+    POST /api/planning/opening-hours/                     → créer un créneau (version_id optionnel)
     """
     authentication_classes = [JWTAuthentication]
     permission_classes = [IsAuthenticated]
 
     def get(self, request):
-        qs = OpeningHours.objects.filter(pharmacy=request.user)
+        week_str   = request.query_params.get('week')
+        version_id = request.query_params.get('version_id')
+
+        if week_str:
+            monday  = _parse_week(week_str)
+            version = OpeningHoursVersion.objects.filter(
+                pharmacy=request.user,
+                effective_from__lte=monday,
+            ).order_by('-effective_from').first()
+            if version:
+                qs = OpeningHours.objects.filter(pharmacy=request.user, version=version)
+            else:
+                qs = OpeningHours.objects.filter(pharmacy=request.user, version__isnull=True)
+        elif version_id:
+            qs = OpeningHours.objects.filter(pharmacy=request.user, version_id=version_id)
+        else:
+            qs = OpeningHours.objects.filter(pharmacy=request.user, version__isnull=True)
+
         return Response(OpeningHoursSerializer(qs, many=True).data)
 
     def post(self, request):
@@ -1038,11 +1057,62 @@ class OpeningHoursView(APIView):
         if actor and not actor.can_manage_planning:
             return Response({'detail': 'Permission insuffisante.'}, status=status.HTTP_403_FORBIDDEN)
 
+        version = None
+        version_id = request.data.get('version_id')
+        if version_id:
+            try:
+                version = OpeningHoursVersion.objects.get(pk=version_id, pharmacy=request.user)
+            except OpeningHoursVersion.DoesNotExist:
+                return Response({'detail': 'Version introuvable.'}, status=status.HTTP_404_NOT_FOUND)
+
         serializer = OpeningHoursSerializer(data=request.data)
         if serializer.is_valid():
-            serializer.save(pharmacy=request.user)
+            serializer.save(pharmacy=request.user, version=version)
             return Response(serializer.data, status=status.HTTP_201_CREATED)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+
+class OpeningHoursVersionCreateView(APIView):
+    """
+    POST /api/planning/opening-hours/versions/
+    Crée une version datée en copiant les créneaux par défaut (version=null).
+    Body : { "effective_from": "2025-W22" | "2025-06-02" }
+    """
+    authentication_classes = [JWTAuthentication]
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request):
+        actor = _get_collaborator(request)
+        if actor and not actor.can_manage_planning:
+            return Response({'detail': 'Permission insuffisante.'}, status=status.HTTP_403_FORBIDDEN)
+
+        effective_from_str = request.data.get('effective_from')
+        if not effective_from_str:
+            return Response({'detail': 'effective_from requis.'}, status=status.HTTP_400_BAD_REQUEST)
+
+        effective_from = _parse_week(effective_from_str)
+
+        if OpeningHoursVersion.objects.filter(pharmacy=request.user, effective_from=effective_from).exists():
+            return Response({'detail': 'Une version existe déjà pour cette semaine.'}, status=status.HTTP_400_BAD_REQUEST)
+
+        with transaction.atomic():
+            version = OpeningHoursVersion.objects.create(
+                pharmacy=request.user,
+                effective_from=effective_from,
+            )
+            current_slots = OpeningHours.objects.filter(pharmacy=request.user, version__isnull=True)
+            OpeningHours.objects.bulk_create([
+                OpeningHours(
+                    pharmacy=request.user,
+                    version=version,
+                    day_of_week=slot.day_of_week,
+                    start_time=slot.start_time,
+                    end_time=slot.end_time,
+                )
+                for slot in current_slots
+            ])
+
+        return Response(OpeningHoursVersionSerializer(version).data, status=status.HTTP_201_CREATED)
 
 
 class OpeningHoursDetailView(APIView):
@@ -1348,8 +1418,8 @@ class GenerateTemplateView(APIView):
             for c in Collaborator.objects.filter(pharmacy=request.user, is_active=True)
         ]
 
-        # Opening hours grouped by day
-        opening_slots = OpeningHours.objects.filter(pharmacy=request.user).order_by('day_of_week', 'start_time')
+        # Opening hours grouped by day — horaires par défaut (version=null)
+        opening_slots = OpeningHours.objects.filter(pharmacy=request.user, version__isnull=True).order_by('day_of_week', 'start_time')
         day_names = ['Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi', 'Samedi', 'Dimanche']
         opening: dict = {}
         for slot in opening_slots:

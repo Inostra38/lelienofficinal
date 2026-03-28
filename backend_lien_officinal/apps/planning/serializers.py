@@ -1,7 +1,7 @@
 from rest_framework import serializers
 from django.utils import timezone
 from apps.team.models import Collaborator
-from .models import Shift, AbsenceRequest, PharmacyDayStatus, PlanningSettings, WeekTemplate, TemplateShift, OpeningHours, TimeAdjustment, Constraint
+from .models import Shift, AbsenceRequest, PharmacyDayStatus, PlanningSettings, WeekTemplate, TemplateShift, OpeningHours, OpeningHoursVersion, TimeAdjustment, Constraint
 
 
 class CollaboratorMinimalSerializer(serializers.ModelSerializer):
@@ -145,6 +145,14 @@ class OpeningHoursSerializer(serializers.ModelSerializer):
     class Meta:
         model  = OpeningHours
         fields = ['id', 'day_of_week', 'start_time', 'end_time']
+
+
+class OpeningHoursVersionSerializer(serializers.ModelSerializer):
+    slots = OpeningHoursSerializer(many=True, read_only=True)
+
+    class Meta:
+        model  = OpeningHoursVersion
+        fields = ['id', 'effective_from', 'slots']
 
 
 # ── WeekTemplate ──────────────────────────────────────────────────────────────
