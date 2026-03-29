@@ -315,10 +315,16 @@ export class TemplateModalComponent implements OnInit {
 
   // ── AI template generation ────────────────────────────────────────────────
 
+  aiImporting = false;
+  aiImportError = '';
+
   onTemplateGenerated(templateData: any) {
     const weeks = templateData.weeks ?? {};
     const letters = Object.keys(weeks).filter(l => Array.isArray(weeks[l]) && weeks[l].length > 0) as Letter[];
     if (!letters.length) return;
+
+    this.aiImporting    = true;
+    this.aiImportError  = '';
 
     from(letters).pipe(
       concatMap(letter => {
@@ -333,9 +339,14 @@ export class TemplateModalComponent implements OnInit {
       })
     ).subscribe({
       complete: () => {
-        this.showAiPanel = false;
+        this.aiImporting   = false;
+        this.showAiPanel   = false;
         this.loadAllTemplates();
-      }
+      },
+      error: () => {
+        this.aiImporting  = false;
+        this.aiImportError = "L'importation a échoué. Vérifiez les collaborateurs et réessayez.";
+      },
     });
   }
 

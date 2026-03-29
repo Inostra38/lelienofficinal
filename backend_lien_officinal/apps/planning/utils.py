@@ -114,9 +114,18 @@ _VALID_LETTERS = {'A', 'B', 'C', 'D'}
 
 
 def _normalize_time(value: str) -> str:
-    """'08:00' → '08:00:00',  '08:00:00' → '08:00:00'."""
-    if len(value) == 5:
-        return value + ':00'
+    """
+    Normalise n'importe quel format HH:MM ou H:MM vers HH:MM:SS.
+    '8:30'    → '08:30:00'
+    '08:30'   → '08:30:00'
+    '08:30:00'→ '08:30:00'
+    """
+    parts = value.split(':')
+    if len(parts) >= 2:
+        h  = parts[0].zfill(2)
+        m  = parts[1].zfill(2)
+        s  = parts[2].zfill(2) if len(parts) >= 3 else '00'
+        return f'{h}:{m}:{s}'
     return value
 
 

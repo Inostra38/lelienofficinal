@@ -54,10 +54,16 @@
           class="flex-1 flex flex-col overflow-hidden min-h-0"
           [rotation]="2"
           [team]="team"
+          [importing]="aiImporting"
           (templateGenerated)="onTemplateGenerated($event)"
           (previewRequested)="openPreview($event)"
           (closed)="showAiPanel = false">
         </app-template-ai-assistant>
+        @if (aiImportError) {
+          <div class="px-4 py-2 bg-red-50 border-t border-red-200 text-xs text-red-700">
+            {{ aiImportError }}
+          </div>
+        }
       </div>
     </div>
 

@@ -17,6 +17,7 @@ import { Collaborator } from '../../../../core/services/collaborator.service';
 export class TemplateAiAssistantComponent implements AfterViewChecked, OnDestroy {
   @Input() rotation = 2;
   @Input() team: Collaborator[] = [];
+  @Input() importing = false;
   @Output() templateGenerated  = new EventEmitter<any>();
   @Output() previewRequested   = new EventEmitter<any>();
   @Output() closed             = new EventEmitter<void>();

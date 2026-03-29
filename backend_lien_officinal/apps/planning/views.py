@@ -880,38 +880,58 @@ class TemplateApplyView(APIView):
             for ferie_date in get_jours_feries(y):
                 feries_map[ferie_date] = get_label_ferie(ferie_date, y)
 
+        # Grouper les TemplateShifts par (collaborateur, date) pour gérer correctement
+        # les shifts splittés (ex : matin + après-midi même collaborateur même jour).
+        # La suppression des anciens shifts ne doit se faire qu'UNE FOIS par paire
+        # (collaborateur, date), puis tous les nouveaux shifts sont créés.
+        from collections import defaultdict
+        groups: dict[tuple, list] = defaultdict(list)
+        skipped_pairs: set[tuple] = set()
+
         for tshift in template.shifts.select_related('collaborator'):
             target_date = monday + timedelta(days=tshift.day_of_week)
+            pair = (tshift.collaborator_id, target_date)
 
-            # Jour férié → skip
+            # Jour férié → skip tout le groupe
             if target_date in feries_map:
-                ferie_skipped += 1
-                iso = target_date.isoformat()
-                if not any(f['date'] == iso for f in ferie_days):
-                    ferie_days.append({'date': iso, 'reason': f"Jour férié — {feries_map[target_date]}"})
+                if pair not in skipped_pairs:
+                    ferie_skipped += 1
+                    iso = target_date.isoformat()
+                    if not any(f['date'] == iso for f in ferie_days):
+                        ferie_days.append({'date': iso, 'reason': f"Jour férié — {feries_map[target_date]}"})
+                    skipped_pairs.add(pair)
                 continue
 
-            # Jour fermé ou en garde de jour → template non appliqué
-            # (garde de nuit seule n'affecte pas les shifts de la journée)
+            # Jour fermé ou en garde de jour → skip
             ds = day_statuses.get(target_date)
-            if ds:
-                if ds.status == 'closed' or ds.on_call_day:
+            if ds and (ds.status == 'closed' or ds.on_call_day):
+                if pair not in skipped_pairs:
                     day_protected += 1
+                    skipped_pairs.add(pair)
+                continue
+
+            # Absence → protégé
+            if pair not in skipped_pairs:
+                has_absence = AbsenceRequest.objects.filter(
+                    collaborator=tshift.collaborator,
+                    start_date__lte=target_date,
+                    end_date__gte=target_date,
+                    status__in=[AbsenceRequest.Status.APPROVED, AbsenceRequest.Status.PENDING],
+                ).exists()
+                if has_absence:
+                    absence_protected += 1
+                    skipped_pairs.add(pair)
                     continue
 
-            # Absence approuvée ou en attente → protégé, même en mode force
-            has_absence = AbsenceRequest.objects.filter(
-                collaborator=tshift.collaborator,
-                start_date__lte=target_date,
-                end_date__gte=target_date,
-                status__in=[AbsenceRequest.Status.APPROVED, AbsenceRequest.Status.PENDING],
-            ).exists()
-            if has_absence:
-                absence_protected += 1
+            if pair in skipped_pairs:
                 continue
 
+            groups[pair].append(tshift)
+
+        # Traiter chaque paire (collaborateur, date) en une seule transaction
+        for (collab_id, target_date), tshifts in groups.items():
             existing_qs = Shift.objects.filter(
-                collaborator=tshift.collaborator,
+                collaborator_id=collab_id,
                 start_datetime__date=target_date,
             )
             if existing_qs.exists():
@@ -921,26 +941,26 @@ class TemplateApplyView(APIView):
                 existing_qs.delete()
                 replaced += 1
 
-            start_dt = timezone.make_aware(dt.combine(target_date, tshift.start_time), tz)
-            end_dt   = timezone.make_aware(dt.combine(target_date, tshift.end_time), tz)
-
-            shift = Shift(
-                collaborator=tshift.collaborator,
-                start_datetime=start_dt,
-                end_datetime=end_dt,
-                is_published=False,
-                note=tshift.note or '',
-            )
-            try:
-                shift.save()
-                created += 1
-            except ValidationError as e:
-                collab_name = f"{tshift.collaborator.first_name} {tshift.collaborator.last_name}"
-                violations.append({
-                    'shift_date': str(target_date),
-                    'collaborator': collab_name,
-                    'error': e.messages[0] if e.messages else str(e),
-                })
+            for tshift in tshifts:
+                start_dt = timezone.make_aware(dt.combine(target_date, tshift.start_time), tz)
+                end_dt   = timezone.make_aware(dt.combine(target_date, tshift.end_time), tz)
+                shift = Shift(
+                    collaborator=tshift.collaborator,
+                    start_datetime=start_dt,
+                    end_datetime=end_dt,
+                    is_published=False,
+                    note=tshift.note or '',
+                )
+                try:
+                    shift.save()
+                    created += 1
+                except ValidationError as e:
+                    collab_name = f"{tshift.collaborator.first_name} {tshift.collaborator.last_name}"
+                    violations.append({
+                        'shift_date': str(target_date),
+                        'collaborator': collab_name,
+                        'error': e.messages[0] if e.messages else str(e),
+                    })
 
         WeekTemplateApplication.objects.update_or_create(
             pharmacy=request.user,
@@ -1425,6 +1445,7 @@ class GenerateTemplateView(APIView):
                 "name":  f"{c.first_name} {c.last_name}",
                 "role":  c.get_role_display(),
                 "hours": float(c.weekly_hours),
+                "is_tns": c.is_tns,
             }
             for c in Collaborator.objects.filter(pharmacy=request.user, is_active=True)
         ]
@@ -1442,10 +1463,30 @@ class GenerateTemplateView(APIView):
         letters = ['A', 'B', 'C', 'D'][:rotation]
         rotation_label = '/'.join(letters)
 
+        # Budget horaire pré-calculé — injecté explicitement dans le prompt
+        budget_salaries = [
+            f"  - {c['name']} (id={c['id']}) : {c['hours']}h/semaine EXACTEMENT (±0,5h max)"
+            for c in collaborators if not c['is_tns']
+        ]
+        budget_tns = [
+            f"  - {c['name']} (id={c['id']}) : ~{c['hours']}h indicatif (TNS, priorité couverture officine)"
+            for c in collaborators if c['is_tns']
+        ]
+        budget_lines = (budget_salaries or ["  - Aucun salarié"]) + (budget_tns or [])
+
         system_prompt = f"""Tu es un assistant expert en planning de pharmacie d'officine française.
 Tu connais parfaitement la Convention Collective Nationale de la Pharmacie d'officine (CCN Pharmacie).
 
 Tu dois générer un planning template sur une rotation de {rotation} semaine(s) ({rotation_label}).
+
+════════════════════════════════════════════════════════
+CONTRAINTE ABSOLUE N°1 — BUDGET HORAIRE HEBDOMADAIRE
+Chaque semaine de la rotation doit respecter exactement ce budget :
+{chr(10).join(budget_lines)}
+
+RÈGLE : ces heures sont hebdomadaires. Ne les divise JAMAIS par le nombre de semaines.
+Un salarié à 35h doit avoir 35h planifiées en semaine A ET 35h en semaine B (etc.).
+════════════════════════════════════════════════════════
 
 COLLABORATEURS :
 {json.dumps(collaborators, ensure_ascii=False, indent=2)}
@@ -1453,43 +1494,46 @@ COLLABORATEURS :
 HORAIRES D'OUVERTURE :
 {json.dumps(opening, ensure_ascii=False, indent=2)}
 
-RÈGLES CCN PHARMACIE — DURÉE DU TRAVAIL ET PAUSES (obligatoires, non négociables) :
-- Durée quotidienne maximale de travail effectif : 10h
-- Pause obligatoire de 20 minutes minimum dès 6h de travail consécutif (Code du travail L.3121-33) — non comptée comme temps de travail sauf accord ou usage contraire
-- Repos quotidien entre deux journées : 11h consécutives minimum
-- Repos hebdomadaire : 35h consécutives minimum (repos quotidien 11h + repos hebdo 24h), de préférence le dimanche
-- Maximum 1 interruption d'activité par journée pour les temps partiels, ne dépassant pas 2h
-- Durée minimale temps partiel en pharmacie : 16h/semaine (5h pour le personnel de nettoyage ; dérogation possible pour étudiants <26 ans sur demande écrite)
-- Horaires temps partiel regroupés sur des journées ou demi-journées régulières ou complètes
-- Heures complémentaires : plafonnées à 1/10 de la durée contractuelle, ne peuvent porter la durée au niveau légal (35h)
-- Délai de prévenance pour heures complémentaires : 3 jours ouvrés minimum
-- Modification de la répartition horaire : notification au salarié 7 jours ouvrés minimum à l'avance
-- Avenants de complément d'heures : maximum 5 par année civile et par salarié, limités à 8 semaines consécutives chacun
+STATUT :
+- is_tns: true → TNS, aucune limite légale de durée
+- is_tns: false → salarié, règles CCN applicables
+
+RÈGLES CCN (salariés uniquement) :
+- Durée quotidienne maximale : 10h
+- Pause 20 min minimum dès 6h consécutives
+- Repos quotidien : 11h minimum entre deux journées
+- Repos hebdomadaire : 35h consécutives minimum (de préférence dimanche)
+- Temps partiel : max 1 interruption/jour ≤ 2h, horaires regroupés, min 16h/semaine
+- Heures complémentaires : plafonnées à 1/10 du contrat, ne peuvent atteindre 35h
 
 CONTRAINTES PAR ORDRE DE PRIORITÉ :
 
-[NIVEAU 1 - RÉGLEMENTAIRE PHARMACIE - Non négociable] :
-{chr(10).join(f"- {r}" for r in regulatory) if regulatory else "- Aucune contrainte réglementaire supplémentaire définie"}
+[NIVEAU 1 - RÉGLEMENTAIRE - Non négociable] :
+{chr(10).join(f"- {r}" for r in regulatory) if regulatory else "- Aucune"}
 
 [NIVEAU 2 - PHARMACIE - Respecter sauf conflit niveau 1] :
-{chr(10).join(f"- {p}" for p in pharmacy_c) if pharmacy_c else "- Aucune contrainte pharmacie définie"}
+{chr(10).join(f"- {p}" for p in pharmacy_c) if pharmacy_c else "- Aucune"}
 
-[NIVEAU 3 - PERSONNELLE - Best effort, cédées en dernier recours] :
-{chr(10).join(f"- {p}" for p in personal_c) if personal_c else "- Aucune contrainte personnelle définie"}
+[NIVEAU 3 - PERSONNELLE - Best effort] :
+{chr(10).join(f"- {p}" for p in personal_c) if personal_c else "- Aucune"}
 
 RÈGLES DE GÉNÉRATION :
-- Chaque collaborateur doit respecter son volume horaire hebdomadaire contractuel
 - Les shifts doivent être dans les horaires d'ouverture
+- OBLIGATION LÉGALE : un Titulaire ou Adjoint présent en permanence pendant toute l'ouverture
+- COUVERTURE COMPLÈTE : toutes les plages d'ouverture couvertes sans interruption
 - day_of_week : 0=Lundi, 1=Mardi, 2=Mercredi, 3=Jeudi, 4=Vendredi, 5=Samedi, 6=Dimanche
-- Un jour absent dans opening = pharmacie fermée ce jour
-- Signaler toute violation des règles CCN ou des contraintes dans le champ "violations"
+- Un jour absent de opening = pharmacie fermée ce jour
 
 FORMAT DE RÉPONSE OBLIGATOIRE :
-Réponds avec deux blocs distincts :
+Réponds avec trois blocs :
 
-1. Un paragraphe court expliquant les choix effectués et les éventuels compromis.
+1. Un tableau de vérification du budget horaire (AVANT le JSON) :
+   Pour chaque collaborateur, pour chaque semaine : total des heures prévues vs contractuelles.
+   Exemple : "Sophie (sem A) : 8h30-13h + 13h40-19h lun = 10h20 ... total = X,Xh / 35h ✓"
 
-2. Un bloc JSON valide avec exactement cette structure :
+2. Un paragraphe court sur les choix et compromis.
+
+3. Un bloc JSON valide :
 ```json
 {{
   "weeks": {{
@@ -1505,8 +1549,8 @@ Réponds avec deux blocs distincts :
   }},
   "violations": [
     {{
-      "level": "personal",
-      "description": "La contrainte X n'a pas pu être respectée car..."
+      "level": "salarie",
+      "description": "Marc Dupont sem A : 34,5h planifiées / 35h contractuelles (écart -0,5h)"
     }}
   ]
 }}
