@@ -66,13 +66,17 @@ INSTALLED_APPS = [
     'apps.tasks',          # Gestion des tâches
     'apps.planning',       # Planning d'équipe
     'apps.quality',        # Qualité & procédures
+    'apps.admin_panel',    # Admin SaaS interne
     # 'apps.notifications',  # Système de notifs (TEMPORAIREMENT DÉSACTIVÉ)
 ]
 
 MIDDLEWARE = [
-    # --- 2. CORS (IMPÉRATIVEMENT EN PREMIER) ---
+    # --- IP whitelist admin (EN PREMIER : bloque avant tout traitement) ---
+    'apps.admin_panel.middleware.AdminIPWhitelistMiddleware',
+
+    # --- 2. CORS (avant SecurityMiddleware) ---
     'corsheaders.middleware.CorsMiddleware',
-    
+
     'django.middleware.security.SecurityMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
@@ -261,6 +265,9 @@ else:
             "BACKEND": "channels.layers.InMemoryChannelLayer"
         }
     }
+
+# --- Admin Panel ---
+ADMIN_ALLOWED_IPS = os.environ.get('ADMIN_ALLOWED_IPS', '127.0.0.1')
 
 # --- API Claude (Anthropic) ---
 ANTHROPIC_API_KEY = os.environ.get('ANTHROPIC_API_KEY', '')

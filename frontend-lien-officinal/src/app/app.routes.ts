@@ -26,6 +26,12 @@ import { ProcedureArchivesComponent } from './features/quality/components/proced
 import { SharedResourcesComponent } from './features/shared-resources/shared-resources.component';
 
 export const routes: Routes = [
+  // Module admin — isolé, lazy-loaded
+  {
+    path: 'admin',
+    loadChildren: () => import('./admin/admin.routes').then(m => m.adminRoutes),
+  },
+
   { path: 'login', component: LoginComponent, canActivate: [noAuthGuard] },
   { path: 'register', component: RegisterComponent, canActivate: [noAuthGuard] },
   { path: 'onboarding', component: OnboardingComponent, canActivate: [onboardingGuard] },

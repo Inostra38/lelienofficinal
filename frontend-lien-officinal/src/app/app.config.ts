@@ -3,6 +3,7 @@ import { provideRouter } from '@angular/router';
 import { routes } from './app.routes';
 import { provideHttpClient, withFetch, withInterceptors } from '@angular/common/http';
 import { authInterceptor } from './core/auth/auth.interceptor';
+import { adminAuthInterceptor } from './admin/admin-auth.interceptor';
 import { provideQuillConfig } from 'ngx-quill';
 
 export const appConfig: ApplicationConfig = {
@@ -10,7 +11,7 @@ export const appConfig: ApplicationConfig = {
     provideRouter(routes),
     provideHttpClient(
       withFetch(),
-      withInterceptors([authInterceptor]),
+      withInterceptors([authInterceptor, adminAuthInterceptor]),
     ),
     provideQuillConfig({
       formats: [

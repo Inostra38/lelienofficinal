@@ -1,0 +1,120 @@
+<div class="min-h-screen bg-gray-100 flex items-center justify-center p-4">
+  <div class="max-w-md w-full bg-white rounded-xl shadow-lg p-8">
+
+    <!-- En-tête -->
+    <div class="text-center mb-8">
+      <div class="w-16 h-16 bg-green-700 text-white rounded-full flex items-center justify-center text-2xl mx-auto mb-4">
+        🔐
+      </div>
+      <h2 class="text-2xl font-bold text-gray-800">Administration</h2>
+      <p class="text-gray-500 text-sm">Le Lien Officinal</p>
+    </div>
+
+    <!-- ── Étape 1 : Email + Password ── -->
+    @if (step === 'credentials') {
+      <form (submit)="onSubmitCredentials($event)" class="space-y-6">
+
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-1">Email</label>
+          <input
+            type="email"
+            [(ngModel)]="email"
+            name="email"
+            required
+            autocomplete="email"
+            class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 outline-none transition-all"
+            placeholder="admin@lelienofficinal.fr"
+          >
+        </div>
+
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-1">Mot de passe</label>
+          <input
+            type="password"
+            [(ngModel)]="password"
+            name="password"
+            required
+            autocomplete="current-password"
+            class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 outline-none transition-all"
+            placeholder="••••••••"
+          >
+        </div>
+
+        @if (errorMessage) {
+          <div class="bg-red-50 text-red-600 text-sm p-3 rounded-lg border border-red-100 flex items-center gap-2">
+            ⚠️ {{ errorMessage }}
+          </div>
+        }
+
+        <button
+          type="submit"
+          [disabled]="isLoading"
+          class="w-full bg-green-700 hover:bg-green-800 disabled:opacity-50 text-white font-bold py-3 rounded-lg transition-colors flex items-center justify-center gap-2"
+        >
+          @if (isLoading) {
+            <span class="animate-spin h-4 w-4 border-2 border-white border-t-transparent rounded-full"></span>
+          }
+          {{ isLoading ? 'Vérification...' : 'Continuer' }}
+        </button>
+
+      </form>
+
+      <div class="mt-6 text-center text-xs text-gray-400">
+        Accès restreint — connexion depuis une adresse IP autorisée uniquement.
+      </div>
+    }
+
+    <!-- ── Étape 2 : Code TOTP ── -->
+    @if (step === 'totp') {
+      <form (submit)="onSubmitTotp($event)" class="space-y-6">
+
+        <div class="text-center">
+          <p class="text-sm text-gray-600">Saisissez le code à 6 chiffres de votre application d'authentification.</p>
+        </div>
+
+        <div class="flex justify-center gap-2" (paste)="onTotpPaste($event)">
+          @for (digit of totpDigits; track $index) {
+            <input
+              #totpInput
+              type="text"
+              inputmode="numeric"
+              maxlength="1"
+              [value]="digit"
+              (input)="onTotpInput($event, $index)"
+              (keydown)="onTotpKeydown($event, $index)"
+              [disabled]="isLoading"
+              class="w-11 h-14 text-center text-xl font-bold border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 outline-none transition-all disabled:opacity-50"
+            >
+          }
+        </div>
+
+        @if (errorMessage) {
+          <div class="bg-red-50 text-red-600 text-sm p-3 rounded-lg border border-red-100 flex items-center gap-2">
+            ⚠️ {{ errorMessage }}
+          </div>
+        }
+
+        <button
+          type="submit"
+          [disabled]="isLoading || totpDigits.join('').length < 6"
+          class="w-full bg-green-700 hover:bg-green-800 disabled:opacity-50 text-white font-bold py-3 rounded-lg transition-colors flex items-center justify-center gap-2"
+        >
+          @if (isLoading) {
+            <span class="animate-spin h-4 w-4 border-2 border-white border-t-transparent rounded-full"></span>
+          }
+          {{ isLoading ? 'Vérification...' : 'Valider l\'accès' }}
+        </button>
+
+        <button
+          type="button"
+          (click)="step = 'credentials'; errorMessage = ''"
+          class="w-full text-sm text-gray-500 hover:text-gray-700 py-1 transition-colors"
+        >
+          ← Retour
+        </button>
+
+      </form>
+    }
+
+  </div>
+</div>
