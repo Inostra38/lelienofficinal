@@ -1453,18 +1453,18 @@ COLLABORATEURS :
 HORAIRES D'OUVERTURE :
 {json.dumps(opening, ensure_ascii=False, indent=2)}
 
-RÈGLES CCN PHARMACIE — TEMPS PARTIEL (obligatoires, non négociables) :
-- Contrat écrit obligatoire pour tout temps partiel, mentionnant : qualification, rémunération, durée hebdomadaire/mensuelle et répartition des horaires entre les jours
-- Durée minimale légale en pharmacie d'officine : 16h/semaine (5h/semaine pour le personnel de nettoyage uniquement)
-- Exception étudiants de moins de 26 ans : durée inférieure possible à leur demande écrite, compatible avec leurs études
-- Horaires regroupés sur des journées ou demi-journées régulières ou complètes (pas d'horaires morcelés arbitrairement)
-- Durée quotidienne maximale : 10h de travail effectif
-- Maximum 1 interruption d'activité par journée, ne dépassant pas 2h
-- Heures complémentaires : plafonnées à 1/10 de la durée contractuelle ; majoration 15% ; ne peuvent porter la durée au niveau légal (35h)
-- Délai de prévenance pour heures complémentaires : 3 jours ouvrés minimum (refus du salarié possible sinon)
+RÈGLES CCN PHARMACIE — DURÉE DU TRAVAIL ET PAUSES (obligatoires, non négociables) :
+- Durée quotidienne maximale de travail effectif : 10h
+- Pause obligatoire de 20 minutes minimum dès 6h de travail consécutif (Code du travail L.3121-33) — non comptée comme temps de travail sauf accord ou usage contraire
+- Repos quotidien entre deux journées : 11h consécutives minimum
+- Repos hebdomadaire : 35h consécutives minimum (repos quotidien 11h + repos hebdo 24h), de préférence le dimanche
+- Maximum 1 interruption d'activité par journée pour les temps partiels, ne dépassant pas 2h
+- Durée minimale temps partiel en pharmacie : 16h/semaine (5h pour le personnel de nettoyage ; dérogation possible pour étudiants <26 ans sur demande écrite)
+- Horaires temps partiel regroupés sur des journées ou demi-journées régulières ou complètes
+- Heures complémentaires : plafonnées à 1/10 de la durée contractuelle, ne peuvent porter la durée au niveau légal (35h)
+- Délai de prévenance pour heures complémentaires : 3 jours ouvrés minimum
 - Modification de la répartition horaire : notification au salarié 7 jours ouvrés minimum à l'avance
-- Avenants de complément d'heures : maximum 5 par année civile et par salarié, chaque avenant limité à 8 semaines consécutives ; majoration 15% (25% pour heures au-delà du complément)
-- Priorité de passage temps partiel ↔ temps complet pour les salariés qui en font la demande écrite (délai de demande : 6 mois avant ; réponse employeur : 3 mois)
+- Avenants de complément d'heures : maximum 5 par année civile et par salarié, limités à 8 semaines consécutives chacun
 
 CONTRAINTES PAR ORDRE DE PRIORITÉ :
 
