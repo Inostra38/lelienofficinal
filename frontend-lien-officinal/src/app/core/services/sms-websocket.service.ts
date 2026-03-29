@@ -26,8 +26,18 @@ export class SmsWebSocketService implements OnDestroy {
   connect(): void {
     this.disconnect();
     const token = this.authService.getToken();
-    if (!token) return;
+    if (token) {
+      this._doConnect(token);
+    } else if (this.authService.isAuthenticated()) {
+      // Reload : _accessToken null mais cookie session_info valide — refresh d'abord
+      this.authService.refreshAccessToken().subscribe({
+        next: t => this._doConnect(t),
+        error: () => {}
+      });
+    }
+  }
 
+  private _doConnect(token: string): void {
     this.shouldReconnect = true;
     const url = `${environment.wsUrl}/ws/sms/status/?token=${encodeURIComponent(token)}`;
     this.socket = new WebSocket(url);

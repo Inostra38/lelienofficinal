@@ -126,11 +126,20 @@ export class MessagingService implements OnDestroy {
     this.disconnect(); // ferme la connexion précédente proprement
 
     const token = this.authService.getToken();
-    if (!token) {
+    if (token) {
+      this._doConnectToConversation(conversationId, token);
+    } else if (this.authService.isAuthenticated()) {
+      // Reload : _accessToken null mais cookie session_info valide — refresh d'abord
+      this.authService.refreshAccessToken().subscribe({
+        next: t => this._doConnectToConversation(conversationId, t),
+        error: () => { this.wsStatus$.next('error'); }
+      });
+    } else {
       console.warn('MessagingService: pas de token JWT — connexion WS annulée');
-      return;
     }
+  }
 
+  private _doConnectToConversation(conversationId: string, token: string): void {
     this.currentConversationId = conversationId;
     const url = `${this.wsUrl}/ws/messaging/conversations/${conversationId}/?token=${encodeURIComponent(token)}`;
     this.wsStatus$.next('connecting');
