@@ -60,21 +60,16 @@
 
 | # | Fichier cible | Cas à tester | Fichier test |
 |---|--------------|--------------|--------------|
-| ☐ | `planning/views.py` | `ShiftDetailView.patch()` — collision detection (409 si `updated_at` différent) | `apps/planning/tests/test_views_shifts.py` |
-| ☐ | `planning/views.py` | Création shift cross-midnight — `end_datetime` = lendemain auto | `apps/planning/tests/test_views_shifts.py` |
-| ☐ | `planning/views.py` | `TemplateApplyView` — semaine vide : `created=N, replaced=0` | `apps/planning/tests/test_views_templates.py` |
-| ☐ | `planning/views.py` | `TemplateApplyView` — shift splitté (matin + après-midi) : les deux shifts créés | `apps/planning/tests/test_views_templates.py` |
-| ☐ | `planning/views.py` | `TemplateApplyView` — collaborateur en absence approuvée → shift ignoré (`absence_protected=1`) | `apps/planning/tests/test_views_templates.py` |
-| ☐ | `planning/views.py` | `TemplateApplyView` — jour férié → shift ignoré (`ferie_skipped=1`) | `apps/planning/tests/test_views_templates.py` |
-| ☐ | `planning/views.py` | `TemplateBulkReplaceView` — remplace tous les shifts existants, crée les nouveaux | `apps/planning/tests/test_views_templates.py` |
-| ☐ | `planning/views.py` | `AbsenceListCreateView` — `working_days_count` correct pour 5 jours ouvrés avec férié | `apps/planning/tests/test_views_absences.py` |
-| ☐ | `planning/views.py` | `PublishWeekView` — copie `collaborator_snapshot` au moment de la publication | `apps/planning/tests/test_views_shifts.py` |
-| ☐ | `planning/views.py` | `SplitShiftView` — shift coupé en deux à l'heure donnée | `apps/planning/tests/test_views_shifts.py` |
-| 🆕 | `planning/views.py` | **`TemplateApplyView` — absence en attente (non approuvée)** → shift créé quand même | `apps/planning/tests/test_views_templates.py` |
-| 🆕 | `planning/views.py` | **`SplitShiftView` — heure de coupure = début ou fin du shift** → 400 | `apps/planning/tests/test_views_shifts.py` |
-| 🆕 | `planning/views.py` | **`PublishWeekView` — semaine déjà publiée** → idempotent (pas d'erreur) | `apps/planning/tests/test_views_shifts.py` |
-| 🆕 | `planning/views.py` | **`AbsenceListCreateView` — absence sur week-end** → `working_days_count=0` | `apps/planning/tests/test_views_absences.py` |
-| 🆕 | `planning/views.py` | **`AbsenceListCreateView` — absence à cheval sur deux semaines** — `working_days_count` correct | `apps/planning/tests/test_views_absences.py` |
+| ✅ | `planning/views.py` | `ShiftDetailView.patch()` — collision detection (409 si `updated_at` différent) | `apps/planning/tests/test_views_shifts.py` |
+| ✅ | `planning/views.py` | Création shift cross-midnight — `end_datetime` = lendemain auto | `apps/planning/tests/test_views_shifts.py` |
+| ✅ | `planning/views.py` | `TemplateApplyView` — semaine vide : `created=N, replaced=0` | `apps/planning/tests/test_views_templates.py` |
+| ✅ | `planning/views.py` | `TemplateApplyView` — shift splitté (matin + après-midi) : les deux shifts créés | `apps/planning/tests/test_views_templates.py` |
+| ✅ | `planning/views.py` | `TemplateApplyView` — absence approuvée **et pending** → shift ignoré (`absence_protected=1`) | `apps/planning/tests/test_views_templates.py` |
+| ✅ | `planning/views.py` | `TemplateApplyView` — jour férié → shift ignoré (`ferie_skipped=1`) | `apps/planning/tests/test_views_templates.py` |
+| ✅ | `planning/views.py` | `TemplateBulkReplaceView` — remplace tous les shifts existants, crée les nouveaux | `apps/planning/tests/test_views_templates.py` |
+| ✅ | `planning/views.py` | `AbsenceListCreateView` — `working_days_count` correct (avec 1er mai, demi-journées, cheval semaines) | `apps/planning/tests/test_views_absences.py` |
+| ✅ | `planning/views.py` | `PublishWeekView` — copie `collaborator_snapshot`, idempotent si déjà publiée | `apps/planning/tests/test_views_shifts.py` |
+| ✅ | `planning/views.py` | `SplitShiftView` — shift coupé en deux, coupure hors plage → 400 | `apps/planning/tests/test_views_shifts.py` |
 
 ---
 
