@@ -1,0 +1,2 @@
+# Point d'entrée racine pour Scalingo (buildpack Python détecte ce fichier)
+-r backend_lien_officinal/requirements.txt

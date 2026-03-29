@@ -20,3 +20,5 @@ celery>=5.4.0
 ovh>=1.0.0
 psycopg2-binary>=2.9
 sentry-sdk>=2.0
+whitenoise>=6.0
+dj-database-url>=2.0

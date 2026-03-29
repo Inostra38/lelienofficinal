@@ -78,6 +78,7 @@ MIDDLEWARE = [
     'corsheaders.middleware.CorsMiddleware',
 
     'django.middleware.security.SecurityMiddleware',
+    'whitenoise.middleware.WhiteNoiseMiddleware',  # Fichiers statiques en prod (après SecurityMiddleware)
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
@@ -110,10 +111,14 @@ WSGI_APPLICATION = 'backend_lien_officinal.wsgi.application'
 # Database
 # https://docs.djangoproject.com/en/5.0/ref/settings/#databases
 
-# --- PostgreSQL (production) ---
-# Variables d'environnement : DB_NAME, DB_USER, DB_PASSWORD, DB_HOST, DB_PORT
-# Si DB_NAME absent → fallback SQLite pour le développement local
-if os.environ.get("DB_NAME"):
+# --- Base de données ---
+# Priorité 1 : DATABASE_URL (Scalingo, Heroku — format postgres://user:pass@host/db)
+# Priorité 2 : DB_NAME/DB_USER/… séparés (déploiement serveur dédié)
+# Priorité 3 : SQLite (développement local)
+if os.environ.get("DATABASE_URL"):
+    import dj_database_url
+    DATABASES = {"default": dj_database_url.parse(os.environ["DATABASE_URL"], conn_max_age=600)}
+elif os.environ.get("DB_NAME"):
     DATABASES = {
         "default": {
             "ENGINE": "django.db.backends.postgresql",
@@ -125,7 +130,6 @@ if os.environ.get("DB_NAME"):
         }
     }
 else:
-    # --- SQLite (fallback développement local) ---
     DATABASES = {
         "default": {
             "ENGINE": "django.db.backends.sqlite3",
@@ -172,7 +176,22 @@ USE_TZ = True
 # Static files (CSS, JavaScript, Images)
 # https://docs.djangoproject.com/en/5.0/howto/static-files/
 
-STATIC_URL = 'static/'
+STATIC_URL = '/static/'
+STATIC_ROOT = BASE_DIR / 'staticfiles'
+
+# Build Angular inclus dans collectstatic si présent (multi-buildpack Scalingo)
+_ANGULAR_DIST = BASE_DIR.parent / 'frontend-lien-officinal' / 'dist' / 'frontend-lien-officinal' / 'browser'
+STATICFILES_DIRS = [_ANGULAR_DIST] if _ANGULAR_DIST.is_dir() else []
+
+# WhiteNoise : compression gzip/brotli + hashes de cache-busting
+STORAGES = {
+    'default': {
+        'BACKEND': 'django.core.files.storage.FileSystemStorage',
+    },
+    'staticfiles': {
+        'BACKEND': 'whitenoise.storage.CompressedManifestStaticFilesStorage',
+    },
+}
 
 # --- 4. GESTION DES FICHIERS MÉDIAS (Images/PDF) ---
 MEDIA_URL = '/media/'
@@ -194,6 +213,9 @@ CORS_ALLOWED_ORIGINS = [
     "http://localhost:4200",
     "http://127.0.0.1:4200",
 ]
+# En production : CORS_ALLOWED_ORIGINS=https://lelienofficinal.fr,https://www.lelienofficinal.fr
+if _extra_cors := os.environ.get('CORS_ALLOWED_ORIGINS', ''):
+    CORS_ALLOWED_ORIGINS += [o.strip() for o in _extra_cors.split(',') if o.strip()]
 
 # Nécessaire pour que le cookie HttpOnly admin_refresh_token soit envoyé/reçu
 CORS_ALLOW_CREDENTIALS = True
