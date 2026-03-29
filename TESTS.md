@@ -49,10 +49,10 @@
 | ✅ | `core/views.py` | **Refresh token invalide** → 401 | `apps/core/tests/test_auth.py` |
 | ✅ | `team/models.py` | Signal `ContractHistory` — `weekly_hours` mis à jour sur `Collaborator` | `apps/team/tests/test_models.py` |
 | ✅ | `team/models.py` | Signal `ContractHistory` — ancien contrat fermé (end_date = start_date - 1j) | `apps/team/tests/test_models.py` |
-| ☐ | `planning/views.py` | `PayeAnalyticsView` — collaborateur sans `can_manage_planning` → 403 | `apps/planning/tests/test_views_security.py` |
-| ☐ | `planning/views.py` | `TemplateBulkReplaceView` — collaborateur d'une autre pharmacie → 400 | `apps/planning/tests/test_views_security.py` |
-| ☐ | `planning/views.py` | **Injection via query param** `?pharmacy_id=<autre_id>` — ignoré, seule la pharmacie du token est utilisée | `apps/planning/tests/test_views_security.py` |
-| ☐ | `planning/views.py` | **PATCH sur ressource inexistante** → 404, pas de modification | `apps/planning/tests/test_views_security.py` |
+| ✅ | `planning/views.py` | `PayeAnalyticsView` — sans collaborateur token → 403, sans `can_manage_planning` → 403 | `apps/planning/tests/test_views_security.py` |
+| ✅ | `planning/views.py` | Shift d'une autre pharmacie — PATCH/DELETE/GET → 404 | `apps/planning/tests/test_views_security.py` |
+| ✅ | `planning/views.py` | **Injection via query param** `?pharmacy_id=<autre_id>` — ignoré, seule la pharmacie du token utilisée | `apps/planning/tests/test_views_security.py` |
+| ✅ | `planning/views.py` | **PATCH/DELETE sur ressource inexistante** → 404 | `apps/planning/tests/test_views_security.py` |
 
 ---
 
@@ -77,13 +77,12 @@
 
 | # | Fichier cible | Cas à tester | Fichier test |
 |---|--------------|--------------|--------------|
-| ☐ | `planning/models.py` | `Shift.save()` — `contract_hours_snapshot` capturé à la création, non modifié ensuite | `apps/planning/tests/test_models.py` |
-| ☐ | `team/models.py` | Signal `ContractHistory` — `weekly_hours` mis à jour sur `Collaborator` | `apps/team/tests/test_models.py` |
-| ☐ | `team/models.py` | Signal `ContractHistory` — ancien contrat fermé (end_date = start_date - 1j) | `apps/team/tests/test_models.py` |
-| ☐ | `resources/models.py` | `Category` — unicité `(pharmacy, nom)` → IntegrityError si doublon | `apps/resources/tests/test_models.py` |
-| ☐ | `planning/models.py` | `TimeAdjustment` — `duration_minutes <= 0` → violation CheckConstraint | `apps/planning/tests/test_models.py` |
-| 🆕 | `team/models.py` | **`Collaborator.is_active=False`** — ses shifts existants restent accessibles en lecture | `apps/team/tests/test_models.py` |
-| 🆕 | `resources/models.py` | **Suppression d'une `Category` avec enfants** — cascade ou protection (comportement documenté) | `apps/resources/tests/test_models.py` |
+| ✅ | `planning/models.py` | `Shift.save()` — `contract_hours_snapshot` capturé à la création, non modifié ensuite | `apps/planning/tests/test_models.py` |
+| ✅ | `team/models.py` | Signal `ContractHistory` — `weekly_hours` mis à jour sur `Collaborator` | `apps/team/tests/test_models.py` |
+| ✅ | `team/models.py` | Signal `ContractHistory` — ancien contrat fermé (end_date = start_date - 1j) | `apps/team/tests/test_models.py` |
+| ✅ | `resources/models.py` | `Category` — unicité `(pharmacy, nom)` → IntegrityError si doublon, OK autre pharmacie | `apps/resources/tests/test_models.py` |
+| ✅ | `planning/models.py` | `TimeAdjustment` — `duration_minutes <= 0` → violation CheckConstraint | `apps/planning/tests/test_models.py` |
+| ✅ | `resources/models.py` | **Suppression `Category`** — cascade sur ResourceCards (comportement documenté) | `apps/resources/tests/test_models.py` |
 
 ---
 
