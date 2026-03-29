@@ -22,7 +22,7 @@ def generate_template_task(task_id: str, api_key: str, system_prompt: str, messa
 
         client = anthropic_sdk.Anthropic(api_key=api_key)
         ai_response = client.messages.create(
-            model='claude-sonnet-4-6',
+            model='claude-opus-4-6',
             max_tokens=8000,
             system=system_prompt,
             messages=messages,
