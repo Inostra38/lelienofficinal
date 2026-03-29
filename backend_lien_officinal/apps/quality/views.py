@@ -516,12 +516,11 @@ class ProcedureNotificationViewSet(
             ProcedureNotification.objects
             .filter(recipient=collaborator, procedure__pharmacy=self.request.user)
             .select_related('procedure')
-            .order_by('-created_at')[:50]
+            .order_by('-created_at')
         )
 
     def list(self, request, *args, **kwargs):
         full_qs = self.get_queryset()
-        # BLOC 7 — unread_count exact même avec la limite [:50]
         unread_count = full_qs.filter(is_read=False).count()
         qs = list(full_qs[:50])
         data = [

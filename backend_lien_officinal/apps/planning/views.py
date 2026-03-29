@@ -1533,10 +1533,13 @@ Inclure uniquement les semaines {rotation_label}.
         from .tasks import generate_template_task
 
         task_id = str(uuid.uuid4())
-        # Marquer la tâche comme "en attente" immédiatement
         cache.set(f'ai_task:{task_id}', {'status': 'pending'}, timeout=600)
 
-        generate_template_task.delay(task_id, api_key, system_prompt, messages)
+        try:
+            generate_template_task.delay(task_id, api_key, system_prompt, messages)
+        except Exception:
+            # Broker indisponible (Redis non lancé) → exécution synchrone
+            generate_template_task(task_id, api_key, system_prompt, messages)
 
         return Response({'task_id': task_id}, status=status.HTTP_202_ACCEPTED)
 
