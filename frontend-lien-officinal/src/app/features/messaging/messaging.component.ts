@@ -222,4 +222,6 @@ export class MessagingComponent implements OnInit, OnDestroy {
     return `${collab.first_name[0]}${collab.last_name[0]}`.toUpperCase();
   }
 
+  trackByCollabId(_: number, collab: Collaborator): number { return collab.id!; }
+
 }

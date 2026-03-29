@@ -65,7 +65,7 @@
       </div>
 
       <!-- Ligne absence -->
-      <div *ngFor="let absence of absences"
+      <div *ngFor="let absence of absences; trackBy: trackByAbsenceId"
            class="flex items-start gap-3 px-6 py-4 border-b border-gray-50 last:border-0">
 
         <!-- Avatar collaborateur -->

@@ -172,4 +172,6 @@ export class AbsenceModalComponent implements OnInit {
   getInitials(collab: { first_name: string; last_name: string }): string {
     return `${collab.first_name.charAt(0)}${collab.last_name.charAt(0)}`.toUpperCase();
   }
+
+  trackByAbsenceId(_: number, absence: AbsenceRequest): number { return absence.id; }
 }

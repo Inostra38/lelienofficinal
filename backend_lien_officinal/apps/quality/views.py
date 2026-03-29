@@ -1,5 +1,5 @@
 from django.db import transaction
-from django.db.models import BooleanField, Count, Exists, OuterRef, Subquery, Value
+from django.db.models import BooleanField, Count, Exists, F, OuterRef, Subquery, Value
 from django.utils import timezone
 from rest_framework import viewsets, status
 from rest_framework.decorators import action
@@ -112,35 +112,42 @@ class ProcedureViewSet(viewsets.ModelViewSet):
 
     @action(detail=True, methods=['post'])
     def publish(self, request, pk=None):
-        procedure = self.get_object()
-        if procedure.status != Procedure.Status.DRAFT:
-            return Response(
-                {'detail': 'Seul un brouillon peut être publié.'},
-                status=status.HTTP_400_BAD_REQUEST,
-            )
-        
-        # On récupère le collaborateur s'il y en a un, sinon None
         collaborator = _get_collaborator(request, request.user)
         change_summary = request.data.get('change_summary', '')
 
         with transaction.atomic():
-            # Sécurité : On archive la version actuelle
+            # select_for_update() verrouille la ligne — empêche deux publications simultanées
+            procedure = Procedure.objects.select_for_update().get(pk=pk)
+
+            if procedure.pharmacy != request.user:
+                return Response(status=status.HTTP_404_NOT_FOUND)
+
+            if procedure.status != Procedure.Status.DRAFT:
+                return Response(
+                    {'detail': 'Seul un brouillon peut être publié.'},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+
+            published_version = procedure.version
+
+            # Archiver la version actuelle
             ProcedureVersion.objects.create(
                 procedure=procedure,
-                version_number=procedure.version,
+                version_number=published_version,
                 content=procedure.content or "",
-                change_summary=change_summary or (f"Publication initiale" if procedure.version == 1 else f"Mise à jour v{procedure.version}"),
+                change_summary=change_summary or (f"Publication initiale" if published_version == 1 else f"Mise à jour v{published_version}"),
                 created_by=collaborator
             )
 
-            # Passage en actif et incrémentation de la version pour le futur
-            procedure.status = Procedure.Status.ACTIVE
-            procedure.version += 1
-            procedure.save(update_fields=['status', 'version'])
+            # Mise à jour atomique : F() évite tout read-modify-write
+            Procedure.objects.filter(pk=pk).update(
+                status=Procedure.Status.ACTIVE,
+                version=F('version') + 1,
+            )
+            procedure.refresh_from_db()
 
             # Notifier tous les collaborateurs actifs (sauf celui qui publie)
             from apps.team.models import Collaborator as CollaboratorModel
-            published_version = procedure.version - 1  # version qui vient d'être publiée
             all_collabs = CollaboratorModel.objects.filter(pharmacy=procedure.pharmacy, is_active=True)
             notif_bulk = [
                 ProcedureNotification(

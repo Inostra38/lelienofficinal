@@ -212,7 +212,7 @@
              (cdkDropListDropped)="onDrop($event)"
              class="flex flex-col">
 
-          <div *ngFor="let collab of collaborators; let i = index"
+          <div *ngFor="let collab of collaborators; let i = index; trackBy: trackByCollabId"
                cdkDrag
                class="flex items-center gap-3 px-6 py-3 border-b border-gray-50 last:border-0 bg-white group">
 

@@ -226,6 +226,7 @@ REST_FRAMEWORK = {
     ),
     'DEFAULT_THROTTLE_RATES': {
         'user': '1000/day',       # limite globale par défaut
+        'register': '5/hour',     # création de compte (anti-spam)
         'messaging': '30/minute', # envoi de messages (REST fallback)
         'sms_send': '200/hour',             # envoi SMS par pharmacie
         'sms_send_collaborator': '50/hour', # envoi SMS par collaborateur

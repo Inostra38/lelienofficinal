@@ -210,4 +210,6 @@ export class PlanningSettingsComponent implements OnInit {
     const order = this.collaborators.map(c => c.id);
     this.collaboratorService.reorderCollaborators(order).subscribe();
   }
+
+  trackByCollabId(_: number, collab: CollabOrder): number { return collab.id; }
 }

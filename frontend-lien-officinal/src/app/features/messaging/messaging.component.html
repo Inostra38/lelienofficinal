@@ -8,7 +8,7 @@
       <p class="text-sm text-gray-400 mb-6">Qui êtes-vous pour cette session ?</p>
 
       <div class="grid grid-cols-3 gap-3">
-        <button *ngFor="let collab of team"
+        <button *ngFor="let collab of team; trackBy: trackByCollabId"
                 (click)="selectCollaborator(collab)"
                 class="flex flex-col items-center gap-2 p-3 rounded-xl border border-gray-100 hover:border-green-300 hover:bg-green-50 transition-all group">
           <div class="w-10 h-10 rounded-full text-white flex items-center justify-center font-bold text-sm"
