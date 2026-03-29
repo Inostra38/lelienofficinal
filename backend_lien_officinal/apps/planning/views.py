@@ -1545,7 +1545,7 @@ class PayeAnalyticsView(APIView):
 
     def get(self, request):
         actor = _get_collaborator(request)
-        if actor and not actor.can_manage_planning:
+        if not actor or not actor.can_manage_planning:
             return Response({'detail': 'Permission insuffisante.'}, status=status.HTTP_403_FORBIDDEN)
 
         month_str = request.query_params.get('month', '')
@@ -1556,6 +1556,13 @@ class PayeAnalyticsView(APIView):
             month = int(month_str[5:7])
         except ValueError:
             return Response({'error': 'Format month invalide.'}, status=status.HTTP_400_BAD_REQUEST)
+
+        current_year = date.today().year
+        if not (2020 <= year <= current_year + 1):
+            return Response(
+                {'error': f'Année hors limites (2020–{current_year + 1}).'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
 
         from .paye_analytics import compute_paye_summary
         data = compute_paye_summary(request.user, year, month)
