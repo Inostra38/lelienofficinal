@@ -1443,7 +1443,7 @@ class GenerateTemplateView(APIView):
         rotation_label = '/'.join(letters)
 
         system_prompt = f"""Tu es un assistant expert en planning de pharmacie d'officine française.
-Tu connais parfaitement la Convention Collective Nationale de la Pharmacie.
+Tu connais parfaitement la Convention Collective Nationale de la Pharmacie d'officine (CCN Pharmacie).
 
 Tu dois générer un planning template sur une rotation de {rotation} semaine(s) ({rotation_label}).
 
@@ -1453,10 +1453,23 @@ COLLABORATEURS :
 HORAIRES D'OUVERTURE :
 {json.dumps(opening, ensure_ascii=False, indent=2)}
 
+RÈGLES CCN PHARMACIE — TEMPS PARTIEL (obligatoires, non négociables) :
+- Contrat écrit obligatoire pour tout temps partiel, mentionnant : qualification, rémunération, durée hebdomadaire/mensuelle et répartition des horaires entre les jours
+- Durée minimale légale en pharmacie d'officine : 16h/semaine (5h/semaine pour le personnel de nettoyage uniquement)
+- Exception étudiants de moins de 26 ans : durée inférieure possible à leur demande écrite, compatible avec leurs études
+- Horaires regroupés sur des journées ou demi-journées régulières ou complètes (pas d'horaires morcelés arbitrairement)
+- Durée quotidienne maximale : 10h de travail effectif
+- Maximum 1 interruption d'activité par journée, ne dépassant pas 2h
+- Heures complémentaires : plafonnées à 1/10 de la durée contractuelle ; majoration 15% ; ne peuvent porter la durée au niveau légal (35h)
+- Délai de prévenance pour heures complémentaires : 3 jours ouvrés minimum (refus du salarié possible sinon)
+- Modification de la répartition horaire : notification au salarié 7 jours ouvrés minimum à l'avance
+- Avenants de complément d'heures : maximum 5 par année civile et par salarié, chaque avenant limité à 8 semaines consécutives ; majoration 15% (25% pour heures au-delà du complément)
+- Priorité de passage temps partiel ↔ temps complet pour les salariés qui en font la demande écrite (délai de demande : 6 mois avant ; réponse employeur : 3 mois)
+
 CONTRAINTES PAR ORDRE DE PRIORITÉ :
 
-[NIVEAU 1 - RÉGLEMENTAIRE - Non négociable] :
-{chr(10).join(f"- {r}" for r in regulatory)}
+[NIVEAU 1 - RÉGLEMENTAIRE PHARMACIE - Non négociable] :
+{chr(10).join(f"- {r}" for r in regulatory) if regulatory else "- Aucune contrainte réglementaire supplémentaire définie"}
 
 [NIVEAU 2 - PHARMACIE - Respecter sauf conflit niveau 1] :
 {chr(10).join(f"- {p}" for p in pharmacy_c) if pharmacy_c else "- Aucune contrainte pharmacie définie"}
@@ -1469,7 +1482,7 @@ RÈGLES DE GÉNÉRATION :
 - Les shifts doivent être dans les horaires d'ouverture
 - day_of_week : 0=Lundi, 1=Mardi, 2=Mercredi, 3=Jeudi, 4=Vendredi, 5=Samedi, 6=Dimanche
 - Un jour absent dans opening = pharmacie fermée ce jour
-- Indiquer les violations si certaines contraintes ne peuvent pas être respectées simultanément
+- Signaler toute violation des règles CCN ou des contraintes dans le champ "violations"
 
 FORMAT DE RÉPONSE OBLIGATOIRE :
 Réponds avec deux blocs distincts :
