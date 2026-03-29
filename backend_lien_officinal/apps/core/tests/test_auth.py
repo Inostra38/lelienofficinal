@@ -2,6 +2,7 @@
 Tests core/views.py — Register, JWT (forgé/expiré/refresh), endpoints protégés
 """
 
+import json
 import time
 
 from django.test import TestCase
@@ -165,3 +166,129 @@ class TestJWTSecurity(TestCase):
             'password': 'mauvais',
         }, content_type='application/json')
         self.assertEqual(resp.status_code, 401)
+
+
+# ── HttpOnly cookie — couverture exhaustive ───────────────────────────────────
+
+class TestHttpOnlyCookies(TestCase):
+    """Vérifie le comportement complet de la stratégie cookie HttpOnly (C69)."""
+
+    def setUp(self):
+        self.pharmacy = _make_pharmacy()
+
+    def _login(self):
+        return self.client.post('/api/token/', {
+            'email': self.pharmacy.email,
+            'password': 'secret123',
+        }, content_type='application/json')
+
+    # ── session_info : présence, non-HttpOnly, contenu JSON ───────────────────
+
+    def test_register_set_session_info_cookie(self):
+        """Register pose également le cookie session_info."""
+        resp = self.client.post('/api/auth/register/', {
+            'email': 'cookie_si@test.com',
+            'password': 'motdepasse1',
+            'password_confirm': 'motdepasse1',
+        }, content_type='application/json')
+        self.assertIn('session_info', resp.cookies)
+
+    def test_session_info_non_httponly(self):
+        """session_info doit être lisible par JS (non HttpOnly)."""
+        resp = self._login()
+        self.assertFalse(resp.cookies['session_info']['httponly'])
+
+    def test_session_info_contenu_pharmacy_account(self):
+        """session_info contient auth_type=pharmacy_account après login."""
+        resp = self._login()
+        raw = resp.cookies['session_info'].value
+        data = json.loads(raw)
+        self.assertEqual(data['auth_type'], 'pharmacy_account')
+        self.assertIsNone(data['collaborator_id'])
+
+    def test_refresh_token_cookie_samesite_strict(self):
+        """refresh_token a l'attribut SameSite=Strict."""
+        resp = self._login()
+        self.assertEqual(resp.cookies['refresh_token']['samesite'], 'Strict')
+
+    # ── Refresh sans cookie ───────────────────────────────────────────────────
+
+    def test_refresh_sans_cookie_401(self):
+        """POST /api/token/refresh/ sans cookie refresh_token → 401."""
+        resp = self.client.post('/api/token/refresh/', content_type='application/json')
+        self.assertEqual(resp.status_code, 401)
+
+    def test_refresh_met_a_jour_session_info(self):
+        """Après refresh, session_info est renvoyé avec auth_type=pharmacy_account."""
+        refresh = RefreshToken.for_user(self.pharmacy)
+        self.client.cookies['refresh_token'] = str(refresh)
+        resp = self.client.post('/api/token/refresh/', content_type='application/json')
+        self.assertEqual(resp.status_code, 200)
+        self.assertIn('session_info', resp.cookies)
+        data = json.loads(resp.cookies['session_info'].value)
+        self.assertEqual(data['auth_type'], 'pharmacy_account')
+
+    # ── Logout ────────────────────────────────────────────────────────────────
+
+    def test_logout_efface_les_cookies(self):
+        """POST /api/auth/logout/ renvoie 204 et supprime refresh_token + session_info."""
+        refresh = RefreshToken.for_user(self.pharmacy)
+        self.client.cookies['refresh_token'] = str(refresh)
+        resp = self.client.post('/api/auth/logout/', content_type='application/json')
+        self.assertEqual(resp.status_code, 204)
+        # Django marque la suppression en posant Max-Age=0 ou une date expirée
+        self.assertEqual(resp.cookies['refresh_token']['max-age'], 0)
+
+    def test_logout_blackliste_refresh_token(self):
+        """Après logout, le même refresh token ne peut plus générer un access token."""
+        refresh = RefreshToken.for_user(self.pharmacy)
+        token_str = str(refresh)
+        self.client.cookies['refresh_token'] = token_str
+        self.client.post('/api/auth/logout/', content_type='application/json')
+        # Re-tenter le refresh avec le token blacklisté
+        self.client.cookies['refresh_token'] = token_str
+        resp = self.client.post('/api/token/refresh/', content_type='application/json')
+        self.assertEqual(resp.status_code, 401)
+
+    def test_logout_sans_cookie_204_gracieux(self):
+        """Logout sans cookie → 204 (pas d'erreur)."""
+        resp = self.client.post('/api/auth/logout/', content_type='application/json')
+        self.assertEqual(resp.status_code, 204)
+
+    # ── Collab logout ─────────────────────────────────────────────────────────
+
+    def test_collab_logout_restaure_session_pharmacie(self):
+        """POST /api/auth/collab-logout/ repose session_info avec auth_type=pharmacy_account."""
+        resp = self.client.post('/api/auth/collab-logout/', content_type='application/json')
+        self.assertEqual(resp.status_code, 204)
+        self.assertIn('session_info', resp.cookies)
+        data = json.loads(resp.cookies['session_info'].value)
+        self.assertEqual(data['auth_type'], 'pharmacy_account')
+        self.assertIsNone(data['collaborator_id'])
+
+    def test_collab_login_session_info_contient_collaborateur(self):
+        """Login PIN collaborateur → session_info contient collaborator_id et auth_type=collaborator."""
+        from apps.team.models import Collaborator
+        collab = Collaborator.objects.create(
+            pharmacy=self.pharmacy,
+            first_name='Alice',
+            last_name='Collab',
+            role=Collaborator.Role.PREPARATEUR,
+            color='#aabbcc',
+            weekly_hours=35,
+        )
+        collab.set_pin('1234')
+        collab.save()
+
+        client = APIClient()
+        refresh = RefreshToken.for_user(self.pharmacy)
+        client.credentials(HTTP_AUTHORIZATION=f"Bearer {refresh.access_token}")
+        resp = client.post('/api/team/login/', {
+            'collaborator_id': collab.id,
+            'pin_code': '1234',
+        }, format='json')
+        self.assertEqual(resp.status_code, 200)
+        self.assertIn('session_info', resp.cookies)
+        data = json.loads(resp.cookies['session_info'].value)
+        self.assertEqual(data['auth_type'], 'collaborator')
+        self.assertEqual(data['collaborator_id'], collab.id)

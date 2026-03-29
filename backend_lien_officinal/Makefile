@@ -14,7 +14,8 @@ TESTS := \
   apps.planning.tests.test_views_shifts apps.planning.tests.test_views_templates \
   apps.quality.tests.test_nc apps.quality.tests.test_procedures \
   apps.quality.tests.test_notifications \
-  apps.core.tests.test_sms apps.team.tests.test_models apps.team.tests.test_views \
+  apps.core.tests.test_sms apps.core.tests.test_auth \
+  apps.team.tests.test_models apps.team.tests.test_views \
   apps.resources.tests.test_models apps.admin_panel.tests.test_auth \
   tests.test_isolation
 
