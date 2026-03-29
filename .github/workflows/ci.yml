@@ -1,0 +1,102 @@
+name: CI/CD — Le Lien Officinal
+
+on:
+  push:
+    branches:
+      - '**'
+
+jobs:
+
+  # ─────────────────────────────────────────────
+  # JOB 1 — Tests Django
+  # ─────────────────────────────────────────────
+  test-backend:
+    name: Tests Django
+    runs-on: ubuntu-latest
+
+    # Pas de service PostgreSQL ni Redis :
+    # settings_test.py utilise SQLite :memory: + DummyCache
+
+    env:
+      SECRET_KEY: ci-secret-key-not-for-production
+      DEBUG: 'False'
+
+    defaults:
+      run:
+        working-directory: backend_lien_officinal
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: pip
+          cache-dependency-path: backend_lien_officinal/requirements.txt
+
+      - name: Installer les dépendances
+        run: pip install -r requirements.txt
+
+      - name: Lancer les tests
+        run: make test
+
+  # ─────────────────────────────────────────────
+  # JOB 2 — Tests Angular + Build production
+  # ─────────────────────────────────────────────
+  test-and-build-frontend:
+    name: Tests & Build Angular
+    runs-on: ubuntu-latest
+
+    defaults:
+      run:
+        working-directory: frontend-lien-officinal
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+          cache-dependency-path: frontend-lien-officinal/package-lock.json
+
+      - name: Installer les dépendances npm
+        run: npm ci
+
+      - name: Tests Angular (headless)
+        run: npx ng test --watch=false --browsers=ChromeHeadless
+
+      - name: Build Angular (production)
+        run: npx ng build --configuration production
+
+  # ─────────────────────────────────────────────
+  # JOB 3 — Déploiement Scalingo (main uniquement)
+  # ─────────────────────────────────────────────
+  deploy:
+    name: Déploiement Scalingo
+    runs-on: ubuntu-latest
+    needs: [test-backend, test-and-build-frontend]
+    if: github.ref == 'refs/heads/main'
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Configurer SSH pour Scalingo
+        uses: webfactory/ssh-agent@v0.9.0
+        with:
+          ssh-private-key: ${{ secrets.SCALINGO_SSH_KEY }}
+
+      - name: Ajouter le remote Scalingo
+        run: |
+          git remote add scalingo git@ssh.osc-fr1.scalingo.com:${{ secrets.SCALINGO_APP_NAME }}.git
+
+      - name: Pousser vers Scalingo
+        run: |
+          git push scalingo main --force
