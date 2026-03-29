@@ -38,19 +38,21 @@
 
 | # | Fichier cible | Cas à tester | Fichier test |
 |---|--------------|--------------|--------------|
-| ☐ | `team/models.py` | `check_pin()` — pin correct, pin incorrect, pin vide | `apps/team/tests/test_models.py` |
-| ☐ | `team/models.py` | Lockout après 3 échecs PIN — `pin_fail_count=3` bloque, délai 15 min | `apps/team/tests/test_models.py` |
-| ☐ | `team/views.py` | `verify-pin` : 200 si correct, 401 si incorrect, 423 si lockout | `apps/team/tests/test_views.py` |
-| ☐ | `core/views.py` | Register — email déjà existant → 400, email normalisé en minuscule | `apps/core/tests/test_auth.py` |
-| ☐ | `core/views.py` | Endpoints protégés sans token → 401 | `apps/core/tests/test_auth.py` |
+| ✅ | `team/models.py` | `check_pin()` — pin correct, pin incorrect, pin vide | `apps/team/tests/test_models.py` |
+| ✅ | `team/models.py` | Lockout après 50 échecs PIN — `pin_locked_until` positionné, reset après succès | `apps/team/tests/test_models.py` |
+| ✅ | `team/views.py` | `login` : 200 si correct (+ JWT), 403 si incorrect, 423 si lockout | `apps/team/tests/test_views.py` |
+| ✅ | `team/views.py` | `verify-pin` : 200 si correct, 403 si incorrect, 404 collab inconnu, 401 sans token | `apps/team/tests/test_views.py` |
+| ✅ | `core/views.py` | Register — email déjà existant → 400, domaine normalisé en minuscule | `apps/core/tests/test_auth.py` |
+| ✅ | `core/views.py` | Endpoints protégés sans token → 401 | `apps/core/tests/test_auth.py` |
+| ✅ | `core/views.py` | **JWT forgé** (signature invalide) → 401, pas de 500 | `apps/core/tests/test_auth.py` |
+| ✅ | `core/views.py` | **JWT expiré** (exp dans le passé) → 401 | `apps/core/tests/test_auth.py` |
+| ✅ | `core/views.py` | **Refresh token invalide** → 401 | `apps/core/tests/test_auth.py` |
+| ✅ | `team/models.py` | Signal `ContractHistory` — `weekly_hours` mis à jour sur `Collaborator` | `apps/team/tests/test_models.py` |
+| ✅ | `team/models.py` | Signal `ContractHistory` — ancien contrat fermé (end_date = start_date - 1j) | `apps/team/tests/test_models.py` |
 | ☐ | `planning/views.py` | `PayeAnalyticsView` — collaborateur sans `can_manage_planning` → 403 | `apps/planning/tests/test_views_security.py` |
 | ☐ | `planning/views.py` | `TemplateBulkReplaceView` — collaborateur d'une autre pharmacie → 400 | `apps/planning/tests/test_views_security.py` |
-| 🆕 | `core/views.py` | **JWT forgé** (signature invalide) → 401, pas de 500 | `apps/core/tests/test_auth.py` |
-| 🆕 | `core/views.py` | **JWT expiré** (exp dans le passé) → 401 avec message explicite | `apps/core/tests/test_auth.py` |
-| 🆕 | `team/views.py` | **Rate limiting** `/verify-pin` — tentatives répétées → lockout PIN (modèle) | `apps/team/tests/test_views.py` |
-| 🆕 | `planning/views.py` | **Injection via query param** `?pharmacy_id=<autre_id>` — ignoré, seule la pharmacie du token est utilisée | `apps/planning/tests/test_views_security.py` |
-| 🆕 | `planning/views.py` | **PATCH sur ressource inexistante** → 404, pas de modification | `apps/planning/tests/test_views_security.py` |
-| 🆕 | `core/views.py` | **Refresh token** — token invalide → 401 | `apps/core/tests/test_auth.py` |
+| ☐ | `planning/views.py` | **Injection via query param** `?pharmacy_id=<autre_id>` — ignoré, seule la pharmacie du token est utilisée | `apps/planning/tests/test_views_security.py` |
+| ☐ | `planning/views.py` | **PATCH sur ressource inexistante** → 404, pas de modification | `apps/planning/tests/test_views_security.py` |
 
 ---
 
