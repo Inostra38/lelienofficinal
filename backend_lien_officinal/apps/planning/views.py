@@ -1525,15 +1525,11 @@ RÈGLES DE GÉNÉRATION :
 - Un jour absent de opening = pharmacie fermée ce jour
 
 FORMAT DE RÉPONSE OBLIGATOIRE :
-Réponds avec trois blocs :
+Réponds avec deux blocs :
 
-1. Un tableau de vérification du budget horaire (AVANT le JSON) :
-   Pour chaque collaborateur, pour chaque semaine : total des heures prévues vs contractuelles.
-   Exemple : "Sophie (sem A) : 8h30-13h + 13h40-19h lun = 10h20 ... total = X,Xh / 35h ✓"
+1. Un paragraphe court sur les choix et compromis.
 
-2. Un paragraphe court sur les choix et compromis.
-
-3. Un bloc JSON valide :
+2. Un bloc JSON valide :
 ```json
 {{
   "weeks": {{
