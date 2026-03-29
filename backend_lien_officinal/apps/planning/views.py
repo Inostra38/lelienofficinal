@@ -1515,34 +1515,34 @@ Inclure uniquement les semaines {rotation_label}.
                 status=status.HTTP_503_SERVICE_UNAVAILABLE
             )
 
-        client = anthropic_sdk.Anthropic(api_key=api_key)
-        ai_response = client.messages.create(
-            model="claude-haiku-4-5-20251001",
-            max_tokens=8000,
-            system=system_prompt,
-            messages=messages,
-        )
+        import uuid
+        from django.core.cache import cache
+        from .tasks import generate_template_task
 
-        assistant_message = ai_response.content[0].text
+        task_id = str(uuid.uuid4())
+        # Marquer la tâche comme "en attente" immédiatement
+        cache.set(f'ai_task:{task_id}', {'status': 'pending'}, timeout=600)
 
-        from .utils import parse_ai_planning_response, AIParseError
-        try:
-            template_json = parse_ai_planning_response(assistant_message)
-        except AIParseError as exc:
-            import logging
-            logging.getLogger(__name__).error("AI parse error: %s\nRaw response: %s", exc, assistant_message)
-            return Response(
-                {"detail": f"La réponse de l'IA n'a pas pu être interprétée : {exc}"},
-                status=status.HTTP_502_BAD_GATEWAY,
-            )
+        generate_template_task.delay(task_id, api_key, system_prompt, messages)
 
-        return Response({
-            "message":      assistant_message,
-            "template":     template_json,
-            "conversation": conversation + [
-                {"role": "assistant", "content": assistant_message}
-            ]
-        })
+        return Response({'task_id': task_id}, status=status.HTTP_202_ACCEPTED)
+
+
+class GenerateTemplatePollView(APIView):
+    """
+    GET /api/planning/constraints/generate/<task_id>/
+    Retourne l'état de la tâche de génération IA.
+    { status: "pending" | "done" | "error", ... }
+    """
+    authentication_classes = [JWTAuthentication]
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request, task_id: str):
+        from django.core.cache import cache
+        result = cache.get(f'ai_task:{task_id}')
+        if result is None:
+            return Response({'status': 'not_found'}, status=status.HTTP_404_NOT_FOUND)
+        return Response(result)
 
 
 class PayeAnalyticsView(APIView):

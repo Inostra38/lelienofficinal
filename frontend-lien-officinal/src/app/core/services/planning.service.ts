@@ -550,8 +550,14 @@ export class PlanningService {
     return this.http.delete<void>(`${this.apiUrl}/constraints/${id}/`);
   }
 
-  generateTemplate(rotation: number, conversation: ChatMessage[]): Observable<GenerateTemplateResponse> {
-    return this.http.post<GenerateTemplateResponse>(`${this.apiUrl}/constraints/generate/`, { rotation, conversation });
+  generateTemplate(rotation: number, conversation: ChatMessage[]): Observable<{ task_id: string }> {
+    return this.http.post<{ task_id: string }>(`${this.apiUrl}/constraints/generate/`, { rotation, conversation });
+  }
+
+  pollGenerateTemplate(taskId: string): Observable<GenerateTemplateResponse & { status: string }> {
+    return this.http.get<GenerateTemplateResponse & { status: string }>(
+      `${this.apiUrl}/constraints/generate/${taskId}/`
+    );
   }
 
   // ── Drawer shift — actions ────────────────────────────────────────────────

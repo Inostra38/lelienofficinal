@@ -30,6 +30,7 @@ from .views import (
     ConstraintsView,
     ConstraintDetailView,
     GenerateTemplateView,
+    GenerateTemplatePollView,
     SplitShiftView,
     TransformShiftView,
     EarlyDepartureView,
@@ -93,5 +94,6 @@ urlpatterns = [
     # Contraintes planning (generate BEFORE <int:pk> to avoid conflict)
     path('planning/constraints/', ConstraintsView.as_view(), name='constraints'),
     path('planning/constraints/generate/', GenerateTemplateView.as_view(), name='generate-template'),
+    path('planning/constraints/generate/<str:task_id>/', GenerateTemplatePollView.as_view(), name='generate-template-poll'),
     path('planning/constraints/<int:pk>/', ConstraintDetailView.as_view(), name='constraint-detail'),
 ]

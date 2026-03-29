@@ -1,5 +1,6 @@
 import {
-  Component, Input, Output, EventEmitter, inject, ViewChild, ElementRef, AfterViewChecked
+  Component, Input, Output, EventEmitter, inject, ViewChild, ElementRef,
+  AfterViewChecked, OnDestroy,
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
@@ -13,7 +14,7 @@ import { Collaborator } from '../../../../core/services/collaborator.service';
   imports: [CommonModule, FormsModule],
   templateUrl: './template-ai-assistant.component.html',
 })
-export class TemplateAiAssistantComponent implements AfterViewChecked {
+export class TemplateAiAssistantComponent implements AfterViewChecked, OnDestroy {
   @Input() rotation = 2;
   @Input() team: Collaborator[] = [];
   @Output() templateGenerated  = new EventEmitter<any>();
@@ -30,6 +31,7 @@ export class TemplateAiAssistantComponent implements AfterViewChecked {
   errorMessage = '';
   currentTemplate: any = null;
   private shouldScrollToBottom = false;
+  private pollInterval: ReturnType<typeof setInterval> | null = null;
 
   readonly rotations = [
     { value: 2, label: 'A/B' },
@@ -44,31 +46,28 @@ export class TemplateAiAssistantComponent implements AfterViewChecked {
     }
   }
 
+  ngOnDestroy() {
+    this._stopPolling();
+  }
+
   generate(userMessage?: string) {
     if (userMessage) {
       this.conversation = [...this.conversation, { role: 'user', content: userMessage }];
       this.userInput = '';
     }
-    this.isLoading = true;
-
+    this.isLoading    = true;
     this.errorMessage = '';
+
     this.planningService.generateTemplate(this.rotation, this.conversation).subscribe({
-      next: (res) => {
-        this.conversation    = res.conversation;
-        this.currentTemplate = res.template;
-        this.isLoading       = false;
-        this.shouldScrollToBottom = true;
-      },
+      next: ({ task_id }) => this._startPolling(task_id),
       error: (err: HttpErrorResponse) => {
         this.isLoading = false;
         if (err.status === 429) {
           this.errorMessage = err.error?.detail ?? 'Limite atteinte. Réessayez dans une heure.';
-        } else if (err.status === 502) {
-          this.errorMessage = err.error?.detail ?? "La réponse de l'IA n'a pas pu être interprétée. Réessayez ou reformulez votre demande.";
         } else {
           this.errorMessage = 'Une erreur est survenue. Veuillez réessayer.';
         }
-      }
+      },
     });
   }
 
@@ -93,6 +92,38 @@ export class TemplateAiAssistantComponent implements AfterViewChecked {
   extractText(content: string): string {
     const idx = content.indexOf('```json');
     return (idx === -1 ? content : content.substring(0, idx)).trim();
+  }
+
+  private _startPolling(taskId: string) {
+    this._stopPolling();
+    this.pollInterval = setInterval(() => {
+      this.planningService.pollGenerateTemplate(taskId).subscribe({
+        next: (res) => {
+          if (res.status === 'pending') return;
+          this._stopPolling();
+          this.isLoading = false;
+          if (res.status === 'done') {
+            this.conversation    = res.conversation;
+            this.currentTemplate = res.template;
+            this.shouldScrollToBottom = true;
+          } else {
+            this.errorMessage = (res as any)['detail'] ?? "La réponse de l'IA n'a pas pu être interprétée.";
+          }
+        },
+        error: () => {
+          this._stopPolling();
+          this.isLoading    = false;
+          this.errorMessage = 'Une erreur est survenue lors de la génération.';
+        },
+      });
+    }, 2000);
+  }
+
+  private _stopPolling() {
+    if (this.pollInterval !== null) {
+      clearInterval(this.pollInterval);
+      this.pollInterval = null;
+    }
   }
 
   private scrollToBottom() {
