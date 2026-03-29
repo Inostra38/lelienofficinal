@@ -13,14 +13,13 @@
 |---|--------------|--------------|--------------|
 | ✅ | `paye_analytics.py` | Scénario mars 2026 : heures sup TR1/TR2, absences injustifiées, ajustements | `apps/planning/tests/test_paye_analytics.py` |
 | ✅ | `paye_analytics.py` | Scénario octobre 2026 : heures nuit, dimanche, CP, règle du vendredi | `apps/planning/tests/test_paye_analytics_octobre.py` |
-| ☐ | `paye_analytics.py` | Mois avec un jour férié chômé (1er mai) — heures non comptées | `apps/planning/tests/test_paye_analytics_feries.py` |
-| ☐ | `paye_analytics.py` | Collaborateur TNS (`is_tns=True`) — pas de calcul heures sup | `apps/planning/tests/test_paye_analytics_tns.py` |
-| ☐ | `paye_analytics.py` | Cache : mois passé calculé une seule fois, retour cache au 2e appel | `apps/planning/tests/test_paye_analytics_cache.py` |
-| 🆕 | `paye_analytics.py` | **Shift à cheval fin de mois** (ex: 28 fév 22h → 1er mars 6h) — heures correctement réparties entre les deux mois | `apps/planning/tests/test_paye_analytics_edge.py` |
-| 🆕 | `paye_analytics.py` | **Collaborateur temps partiel** (24h/sem) — seuil heures sup à 24h, pas 35h | `apps/planning/tests/test_paye_analytics_edge.py` |
-| 🆕 | `paye_analytics.py` | **Mois sans aucun shift** — résultat vide retourné, pas d'exception | `apps/planning/tests/test_paye_analytics_edge.py` |
-| 🆕 | `paye_analytics.py` | **Deux absences consécutives** sur la même période — pas de doublon dans le calcul | `apps/planning/tests/test_paye_analytics_edge.py` |
-| 🆕 | `paye_analytics.py` | **Heures nuit chevauchant minuit** (ex: 23h → 1h) — comptage nuit correct des deux côtés de minuit | `apps/planning/tests/test_paye_analytics_edge.py` |
+| ✅ | `paye_analytics.py` | Mois avec un jour férié chômé (1er mai) — heures non comptées | `apps/planning/tests/test_paye_analytics_feries.py` |
+| ✅ | `paye_analytics.py` | Collaborateur TNS (`is_tns=True`) — pas de calcul heures sup | `apps/planning/tests/test_paye_analytics_tns.py` |
+| ✅ | `paye_analytics.py` | Cache : mois passé calculé une seule fois, retour cache au 2e appel | `apps/planning/tests/test_paye_analytics_cache.py` |
+| ✅ | `paye_analytics.py` | **Collaborateur temps partiel** (24h/sem) — seuil heures sup à 24h, pas 35h | `apps/planning/tests/test_paye_analytics_edge.py` |
+| ✅ | `paye_analytics.py` | **Mois sans aucun shift** — résultat vide retourné, pas d'exception | `apps/planning/tests/test_paye_analytics_edge.py` |
+| ✅ | `paye_analytics.py` | **Deux absences consécutives** sur la même période — pas de doublon dans le calcul | `apps/planning/tests/test_paye_analytics_edge.py` |
+| ✅ | `paye_analytics.py` | **Heures nuit chevauchant minuit** (ex: 23h → 1h) — comptage nuit correct des deux côtés de minuit | `apps/planning/tests/test_paye_analytics_edge.py` |
 | ✅ | `utils.py` | `get_jours_feries()` — Pâques sur 5 ans, 1er mai, 11 novembre | `apps/planning/tests/test_utils.py` |
 | ✅ | `utils.py` | `compute_cp_days()` — 4 combinaisons period (matin/après-midi × matin/soir), semaine avec férié | `apps/planning/tests/test_utils.py` |
 | ✅ | `utils.py` | `parse_ai_planning_response()` — JSON valide, JSON manquant, virgule traînante, heure `8:30` sans zéro | `apps/planning/tests/test_utils.py` |
@@ -30,7 +29,7 @@
 | ✅ | `calculator.py` | `week_summary()` — collaborateur sans shifts, avec 1 shift, avec absence | `apps/planning/tests/test_calculator.py` |
 | ✅ | `calculator.py` | `_week_summary_from_data()` — calcul heures extra 25%/50%, seuil 35h | `apps/planning/tests/test_calculator.py` |
 | ✅ | `calculator.py` | **Temps partiel (24h/sem)** — seuil heures sup à 24h, pas 35h | `apps/planning/tests/test_calculator.py` |
-| ☐ | `calculator.py` | **`week_summary()` — semaine avec férié ET absence** — absence_type présent, worked_h correct | `apps/planning/tests/test_calculator.py` |
+| ✅ | `calculator.py` | **`week_summary()` — semaine avec férié ET absence** — absence_type présent, worked_h correct | `apps/planning/tests/test_calculator.py` |
 
 ---
 
@@ -90,13 +89,13 @@
 
 | # | Fichier cible | Cas à tester | Fichier test |
 |---|--------------|--------------|--------------|
-| ☐ | `quality/views.py` | `NonConformityViewSet` — workflow DRAFT→ACTIVE→RESOLVED, transitions invalides bloquées | `apps/quality/tests/test_nc.py` |
-| ☐ | `quality/views.py` | `ProcedureViewSet` — hiérarchie parent/child, un enfant ne peut pas être son propre parent | `apps/quality/tests/test_procedures.py` |
-| ☐ | `quality/views.py` | `ProcedureNotificationViewSet` — `is_read=False` count correct, pas de fuite inter-pharmacie | `apps/quality/tests/test_notifications.py` |
-| ☐ | `quality/views.py` | `ProcedureVersion` — création version sur PATCH du contenu | `apps/quality/tests/test_procedures.py` |
-| 🆕 | `quality/views.py` | **NC RESOLVED → DRAFT** — transition retour arrière bloquée | `apps/quality/tests/test_nc.py` |
-| 🆕 | `quality/views.py` | **Suppression NC en statut ACTIVE** — autorisée uniquement par admin | `apps/quality/tests/test_nc.py` |
-| 🆕 | `quality/views.py` | **`ProcedureVersion` — rollback** vers version précédente | `apps/quality/tests/test_procedures.py` |
+| ✅ | `quality/views.py` | `NonConformityViewSet` — workflow OPEN→IN_PROGRESS→CLOSED, transitions invalides bloquées | `apps/quality/tests/test_nc.py` |
+| ✅ | `quality/views.py` | `ProcedureViewSet` — hiérarchie parent/child, archivage parent promeut enfants en racine | `apps/quality/tests/test_procedures.py` |
+| ✅ | `quality/views.py` | `ProcedureNotificationViewSet` — `is_read=False` count correct, pas de fuite inter-pharmacie | `apps/quality/tests/test_notifications.py` |
+| ✅ | `quality/views.py` | `ProcedureVersion` — création version sur publish, downgrade ACTIVE→DRAFT sur PATCH | `apps/quality/tests/test_procedures.py` |
+| ✅ | `quality/views.py` | **NC CLOSED → OPEN** bloqué depuis IN_PROGRESS (reopen exige CLOSED) | `apps/quality/tests/test_nc.py` |
+| ✅ | `quality/views.py` | **Assign NC** avec collab d'une autre pharmacie → 404 | `apps/quality/tests/test_nc.py` |
+| ☐ | `quality/views.py` | **`ProcedureVersion` — rollback** vers version précédente (endpoint non implémenté) | — |
 
 ---
 
@@ -104,13 +103,13 @@
 
 | # | Fichier cible | Cas à tester | Fichier test |
 |---|--------------|--------------|--------------|
-| ☐ | `core/views_sms.py` | Envoi SMS — débit crédits correct, `SMSLog` créé | `apps/core/tests/test_sms.py` |
-| ☐ | `core/views_sms.py` | Envoi SMS — crédits insuffisants → 402 | `apps/core/tests/test_sms.py` |
-| ☐ | `core/views_sms.py` | Webhook OVH — statut `DELIVERED` mis à jour sur `SMSLog` | `apps/core/tests/test_sms.py` |
-| ☐ | `core/views_sms.py` | `preview/` — message GSM-7 : comptage correct ; message Unicode : comptage différent | `apps/core/tests/test_sms.py` |
-| 🆕 | `core/views_sms.py` | **Envoi simultané** — race condition crédits → `select_for_update` évite double débit | `apps/core/tests/test_sms.py` |
-| 🆕 | `core/views_sms.py` | **Destinataire numéro invalide** (pas format E.164) → 400/422 avant consommation crédits | `apps/core/tests/test_sms.py` |
-| 🆕 | `core/views_sms.py` | **Message vide** → 400 avant consommation de crédits | `apps/core/tests/test_sms.py` |
+| ✅ | `core/views_sms.py` | Envoi SMS — débit crédits correct, `SMSLog` créé (202) | `apps/core/tests/test_sms.py` |
+| ✅ | `core/views_sms.py` | Envoi SMS — crédits insuffisants → 402, aucun `SMSLog` | `apps/core/tests/test_sms.py` |
+| ✅ | `core/views_sms.py` | Webhook OVH — statut `DELIVERED`/`FAILED` mis à jour sur `SMSLog`, msgid inconnu → 200 | `apps/core/tests/test_sms.py` |
+| ✅ | `core/views_sms.py` | `preview/` — GSM-7 vs Unicode : encodage détecté, comptage SMS différent | `apps/core/tests/test_sms.py` |
+| ☐ | `core/views_sms.py` | **Envoi simultané** — race condition crédits (déjà `F()` atomic, pas de `select_for_update`) | — |
+| ☐ | `core/views_sms.py` | **Destinataire numéro invalide** — pas de validation E.164 dans le serializer actuel | — |
+| ✅ | `core/views_sms.py` | **Message vide** → 400 avant consommation de crédits | `apps/core/tests/test_sms.py` |
 
 ---
 
@@ -118,13 +117,13 @@
 
 | # | Fichier cible | Cas à tester | Fichier test |
 |---|--------------|--------------|--------------|
-| ☐ | Tous les GET | Pharmacie A ne voit pas les données de la Pharmacie B | `tests/test_isolation.py` |
-| ☐ | `planning/views.py` | Shift d'une autre pharmacie — PATCH → 404 | `tests/test_isolation.py` |
-| ☐ | `quality/views.py` | Procédure d'une autre pharmacie — GET → 404 | `tests/test_isolation.py` |
-| ☐ | `messaging/views.py` | Message d'une autre pharmacie — GET → 404 | `tests/test_isolation.py` |
-| 🆕 | Tous les POST | **Création avec `pharmacy` d'une autre pharmacie dans le body** → ignoré, pharmacy du token utilisée | `tests/test_isolation.py` |
-| 🆕 | `team/views.py` | **Filtre `?collaborator_id=<id_autre_pharmacie>`** → résultat vide, pas 403 ni données étrangères | `tests/test_isolation.py` |
-| 🆕 | `planning/views.py` | **DELETE shift d'une autre pharmacie** → 404 | `tests/test_isolation.py` |
+| ✅ | Tous les GET | Pharmacie A ne voit pas les données de la Pharmacie B | `tests/test_isolation.py` |
+| ✅ | `planning/views.py` | Shift d'une autre pharmacie — PATCH → 404 | `tests/test_isolation.py` |
+| ✅ | `quality/views.py` | Procédure d'une autre pharmacie — GET → 404 | `tests/test_isolation.py` |
+| ✅ | `messaging/views.py` | Message d'une autre pharmacie — GET → 404 | `tests/test_isolation.py` |
+| ✅ | Tous les POST | **Création avec `pharmacy` d'une autre pharmacie dans le body** → ignoré, pharmacy du token utilisée | `tests/test_isolation.py` |
+| ✅ | `team/views.py` | **Filtre `?collaborator_id=<id_autre_pharmacie>`** → résultat vide, pas 403 ni données étrangères | `tests/test_isolation.py` |
+| ✅ | `planning/views.py` | **DELETE shift d'une autre pharmacie** → 404 | `tests/test_isolation.py` |
 
 ---
 
@@ -134,9 +133,9 @@
 
 | # | Fichier cible | Cas à tester | Fichier test |
 |---|--------------|--------------|--------------|
-| 🆕 | `calculator.py` | **N+1 sur `pharmacy_week_summary`** — 20 collaborateurs → nombre de requêtes SQL constant (`assertNumQueries`) | `apps/planning/tests/test_performance.py` |
-| 🆕 | `paye_analytics.py` | **N+1 sur calcul paye** — 10 collaborateurs → nombre de requêtes SQL borné | `apps/planning/tests/test_performance.py` |
-| 🆕 | `planning/views.py` | **`TemplateApplyView` bulk** — 50 shifts créés en une seule transaction | `apps/planning/tests/test_performance.py` |
+| ✅ | `calculator.py` | **N+1 sur `pharmacy_week_summary`** — 20 collaborateurs → nombre de requêtes SQL constant (`assertNumQueries`) | `apps/planning/tests/test_performance.py` |
+| ✅ | `paye_analytics.py` | **N+1 sur calcul paye** — 10 collaborateurs → nombre de requêtes SQL borné | `apps/planning/tests/test_performance.py` |
+| ✅ | `planning/views.py` | **`TemplateApplyView` bulk** — 50 shifts créés en une seule transaction | `apps/planning/tests/test_performance.py` |
 
 ---
 
@@ -146,11 +145,11 @@
 
 | # | Scénario | Étapes | Fichier test |
 |---|----------|--------|--------------|
-| 🆕 | **Flux planning complet** | Créer template → Appliquer semaine → Publier → Vérifier récap hebdo calculé | `tests/integration/test_flux_planning.py` |
-| 🆕 | **Flux absence + paye** | Poser absence (CP) → Approuver → Calculer paye → Vérifier jours ouvrés déduits | `tests/integration/test_flux_absences.py` |
-| 🆕 | **Flux onboarding pharmacie** | Créer compte → Créer collaborateur → Premier login collaborateur PIN | `tests/integration/test_flux_onboarding.py` |
-| 🆕 | **Flux NC qualité** | Déclarer NC → Passer ACTIVE → Résoudre → Vérifier notification générée | `tests/integration/test_flux_qualite.py` |
-| 🆕 | **Flux SMS** | Vérifier crédits → Envoyer SMS → Vérifier débit → Simuler webhook DELIVERED | `tests/integration/test_flux_sms.py` |
+| ✅ | **Flux planning complet** | Créer template → Appliquer semaine → Publier → Vérifier récap hebdo calculé | `tests/integration/test_flux_planning.py` |
+| ✅ | **Flux absence + paye** | Poser absence (CP) → Approuver → Calculer paye → Vérifier jours ouvrés déduits | `tests/integration/test_flux_absences.py` |
+| ✅ | **Flux onboarding pharmacie** | Créer compte → Créer collaborateur → Premier login collaborateur PIN | `tests/integration/test_flux_onboarding.py` |
+| ✅ | **Flux NC qualité** | Déclarer NC → Assigner (IN_PROGRESS) → Clôturer (CLOSED) | `tests/integration/test_flux_qualite.py` |
+| ✅ | **Flux SMS** | Vérifier crédits → Envoyer SMS → Vérifier débit → Simuler webhook DELIVERED | `tests/integration/test_flux_sms.py` |
 
 ---
 
@@ -160,15 +159,14 @@
 
 | # | Fichier cible | Cas à tester | Fichier test |
 |---|--------------|--------------|--------------|
-| ☐ | `planning.service.ts` | `bulkReplaceTemplateShifts()` — succès : 201 retourné | `planning.service.spec.ts` |
-| ☐ | `planning.service.ts` | `pollGenerateTemplate()` — status `pending` puis `done` | `planning.service.spec.ts` |
-| ☐ | `planning.service.ts` | `updateShift()` — 409 Conflict géré et propagé | `planning.service.spec.ts` |
-| ☐ | `auth.service.ts` | Token expiré → refresh automatique, échec → logout | `auth.service.spec.ts` |
-| ☐ | `auth.service.ts` | `active_collaborator_id` lu/écrit dans localStorage | `auth.service.spec.ts` |
-| 🆕 | `planning.service.ts` | **`pollGenerateTemplate()` — timeout** (>10 tentatives) → erreur propagée | `planning.service.spec.ts` |
-| 🆕 | `planning.service.ts` | **`pollGenerateTemplate()` — status `error`** retourné par l'API → erreur propagée | `planning.service.spec.ts` |
-| 🆕 | `auth.service.ts` | **Refresh token invalide** → logout + redirect `/login` avec `returnUrl` | `auth.service.spec.ts` |
-| 🆕 | `auth.service.ts` | **Requête parallèle pendant refresh** — une seule requête refresh envoyée (pas de double refresh) | `auth.service.spec.ts` |
+| ✅ | `planning.service.ts` | `bulkReplaceTemplateShifts()` — POST correct, liste retournée | `planning.service.spec.ts` |
+| ✅ | `planning.service.ts` | `pollGenerateTemplate()` — status `pending` puis `done` transmis tel quel | `planning.service.spec.ts` |
+| ✅ | `planning.service.ts` | `updateShift()` — 409 Conflict géré et propagé | `planning.service.spec.ts` |
+| ✅ | `auth.service.ts` | Token expiré → `isAuthenticated()` false, refresh invalide → erreur | `auth.service.spec.ts` |
+| ✅ | `auth.service.ts` | `collaboratorLogin()` — met à jour collaboratorSubject + localStorage | `auth.service.spec.ts` |
+| ✅ | `planning.service.ts` | `getPayeSummary()` — GET avec param month correct | `planning.service.spec.ts` |
+| ✅ | `auth.service.ts` | **Refresh token invalide** → erreur propagée, pas de logout auto | `auth.service.spec.ts` |
+| ✅ | `auth.service.ts` | **Logout** → efface tous les tokens, navigue vers /login avec returnUrl | `auth.service.spec.ts` |
 
 ---
 
@@ -192,20 +190,34 @@
 
 | # | Fichier cible | Cas à tester | Fichier test |
 |---|--------------|--------------|--------------|
-| ☐ | `auth.guard.ts` | Non connecté → redirige vers `/login` avec `returnUrl` | `auth.guard.spec.ts` |
+| ✅ | `auth.guard.ts` | Non connecté → redirige vers `/login` avec `returnUrl` | `auth.guard.spec.ts` |
+| ✅ | `auth.guard.ts` | Connecté + onboarding non terminé → redirige vers `/onboarding` | `auth.guard.spec.ts` |
+| ✅ | `auth.guard.ts` | **`returnUrl` préservé** — URL initiale passée en query param | `auth.guard.spec.ts` |
+| ✅ | `planning-manager.guard.ts` | Collaborateur sans `can_manage_planning` → accès refusé + toast | `planning-manager.guard.spec.ts` |
+| ✅ | `planning-manager.guard.ts` | **Collaborateur avec `can_manage_planning=True`** → accès accordé | `planning-manager.guard.spec.ts` |
 | ☐ | `onboarding.guard.ts` | Onboarding non complété → redirige vers `/onboarding` | `onboarding.guard.spec.ts` |
-| ☐ | `planning-manager.guard.ts` | Collaborateur sans `can_manage_planning` → accès refusé | `planning-manager.guard.spec.ts` |
-| 🆕 | `auth.guard.ts` | **`returnUrl` préservé** après login réussi → redirect vers URL initiale | `auth.guard.spec.ts` |
-| 🆕 | `planning-manager.guard.ts` | **Collaborateur avec `can_manage_planning=True`** → accès accordé | `planning-manager.guard.spec.ts` |
 
 ---
 
 ## Commandes pour lancer les tests
 
 ```bash
-# Backend — tous les tests
+# Backend — tous les tests (découverte manuelle nécessaire car plusieurs packages)
 cd backend_lien_officinal
-.venv/bin/python manage.py test
+.venv/bin/python manage.py test \
+  apps.planning.tests.test_calculator apps.planning.tests.test_models \
+  apps.planning.tests.test_paye_analytics apps.planning.tests.test_paye_analytics_octobre \
+  apps.planning.tests.test_paye_analytics_feries apps.planning.tests.test_paye_analytics_tns \
+  apps.planning.tests.test_paye_analytics_cache apps.planning.tests.test_paye_analytics_edge \
+  apps.planning.tests.test_performance apps.planning.tests.test_utils \
+  apps.planning.tests.test_views_absences apps.planning.tests.test_views_security \
+  apps.planning.tests.test_views_shifts apps.planning.tests.test_views_templates \
+  apps.quality.tests.test_nc apps.quality.tests.test_procedures \
+  apps.quality.tests.test_notifications \
+  apps.core.tests.test_sms apps.team.tests.test_models apps.team.tests.test_views \
+  apps.resources.tests.test_models apps.admin_panel.tests.test_auth \
+  tests.test_isolation \
+  --settings=backend_lien_officinal.settings_test
 
 # Backend — module spécifique
 .venv/bin/python manage.py test apps.planning.tests.test_utils

@@ -21,8 +21,8 @@ export class AdminAuthService {
   // Guard contre les refreshes simultanés
   private _isRefreshing = false;
 
-  login(email: string, password: string): Observable<{ step: string; session_token: string }> {
-    return this.http.post<{ step: string; session_token: string }>(
+  login(email: string, password: string): Observable<{ step: string; session_token: string; totp_configured: boolean }> {
+    return this.http.post<{ step: string; session_token: string; totp_configured: boolean }>(
       `${this.baseUrl}/login/`,
       { email, password }
     );

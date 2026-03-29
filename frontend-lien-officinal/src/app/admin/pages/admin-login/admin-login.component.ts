@@ -26,6 +26,7 @@ export class AdminLoginComponent {
   // Étape 2
   totpDigits = ['', '', '', '', '', ''];
   sessionToken = '';
+  totpConfigured = true;
 
   step: Step = 'credentials';
   isLoading = false;
@@ -41,10 +42,17 @@ export class AdminLoginComponent {
     this.adminAuthService.login(this.email, this.password).subscribe({
       next: (res) => {
         this.sessionToken = res.session_token;
+        this.totpConfigured = res.totp_configured;
         this.isLoading = false;
-        this.step = 'totp';
-        // Focus automatique sur le premier input TOTP après rendu
-        setTimeout(() => this.totpInputs?.first?.nativeElement?.focus(), 50);
+
+        if (!res.totp_configured) {
+          // TOTP pas encore configuré : on soumet directement avec code vide
+          this.step = 'totp';
+          setTimeout(() => this.submitTotp(), 50);
+        } else {
+          this.step = 'totp';
+          setTimeout(() => this.totpInputs?.first?.nativeElement?.focus(), 50);
+        }
       },
       error: (err: HttpErrorResponse) => {
         this.isLoading = false;

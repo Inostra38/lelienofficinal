@@ -17,8 +17,8 @@ export const authInterceptor: HttpInterceptorFn = (req, next) => {
 
   return next(authReq).pipe(
     catchError((err: HttpErrorResponse) => {
-      // Sur 401, tenter un refresh silencieux (sauf si la requête échouée est elle-même un refresh ou un login)
-      if (err.status === 401 && !req.url.includes('/token/')) {
+      // Sur 401, tenter un refresh silencieux (sauf refresh/login pharmacie ou tout endpoint admin)
+      if (err.status === 401 && !req.url.includes('/token/') && !req.url.includes('/api/admin/')) {
         return authService.refreshAccessToken().pipe(
           switchMap(newToken => {
             const retryReq = req.clone({ setHeaders: { Authorization: `Bearer ${newToken}` } });
@@ -30,7 +30,7 @@ export const authInterceptor: HttpInterceptorFn = (req, next) => {
           })
         );
       }
-      if (err.status === 401) {
+      if (err.status === 401 && !req.url.includes('/api/admin/')) {
         authService.logout(router.url);
       }
       if (err.status === 403 && req.url.includes('/api/quality/')) {

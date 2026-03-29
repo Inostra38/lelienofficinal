@@ -119,7 +119,11 @@ class AdminLoginView(APIView):
             return Response(status=status.HTTP_401_UNAUTHORIZED)
 
         session_token = _issue_session_token(admin.pk)
-        return Response({'step': 'totp_required', 'session_token': session_token})
+        return Response({
+            'step': 'totp_required',
+            'session_token': session_token,
+            'totp_configured': bool(admin.totp_secret),
+        })
 
 
 class AdminTotpVerifyView(APIView):

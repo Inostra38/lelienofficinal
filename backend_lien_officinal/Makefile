@@ -4,10 +4,24 @@ CELERY  := .venv/bin/celery
 
 .PHONY: help run test lint migrate mm shell celery-worker celery-beat celery-all seed-sms
 
+TESTS := \
+  apps.planning.tests.test_calculator apps.planning.tests.test_models \
+  apps.planning.tests.test_paye_analytics apps.planning.tests.test_paye_analytics_octobre \
+  apps.planning.tests.test_paye_analytics_feries apps.planning.tests.test_paye_analytics_tns \
+  apps.planning.tests.test_paye_analytics_cache apps.planning.tests.test_paye_analytics_edge \
+  apps.planning.tests.test_performance apps.planning.tests.test_utils \
+  apps.planning.tests.test_views_absences apps.planning.tests.test_views_security \
+  apps.planning.tests.test_views_shifts apps.planning.tests.test_views_templates \
+  apps.quality.tests.test_nc apps.quality.tests.test_procedures \
+  apps.quality.tests.test_notifications \
+  apps.core.tests.test_sms apps.team.tests.test_models apps.team.tests.test_views \
+  apps.resources.tests.test_models apps.admin_panel.tests.test_auth \
+  tests.test_isolation
+
 help:
 	@echo ""
 	@echo "  make run           Lancer le serveur Django (dev)"
-	@echo "  make test          Lancer les tests Django"
+	@echo "  make test          Lancer tous les tests Django"
 	@echo "  make lint          Vérifier le style (flake8)"
 	@echo "  make migrate       Appliquer les migrations"
 	@echo "  make mm            makemigrations"
@@ -21,7 +35,7 @@ run:
 	$(PYTHON) manage.py runserver
 
 test:
-	DB_NAME= $(PYTHON) manage.py test apps --verbosity=2
+	$(PYTHON) manage.py test $(TESTS) --settings=backend_lien_officinal.settings_test
 
 lint:
 	$(PYTHON) -m flake8 apps/ --max-line-length=120 --exclude=migrations

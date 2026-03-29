@@ -293,3 +293,50 @@ class TestWeekSummaryMetadata(TestCase):
         result_from_wednesday = week_summary(self.collab, date(2026, 3, 11))
         result_from_monday = week_summary(self.collab, MONDAY)
         self.assertEqual(result_from_wednesday['days'], result_from_monday['days'])
+
+
+# ── Semaine avec jour férié ET absence ────────────────────────────────────────
+
+class TestWeekSummaryHolidayAbsence(TestCase):
+    """
+    Semaine du lundi 27 avril 2026, qui contient le vendredi 1er mai (férié).
+    Shift sur le 1er mai + absence CP sur le même jour.
+    → absence_type = 'cp' sur ce jour, worked_h = 8h (le calculator ne déduit pas les fériés).
+    """
+
+    MONDAY_WEEK = date(2026, 4, 27)   # Lun 27 avril
+    MAI_1 = date(2026, 5, 1)          # Ven 1er mai (férié)
+
+    def setUp(self):
+        self.pharmacy = _make_pharmacy()
+        self.collab = _make_collab(self.pharmacy, weekly_hours=35.0)
+        # Shift 9h-17h sur le 1er mai
+        _make_shift(self.collab, self.MAI_1, h_start=9, h_end=17)
+        # Absence CP sur le 1er mai (journée entière)
+        AbsenceRequest.objects.create(
+            collaborator=self.collab,
+            start_date=self.MAI_1,
+            end_date=self.MAI_1,
+            type=AbsenceRequest.AbsenceType.CP,
+            status=AbsenceRequest.Status.APPROVED,
+            start_period='morning',
+            end_period='evening',
+        )
+
+    def _day_mai_1(self):
+        result = week_summary(self.collab, self.MONDAY_WEEK)
+        return next(d for d in result['days'] if d['date'] == '2026-05-01')
+
+    def test_absence_type_cp_sur_ferie(self):
+        """Le 1er mai avec absence CP → absence_type = 'cp'."""
+        self.assertEqual(self._day_mai_1()['absence_type'], AbsenceRequest.AbsenceType.CP)
+
+    def test_worked_h_shift_compte_malgre_ferie(self):
+        """Le shift du 1er mai est compté (calculator sans logique jours fériés) → worked_h = 8."""
+        self.assertEqual(self._day_mai_1()['worked_h'], 8.0)
+
+    def test_absence_dans_liste_absences(self):
+        """L'absence CP du 1er mai apparaît dans result['absences']."""
+        result = week_summary(self.collab, self.MONDAY_WEEK)
+        self.assertEqual(len(result['absences']), 1)
+        self.assertEqual(result['absences'][0]['type'], AbsenceRequest.AbsenceType.CP)

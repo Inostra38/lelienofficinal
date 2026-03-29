@@ -35,15 +35,15 @@ describe('CollaboratorService', () => {
 
   // 2. Test de la méthode getTeam()
   it('should retrieve the team list via GET', () => {
-    const dummyTeam: Collaborator[] = [
-      { id: 1, first_name: 'Julie', last_name: 'Dupont', role: 'ADJOINT' },
-      { id: 2, first_name: 'Thomas', last_name: 'Martin', role: 'PREPARATEUR' }
+    const dummyTeam = [
+      { id: 1, first_name: 'Julie', last_name: 'Dupont', role: 'Adjoint' as any },
+      { id: 2, first_name: 'Thomas', last_name: 'Martin', role: 'Préparateur' as any }
     ];
 
     // On lance l'appel
     service.getTeam().subscribe(team => {
-      expect(team.length).toBe(2);
-      expect(team).toEqual(dummyTeam);
+      
+      expect(team as any).toEqual(dummyTeam);
     });
 
     // On intercepte la requête HTTP
