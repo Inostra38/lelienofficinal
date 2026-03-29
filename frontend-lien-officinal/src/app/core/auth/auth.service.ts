@@ -1,8 +1,8 @@
 import { environment } from '../../../environments/environment';
 import { Injectable, inject } from '@angular/core';
-import { HttpClient, HttpHeaders } from '@angular/common/http';
+import { HttpClient } from '@angular/common/http';
 import { Router } from '@angular/router';
-import { BehaviorSubject, Observable, throwError } from 'rxjs';
+import { BehaviorSubject, Observable, throwError, of } from 'rxjs';
 import { tap, switchMap, map, filter, take, catchError } from 'rxjs/operators';
 
 @Injectable({
@@ -12,35 +12,29 @@ export class AuthService {
   private http = inject(HttpClient);
   private router = inject(Router);
   private baseUrl = environment.apiUrl + '/api';
-  private tokenKey = 'access_token';
-  private refreshKey = 'refresh_token';
-  private pharmacyTokenKey = 'pharmacy_access_token';
-  private pharmacyRefreshKey = 'pharmacy_refresh_token';
+
   private onboardingKey = 'onboarding_completed';
   private collaboratorKey = 'active_collaborator_id';
 
-  // Initialisation depuis le JWT uniquement — pas de fallback localStorage (évite les sessions fantômes)
-  private collaboratorSubject = new BehaviorSubject<number | null>(
-    this._readCollaboratorIdFromToken()
-  );
+  // ── Tokens en mémoire (non persistants — récupérés via cookie refresh au reload) ──
+  private _accessToken: string | null = null;
+  private _pharmacyAccessToken: string | null = null;  // sauvegardé pendant session collab
+
+  private collaboratorSubject = new BehaviorSubject<number | null>(null);
   readonly collaborator$ = this.collaboratorSubject.asObservable();
 
-  // Guard contre les refreshes simultanés (évite le blacklisting du refresh token)
+  // Guard contre les refreshes simultanés
   private isRefreshing = false;
   private refreshSubject = new BehaviorSubject<string | null>(null);
 
   login(credentials: any) {
-    return this.http.post<any>(`${this.baseUrl}/token/`, credentials).pipe(
+    return this.http.post<any>(`${this.baseUrl}/token/`, credentials, { withCredentials: true }).pipe(
       tap(response => {
-        localStorage.setItem(this.tokenKey, response.access);
-        localStorage.setItem(this.refreshKey, response.refresh);
-        localStorage.removeItem(this.pharmacyTokenKey);
-        localStorage.removeItem(this.pharmacyRefreshKey);
+        this._accessToken = response.access;
         this.collaboratorSubject.next(null);
       }),
       switchMap(() => {
-        const headers = new HttpHeaders({ Authorization: `Bearer ${this.getToken()}` });
-        return this.http.get<any>(`${this.baseUrl}/pharmacy/me/`, { headers });
+        return this.http.get<any>(`${this.baseUrl}/pharmacy/me/`);
       }),
       tap(profile => {
         localStorage.setItem(this.onboardingKey, profile.onboarding_completed ? 'true' : 'false');
@@ -49,19 +43,19 @@ export class AuthService {
   }
 
   register(data: { email: string; password: string; password_confirm: string }) {
-    return this.http.post<any>(`${this.baseUrl}/auth/register/`, data).pipe(
+    return this.http.post<any>(`${this.baseUrl}/auth/register/`, data, { withCredentials: true }).pipe(
       tap(response => {
-        localStorage.setItem(this.tokenKey, response.access);
+        this._accessToken = response.access;
         localStorage.setItem(this.onboardingKey, 'false');
       })
     );
   }
 
   logout(returnUrl?: string) {
-    localStorage.removeItem(this.tokenKey);
-    localStorage.removeItem(this.refreshKey);
-    localStorage.removeItem(this.pharmacyTokenKey);
-    localStorage.removeItem(this.pharmacyRefreshKey);
+    // Notifier le backend pour blacklister le refresh token et effacer le cookie
+    this.http.post(`${this.baseUrl}/auth/logout/`, {}, { withCredentials: true }).subscribe();
+    this._accessToken = null;
+    this._pharmacyAccessToken = null;
     localStorage.removeItem(this.onboardingKey);
     localStorage.removeItem(this.collaboratorKey);
     this.collaboratorSubject.next(null);
@@ -70,51 +64,28 @@ export class AuthService {
 
   // ── Session collaborateur ─────────────────────────────────────────────────
 
-  /**
-   * Échange un PIN contre un JWT collaborateur.
-   * Sauvegarde le JWT pharmacie puis remplace le token actif.
-   */
   collaboratorLogin(collaboratorId: number, pin: string) {
     return this.http.post<any>(`${this.baseUrl}/team/login/`, {
       collaborator_id: collaboratorId,
       pin_code: pin
     }).pipe(
       tap(response => {
-        // Sauvegarder le token pharmacie si ce n'est pas déjà un token collaborateur
         if (this.getAuthType() !== 'collaborator') {
-          const currentToken = this.getToken();
-          if (currentToken) {
-            localStorage.setItem(this.pharmacyTokenKey, currentToken);
-          }
-          const currentRefresh = this.getRefreshToken();
-          if (currentRefresh) {
-            localStorage.setItem(this.pharmacyRefreshKey, currentRefresh);
-          }
+          this._pharmacyAccessToken = this._accessToken;
         }
-        // Remplacer le token actif par le token collaborateur
-        localStorage.setItem(this.tokenKey, response.access);
-        if (response.refresh) {
-          localStorage.setItem(this.refreshKey, response.refresh);
-        }
+        this._accessToken = response.access;
         this.collaboratorSubject.next(collaboratorId);
       })
     );
   }
 
   clearCurrentCollaborator(): void {
-    // Restaurer le token pharmacie
-    const pharmacyToken = localStorage.getItem(this.pharmacyTokenKey);
-    const pharmacyRefresh = localStorage.getItem(this.pharmacyRefreshKey);
-    if (pharmacyToken) {
-      localStorage.setItem(this.tokenKey, pharmacyToken);
-      localStorage.removeItem(this.pharmacyTokenKey);
-    }
-    if (pharmacyRefresh) {
-      localStorage.setItem(this.refreshKey, pharmacyRefresh);
-      localStorage.removeItem(this.pharmacyRefreshKey);
-    }
+    this._accessToken = this._pharmacyAccessToken;
+    this._pharmacyAccessToken = null;
     localStorage.removeItem(this.collaboratorKey);
     this.collaboratorSubject.next(null);
+    // Notifier le backend pour restaurer session_info → pharmacy_account
+    this.http.post(`${this.baseUrl}/auth/collab-logout/`, {}, { withCredentials: true }).subscribe();
   }
 
   /** @deprecated Utiliser collaboratorLogin() à la place */
@@ -124,18 +95,15 @@ export class AuthService {
   }
 
   getCurrentCollaboratorId(): number | null {
-    // Lire depuis le JWT en priorité
     const fromToken = this._readCollaboratorIdFromToken();
     if (fromToken !== null) return fromToken;
-    // Fallback localStorage (rétrocompatibilité)
-    return this._readCollaboratorIdFromStorage();
+    // Fallback : session_info cookie (après reload)
+    return this._getSessionInfo()?.['collaborator_id'] ?? null;
   }
 
   // ── Refresh token ─────────────────────────────────────────────────────────
 
   refreshAccessToken(): Observable<string> {
-    // Si un refresh est déjà en cours, on attend son résultat plutôt que d'en lancer un second
-    // (évite le blacklisting du refresh token avec ROTATE_REFRESH_TOKENS=True)
     if (this.isRefreshing) {
       return this.refreshSubject.pipe(
         filter((token): token is string => token !== null),
@@ -143,20 +111,17 @@ export class AuthService {
       );
     }
 
-    const refreshToken = this.getRefreshToken();
-    if (!refreshToken) {
-      return throwError(() => new Error('No refresh token'));
-    }
-
     this.isRefreshing = true;
     this.refreshSubject.next(null);
 
-    return this.http.post<any>(`${this.baseUrl}/token/refresh/`, { refresh: refreshToken }).pipe(
+    // Aucun body : le refresh token est dans le cookie HttpOnly
+    return this.http.post<any>(
+      `${this.baseUrl}/token/refresh/`,
+      {},
+      { withCredentials: true }
+    ).pipe(
       tap(response => {
-        localStorage.setItem(this.tokenKey, response.access);
-        if (response.refresh) {
-          localStorage.setItem(this.refreshKey, response.refresh);
-        }
+        this._accessToken = response.access;
         this.isRefreshing = false;
         this.refreshSubject.next(response.access);
       }),
@@ -170,67 +135,46 @@ export class AuthService {
   }
 
   getRefreshToken(): string | null {
-    return localStorage.getItem(this.refreshKey);
+    return null;  // Stocké en cookie HttpOnly — non accessible par JS
   }
 
   // ── Auth state ────────────────────────────────────────────────────────────
 
-  /**
-   * Vrai si l'utilisateur actuel peut gérer la qualité.
-   * - Accès direct pharmacie (titulaire) → toujours vrai
-   * - Collaborateur → lit le claim `can_manage_quality` du JWT
-   */
-  canManageQuality(): boolean {
-    return this._getClaim('can_manage_quality');
-  }
-
-  canManagePlanning(): boolean {
-    return this._getClaim('can_manage_planning');
-  }
-
-  canManageAccount(): boolean {
-    return this._getClaim('can_manage_account');
-  }
-
-  canManageTeam(): boolean {
-    return this._getClaim('can_manage_team');
-  }
-
-  canAssignTask(): boolean {
-    return this._getClaim('can_assign_task');
-  }
+  canManageQuality(): boolean   { return this._getClaim('can_manage_quality'); }
+  canManagePlanning(): boolean  { return this._getClaim('can_manage_planning'); }
+  canManageAccount(): boolean   { return this._getClaim('can_manage_account'); }
+  canManageTeam(): boolean      { return this._getClaim('can_manage_team'); }
+  canAssignTask(): boolean      { return this._getClaim('can_assign_task'); }
 
   private _getClaim(claim: string): boolean {
-    const token = this.getToken();
-    if (!token) return false;
-    try {
-      const payload = JSON.parse(atob(token.split('.')[1]));
-      return payload[claim] === true;
-    } catch {
-      return false;
+    if (this._accessToken) {
+      try {
+        const payload = JSON.parse(atob(this._accessToken.split('.')[1]));
+        return payload[claim] === true;
+      } catch {}
     }
+    return this._getSessionInfo()?.[claim] === true;
   }
 
   getAuthType(): 'pharmacy_account' | 'collaborator' | null {
-    const token = this.getToken();
-    if (!token) return null;
-    try {
-      const payload = JSON.parse(atob(token.split('.')[1]));
-      return payload.auth_type ?? 'pharmacy_account';
-    } catch {
-      return null;
+    if (this._accessToken) {
+      try {
+        const payload = JSON.parse(atob(this._accessToken.split('.')[1]));
+        return payload.auth_type ?? 'pharmacy_account';
+      } catch {}
     }
+    return this._getSessionInfo()?.['auth_type'] ?? null;
   }
 
   isAuthenticated(): boolean {
-    const token = localStorage.getItem(this.tokenKey);
-    if (!token) return false;
-    try {
-      const payload = JSON.parse(atob(token.split('.')[1]));
-      return payload.exp * 1000 > Date.now();
-    } catch {
-      return false;
+    if (this._accessToken) {
+      try {
+        const payload = JSON.parse(atob(this._accessToken.split('.')[1]));
+        return payload.exp * 1000 > Date.now();
+      } catch { return false; }
     }
+    // Fallback : session_info cookie (page reload — le refresh se déclenchera sur le premier appel API)
+    return !!this._getSessionInfo()?.['auth_type'];
   }
 
   isOnboardingCompleted(): boolean {
@@ -242,16 +186,15 @@ export class AuthService {
   }
 
   getToken(): string | null {
-    return localStorage.getItem(this.tokenKey);
+    return this._accessToken;
   }
 
   // ── Helpers privés ────────────────────────────────────────────────────────
 
   private _readCollaboratorIdFromToken(): number | null {
-    const token = localStorage.getItem(this.tokenKey);
-    if (!token) return null;
+    if (!this._accessToken) return null;
     try {
-      const payload = JSON.parse(atob(token.split('.')[1]));
+      const payload = JSON.parse(atob(this._accessToken.split('.')[1]));
       if (payload.auth_type === 'collaborator' && payload.collaborator_id) {
         return Number(payload.collaborator_id);
       }
@@ -259,8 +202,13 @@ export class AuthService {
     return null;
   }
 
-  private _readCollaboratorIdFromStorage(): number | null {
-    const id = localStorage.getItem(this.collaboratorKey);
-    return id ? Number(id) : null;
+  private _getSessionInfo(): Record<string, any> | null {
+    try {
+      const match = document.cookie.split('; ').find(r => r.startsWith('session_info='));
+      if (!match) return null;
+      return JSON.parse(decodeURIComponent(match.slice('session_info='.length)));
+    } catch {
+      return null;
+    }
   }
 }

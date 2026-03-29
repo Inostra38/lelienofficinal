@@ -36,7 +36,9 @@ class TestRegisterView(TestCase):
         }, content_type='application/json')
         self.assertEqual(resp.status_code, 201)
         self.assertIn('access', resp.data)
-        self.assertIn('refresh', resp.data)
+        # Le refresh token est désormais dans un cookie HttpOnly
+        self.assertIn('refresh_token', resp.cookies)
+        self.assertTrue(resp.cookies['refresh_token']['httponly'])
 
     def test_register_email_existant_400(self):
         _make_pharmacy(email='existant@test.com')
@@ -133,30 +135,29 @@ class TestJWTSecurity(TestCase):
         self.assertIn(resp.status_code, [401, 403])
 
     def test_token_refresh_valide(self):
-        """Un refresh token valide génère un nouvel access token."""
+        """Un refresh token valide (via cookie) génère un nouvel access token."""
         refresh = RefreshToken.for_user(self.pharmacy)
-        resp = self.client.post('/api/token/refresh/', {
-            'refresh': str(refresh),
-        }, content_type='application/json')
+        self.client.cookies['refresh_token'] = str(refresh)
+        resp = self.client.post('/api/token/refresh/', content_type='application/json')
         self.assertEqual(resp.status_code, 200)
         self.assertIn('access', resp.data)
 
     def test_token_refresh_invalide_401(self):
         """Un refresh token invalide/forgé retourne 401."""
-        resp = self.client.post('/api/token/refresh/', {
-            'refresh': 'token.invalide.forge',
-        }, content_type='application/json')
+        self.client.cookies['refresh_token'] = 'token.invalide.forge'
+        resp = self.client.post('/api/token/refresh/', content_type='application/json')
         self.assertEqual(resp.status_code, 401)
 
     def test_login_succes_retourne_tokens(self):
-        """POST /api/token/ avec credentials valides retourne access + refresh."""
+        """POST /api/token/ avec credentials valides retourne access dans le body et refresh en cookie."""
         resp = self.client.post('/api/token/', {
             'email': self.pharmacy.email,
             'password': 'secret123',
         }, content_type='application/json')
         self.assertEqual(resp.status_code, 200)
         self.assertIn('access', resp.data)
-        self.assertIn('refresh', resp.data)
+        self.assertNotIn('refresh', resp.data)
+        self.assertIn('refresh_token', resp.cookies)
 
     def test_login_mauvais_mdp_401(self):
         resp = self.client.post('/api/token/', {

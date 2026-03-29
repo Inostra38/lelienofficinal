@@ -234,10 +234,18 @@ class CollaboratorViewSet(viewsets.ModelViewSet):
             success=True,
         )
 
-        return Response({
+        from apps.core.views import _build_session_info, _cookie_kw, _refresh_max_age
+        collab_response = Response({
             'access': str(token),
             'collaborator_id': collaborator.id,
         })
+        collab_response.set_cookie(
+            'session_info',
+            _build_session_info('collaborator', collaborator=collaborator),
+            max_age=_refresh_max_age(),
+            **_cookie_kw(http_only=False),
+        )
+        return collab_response
 
     @action(detail=False, methods=['post'], url_path='verify-pin')
     def verify_pin(self, request):

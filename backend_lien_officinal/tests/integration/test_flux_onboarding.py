@@ -43,6 +43,7 @@ class TestFluxOnboardingComplet(TestCase):
         )
         self.assertEqual(resp_register.status_code, 201)
         self.assertIn('access', resp_register.data)
+        self.assertIn('refresh_token', resp_register.cookies)
 
         # Récupérer la pharmacie créée
         pharmacy = Pharmacy.objects.get(email='onboarding_flux@test.com')
@@ -79,6 +80,7 @@ class TestFluxOnboardingComplet(TestCase):
         )
         self.assertEqual(resp_login.status_code, 200)
         self.assertIn('access', resp_login.data)
+        self.assertIn('session_info', resp_login.cookies)
         self.assertEqual(resp_login.data['collaborator_id'], collab_id)
 
     def test_register_email_deja_utilise(self):

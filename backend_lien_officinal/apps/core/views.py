@@ -1,5 +1,7 @@
+import json
 import logging
 
+from django.conf import settings as _settings
 from rest_framework import viewsets, status
 from rest_framework.decorators import action
 from rest_framework.response import Response
@@ -8,6 +10,8 @@ from rest_framework.throttling import AnonRateThrottle, UserRateThrottle
 from rest_framework.views import APIView
 from rest_framework_simplejwt.tokens import RefreshToken
 from rest_framework_simplejwt.exceptions import TokenError
+from rest_framework_simplejwt.views import TokenObtainPairView
+from .serializers import PharmacyTokenObtainPairSerializer
 
 logger = logging.getLogger(__name__)
 from django.contrib.auth.password_validation import validate_password
@@ -69,6 +73,50 @@ def _check_permission(collaborator, permission_name):
     return None
 
 
+# ── Helpers cookies JWT ──────────────────────────────────────────────────────
+
+def _cookie_kw(http_only=True):
+    return dict(httponly=http_only, samesite='Strict', secure=not _settings.DEBUG, path='/')
+
+def _refresh_max_age():
+    return int(_settings.SIMPLE_JWT['REFRESH_TOKEN_LIFETIME'].total_seconds())
+
+def _build_session_info(auth_type='pharmacy_account', collaborator=None):
+    data = {
+        'auth_type': auth_type,
+        'collaborator_id': None,
+        'can_manage_account': False,
+        'can_manage_team': False,
+        'can_manage_planning': False,
+        'can_manage_quality': False,
+        'can_manage_procedures': False,
+        'can_publish_procedures': False,
+        'can_close_nonconformities': False,
+        'can_assign_task': False,
+    }
+    if collaborator:
+        data['collaborator_id'] = collaborator.id
+        for field in [
+            'can_manage_account', 'can_manage_team', 'can_manage_planning',
+            'can_manage_quality', 'can_manage_procedures', 'can_publish_procedures',
+            'can_close_nonconformities', 'can_assign_task',
+        ]:
+            data[field] = getattr(collaborator, field, False)
+    return json.dumps(data, separators=(',', ':'))
+
+def _set_refresh_cookie(response, refresh_str, clear_session=False):
+    response.set_cookie('refresh_token', refresh_str, max_age=_refresh_max_age(), **_cookie_kw())
+    if not clear_session:
+        response.set_cookie(
+            'session_info', _build_session_info(),
+            max_age=_refresh_max_age(), **_cookie_kw(http_only=False),
+        )
+
+def _clear_auth_cookies(response):
+    for name in ('refresh_token', 'session_info'):
+        response.delete_cookie(name, path='/')
+
+
 class RegisterRateThrottle(AnonRateThrottle):
     scope = 'register'
 
@@ -82,11 +130,26 @@ class RegisterView(APIView):
         if serializer.is_valid():
             pharmacy = serializer.save()
             refresh = RefreshToken.for_user(pharmacy)
-            return Response({
+            response = Response({
                 'access': str(refresh.access_token),
-                'refresh': str(refresh),
+                'onboarding_completed': False,
             }, status=status.HTTP_201_CREATED)
+            _set_refresh_cookie(response, str(refresh))
+            return response
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+
+class CookiePharmacyLoginView(TokenObtainPairView):
+    """POST /api/token/ — Authentification pharmacie avec cookie refresh HttpOnly."""
+    serializer_class = PharmacyTokenObtainPairSerializer
+
+    def post(self, request, *args, **kwargs):
+        response = super().post(request, *args, **kwargs)
+        if response.status_code == 200:
+            refresh_str = response.data.pop('refresh', None)
+            if refresh_str:
+                _set_refresh_cookie(response, refresh_str)
+        return response
 
 
 class ProfileSetupView(APIView):
@@ -107,6 +170,63 @@ class CompleteOnboardingView(APIView):
         request.user.onboarding_completed = True
         request.user.save(update_fields=['onboarding_completed'])
         return Response({'onboarding_completed': True})
+
+
+class CookieTokenRefreshView(APIView):
+    """POST /api/token/refresh/ — Refresh via cookie HttpOnly."""
+    permission_classes = [AllowAny]
+    authentication_classes = []
+
+    def post(self, request):
+        raw = request.COOKIES.get('refresh_token', '')
+        if not raw:
+            return Response({'detail': 'Refresh token manquant.'}, status=status.HTTP_401_UNAUTHORIZED)
+        try:
+            token = RefreshToken(raw)
+            new_access = str(token.access_token)
+        except TokenError:
+            return Response({'detail': 'Token invalide ou expiré.'}, status=status.HTTP_401_UNAUTHORIZED)
+
+        response = Response({'access': new_access})
+        # Mettre à jour session_info → toujours pharmacy_account après refresh
+        response.set_cookie(
+            'session_info', _build_session_info('pharmacy_account'),
+            max_age=_refresh_max_age(), **_cookie_kw(http_only=False),
+        )
+        if _settings.SIMPLE_JWT.get('ROTATE_REFRESH_TOKENS'):
+            response.set_cookie('refresh_token', str(token), max_age=_refresh_max_age(), **_cookie_kw())
+        return response
+
+
+class LogoutView(APIView):
+    """POST /api/auth/logout/ — Invalide le refresh token et efface les cookies."""
+    permission_classes = [AllowAny]
+    authentication_classes = []
+
+    def post(self, request):
+        raw = request.COOKIES.get('refresh_token', '')
+        if raw:
+            try:
+                RefreshToken(raw).blacklist()
+            except TokenError:
+                pass
+        response = Response(status=status.HTTP_204_NO_CONTENT)
+        _clear_auth_cookies(response)
+        return response
+
+
+class CollabLogoutView(APIView):
+    """POST /api/auth/collab-logout/ — Fin de session collaborateur, restaure session pharmacie."""
+    permission_classes = [AllowAny]
+    authentication_classes = []
+
+    def post(self, request):
+        response = Response(status=status.HTTP_204_NO_CONTENT)
+        response.set_cookie(
+            'session_info', _build_session_info('pharmacy_account'),
+            max_age=_refresh_max_age(), **_cookie_kw(http_only=False),
+        )
+        return response
 
 
 class PharmacyViewSet(viewsets.ModelViewSet):
@@ -205,7 +325,7 @@ class AccountChangePasswordView(APIView):
         old_password = request.data.get('old_password', '')
         new_password = request.data.get('new_password', '')
         new_password_confirm = request.data.get('new_password_confirm', '')
-        refresh_token_str = request.data.get('refresh_token', '')
+        refresh_token_str = request.COOKIES.get('refresh_token', '') or request.data.get('refresh_token', '')
 
         # Vérifier l'ancien mot de passe
         if not request.user.check_password(old_password):

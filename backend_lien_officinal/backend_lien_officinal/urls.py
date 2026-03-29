@@ -3,14 +3,8 @@ from django.contrib import admin
 from django.urls import path, include
 from django.conf import settings
 from django.conf.urls.static import static
-from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView
-from apps.core.serializers import PharmacyTokenObtainPairSerializer
-from apps.core.views import health_check
+from apps.core.views import health_check, CookiePharmacyLoginView, CookieTokenRefreshView
 from apps.core.views_media import serve_protected_media
-
-
-class PharmacyTokenObtainPairView(TokenObtainPairView):
-    serializer_class = PharmacyTokenObtainPairSerializer
 
 
 urlpatterns = [
@@ -34,8 +28,8 @@ urlpatterns = [
     path('api/admin/', include('apps.admin_panel.urls')),
 
     # Auth
-    path('api/token/', PharmacyTokenObtainPairView.as_view(), name='token_obtain_pair'),
-    path('api/token/refresh/', TokenRefreshView.as_view(), name='token_refresh'),
+    path('api/token/', CookiePharmacyLoginView.as_view(), name='token_obtain_pair'),
+    path('api/token/refresh/', CookieTokenRefreshView.as_view(), name='token_refresh'),
 ]
 
 # En développement, NE PAS ajouter static() pour /media/ :
