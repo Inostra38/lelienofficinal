@@ -175,6 +175,17 @@ class ShiftDetailView(APIView):
         if not shift:
             return Response({'detail': 'Shift introuvable.'}, status=status.HTTP_404_NOT_FOUND)
 
+        # Détection de collision : si le client envoie updated_at et qu'il ne correspond plus
+        client_updated_at = request.data.get('updated_at')
+        if client_updated_at:
+            from django.utils.dateparse import parse_datetime
+            client_dt = parse_datetime(client_updated_at)
+            if client_dt and abs((shift.updated_at - client_dt).total_seconds()) > 1:
+                return Response(
+                    {'detail': 'Ce shift a été modifié par quelqu\'un d\'autre. Rechargez le planning.'},
+                    status=status.HTTP_409_CONFLICT,
+                )
+
         serializer = ShiftUpdateSerializer(shift, data=request.data, partial=True)
         if serializer.is_valid():
             serializer.save()

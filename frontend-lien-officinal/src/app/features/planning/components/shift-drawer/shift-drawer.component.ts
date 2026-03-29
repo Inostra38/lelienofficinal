@@ -182,12 +182,24 @@ export class ShiftDrawerComponent implements OnChanges {
       : { is_absent: false, absence_type: null };
 
     const obs = this.shift
-      ? this.planningService.updateShift(this.shift.id, { start_datetime: startIso, end_datetime: endIso, is_published: this.isPublished, note: this.note, ...formationExtra })
+      ? this.planningService.updateShift(this.shift.id, {
+          start_datetime: startIso, end_datetime: endIso,
+          is_published: this.isPublished, note: this.note,
+          updated_at: this.shift.updated_at,
+          ...formationExtra,
+        })
       : this.planningService.createShift({ collaborator_id: this.collaboratorId!, start_datetime: startIso, end_datetime: endIso, is_published: this.isPublished, note: this.note } as any);
 
     obs.subscribe({
       next: (s) => { this.saving = false; this.dirty = false; this.saved.emit(s); this.closed.emit(); },
-      error: (err) => { this.saving = false; this.toastService.error(err?.error?.detail ?? 'Erreur lors de la sauvegarde.'); },
+      error: (err) => {
+        this.saving = false;
+        if (err?.status === 409) {
+          this.toastService.error(err?.error?.detail ?? 'Conflit : shift modifié par un autre utilisateur.');
+        } else {
+          this.toastService.error(err?.error?.detail ?? 'Erreur lors de la sauvegarde.');
+        }
+      },
     });
   }
 
