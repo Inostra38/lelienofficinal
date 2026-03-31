@@ -5,6 +5,26 @@ from celery import shared_task
 logger = logging.getLogger(__name__)
 
 
+@shared_task(bind=True, max_retries=3, default_retry_delay=60)
+def send_verification_email_task(self, email: str, token: str):
+    """Envoie l'email de vérification de compte via Mailgun (async, retry x3)."""
+    from apps.core.email import send_verification_email
+    try:
+        send_verification_email(email, token)
+    except Exception as exc:
+        raise self.retry(exc=exc)
+
+
+@shared_task(bind=True, max_retries=3, default_retry_delay=60)
+def send_email_change_task(self, old_email: str, new_email: str, token: str):
+    """Envoie l'email de confirmation de changement d'adresse (async, retry x3)."""
+    from apps.core.email import send_email_change_confirmation
+    try:
+        send_email_change_confirmation(old_email, new_email, token)
+    except Exception as exc:
+        raise self.retry(exc=exc)
+
+
 @shared_task(bind=True, max_retries=2, default_retry_delay=30)
 def send_sms_task(self, log_id: int, phone: str, message: str):
     """Envoie un SMS via OVH en arrière-plan et met à jour le log."""

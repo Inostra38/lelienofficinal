@@ -1,9 +1,10 @@
-import { Component, inject } from '@angular/core';
+import { Component, inject, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { HttpClient, HttpHeaders } from '@angular/common/http';
 import { Router } from '@angular/router';
 import { AuthService } from '../../../../core/auth/auth.service';
+import { PharmacyService } from '../../../../core/services/pharmacy.service';
 import { ConfirmSensitiveActionModalComponent } from '../../../../shared/ui/confirm-sensitive-action-modal/confirm-sensitive-action-modal.component';
 import { DeleteAccountWarningModalComponent } from '../delete-account-warning-modal/delete-account-warning-modal.component';
 import { environment } from '../../../../../environments/environment';
@@ -15,10 +16,13 @@ import { environment } from '../../../../../environments/environment';
   templateUrl: './account-security.component.html',
   styleUrl: './account-security.component.css'
 })
-export class AccountSecurityComponent {
+export class AccountSecurityComponent implements OnInit {
   private http = inject(HttpClient);
   private authService = inject(AuthService);
+  private pharmacyService = inject(PharmacyService);
   private router = inject(Router);
+
+  pendingEmail = '';
 
   isUnlocked = false;
   showPinGate = false;
@@ -46,6 +50,12 @@ export class AccountSecurityComponent {
   showDeleteConfirm = false;
   deleteError = '';
   isDeletingAccount = false;
+
+  ngOnInit() {
+    this.pharmacyService.getCurrentPharmacy().subscribe({
+      next: (p) => { this.pendingEmail = p.pending_email || ''; }
+    });
+  }
 
   requestUnlock() {
     this.pinGateError = '';
@@ -157,6 +167,17 @@ export class AccountSecurityComponent {
     });
   }
 
+  cancelEmailChange() {
+    const token = localStorage.getItem('access_token');
+    this.http.post(
+      `${environment.apiUrl}/api/account/cancel-email-change/`,
+      {},
+      { headers: new HttpHeaders({ Authorization: `Bearer ${token ?? ''}` }) }
+    ).subscribe({
+      next: () => { this.pendingEmail = ''; }
+    });
+  }
+
   changeEmail() {
     this.emailError = '';
     this.emailSuccess = '';
@@ -180,10 +201,11 @@ export class AccountSecurityComponent {
     ).subscribe({
       next: (res: any) => {
         this.isChangingEmail = false;
-        this.emailSuccess = res.detail || 'Email mis à jour avec succès.';
+        this.emailSuccess = res.detail || 'Email de confirmation envoyé.';
+        this.pendingEmail = this.newEmail;
         this.newEmail = '';
         this.emailPassword = '';
-        setTimeout(() => { this.emailSuccess = ''; }, 5000);
+        setTimeout(() => { this.emailSuccess = ''; }, 8000);
       },
       error: (err) => {
         this.isChangingEmail = false;

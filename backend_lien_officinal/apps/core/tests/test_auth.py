@@ -1,11 +1,14 @@
 """
-Tests core/views.py — Register, JWT (forgé/expiré/refresh), endpoints protégés
+Tests core/views.py — Register, JWT (forgé/expiré/refresh), endpoints protégés, vérification email
 """
 
 import json
 import time
+import uuid
+from unittest.mock import patch
 
 from django.test import TestCase
+from django.utils import timezone
 from rest_framework.test import APIClient
 from rest_framework_simplejwt.tokens import RefreshToken, AccessToken
 
@@ -292,3 +295,310 @@ class TestHttpOnlyCookies(TestCase):
         data = json.loads(resp.cookies['session_info'].value)
         self.assertEqual(data['auth_type'], 'collaborator')
         self.assertEqual(data['collaborator_id'], collab.id)
+
+
+# ── Vérification email ────────────────────────────────────────────────────────
+
+class TestEmailVerification(TestCase):
+    """
+    Tests sur le flux complet de vérification email :
+    - RegisterView déclenche la task Celery d'envoi
+    - VerifyEmailView valide le token et marque email_verified=True
+    - Token expiré → 400
+    - Token invalide → 400
+    - Renvoi d'email (resend) génère un nouveau token
+    """
+
+    def setUp(self):
+        self.client = APIClient()
+
+    @patch('apps.core.tasks.send_verification_email_task')
+    def test_register_declenche_envoi_email(self, mock_task):
+        """À l'inscription, la task Celery est appelée avec le bon email."""
+        resp = self.client.post('/api/auth/register/', {
+            'email': 'test_verif@officine.fr',
+            'password': 'motdepasse123',
+            'password_confirm': 'motdepasse123',
+        }, format='json')
+
+        self.assertEqual(resp.status_code, 201)
+        # La task doit avoir été déclenchée une seule fois
+        mock_task.delay.assert_called_once()
+        call_args = mock_task.delay.call_args[0]
+        self.assertEqual(call_args[0], 'test_verif@officine.fr')
+        # Le token transmis doit être un UUID valide
+        uuid.UUID(call_args[1])
+
+    @patch('apps.core.tasks.send_verification_email_task')
+    def test_register_cree_token_sur_pharmacy(self, mock_task):
+        """À l'inscription, email_verification_token et email_verified=False sont bien enregistrés."""
+        self.client.post('/api/auth/register/', {
+            'email': 'token_check@officine.fr',
+            'password': 'motdepasse123',
+            'password_confirm': 'motdepasse123',
+        }, format='json')
+
+        pharmacy = Pharmacy.objects.get(email='token_check@officine.fr')
+        self.assertIsNotNone(pharmacy.email_verification_token)
+        self.assertIsNotNone(pharmacy.email_verification_expires)
+        self.assertFalse(pharmacy.email_verified)
+
+    @patch('apps.core.tasks.send_verification_email_task')
+    def test_verify_email_token_valide(self, mock_task):
+        """Un token valide marque email_verified=True et efface le token."""
+        pharmacy = Pharmacy.objects.create_user(
+            email='valid_token@officine.fr',
+            password='secret123',
+            nom_officine='Officine',
+        )
+        token = uuid.uuid4()
+        pharmacy.email_verification_token = token
+        pharmacy.email_verification_expires = timezone.now() + timezone.timedelta(hours=24)
+        pharmacy.save(update_fields=['email_verification_token', 'email_verification_expires'])
+
+        resp = self.client.post('/api/auth/verify-email/', {'token': str(token)}, format='json')
+
+        self.assertEqual(resp.status_code, 200)
+        pharmacy.refresh_from_db()
+        self.assertTrue(pharmacy.email_verified)
+        self.assertIsNone(pharmacy.email_verification_token)
+
+    @patch('apps.core.tasks.send_verification_email_task')
+    def test_verify_email_token_expire(self, mock_task):
+        """Un token expiré (> 24h) retourne 400."""
+        pharmacy = Pharmacy.objects.create_user(
+            email='expired_token@officine.fr',
+            password='secret123',
+            nom_officine='Officine',
+        )
+        token = uuid.uuid4()
+        pharmacy.email_verification_token = token
+        pharmacy.email_verification_expires = timezone.now() - timezone.timedelta(hours=1)
+        pharmacy.save(update_fields=['email_verification_token', 'email_verification_expires'])
+
+        resp = self.client.post('/api/auth/verify-email/', {'token': str(token)}, format='json')
+
+        self.assertEqual(resp.status_code, 400)
+        self.assertIn('expiré', resp.data['detail'])
+        pharmacy.refresh_from_db()
+        self.assertFalse(pharmacy.email_verified)
+
+    def test_verify_email_token_inconnu(self):
+        """Un token inexistant retourne 400."""
+        resp = self.client.post('/api/auth/verify-email/', {
+            'token': str(uuid.uuid4())
+        }, format='json')
+        self.assertEqual(resp.status_code, 400)
+
+    def test_verify_email_token_malforme(self):
+        """Un token non-UUID retourne 400."""
+        resp = self.client.post('/api/auth/verify-email/', {
+            'token': 'pas-un-uuid'
+        }, format='json')
+        self.assertEqual(resp.status_code, 400)
+
+    @patch('apps.core.tasks.send_verification_email_task')
+    def test_resend_verification_genere_nouveau_token(self, mock_task):
+        """resend-verification génère un nouveau token et déclenche la task."""
+        pharmacy = Pharmacy.objects.create_user(
+            email='resend@officine.fr',
+            password='secret123',
+            nom_officine='Officine',
+        )
+        old_token = uuid.uuid4()
+        pharmacy.email_verification_token = old_token
+        pharmacy.email_verification_expires = timezone.now() + timezone.timedelta(hours=24)
+        pharmacy.save(update_fields=['email_verification_token', 'email_verification_expires'])
+
+        refresh = RefreshToken.for_user(pharmacy)
+        self.client.credentials(HTTP_AUTHORIZATION=f"Bearer {refresh.access_token}")
+
+        resp = self.client.post('/api/auth/resend-verification/', format='json')
+
+        self.assertEqual(resp.status_code, 200)
+        pharmacy.refresh_from_db()
+        # Nouveau token différent de l'ancien
+        self.assertNotEqual(pharmacy.email_verification_token, old_token)
+        mock_task.delay.assert_called_once()
+
+    @patch('apps.core.tasks.send_verification_email_task')
+    def test_resend_verification_deja_verifie(self, mock_task):
+        """resend-verification retourne 200 sans envoyer si déjà vérifié."""
+        pharmacy = Pharmacy.objects.create_user(
+            email='already_verified@officine.fr',
+            password='secret123',
+            nom_officine='Officine',
+            email_verified=True,
+        )
+        refresh = RefreshToken.for_user(pharmacy)
+        self.client.credentials(HTTP_AUTHORIZATION=f"Bearer {refresh.access_token}")
+
+        resp = self.client.post('/api/auth/resend-verification/', format='json')
+
+        self.assertEqual(resp.status_code, 200)
+        mock_task.delay.assert_not_called()
+
+
+# ── Changement email ──────────────────────────────────────────────────────────
+
+class TestEmailChange(TestCase):
+    """
+    Tests sur le flux complet de changement d'email :
+    - Demande stocke pending_email et déclenche la task Celery
+    - Mauvais mot de passe → 400
+    - Email déjà utilisé → 400
+    - Token valide → email basculé, pending_email effacé
+    - Token expiré → 400, ancien email conservé
+    - Token invalide → 400
+    - Annulation efface pending_email
+    - Sans auth → 401
+    """
+
+    def setUp(self):
+        self.client = APIClient()
+        self.pharmacy = Pharmacy.objects.create_user(
+            email='titulaire@officine.fr',
+            password='motdepasse123',
+            nom_officine='Officine Test',
+        )
+        refresh = RefreshToken.for_user(self.pharmacy)
+        self.client.credentials(HTTP_AUTHORIZATION=f"Bearer {refresh.access_token}")
+
+    @patch('apps.core.tasks.send_email_change_task')
+    def test_demande_stocke_pending_email_et_envoie(self, mock_task):
+        """Demande valide : pending_email enregistré, token généré, task déclenchée."""
+        resp = self.client.post('/api/account/change-email/', {
+            'new_email': 'nouveau@officine.fr',
+            'password': 'motdepasse123',
+        }, format='json')
+
+        self.assertEqual(resp.status_code, 200)
+        self.pharmacy.refresh_from_db()
+        self.assertEqual(self.pharmacy.pending_email, 'nouveau@officine.fr')
+        self.assertIsNotNone(self.pharmacy.email_verification_token)
+        # Email actuel inchangé
+        self.assertEqual(self.pharmacy.email, 'titulaire@officine.fr')
+        mock_task.delay.assert_called_once()
+        args = mock_task.delay.call_args[0]
+        self.assertEqual(args[0], 'titulaire@officine.fr')  # old_email
+        self.assertEqual(args[1], 'nouveau@officine.fr')    # new_email
+
+    @patch('apps.core.tasks.send_email_change_task')
+    def test_mauvais_mot_de_passe_400(self, mock_task):
+        """Mauvais mot de passe → 400, aucun email envoyé."""
+        resp = self.client.post('/api/account/change-email/', {
+            'new_email': 'nouveau@officine.fr',
+            'password': 'mauvais',
+        }, format='json')
+
+        self.assertEqual(resp.status_code, 400)
+        mock_task.delay.assert_not_called()
+        self.pharmacy.refresh_from_db()
+        self.assertFalse(self.pharmacy.pending_email)  # None ou '' selon l'état initial
+
+    @patch('apps.core.tasks.send_email_change_task')
+    def test_email_deja_utilise_400(self, mock_task):
+        """Email déjà pris par une autre pharmacie → 400."""
+        Pharmacy.objects.create_user(
+            email='pris@officine.fr',
+            password='secret',
+            nom_officine='Autre',
+        )
+        resp = self.client.post('/api/account/change-email/', {
+            'new_email': 'pris@officine.fr',
+            'password': 'motdepasse123',
+        }, format='json')
+
+        self.assertEqual(resp.status_code, 400)
+        mock_task.delay.assert_not_called()
+
+    @patch('apps.core.tasks.send_email_change_task')
+    def test_meme_email_400(self, mock_task):
+        """Même email que l'actuel → 400."""
+        resp = self.client.post('/api/account/change-email/', {
+            'new_email': 'titulaire@officine.fr',
+            'password': 'motdepasse123',
+        }, format='json')
+
+        self.assertEqual(resp.status_code, 400)
+        mock_task.delay.assert_not_called()
+
+    def test_confirm_token_valide_bascule_email(self):
+        """Token valide → email basculé, pending_email effacé, email_verified=True."""
+        token = uuid.uuid4()
+        self.pharmacy.pending_email = 'nouveau@officine.fr'
+        self.pharmacy.email_verification_token = token
+        self.pharmacy.email_verification_expires = timezone.now() + timezone.timedelta(hours=24)
+        self.pharmacy.save(update_fields=['pending_email', 'email_verification_token', 'email_verification_expires'])
+
+        # Accessible sans auth (lien depuis email)
+        anon_client = APIClient()
+        resp = anon_client.post('/api/account/confirm-email-change/', {'token': str(token)}, format='json')
+
+        self.assertEqual(resp.status_code, 200)
+        self.pharmacy.refresh_from_db()
+        self.assertEqual(self.pharmacy.email, 'nouveau@officine.fr')
+        self.assertEqual(self.pharmacy.pending_email, '')
+        self.assertIsNone(self.pharmacy.email_verification_token)
+        self.assertTrue(self.pharmacy.email_verified)
+
+    def test_confirm_token_expire_400_conserve_ancien_email(self):
+        """Token expiré → 400, ancien email conservé, pending_email nettoyé."""
+        token = uuid.uuid4()
+        self.pharmacy.pending_email = 'nouveau@officine.fr'
+        self.pharmacy.email_verification_token = token
+        self.pharmacy.email_verification_expires = timezone.now() - timezone.timedelta(hours=1)
+        self.pharmacy.save(update_fields=['pending_email', 'email_verification_token', 'email_verification_expires'])
+
+        anon_client = APIClient()
+        resp = anon_client.post('/api/account/confirm-email-change/', {'token': str(token)}, format='json')
+
+        self.assertEqual(resp.status_code, 400)
+        self.pharmacy.refresh_from_db()
+        self.assertEqual(self.pharmacy.email, 'titulaire@officine.fr')
+        self.assertEqual(self.pharmacy.pending_email, '')
+
+    def test_confirm_token_inconnu_400(self):
+        """Token inexistant → 400."""
+        anon_client = APIClient()
+        resp = anon_client.post('/api/account/confirm-email-change/', {
+            'token': str(uuid.uuid4())
+        }, format='json')
+        self.assertEqual(resp.status_code, 400)
+
+    def test_confirm_token_malforme_400(self):
+        """Token non-UUID → 400."""
+        anon_client = APIClient()
+        resp = anon_client.post('/api/account/confirm-email-change/', {
+            'token': 'pas-un-uuid'
+        }, format='json')
+        self.assertEqual(resp.status_code, 400)
+
+    @patch('apps.core.tasks.send_email_change_task')
+    def test_annulation_efface_pending_email(self, mock_task):
+        """Annulation d'une demande en cours efface pending_email."""
+        self.pharmacy.pending_email = 'nouveau@officine.fr'
+        self.pharmacy.email_verification_token = uuid.uuid4()
+        self.pharmacy.email_verification_expires = timezone.now() + timezone.timedelta(hours=24)
+        self.pharmacy.save(update_fields=['pending_email', 'email_verification_token', 'email_verification_expires'])
+
+        resp = self.client.post('/api/account/cancel-email-change/', format='json')
+
+        self.assertEqual(resp.status_code, 200)
+        self.pharmacy.refresh_from_db()
+        self.assertEqual(self.pharmacy.pending_email, '')
+        self.assertIsNone(self.pharmacy.email_verification_token)
+
+    def test_annulation_sans_demande_400(self):
+        """Annulation sans pending_email → 400."""
+        resp = self.client.post('/api/account/cancel-email-change/', format='json')
+        self.assertEqual(resp.status_code, 400)
+
+    def test_demande_sans_auth_401(self):
+        """Sans token JWT → 401."""
+        anon_client = APIClient()
+        resp = anon_client.post('/api/account/change-email/', {
+            'new_email': 'test@test.fr',
+            'password': 'motdepasse123',
+        }, format='json')
+        self.assertEqual(resp.status_code, 401)

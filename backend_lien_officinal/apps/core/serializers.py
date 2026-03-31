@@ -69,9 +69,11 @@ class PharmacySerializer(serializers.ModelSerializer):
             'logo',
             'is_premium',
             'onboarding_completed',
+            'email_verified',
+            'pending_email',
             'date_joined'
         ]
-        read_only_fields = ['id', 'email', 'date_joined', 'is_premium']
+        read_only_fields = ['id', 'email', 'date_joined', 'is_premium', 'email_verified', 'pending_email']
 
 
 class PharmacyUpdateSerializer(serializers.ModelSerializer):

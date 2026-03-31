@@ -308,6 +308,11 @@ OVH_SMS_SERVICE = os.environ.get('OVH_SMS_SERVICE', 'sms-XXXX-1')
 # Clé secrète pour valider les webhooks OVH (accusés de réception)
 SMS_WEBHOOK_SECRET = os.environ.get('SMS_WEBHOOK_SECRET', '')
 
+# --- Mailgun ---
+MAILGUN_API_KEY = os.environ.get('MAILGUN_API_KEY', '')
+MAILGUN_DOMAIN = os.environ.get('MAILGUN_DOMAIN', 'mg.lienofficinal.fr')
+FRONTEND_BASE_URL = os.environ.get('FRONTEND_BASE_URL', 'http://localhost:4200')
+
 # --- CELERY ---
 CELERY_BROKER_URL = os.environ.get('REDIS_URL', 'redis://localhost:6379/0')
 CELERY_RESULT_BACKEND = os.environ.get('REDIS_URL', 'redis://localhost:6379/0')

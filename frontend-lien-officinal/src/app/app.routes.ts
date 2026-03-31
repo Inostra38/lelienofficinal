@@ -35,6 +35,16 @@ export const routes: Routes = [
   { path: 'login', component: LoginComponent, canActivate: [noAuthGuard] },
   { path: 'register', component: RegisterComponent, canActivate: [noAuthGuard] },
   { path: 'onboarding', component: OnboardingComponent, canActivate: [onboardingGuard] },
+  {
+    path: 'verify-email',
+    loadComponent: () =>
+      import('./features/verify-email/verify-email.component').then(m => m.VerifyEmailComponent)
+  },
+  {
+    path: 'confirm-email-change',
+    loadComponent: () =>
+      import('./features/confirm-email-change/confirm-email-change.component').then(m => m.ConfirmEmailChangeComponent)
+  },
 
   {
     path: '',

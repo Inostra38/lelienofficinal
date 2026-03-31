@@ -6,7 +6,7 @@ import { OnboardingService, WizardCollaborator } from '../../../../core/services
 const EMPTY_COLLABORATOR = (): WizardCollaborator => ({
   first_name: '',
   last_name: '',
-  role: 'Préparateur',
+  role: 'Titulaire',
   pin: '',
 });
 

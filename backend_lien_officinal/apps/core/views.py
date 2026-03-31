@@ -1,7 +1,10 @@
 import json
 import logging
+import uuid
 
+from datetime import timedelta
 from django.conf import settings as _settings
+from django.utils import timezone
 from rest_framework import viewsets, status
 from rest_framework.decorators import action
 from rest_framework.response import Response
@@ -129,10 +132,20 @@ class RegisterView(APIView):
         serializer = RegisterSerializer(data=request.data)
         if serializer.is_valid():
             pharmacy = serializer.save()
+
+            # Générer et envoyer le token de vérification email
+            token = uuid.uuid4()
+            pharmacy.email_verification_token = token
+            pharmacy.email_verification_expires = timezone.now() + timedelta(hours=24)
+            pharmacy.save(update_fields=['email_verification_token', 'email_verification_expires'])
+            from apps.core.tasks import send_verification_email_task
+            send_verification_email_task.delay(pharmacy.email, str(token))
+
             refresh = RefreshToken.for_user(pharmacy)
             response = Response({
                 'access': str(refresh.access_token),
                 'onboarding_completed': False,
+                'email_verified': False,
             }, status=status.HTTP_201_CREATED)
             _set_refresh_cookie(response, str(refresh))
             return response
@@ -385,19 +398,25 @@ class AccountChangeEmailView(APIView):
         if not new_email or '@' not in new_email or '.' not in new_email.split('@')[-1]:
             return Response({"new_email": "Adresse email invalide."}, status=status.HTTP_400_BAD_REQUEST)
 
+        # Pas de changement si c'est le même email
+        if new_email == request.user.email.lower():
+            return Response({"new_email": "Ce nouvel email est identique à votre email actuel."}, status=status.HTTP_400_BAD_REQUEST)
+
         # Vérifier l'unicité
         if Pharmacy.objects.filter(email=new_email).exclude(id=request.user.id).exists():
             return Response({"new_email": "Cette adresse email est déjà utilisée."}, status=status.HTTP_400_BAD_REQUEST)
 
-        # TODO (Mailgun): Stocker dans pending_email + générer token de vérification
-        # request.user.pending_email = new_email
-        # request.user.generate_email_verification_token()
-        # Envoyer l'email de vérification via Mailgun
-        # Pour l'instant : changement immédiat
-        request.user.email = new_email
-        request.user.save(update_fields=['email'])
+        # Stocker le nouvel email en attente et envoyer la confirmation
+        token = uuid.uuid4()
+        request.user.pending_email = new_email
+        request.user.email_verification_token = token
+        request.user.email_verification_expires = timezone.now() + timedelta(hours=24)
+        request.user.save(update_fields=['pending_email', 'email_verification_token', 'email_verification_expires'])
 
-        return Response({"detail": "Adresse email mise à jour avec succès.", "new_email": new_email})
+        from apps.core.tasks import send_email_change_task
+        send_email_change_task.delay(request.user.email, new_email, str(token))
+
+        return Response({"detail": f"Un lien de confirmation a été envoyé à {new_email}. Votre email actuel reste actif jusqu'à confirmation."})
 
 
 class AccountVerifySecurityAccessView(APIView):
@@ -528,3 +547,125 @@ def health_check(request):
         },
         status=status_code,
     )
+
+
+# ── Confirmation changement email ────────────────────────────────────────────
+
+class ConfirmEmailChangeView(APIView):
+    """POST /api/account/confirm-email-change/ — Bascule vers le nouvel email via token."""
+    permission_classes = [AllowAny]
+
+    def post(self, request):
+        token_str = request.data.get("token", "").strip()
+        if not token_str:
+            return Response({"detail": "Token manquant."}, status=status.HTTP_400_BAD_REQUEST)
+
+        try:
+            token_uuid = uuid.UUID(token_str)
+        except ValueError:
+            return Response({"detail": "Token invalide."}, status=status.HTTP_400_BAD_REQUEST)
+
+        try:
+            pharmacy = Pharmacy.objects.get(email_verification_token=token_uuid, pending_email__gt='')
+        except Pharmacy.DoesNotExist:
+            return Response({"detail": "Lien invalide ou déjà utilisé."}, status=status.HTTP_400_BAD_REQUEST)
+
+        if not pharmacy.email_verification_expires or timezone.now() > pharmacy.email_verification_expires:
+            pharmacy.pending_email = ''
+            pharmacy.email_verification_token = None
+            pharmacy.email_verification_expires = None
+            pharmacy.save(update_fields=['pending_email', 'email_verification_token', 'email_verification_expires'])
+            return Response(
+                {"detail": "Lien expiré. Votre ancien email a été conservé. Effectuez une nouvelle demande."},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        pharmacy.email = pharmacy.pending_email
+        pharmacy.pending_email = ''
+        pharmacy.email_verification_token = None
+        pharmacy.email_verification_expires = None
+        pharmacy.email_verified = True
+        pharmacy.save(update_fields=['email', 'pending_email', 'email_verification_token', 'email_verification_expires', 'email_verified'])
+
+        return Response({"detail": "Votre email a été mis à jour avec succès."}, status=status.HTTP_200_OK)
+
+
+class CancelEmailChangeView(APIView):
+    """POST /api/account/cancel-email-change/ — Annule une demande de changement en cours."""
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request):
+        pharmacy = request.user
+        if not pharmacy.pending_email:
+            return Response({"detail": "Aucune demande de changement en cours."}, status=status.HTTP_400_BAD_REQUEST)
+
+        pharmacy.pending_email = ''
+        pharmacy.email_verification_token = None
+        pharmacy.email_verification_expires = None
+        pharmacy.save(update_fields=['pending_email', 'email_verification_token', 'email_verification_expires'])
+
+        return Response({"detail": "Demande de changement annulée."}, status=status.HTTP_200_OK)
+
+
+# ── Vérification email ────────────────────────────────────────────────────────
+
+class VerifyEmailView(APIView):
+    """POST /api/auth/verify-email/ — Vérifie le token et marque email_verified=True."""
+    permission_classes = [AllowAny]
+
+    def post(self, request):
+        token_str = request.data.get("token", "").strip()
+        if not token_str:
+            return Response({"detail": "Token manquant."}, status=status.HTTP_400_BAD_REQUEST)
+
+        try:
+            token_uuid = uuid.UUID(token_str)
+        except ValueError:
+            return Response({"detail": "Token invalide."}, status=status.HTTP_400_BAD_REQUEST)
+
+        try:
+            pharmacy = Pharmacy.objects.get(email_verification_token=token_uuid)
+        except Pharmacy.DoesNotExist:
+            return Response({"detail": "Token invalide ou déjà utilisé."}, status=status.HTTP_400_BAD_REQUEST)
+
+        if pharmacy.email_verified:
+            return Response({"detail": "Email déjà vérifié."}, status=status.HTTP_200_OK)
+
+        if not pharmacy.email_verification_expires or timezone.now() > pharmacy.email_verification_expires:
+            return Response(
+                {"detail": "Lien expiré. Demandez un nouveau lien de vérification."},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        pharmacy.email_verified = True
+        pharmacy.email_verification_token = None
+        pharmacy.email_verification_expires = None
+        pharmacy.save(update_fields=["email_verified", "email_verification_token", "email_verification_expires"])
+
+        return Response({"detail": "Email vérifié avec succès."}, status=status.HTTP_200_OK)
+
+
+class ResendVerificationThrottle(UserRateThrottle):
+    rate = '5/day'
+
+
+class ResendVerificationEmailView(APIView):
+    """POST /api/auth/resend-verification/ — Renvoie l'email de vérification."""
+    permission_classes = [IsAuthenticated]
+    throttle_classes = [ResendVerificationThrottle]
+
+    def post(self, request):
+        pharmacy = request.user
+
+        if pharmacy.email_verified:
+            return Response({"detail": "Email déjà vérifié."}, status=status.HTTP_200_OK)
+
+        token = uuid.uuid4()
+        pharmacy.email_verification_token = token
+        pharmacy.email_verification_expires = timezone.now() + timedelta(hours=24)
+        pharmacy.save(update_fields=["email_verification_token", "email_verification_expires"])
+
+        from apps.core.tasks import send_verification_email_task
+        send_verification_email_task.delay(pharmacy.email, str(token))
+
+        return Response({"detail": "Email de vérification renvoyé."}, status=status.HTTP_200_OK)

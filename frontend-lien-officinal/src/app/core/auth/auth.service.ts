@@ -14,6 +14,7 @@ export class AuthService {
   private baseUrl = environment.apiUrl + '/api';
 
   private onboardingKey = 'onboarding_completed';
+  private emailVerifiedKey = 'email_verified';
   private collaboratorKey = 'active_collaborator_id';
 
   // ── Tokens en mémoire (non persistants — récupérés via cookie refresh au reload) ──
@@ -38,6 +39,7 @@ export class AuthService {
       }),
       tap(profile => {
         localStorage.setItem(this.onboardingKey, profile.onboarding_completed ? 'true' : 'false');
+        localStorage.setItem(this.emailVerifiedKey, profile.email_verified ? 'true' : 'false');
       })
     );
   }
@@ -47,6 +49,7 @@ export class AuthService {
       tap(response => {
         this._accessToken = response.access;
         localStorage.setItem(this.onboardingKey, 'false');
+        localStorage.setItem(this.emailVerifiedKey, 'false');
       })
     );
   }
@@ -57,6 +60,7 @@ export class AuthService {
     this._accessToken = null;
     this._pharmacyAccessToken = null;
     localStorage.removeItem(this.onboardingKey);
+    localStorage.removeItem(this.emailVerifiedKey);
     localStorage.removeItem(this.collaboratorKey);
     this.collaboratorSubject.next(null);
     this.router.navigate(['/login'], returnUrl ? { queryParams: { returnUrl } } : {});
@@ -183,6 +187,22 @@ export class AuthService {
 
   setOnboardingCompleted() {
     localStorage.setItem(this.onboardingKey, 'true');
+  }
+
+  isEmailVerified(): boolean {
+    return localStorage.getItem(this.emailVerifiedKey) === 'true';
+  }
+
+  setEmailVerified() {
+    localStorage.setItem(this.emailVerifiedKey, 'true');
+  }
+
+  verifyEmail(token: string): Observable<any> {
+    return this.http.post(`${this.baseUrl}/auth/verify-email/`, { token });
+  }
+
+  resendVerification(): Observable<any> {
+    return this.http.post(`${this.baseUrl}/auth/resend-verification/`, {});
   }
 
   getToken(): string | null {

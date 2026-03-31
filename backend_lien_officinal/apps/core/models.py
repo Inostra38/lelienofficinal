@@ -81,6 +81,7 @@ class Pharmacy(AbstractBaseUser, PermissionsMixin):
     pending_email = models.EmailField(_("Email en attente"), blank=True, null=True)
     email_verification_token = models.UUIDField(_("Token de vérification email"), blank=True, null=True)
     email_verification_expires = models.DateTimeField(_("Expiration du token"), blank=True, null=True)
+    email_verified = models.BooleanField(_("Email vérifié"), default=False)
 
     # Gestion Premium & Statut
     is_premium = models.BooleanField(_("Abonnement Premium"), default=False)

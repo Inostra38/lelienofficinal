@@ -21,6 +21,8 @@ export interface PharmacyData {
   date_joined?: string;
   sms_credits?: number;
   phone?: string;
+  pending_email?: string;
+  email_verified?: boolean;
 }
 
 @Injectable({

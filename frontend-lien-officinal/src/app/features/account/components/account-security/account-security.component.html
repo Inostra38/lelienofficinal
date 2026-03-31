@@ -81,31 +81,50 @@
         </div>
       </div>
       <div class="p-6 space-y-4">
-        <div>
-          <label class="block text-sm font-medium text-gray-700 mb-1">Nouvel email de connexion</label>
-          <input type="email" [(ngModel)]="newEmail" name="newEmail"
-                 class="w-full px-4 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-green-500 focus:border-green-500 outline-none"
-                 placeholder="email@pharmacie.fr">
-        </div>
-        <div>
-          <label class="block text-sm font-medium text-gray-700 mb-1">Mot de passe actuel</label>
-          <input type="password" [(ngModel)]="emailPassword" name="emailPassword"
-                 class="w-full px-4 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-green-500 focus:border-green-500 outline-none"
-                 placeholder="Votre mot de passe actuel">
-        </div>
-        @if (emailError) {
-          <p class="text-xs text-red-600">{{ emailError }}</p>
+
+        <!-- En attente de confirmation -->
+        @if (pendingEmail) {
+          <div class="bg-amber-50 border border-amber-200 rounded-lg px-4 py-3 flex items-center justify-between gap-4">
+            <p class="text-sm text-amber-800">
+              En attente de confirmation pour <strong>{{ pendingEmail }}</strong>.<br/>
+              <span class="text-xs text-amber-600">Vérifiez votre boîte de réception et cliquez sur le lien.</span>
+            </p>
+            <button type="button" (click)="cancelEmailChange()"
+              class="text-xs text-red-500 hover:underline shrink-0">
+              Annuler
+            </button>
+          </div>
         }
-        @if (emailSuccess) {
-          <p class="text-xs text-green-600 font-medium">✓ {{ emailSuccess }}</p>
+
+        <!-- Formulaire — masqué si une demande est en cours -->
+        @if (!pendingEmail) {
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1">Nouvel email de connexion</label>
+            <input type="email" [(ngModel)]="newEmail" name="newEmail"
+                   class="w-full px-4 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-green-500 focus:border-green-500 outline-none"
+                   placeholder="email@pharmacie.fr">
+          </div>
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1">Mot de passe actuel</label>
+            <input type="password" [(ngModel)]="emailPassword" name="emailPassword"
+                   class="w-full px-4 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-green-500 focus:border-green-500 outline-none"
+                   placeholder="Votre mot de passe actuel">
+          </div>
+          @if (emailError) {
+            <p class="text-xs text-red-600">{{ emailError }}</p>
+          }
+          @if (emailSuccess) {
+            <p class="text-xs text-green-600 font-medium">{{ emailSuccess }}</p>
+          }
+          <div class="pt-2">
+            <button type="button" (click)="changeEmail()"
+                    [disabled]="isChangingEmail"
+                    class="px-5 py-2 bg-green-700 hover:bg-green-800 text-white text-sm font-medium rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
+              {{ isChangingEmail ? 'En cours...' : "Changer l'email" }}
+            </button>
+          </div>
         }
-        <div class="pt-2">
-          <button type="button" (click)="changeEmail()"
-                  [disabled]="isChangingEmail"
-                  class="px-5 py-2 bg-green-700 hover:bg-green-800 text-white text-sm font-medium rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
-            {{ isChangingEmail ? 'En cours...' : 'Changer l\'email' }}
-          </button>
-        </div>
+
       </div>
     </div>
 
