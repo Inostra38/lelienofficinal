@@ -23,12 +23,13 @@ def generate_template_task(task_id: str, api_key: str, system_prompt: str, messa
         client = anthropic_sdk.Anthropic(api_key=api_key)
         ai_response = client.messages.create(
             model='claude-sonnet-4-6',
-            max_tokens=8000,
+            max_tokens=16000,
             system=system_prompt,
             messages=messages,
         )
+        raw_text = ai_response.content[0].text
 
-        assistant_message = ai_response.content[0].text
+        assistant_message = raw_text
 
         try:
             template_json = parse_ai_planning_response(assistant_message)

@@ -1,10 +1,9 @@
 import {
   Component, Input, Output, EventEmitter, inject, ViewChild, ElementRef,
-  AfterViewChecked, OnDestroy,
+  AfterViewChecked, OnDestroy, OnInit, computed,
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { HttpErrorResponse } from '@angular/common/http';
 import { PlanningService, ChatMessage } from '../../../../core/services/planning.service';
 import { Collaborator } from '../../../../core/services/collaborator.service';
 
@@ -14,7 +13,7 @@ import { Collaborator } from '../../../../core/services/collaborator.service';
   imports: [CommonModule, FormsModule],
   templateUrl: './template-ai-assistant.component.html',
 })
-export class TemplateAiAssistantComponent implements AfterViewChecked, OnDestroy {
+export class TemplateAiAssistantComponent implements OnInit, AfterViewChecked, OnDestroy {
   @Input() rotation = 2;
   @Input() team: Collaborator[] = [];
   @Input() importing = false;
@@ -26,19 +25,30 @@ export class TemplateAiAssistantComponent implements AfterViewChecked, OnDestroy
 
   private planningService = inject(PlanningService);
 
-  conversation: ChatMessage[] = [];
+  private readonly aiTask = this.planningService.aiTask;
+
+  readonly conversation    = computed(() => this.aiTask().conversation);
+  readonly isLoading       = computed(() => this.aiTask().status === 'pending');
+  readonly errorMessage    = computed(() => this.aiTask().status === 'error' ? this.aiTask().errorDetail : '');
+  readonly currentTemplate = computed(() => this.aiTask().template);
+
   userInput = '';
-  isLoading = false;
-  errorMessage = '';
-  currentTemplate: any = null;
+  elapsedSeconds = 0;
+  private displayTimer: ReturnType<typeof setInterval> | null = null;
   private shouldScrollToBottom = false;
-  private pollInterval: ReturnType<typeof setInterval> | null = null;
 
   readonly rotations = [
     { value: 2, label: 'A/B' },
     { value: 3, label: 'A/B/C' },
     { value: 4, label: 'A/B/C/D' },
   ];
+
+  ngOnInit() {
+    // Reprendre l'affichage si une génération est déjà en cours (retour navigation)
+    if (this.aiTask().status === 'pending') {
+      this._startDisplayTimer();
+    }
+  }
 
   ngAfterViewChecked() {
     if (this.shouldScrollToBottom) {
@@ -48,82 +58,64 @@ export class TemplateAiAssistantComponent implements AfterViewChecked, OnDestroy
   }
 
   ngOnDestroy() {
-    this._stopPolling();
+    this._stopDisplayTimer();
   }
 
   generate(userMessage?: string) {
-    if (userMessage) {
-      this.conversation = [...this.conversation, { role: 'user', content: userMessage }];
-      this.userInput = '';
-    }
-    this.isLoading    = true;
-    this.errorMessage = '';
-
-    this.planningService.generateTemplate(this.rotation, this.conversation).subscribe({
-      next: ({ task_id }) => this._startPolling(task_id),
-      error: (err: HttpErrorResponse) => {
-        this.isLoading = false;
-        if (err.status === 429) {
-          this.errorMessage = err.error?.detail ?? 'Limite atteinte. Réessayez dans une heure.';
-        } else {
-          this.errorMessage = 'Une erreur est survenue. Veuillez réessayer.';
-        }
-      },
-    });
+    const conversation = userMessage
+      ? [...this.aiTask().conversation, { role: 'user' as const, content: userMessage }]
+      : this.aiTask().conversation;
+    this.userInput = '';
+    this.elapsedSeconds = 0;
+    this._startDisplayTimer();
+    this.planningService.startAiGeneration(this.rotation, conversation);
   }
 
   sendAdjustment() {
     const msg = this.userInput.trim();
-    if (!msg || this.isLoading) return;
+    if (!msg || this.isLoading()) return;
     this.generate(msg);
   }
 
+  regenerate() {
+    this.planningService.clearAiTask();
+    this.elapsedSeconds = 0;
+    this.generate();
+  }
+
   importTemplate() {
-    if (!this.currentTemplate) return;
-    this.templateGenerated.emit(this.currentTemplate);
+    if (!this.currentTemplate()) return;
+    this.templateGenerated.emit(this.currentTemplate());
   }
 
   countShifts(): number {
-    if (!this.currentTemplate?.weeks) return 0;
-    return Object.values(this.currentTemplate.weeks)
+    const t = this.currentTemplate();
+    if (!t?.weeks) return 0;
+    return Object.values(t.weeks)
       .reduce((acc: number, week: any) => acc + (Array.isArray(week) ? week.length : 0), 0);
   }
 
-  /** Extract text before the ```json block */
   extractText(content: string): string {
     const idx = content.indexOf('```json');
     return (idx === -1 ? content : content.substring(0, idx)).trim();
   }
 
-  private _startPolling(taskId: string) {
-    this._stopPolling();
-    this.pollInterval = setInterval(() => {
-      this.planningService.pollGenerateTemplate(taskId).subscribe({
-        next: (res) => {
-          if (res.status === 'pending') return;
-          this._stopPolling();
-          this.isLoading = false;
-          if (res.status === 'done') {
-            this.conversation    = res.conversation;
-            this.currentTemplate = res.template;
-            this.shouldScrollToBottom = true;
-          } else {
-            this.errorMessage = (res as any)['detail'] ?? "La réponse de l'IA n'a pas pu être interprétée.";
-          }
-        },
-        error: () => {
-          this._stopPolling();
-          this.isLoading    = false;
-          this.errorMessage = 'Une erreur est survenue lors de la génération.';
-        },
-      });
-    }, 2000);
+  private _startDisplayTimer() {
+    this._stopDisplayTimer();
+    this.displayTimer = setInterval(() => {
+      const startedAt = this.aiTask().startedAt;
+      this.elapsedSeconds = startedAt ? Math.floor((Date.now() - startedAt) / 1000) : 0;
+      if (this.aiTask().status !== 'pending') {
+        this._stopDisplayTimer();
+        this.shouldScrollToBottom = true;
+      }
+    }, 1000);
   }
 
-  private _stopPolling() {
-    if (this.pollInterval !== null) {
-      clearInterval(this.pollInterval);
-      this.pollInterval = null;
+  private _stopDisplayTimer() {
+    if (this.displayTimer !== null) {
+      clearInterval(this.displayTimer);
+      this.displayTimer = null;
     }
   }
 

@@ -1,4 +1,4 @@
-import { Injectable, inject } from '@angular/core';
+import { Injectable, inject, signal } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { Observable } from 'rxjs';
 import { environment } from '../../../environments/environment';
@@ -346,12 +346,93 @@ export interface PayeSummaryResponse {
 }
 
 
+// ── État tâche IA (persiste à travers la navigation) ──────────────────────────
+
+export interface AiTaskState {
+  status: 'idle' | 'pending' | 'done' | 'error';
+  taskId: string | null;
+  conversation: ChatMessage[];
+  template: any | null;
+  errorDetail: string;
+  startedAt: number | null;
+}
+
 // ── Service ───────────────────────────────────────────────────────────────────
 
 @Injectable({ providedIn: 'root' })
 export class PlanningService {
   private http = inject(HttpClient);
   private apiUrl = `${environment.apiUrl}/api/planning`;
+
+  // ── Tâche IA ──────────────────────────────────────────────────────────────
+
+  readonly aiTask = signal<AiTaskState>({
+    status: 'idle',
+    taskId: null,
+    conversation: [],
+    template: null,
+    errorDetail: '',
+    startedAt: null,
+  });
+
+  private _pollInterval: ReturnType<typeof setInterval> | null = null;
+
+  startAiGeneration(rotation: number, conversation: ChatMessage[]): void {
+    this._stopAiPolling();
+    this.aiTask.set({
+      status: 'pending',
+      taskId: null,
+      conversation,
+      template: null,
+      errorDetail: '',
+      startedAt: Date.now(),
+    });
+    this.generateTemplate(rotation, conversation).subscribe({
+      next: ({ task_id }) => {
+        this.aiTask.update(s => ({ ...s, taskId: task_id }));
+        this._startAiPolling(task_id);
+      },
+      error: (err: any) => {
+        const detail = err.status === 429
+          ? (err.error?.detail ?? 'Limite atteinte. Réessayez dans une heure.')
+          : 'Une erreur est survenue. Veuillez réessayer.';
+        this.aiTask.update(s => ({ ...s, status: 'error', errorDetail: detail }));
+      },
+    });
+  }
+
+  clearAiTask(): void {
+    this._stopAiPolling();
+    this.aiTask.set({ status: 'idle', taskId: null, conversation: [], template: null, errorDetail: '', startedAt: null });
+  }
+
+  private _startAiPolling(taskId: string): void {
+    this._pollInterval = setInterval(() => {
+      this.pollGenerateTemplate(taskId).subscribe({
+        next: (res) => {
+          if (res.status === 'pending') return;
+          this._stopAiPolling();
+          if (res.status === 'done') {
+            this.aiTask.update(s => ({ ...s, status: 'done', conversation: res.conversation, template: res.template }));
+          } else {
+            const detail = (res as any)['detail'] ?? "La réponse de l'IA n'a pas pu être interprétée.";
+            this.aiTask.update(s => ({ ...s, status: 'error', errorDetail: detail }));
+          }
+        },
+        error: () => {
+          this._stopAiPolling();
+          this.aiTask.update(s => ({ ...s, status: 'error', errorDetail: 'Une erreur est survenue lors de la génération.' }));
+        },
+      });
+    }, 2000);
+  }
+
+  private _stopAiPolling(): void {
+    if (this._pollInterval !== null) {
+      clearInterval(this._pollInterval);
+      this._pollInterval = null;
+    }
+  }
 
   // ── Semaine ───────────────────────────────────────────────────────────────
 
