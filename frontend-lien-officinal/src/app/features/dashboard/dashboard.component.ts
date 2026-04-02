@@ -1,10 +1,12 @@
 import { Component, inject, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
+import { Router } from '@angular/router';
 
 import { PharmacyService } from '../../core/services/pharmacy.service';
 import { ToastService } from '../../core/services/toast.service';
 import { ConfirmService } from '../../core/services/confirm.service';
+import { AuthService } from '../../core/auth/auth.service';
 import { DashboardApiService } from './services/dashboard-api.service';
 import { DashboardDisplayService } from './services/dashboard-display.service';
 
@@ -13,6 +15,9 @@ import { AddLinkModalComponent } from '../../shared/ui/add-link-modal/add-link-m
 import { CardDetailComponent } from './components/card-detail/card-detail.component';
 import { CategoryAssignerModalComponent } from '../../shared/ui/category-assigner-modal/category-assigner-modal.component';
 import { MoveCardModalComponent } from '../../shared/ui/move-card-modal/move-card-modal.component';
+import { ResourceCardComponent } from './components/resource-card/resource-card.component';
+import { PubBannerComponent } from './components/pub-banner/pub-banner.component';
+import { PubSidebarComponent } from './components/pub-sidebar/pub-sidebar.component';
 
 // --- INTERFACES ---
 export interface ResourceItem {
@@ -57,7 +62,10 @@ export interface Category {
     CardDetailComponent,
     CategoryAssignerModalComponent,
     AddLinkModalComponent,
-    MoveCardModalComponent
+    MoveCardModalComponent,
+    ResourceCardComponent,
+    PubBannerComponent,
+    PubSidebarComponent,
   ],
   templateUrl: './dashboard.component.html',
   styleUrl: './dashboard.component.css'
@@ -68,6 +76,8 @@ export class DashboardComponent implements OnInit {
   private pharmacyService = inject(PharmacyService);
   private toast = inject(ToastService);
   private confirmService = inject(ConfirmService);
+  private authService = inject(AuthService);
+  private router = inject(Router);
 
   // Données
   allCategories: Category[] = [];
@@ -76,8 +86,8 @@ export class DashboardComponent implements OnInit {
   pharmacyName = '';
   isLoading = true;
 
-  // Filtres & vues
-  viewMode: 'COMPACT' | 'LARGE' | 'TABLE' | 'ICON' = 'LARGE';
+  // Filtres
+  activeFilter = 'Tous';
   showOnlyFavorites = false;
   searchTerm = '';
   isSearching = false;
@@ -92,7 +102,7 @@ export class DashboardComponent implements OnInit {
   openedCard: ResourceCard | null = null;
   selectedCardToAssign: ResourceCard | null = null;
 
-  // Déplacement de carte (modale)
+  // Déplacement de carte
   cardToMove: ResourceCard | null = null;
   currentCategoryIdForMove: number | null = null;
 
@@ -100,7 +110,7 @@ export class DashboardComponent implements OnInit {
   editingCategoryId: number | null = null;
   editingCategoryName = '';
 
-  // Drag & drop
+  // Drag & drop (conservé pour compatibilité future)
   draggedCard: ResourceCard | null = null;
   dragOverCard: ResourceCard | null = null;
   dragOverPosition: 'before' | 'after' | null = null;
@@ -142,13 +152,12 @@ export class DashboardComponent implements OnInit {
   }
 
   // ============================================================
-  // VUES & RECHERCHE
+  // FILTRE PILLS & RECHERCHE
   // ============================================================
 
-  setViewMode(mode: 'COMPACT' | 'LARGE' | 'TABLE' | 'ICON') { this.viewMode = mode; }
-
-  toggleFavoritesFilter() {
-    this.showOnlyFavorites = !this.showOnlyFavorites;
+  setFilter(filter: string) {
+    this.activeFilter = filter;
+    this.showOnlyFavorites = (filter === 'Favoris');
     this.updateDisplay();
   }
 
@@ -158,8 +167,75 @@ export class DashboardComponent implements OnInit {
     this.updateDisplay();
   }
 
-  getAllFavorites(): ResourceCard[] {
-    return this.display.getAllFavorites(this.allCategories, this.searchTerm);
+  getFilteredCards(): ResourceCard[] {
+    const seen = new Set<number>();
+    const allCards: ResourceCard[] = [];
+    for (const cat of this.allCategories) {
+      for (const c of (cat.cards || [])) {
+        if (!seen.has(c.id)) { seen.add(c.id); allCards.push(c); }
+      }
+      for (const c of (cat.adopted_cards || [])) {
+        if (!seen.has(c.id)) { seen.add(c.id); allCards.push(c); }
+      }
+    }
+
+    let filtered = allCards;
+
+    // Recherche textuelle
+    if (this.searchTerm) {
+      filtered = filtered.filter(c =>
+        c.titre.toLowerCase().includes(this.searchTerm) ||
+        (c.description_officielle || '').toLowerCase().includes(this.searchTerm) ||
+        (c.partner?.nom || '').toLowerCase().includes(this.searchTerm) ||
+        (c.note_courte || '').toLowerCase().includes(this.searchTerm)
+      );
+    }
+
+    // Filtre par pill
+    if (this.activeFilter === 'Favoris') {
+      filtered = filtered.filter(c => c.is_favorite);
+    } else if (this.activeFilter !== 'Tous') {
+      const cat = this.allCategories.find(c => c.nom === this.activeFilter);
+      if (cat) {
+        const ids = new Set([
+          ...(cat.cards || []).map(c => c.id),
+          ...(cat.adopted_cards || []).map(c => c.id)
+        ]);
+        filtered = filtered.filter(c => ids.has(c.id));
+      }
+    }
+
+    return filtered;
+  }
+
+  // ============================================================
+  // HELPERS CARTES
+  // ============================================================
+
+  getCardCategory(card: ResourceCard): string {
+    for (const cat of this.allCategories) {
+      if (cat.cards?.some(c => c.id === card.id) || cat.adopted_cards?.some(c => c.id === card.id)) {
+        return cat.nom;
+      }
+    }
+    return '';
+  }
+
+  getCardCategoryId(card: ResourceCard): number {
+    for (const cat of this.allCategories) {
+      if (cat.cards?.some(c => c.id === card.id) || cat.adopted_cards?.some(c => c.id === card.id)) {
+        return cat.id;
+      }
+    }
+    return 0;
+  }
+
+  // ============================================================
+  // AUTH
+  // ============================================================
+
+  handleLogout() {
+    this.authService.logout();
   }
 
   // ============================================================
@@ -189,14 +265,11 @@ export class DashboardComponent implements OnInit {
 
     const idx = this.allCategories.findIndex(c => c.id === category.id);
     if (idx >= 0) this.allCategories.splice(idx, 1);
+    if (this.activeFilter === category.nom) this.activeFilter = 'Tous';
     this.updateDisplay();
 
     this.api.deleteCategory(category.id).subscribe({
-      error: err => {
-        console.error(err);
-        this.toast.error('Erreur lors de la suppression.');
-        this.loadCategories();
-      }
+      error: err => { console.error(err); this.toast.error('Erreur lors de la suppression.'); this.loadCategories(); }
     });
   }
 
@@ -207,6 +280,7 @@ export class DashboardComponent implements OnInit {
     if (!this.editingCategoryName.trim()) { this.toast.warning('Le nom ne peut pas être vide.'); return; }
     const newName = this.editingCategoryName.trim();
     const oldName = category.nom;
+    if (this.activeFilter === oldName) this.activeFilter = newName;
     category.nom = newName;
     this.cancelRename();
     this.updateDisplay();
@@ -220,7 +294,6 @@ export class DashboardComponent implements OnInit {
     });
   }
 
-  // Réordonnancement catégories
   isFirstCategory(cat: Category) { return this.displayedCategories.indexOf(cat) === 0; }
   isLastCategory(cat: Category) { return this.displayedCategories.indexOf(cat) === this.displayedCategories.length - 1; }
 
@@ -257,9 +330,7 @@ export class DashboardComponent implements OnInit {
     if (!this.isEditMode) this.cancelRename();
   }
 
-  openDetail(card: ResourceCard, event: Event) {
-    event.preventDefault();
-    event.stopPropagation();
+  openCard(card: ResourceCard) {
     if (this.isEditMode) return;
     this.openedCard = card;
   }
@@ -272,10 +343,9 @@ export class DashboardComponent implements OnInit {
     if (this.display.updateCardInCategories(this.allCategories, updatedCard)) this.updateDisplay();
   }
 
-  toggleFavorite(card: ResourceCard, event: Event) {
+  toggleFavorite(card: ResourceCard, event: MouseEvent) {
     event.stopPropagation();
     card.is_favorite = !card.is_favorite;
-
     this.api.toggleCardFavorite(card.id).subscribe({
       next: (res) => {
         card.is_favorite = res.is_favorite;
@@ -286,7 +356,7 @@ export class DashboardComponent implements OnInit {
     });
   }
 
-  async hideOrDeleteCard(card: ResourceCard, event: Event) {
+  async hideOrDeleteCard(card: ResourceCard, event: MouseEvent) {
     event.stopPropagation();
     if (card.type === 'PRIVATE') {
       if (!await this.confirmService.ask({ title: 'Supprimer la carte', message: `Supprimer définitivement la carte "${card.titre}" ?`, danger: true })) return;
@@ -302,11 +372,7 @@ export class DashboardComponent implements OnInit {
       : this.api.toggleCardVisibility(card.id);
 
     req.subscribe({
-      error: err => {
-        console.error(err);
-        this.toast.error('Erreur — la carte a été restaurée.');
-        this.loadCategories();
-      }
+      error: err => { console.error(err); this.toast.error('Erreur — la carte a été restaurée.'); this.loadCategories(); }
     });
   }
 
@@ -317,7 +383,7 @@ export class DashboardComponent implements OnInit {
     }
   }
 
-  openMoveCardModal(card: ResourceCard, categoryId: number, event: Event) {
+  openMoveCardModal(card: ResourceCard, categoryId: number, event: MouseEvent) {
     event.stopPropagation();
     this.cardToMove = card;
     this.currentCategoryIdForMove = categoryId;
@@ -328,8 +394,6 @@ export class DashboardComponent implements OnInit {
     const card = this.cardToMove;
     this.cardToMove = null;
     this.currentCategoryIdForMove = null;
-
-    // Optimistic: move card in memory
     this._removeCardFromAll(card.id);
     const destCat = this.allCategories.find(c => c.id === newCategoryId);
     if (destCat) destCat.cards.push(card);
@@ -340,11 +404,7 @@ export class DashboardComponent implements OnInit {
       : this.api.assignCardCategory(card.id, newCategoryId);
 
     req.subscribe({
-      error: err => {
-        console.error(err);
-        this.toast.error('Erreur lors du déplacement.');
-        this.loadCategories();
-      }
+      error: err => { console.error(err); this.toast.error('Erreur lors du déplacement.'); this.loadCategories(); }
     });
   }
 
@@ -365,7 +425,6 @@ export class DashboardComponent implements OnInit {
     formData.append('category', data.category || this.allCategories[0].id);
     if (data.type === 'WEB') { formData.append('type', 'WEB'); formData.append('url', data.url); }
     else { formData.append('type', 'PDF'); formData.append('document', data.file); }
-
     this.api.createCard(formData).subscribe({
       next: () => { this.showAddModal = false; this.loadCategories(); },
       error: err => { console.error(err); this.toast.error('Erreur lors de l\'ajout.'); }
@@ -373,55 +432,7 @@ export class DashboardComponent implements OnInit {
   }
 
   // ============================================================
-  // DRAG & DROP CARTES
-  // ============================================================
-
-  onCardDragStart(event: DragEvent, card: ResourceCard) {
-    this.draggedCard = card;
-    event.dataTransfer!.effectAllowed = 'move';
-    event.dataTransfer!.setData('text/plain', String(card.id));
-  }
-
-  onCardDragOver(event: DragEvent, card: ResourceCard) {
-    event.preventDefault();
-    event.dataTransfer!.dropEffect = 'move';
-    if (!this.draggedCard || this.draggedCard.id === card.id) return;
-    this.dragOverCard = card;
-    const rect = (event.currentTarget as HTMLElement).getBoundingClientRect();
-    this.dragOverPosition = event.clientY < rect.top + rect.height / 2 ? 'before' : 'after';
-  }
-
-  onCardDragLeave() { this.dragOverCard = null; this.dragOverPosition = null; }
-
-  onCardDrop(event: DragEvent, targetCard: ResourceCard, cat: Category) {
-    event.preventDefault();
-    if (!this.draggedCard || this.draggedCard.id === targetCard.id) {
-      this.resetDrag(); return;
-    }
-
-    const cards = cat.cards;
-    const fromIdx = cards.findIndex(c => c.id === this.draggedCard!.id);
-    if (fromIdx < 0) { this.resetDrag(); return; }
-
-    const draggedCard = this.draggedCard;
-    const position = this.dragOverPosition;
-    cards.splice(fromIdx, 1);
-    const toIdx = cards.findIndex(c => c.id === targetCard.id);
-    if (toIdx < 0) { this.resetDrag(); return; }
-    cards.splice(position === 'before' ? toIdx : toIdx + 1, 0, draggedCard);
-
-    this.api.reorderCards(cards.map((c, i) => ({ id: c.id, type: c.type, ordre: i }))).subscribe({
-      error: err => console.error('Erreur reorder', err)
-    });
-    this.resetDrag();
-  }
-
-  onCardDragEnd() { this.resetDrag(); }
-
-  private resetDrag() { this.draggedCard = null; this.dragOverCard = null; this.dragOverPosition = null; }
-
-  // ============================================================
-  // BADGES
+  // BADGES (conservés pour usage dans les modales existantes)
   // ============================================================
 
   getBadgeClass(cardType: string): string {
@@ -432,6 +443,8 @@ export class DashboardComponent implements OnInit {
       default: return '';
     }
   }
+
+  trackCard(_: number, card: ResourceCard): number { return card.id; }
 
   getBadgeLabel(cardType: string): string {
     switch (cardType) {

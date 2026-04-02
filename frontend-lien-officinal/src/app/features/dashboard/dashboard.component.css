@@ -3,8 +3,25 @@
   height: 100%;
 }
 
+/* Grille auto-fill responsive */
+.grid-cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 1rem;
+}
+
+/* Masquer la scrollbar horizontale des pills sans perdre le scroll */
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+
 /* ====================================
    BADGES DE TYPE DE CARTE
+   (conservés pour CardDetailComponent)
    ==================================== */
 
 .card-type-badge-inline {
@@ -16,30 +33,6 @@
   text-transform: uppercase;
   letter-spacing: 0.3px;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.15);
-  opacity: 0.9;
-}
-
-/* ✅ NOUVEAU : Badge encore plus petit pour mode COMPACT */
-.card-type-badge-compact {
-  display: inline-block;
-  padding: 1px 6px;
-  border-radius: 6px;
-  font-size: 0.55rem;
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.2px;
-  opacity: 0.85;
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
-}
-
-.card-type-badge-small {
-  display: inline-block;
-  padding: 2px 6px;
-  border-radius: 6px;
-  font-size: 0.6rem;
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.3px;
   opacity: 0.9;
 }
 
