@@ -15,7 +15,7 @@ from .serializers_sms import (
     SMSTemplateSerializer, SMSLogSerializer,
     SMSPreviewSerializer, SMSSendSerializer,
 )
-from .services import TemplateResolver, OVHService
+from .services import TemplateResolver, SMSPartnerService
 from .auth_helpers import get_collaborator_from_jwt as _get_collaborator
 
 
@@ -47,14 +47,6 @@ class SMSCollaboratorThrottle(SimpleRateThrottle):
             'ident': f'collab_{collab_id}',
         }
 
-
-# IPs officielles OVH SMS (Europe)
-_OVH_SMS_IPS = frozenset({
-    '46.105.152.56', '46.105.152.57', '46.105.152.58',
-    '46.105.152.59', '46.105.152.60', '46.105.152.61',
-    '46.105.152.62', '46.105.152.63',
-    '87.98.129.90',  '87.98.129.91',
-})
 
 
 class SMSTemplateViewSet(viewsets.ModelViewSet):
@@ -102,8 +94,8 @@ class SMSPreviewView(APIView):
             custom_vars=data.get('custom_vars', {}),
             collaborator=collaborator,
         )
-        sms_count = OVHService.count_sms(result['preview_text'])
-        encoding = 'GSM-7' if OVHService.is_gsm7(result['preview_text']) else 'Unicode'
+        sms_count = SMSPartnerService.count_sms(result['preview_text'])
+        encoding = 'GSM-7' if SMSPartnerService.is_gsm7(result['preview_text']) else 'Unicode'
 
         return Response({
             'preview_text': result['preview_text'],
@@ -133,7 +125,7 @@ class SMSSendView(APIView):
             except SMSTemplate.DoesNotExist:
                 return Response({'detail': 'Template introuvable.'}, status=status.HTTP_404_NOT_FOUND)
 
-        credits_needed = OVHService.count_sms(data['message'])
+        credits_needed = SMSPartnerService.count_sms(data['message'])
 
         # Déduction atomique (race-condition safe)
         updated = pharmacy.__class__.objects.filter(
@@ -155,7 +147,7 @@ class SMSSendView(APIView):
             )
 
         phone = data['to'].replace(' ', '')
-        to_hash = OVHService.hash_phone(phone)
+        to_hash = SMSPartnerService.hash_phone(phone)
 
         log = SMSLog.objects.create(
             pharmacy=pharmacy,
@@ -194,10 +186,9 @@ class SMSLogViewSet(viewsets.ReadOnlyModelViewSet):
 
 class SMSWebhookView(APIView):
     """
-    Accusé de réception OVH — endpoint public.
-    Sécurité :
-      1. Token dans le path URL (/api/sms/webhook/<token>/) — invisible dans les logs query params
-      2. Whitelist IPs OVH (optionnelle, activée si SMS_OVH_IP_WHITELIST=true)
+    Accusé de réception SMS Partner — endpoint public.
+    Sécurité : token dans le path URL (/api/sms/webhook/<token>/).
+    SMS Partner envoie un POST avec messageId et status (1=livré, autres=échec).
     """
     permission_classes = [AllowAny]
     authentication_classes = []
@@ -211,34 +202,36 @@ class SMSWebhookView(APIView):
     def _handle(self, request, token):
         from django.conf import settings as s
 
-        # 1. Vérification du token dans le path
+        # Vérification du token dans le path
         secret = getattr(s, 'SMS_WEBHOOK_SECRET', '')
         if secret and token != secret:
             return Response(status=status.HTTP_403_FORBIDDEN)
 
-        # 2. Whitelist IPs OVH (optionnelle)
-        if getattr(s, 'SMS_OVH_IP_WHITELIST', False):
-            client_ip = (
-                request.META.get('HTTP_X_FORWARDED_FOR', '').split(',')[0].strip()
-                or request.META.get('REMOTE_ADDR', '')
-            )
-            if client_ip not in _OVH_SMS_IPS:
-                logger.warning("[SMS Webhook] IP non autorisée : %s", client_ip)
-                return Response(status=status.HTTP_403_FORBIDDEN)
-
-        # OVH envoie : msgid, status (OK/KO)
-        msgid = request.query_params.get('msgid') or request.data.get('msgid', '')
-        ovh_status = request.query_params.get('status') or request.data.get('status', '')
+        # SMS Partner envoie messageId + status
+        msgid = (
+            request.query_params.get('messageId')
+            or request.data.get('messageId', '')
+            or request.query_params.get('msgid')
+            or request.data.get('msgid', '')
+        )
+        raw_status = (
+            request.query_params.get('status')
+            or request.data.get('status', '')
+        )
 
         if not msgid:
             return Response(status=status.HTTP_400_BAD_REQUEST)
 
-        new_status = (
-            SMSLog.Status.DELIVERED if ovh_status == 'OK' else SMSLog.Status.FAILED
-        )
+        # status=1 → livré ; tout autre valeur → échec
+        try:
+            delivered = int(raw_status) == 1
+        except (ValueError, TypeError):
+            delivered = str(raw_status).upper() == 'OK'
+
+        new_status = SMSLog.Status.DELIVERED if delivered else SMSLog.Status.FAILED
 
         try:
-            log = SMSLog.objects.get(ovh_message_id=msgid)
+            log = SMSLog.objects.get(provider_message_id=msgid)
         except SMSLog.DoesNotExist:
             return Response(status=status.HTTP_200_OK)
 

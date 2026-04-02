@@ -20,7 +20,7 @@ class SMSLogSerializer(serializers.ModelSerializer):
         fields = [
             'id', 'template_title', 'sent_by_display', 'sent_by_color',
             'recipient_civilite', 'recipient_name',
-            'to_hash', 'status', 'status_label', 'ovh_message_id',
+            'to_hash', 'status', 'status_label', 'provider_message_id',
             'credits_used', 'sent_at', 'error_message', 'motif',
         ]
         read_only_fields = fields

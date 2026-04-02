@@ -1,7 +1,6 @@
 from rest_framework import serializers
 from .models import Category, ResourceCard, ResourceItem, PharmacyPreference
 from apps.partners.models import Partner
-from django.conf import settings
 
 # =====================================================
 # 1. SERIALIZERS BASES ET ITEMS
@@ -27,7 +26,10 @@ class ResourceItemSerializer(serializers.ModelSerializer):
 
     def get_final_url(self, obj):
         if obj.file:
-            return f"{settings.BACKEND_BASE_URL}{obj.file.url}"
+            request = self.context.get('request')
+            if request:
+                return request.build_absolute_uri(obj.file.url)
+            return obj.file.url
         
         url = obj.url or ''
         if not url:

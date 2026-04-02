@@ -10,14 +10,18 @@ from apps.team.models import Collaborator
 # ── Helpers ────────────────────────────────────────────────────────────────────
 
 def _collab_repr(collab):
-    """Retourne un dict {id, full_name} ou None."""
+    """Retourne un dict {id, full_name, color} ou None."""
     if collab is None:
         return None
-    return {'id': collab.id, 'full_name': f"{collab.first_name} {collab.last_name}"}
+    return {
+        'id': collab.id,
+        'full_name': f"{collab.first_name} {collab.last_name}",
+        'color': collab.color or '',
+    }
 
 
 def _collab_list_repr(collabs):
-    """Retourne une liste de dicts {id, full_name, initials}."""
+    """Retourne une liste de dicts {id, full_name, initials, color}."""
     result = []
     for c in collabs.all():
         initials = (
@@ -28,6 +32,7 @@ def _collab_list_repr(collabs):
             'id': c.id,
             'full_name': f"{c.first_name} {c.last_name}",
             'initials': initials,
+            'color': c.color or '',
         })
     return result
 

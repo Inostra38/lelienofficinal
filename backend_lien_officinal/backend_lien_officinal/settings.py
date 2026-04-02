@@ -266,8 +266,6 @@ SIMPLE_JWT = {
 # Durée de vie réduite pour les tokens collaborateurs (session PIN)
 COLLABORATOR_TOKEN_LIFETIME = timedelta(minutes=30)
 
-# URL de base du backend (pour les fichiers media)
-BACKEND_BASE_URL = 'http://127.0.0.1:8000'
 
 # --- CHIFFREMENT AU REPOS (Messagerie) ---
 FIELD_ENCRYPTION_KEY = os.environ.get('FIELD_ENCRYPTION_KEY', '')
@@ -298,14 +296,11 @@ ADMIN_ALLOWED_IPS = os.environ.get('ADMIN_ALLOWED_IPS', '127.0.0.1')
 # --- API Claude (Anthropic) ---
 ANTHROPIC_API_KEY = os.environ.get('ANTHROPIC_API_KEY', '')
 
-# --- OVH SMS ---
-OVH_ENDPOINT = 'ovh-eu'
-OVH_APP_KEY = os.environ.get('OVH_APP_KEY', 'DUMMY_KEY')
-OVH_APP_SECRET = os.environ.get('OVH_APP_SECRET', 'DUMMY_SECRET')
-OVH_CONSUMER_KEY = os.environ.get('OVH_CONSUMER_KEY', 'DUMMY_CONSUMER')
-OVH_SMS_SERVICE = os.environ.get('OVH_SMS_SERVICE', 'sms-XXXX-1')
+# --- SMS Partner ---
+SMSPARTNER_API_KEY = os.environ.get('SMSPARTNER_API_KEY', '')
+SMSPARTNER_SENDER = os.environ.get('SMSPARTNER_SENDER', 'LienOfficin')
 
-# Clé secrète pour valider les webhooks OVH (accusés de réception)
+# Clé secrète pour valider les webhooks SMS Partner (accusés de réception)
 SMS_WEBHOOK_SECRET = os.environ.get('SMS_WEBHOOK_SECRET', '')
 
 # --- Mailgun ---

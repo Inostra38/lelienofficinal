@@ -80,7 +80,7 @@
                       : 'bg-white hover:bg-gray-50'"
                     (click)="togglePilot(col.id)">
                   <span class="w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold text-white flex-shrink-0"
-                        [style.background-color]="getAvatarColor(col.first_name + ' ' + col.last_name)">
+                        [style.background-color]="getAvatarColor(col.color)">
                     {{ getInitials(col) }}
                   </span>
                   <span class="text-sm flex-1"

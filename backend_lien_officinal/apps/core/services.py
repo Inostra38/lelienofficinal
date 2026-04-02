@@ -62,24 +62,21 @@ class TemplateResolver:
         }
 
 
-class OVHService:
+class SMSPartnerService:
+    BASE_URL = 'https://api.smspartner.fr/v1'
+
     def __init__(self):
-        import ovh
+        import requests
         from django.conf import settings
-        self.mock = settings.OVH_APP_KEY in ('', 'DUMMY_KEY')
+        self._requests = requests
+        self.api_key = getattr(settings, 'SMSPARTNER_API_KEY', '')
+        self.sender = getattr(settings, 'SMSPARTNER_SENDER', 'LienOfficinal')
+        self.mock = not self.api_key
         if self.mock:
             logger.warning(
                 "[SMS] MODE MOCK ACTIF — aucun SMS réel ne sera envoyé. "
-                "Configurez OVH_APP_KEY en production."
+                "Configurez SMSPARTNER_API_KEY en production."
             )
-        if not self.mock:
-            self.client = ovh.Client(
-                endpoint=settings.OVH_ENDPOINT,
-                application_key=settings.OVH_APP_KEY,
-                application_secret=settings.OVH_APP_SECRET,
-                consumer_key=settings.OVH_CONSUMER_KEY,
-            )
-        self.service_name = settings.OVH_SMS_SERVICE
 
     @staticmethod
     def hash_phone(number: str) -> str:
@@ -111,63 +108,29 @@ class OVHService:
         )
         return all(c in gsm7 for c in text)
 
-    def send_raw(self, to: str, message: str) -> str:
-        """Appel OVH brut — retourne l'ID du message OVH (utilisé par la tâche Celery)."""
+    def send_raw(self, to: str, message: str, webhook_url: str = '') -> str:
+        """Appel SMS Partner — retourne le messageId (utilisé par la tâche Celery)."""
         if self.mock:
             import uuid
             return f'MOCK-{uuid.uuid4().hex[:8].upper()}'
-        result = self.client.post(
-            f'/sms/{self.service_name}/jobs',
-            message=message,
-            receivers=[to],
-            senderForResponse=True,
-            noStopClause=False,
-        )
-        ids = result.get('ids', []) if isinstance(result, dict) else []
-        return ids[0] if ids else ''
 
-    def send_sms(self, pharmacy, to: str, message: str,
-                 template=None, recipient_civilite='', recipient_name='', motif=''):
-        from apps.core.models import SMSLog
-        credits_needed = self.count_sms(message)
-        if pharmacy.sms_credits < credits_needed:
-            raise ValueError(
-                f"Crédits insuffisants : {credits_needed} requis, "
-                f"{pharmacy.sms_credits} disponibles"
-            )
-        to_hash = self.hash_phone(to)
-        try:
-            self.client.post(
-                f'/sms/{self.service_name}/jobs',
-                message=message,
-                receivers=[to],
-                senderForResponse=True,
-                noStopClause=False,
-            )
-            pharmacy.sms_credits -= credits_needed
-            pharmacy.save(update_fields=['sms_credits'])
-            SMSLog.objects.create(
-                pharmacy=pharmacy,
-                template=template,
-                sent_by=pharmacy,
-                to_hash=to_hash,
-                recipient_civilite=recipient_civilite,
-                recipient_name=recipient_name,
-                motif=motif,
-                status='SUCCESS',
-                credits_used=credits_needed,
-            )
-        except Exception as e:
-            SMSLog.objects.create(
-                pharmacy=pharmacy,
-                template=template,
-                sent_by=pharmacy,
-                to_hash=to_hash,
-                recipient_civilite=recipient_civilite,
-                recipient_name=recipient_name,
-                motif=motif,
-                status='FAILED',
-                credits_used=0,
-                error_message=str(e),
-            )
-            raise
+        payload = {
+            'apiKey': self.api_key,
+            'phoneNumbers': to,
+            'sender': self.sender,
+            'gamme': 1,
+            'message': message,
+        }
+        if webhook_url:
+            payload['webhookUrl'] = webhook_url
+
+        resp = self._requests.post(
+            f'{self.BASE_URL}/send',
+            json=payload,
+            timeout=10,
+        )
+        resp.raise_for_status()
+        data = resp.json()
+        if not data.get('success'):
+            raise RuntimeError(f"SMS Partner error: {data}")
+        return str(data.get('response', {}).get('messageId', ''))

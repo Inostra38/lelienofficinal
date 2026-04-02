@@ -167,7 +167,7 @@ class TestSMSPreviewEncodage(TestCase):
 
 class TestSMSWebhookDelivered(TestCase):
     """
-    Webhook OVH — POST /api/sms/webhook/<token>/?msgid=X&status=OK
+    Webhook SMS Partner — POST /api/sms/webhook/<token>/?messageId=X&status=1
     Met à jour le statut SMSLog de PENDING à DELIVERED.
     En test, SMS_WEBHOOK_SECRET n'est pas défini → token ignoré.
     """
@@ -178,28 +178,28 @@ class TestSMSWebhookDelivered(TestCase):
             pharmacy=self.pharmacy,
             to_hash='abc123',
             status=SMSLog.Status.PENDING,
-            ovh_message_id='OVH-MSG-42',
+            provider_message_id='SP-MSG-42',
             credits_used=1,
         )
 
-    def test_webhook_ok_passe_en_delivered(self):
-        """POST webhook avec status=OK → SMSLog.status = DELIVERED."""
+    def test_webhook_status1_passe_en_delivered(self):
+        """POST webhook avec status=1 (SMS Partner livré) → SMSLog.status = DELIVERED."""
         client = APIClient()
         resp = client.post(
             '/api/sms/webhook/any-token/',
-            {'msgid': 'OVH-MSG-42', 'status': 'OK'},
+            {'messageId': 'SP-MSG-42', 'status': 1},
             format='json',
         )
         self.assertEqual(resp.status_code, 200)
         self.log.refresh_from_db()
         self.assertEqual(self.log.status, SMSLog.Status.DELIVERED)
 
-    def test_webhook_ko_passe_en_failed(self):
-        """POST webhook avec status=KO → SMSLog.status = FAILED."""
+    def test_webhook_status_non1_passe_en_failed(self):
+        """POST webhook avec status≠1 → SMSLog.status = FAILED."""
         client = APIClient()
         resp = client.post(
             '/api/sms/webhook/any-token/',
-            {'msgid': 'OVH-MSG-42', 'status': 'KO'},
+            {'messageId': 'SP-MSG-42', 'status': 2},
             format='json',
         )
         self.assertEqual(resp.status_code, 200)
@@ -207,30 +207,30 @@ class TestSMSWebhookDelivered(TestCase):
         self.assertEqual(self.log.status, SMSLog.Status.FAILED)
 
     def test_webhook_msgid_inconnu_retourne_200(self):
-        """Webhook avec msgid inexistant → 200 silencieux (pas d'erreur)."""
+        """Webhook avec messageId inexistant → 200 silencieux (pas d'erreur)."""
         client = APIClient()
         resp = client.post(
             '/api/sms/webhook/any-token/',
-            {'msgid': 'INCONNU-9999', 'status': 'OK'},
+            {'messageId': 'INCONNU-9999', 'status': 1},
             format='json',
         )
         self.assertEqual(resp.status_code, 200)
 
     def test_webhook_sans_msgid_retourne_400(self):
-        """Webhook sans msgid → 400."""
+        """Webhook sans messageId → 400."""
         client = APIClient()
         resp = client.post(
             '/api/sms/webhook/any-token/',
-            {'status': 'OK'},
+            {'status': 1},
             format='json',
         )
         self.assertEqual(resp.status_code, 400)
 
     def test_webhook_via_get_fonctionne_aussi(self):
-        """OVH peut envoyer en GET (query params) — les deux méthodes supportées."""
+        """SMS Partner peut envoyer en GET (query params) — les deux méthodes supportées."""
         client = APIClient()
         resp = client.get(
-            '/api/sms/webhook/any-token/?msgid=OVH-MSG-42&status=OK',
+            '/api/sms/webhook/any-token/?messageId=SP-MSG-42&status=1',
         )
         self.assertEqual(resp.status_code, 200)
         self.log.refresh_from_db()

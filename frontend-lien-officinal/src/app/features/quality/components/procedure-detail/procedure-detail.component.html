@@ -90,7 +90,7 @@
             <div class="pilot-row">
               @for (pilot of procedure.pilots; track pilot.id) {
                 <div class="pilot-chip">
-                  <div class="avatar-sm" [style.background-color]="getAvatarColor(pilot.full_name)">
+                  <div class="avatar-sm" [style.background-color]="getAvatarColor(pilot.color)">
                     {{ pilot.initials }}
                   </div>
                   {{ pilot.full_name }}
@@ -107,7 +107,7 @@
         <div class="meta-value">
           @if (procedure.created_by) {
             <div class="pilot-chip">
-              <div class="avatar-sm" [style.background-color]="getAvatarColor(procedure.created_by.full_name)">
+              <div class="avatar-sm" [style.background-color]="getAvatarColor(procedure.created_by.color)">
                 {{ getInitials(procedure.created_by.full_name) }}
               </div>
               {{ procedure.created_by.full_name }}

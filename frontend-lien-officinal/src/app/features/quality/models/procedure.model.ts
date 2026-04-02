@@ -39,9 +39,9 @@ export interface Procedure {
   next_review_date?: string | null;
   is_unread?: boolean;
   group?: number | null;
-  pilots?: { id: number; full_name: string; initials: string }[];
-  created_by?: { id: number; full_name: string };
-  archived_by?: { id: number; full_name: string } | null;
+  pilots?: { id: number; full_name: string; initials: string; color: string }[];
+  created_by?: { id: number; full_name: string; color: string };
+  archived_by?: { id: number; full_name: string; color: string } | null;
   created_at?: string;
   updated_at?: string;
   archived_at?: string | null;

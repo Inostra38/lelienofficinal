@@ -18,7 +18,7 @@ from django.core.management.base import BaseCommand
 from django.utils import timezone
 
 from apps.core.models import Pharmacy, SMSLog, SMSTemplate
-from apps.core.services import OVHService
+from apps.core.services import SMSPartnerService
 from apps.team.models import Collaborator
 
 
@@ -100,7 +100,7 @@ class Command(BaseCommand):
         for i in range(count):
             civilite, nom = random.choice(DESTINATAIRES)
             phone = random.choice(PHONES)
-            to_hash = OVHService.hash_phone(phone)
+            to_hash = SMSPartnerService.hash_phone(phone)
             motif = random.choice(MOTIFS)
             status = random.choice(statuts_pool)
             template = random.choice(templates) if templates and random.random() > 0.3 else None
@@ -116,8 +116,8 @@ class Command(BaseCommand):
                 credits_used = 0
                 error_msg = random.choice([
                     'Numéro invalide ou hors zone',
-                    'Quota journalier OVH atteint',
-                    'Timeout connexion OVH API',
+                    'Numéro non joignable',
+                    'Timeout connexion SMS Partner API',
                 ])
 
             sent_by = random.choice(collaborators) if collaborators else None
@@ -131,7 +131,7 @@ class Command(BaseCommand):
                 recipient_name=nom,
                 motif=motif,
                 status=status,
-                ovh_message_id=ovh_id,
+                provider_message_id=ovh_id,
                 credits_used=credits_used,
                 error_message=error_msg,
             )

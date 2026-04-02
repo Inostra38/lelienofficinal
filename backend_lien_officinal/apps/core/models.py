@@ -162,7 +162,7 @@ class SMSLog(models.Model):
     recipient_name = models.CharField(max_length=200, blank=True)
     motif = models.CharField(max_length=255, blank=True, default='')
     status = models.CharField(max_length=10, choices=Status.choices, default=Status.PENDING)
-    ovh_message_id = models.CharField(max_length=100, blank=True, default='')
+    provider_message_id = models.CharField(max_length=100, blank=True, default='')
     credits_used = models.PositiveIntegerField(default=0)
     sent_at = models.DateTimeField(auto_now_add=True)
     error_message = models.TextField(blank=True, default='')

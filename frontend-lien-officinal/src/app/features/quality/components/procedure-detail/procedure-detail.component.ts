@@ -7,6 +7,7 @@ import { QualityService } from '../../services/quality.service';
 import { AuthService } from '../../../../core/auth/auth.service';
 import { ConfirmService } from '../../../../core/services/confirm.service';
 import { Procedure, ProcedureVersion } from '../../models/procedure.model';
+import { getCollaboratorColor } from '../../../../core/utils/collaborator-colors';
 
 @Component({
   selector: 'app-procedure-detail',
@@ -149,12 +150,7 @@ export class ProcedureDetailComponent implements OnInit {
     return ((parts[0]?.[0] ?? '') + (parts[1]?.[0] ?? '')).toUpperCase();
   }
 
-  getAvatarColor(name: string): string {
-    const colors = ['#1B5E20', '#0D47A1', '#4A148C', '#E65100', '#880E4F', '#006064', '#37474F'];
-    let hash = 0;
-    for (let i = 0; i < name.length; i++) {
-      hash = name.charCodeAt(i) + ((hash << 5) - hash);
-    }
-    return colors[Math.abs(hash) % colors.length];
+  getAvatarColor(color: string): string {
+    return getCollaboratorColor(color).base;
   }
 }

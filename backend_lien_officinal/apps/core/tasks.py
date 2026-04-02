@@ -27,10 +27,10 @@ def send_email_change_task(self, old_email: str, new_email: str, token: str):
 
 @shared_task(bind=True, max_retries=2, default_retry_delay=30)
 def send_sms_task(self, log_id: int, phone: str, message: str):
-    """Envoie un SMS via OVH en arrière-plan et met à jour le log."""
+    """Envoie un SMS via SMS Partner en arrière-plan et met à jour le log."""
     from django.db.models import F
     from apps.core.models import SMSLog
-    from apps.core.services import OVHService
+    from apps.core.services import SMSPartnerService
 
     try:
         log = SMSLog.objects.get(id=log_id)
@@ -38,11 +38,11 @@ def send_sms_task(self, log_id: int, phone: str, message: str):
         return
 
     try:
-        svc = OVHService()
-        ovh_id = svc.send_raw(phone, message)
+        svc = SMSPartnerService()
+        provider_id = svc.send_raw(phone, message)
         SMSLog.objects.filter(pk=log_id).update(
             status=SMSLog.Status.SUCCESS,
-            ovh_message_id=ovh_id or '',
+            provider_message_id=provider_id or '',
         )
     except Exception as exc:
         try:

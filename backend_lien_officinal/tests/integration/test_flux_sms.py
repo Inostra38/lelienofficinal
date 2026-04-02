@@ -87,12 +87,12 @@ class TestFluxSMSComplet(TestCase):
         self.assertEqual(log.status, SMSLog.Status.PENDING)
         self.assertGreater(log.credits_used, 0)
 
-        # 5. Simuler un webhook OVH avec ovh_message_id
-        log.ovh_message_id = 'test-msg-id-123'
-        log.save(update_fields=['ovh_message_id'])
+        # 5. Simuler un webhook SMS Partner avec provider_message_id
+        log.provider_message_id = 'test-msg-id-123'
+        log.save(update_fields=['provider_message_id'])
 
         resp_webhook = self.client.get(
-            f'/api/sms/webhook/testtoken/?msgid=test-msg-id-123&status=OK',
+            f'/api/sms/webhook/testtoken/?messageId=test-msg-id-123&status=1',
         )
         self.assertEqual(resp_webhook.status_code, 200)
 
@@ -134,11 +134,11 @@ class TestFluxSMSComplet(TestCase):
         log_id = resp_send.data['log_id']
 
         log = SMSLog.objects.get(pk=log_id)
-        log.ovh_message_id = 'failed-msg-id-456'
-        log.save(update_fields=['ovh_message_id'])
+        log.provider_message_id = 'failed-msg-id-456'
+        log.save(update_fields=['provider_message_id'])
 
         resp_webhook = self.client.get(
-            f'/api/sms/webhook/testtoken/?msgid=failed-msg-id-456&status=KO',
+            f'/api/sms/webhook/testtoken/?messageId=failed-msg-id-456&status=2',
         )
         self.assertEqual(resp_webhook.status_code, 200)
 

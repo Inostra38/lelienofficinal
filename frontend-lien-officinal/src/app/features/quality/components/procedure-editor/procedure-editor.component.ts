@@ -11,6 +11,7 @@ import { QuillEditorWrapperComponent, QuillRange } from '../quill-editor-wrapper
 import { BadgeSelectorComponent } from '../badge-selector/badge-selector.component';
 import { AttachmentUploaderComponent } from '../attachment-uploader/attachment-uploader.component';
 import { DatePickerDirective } from '../../../../shared/directives/date-picker.directive';
+import { getCollaboratorColor } from '../../../../core/utils/collaborator-colors';
 
 @Component({
   selector: 'app-procedure-editor',
@@ -112,13 +113,8 @@ export class ProcedureEditorComponent implements OnInit {
     return ((c.first_name?.[0] ?? '') + (c.last_name?.[0] ?? '')).toUpperCase();
   }
 
-  getAvatarColor(name: string): string {
-    const colors = ['#1B5E20', '#0D47A1', '#4A148C', '#E65100', '#880E4F', '#006064', '#37474F'];
-    let hash = 0;
-    for (let i = 0; i < name.length; i++) {
-      hash = name.charCodeAt(i) + ((hash << 5) - hash);
-    }
-    return colors[Math.abs(hash) % colors.length];
+  getAvatarColor(color: string): string {
+    return getCollaboratorColor(color).base;
   }
 
   // ── Save ────────────────────────────────────────────────────────────────
