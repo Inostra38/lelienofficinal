@@ -3,6 +3,7 @@ from .models import Category, ResourceCard, ResourceItem, PharmacyPreference
 
 class ResourceItemInline(admin.TabularInline):
     model = ResourceItem
+    fk_name = 'card'
     extra = 1
 
 @admin.register(Category)

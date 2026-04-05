@@ -114,9 +114,30 @@
         </p>
       </div>
 
+      <!-- RECOMMANDER LA CARTE (PRIVATE uniquement) -->
+      <div *ngIf="card.type === 'PRIVATE'" class="border-t border-gray-100 pt-4 mt-6">
+        <div *ngIf="canRecommendCard()">
+          <button (click)="recommendCard()"
+                  [disabled]="isRecommending"
+                  class="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl border border-green-200 bg-green-50 text-green-700 text-sm font-medium hover:bg-green-100 transition-colors disabled:opacity-50">
+            <svg *ngIf="!isRecommending" class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.518 4.674h4.914c.969 0 1.371 1.24.588 1.81l-3.976 2.888 1.518 4.674c.3.921-.755 1.688-1.538 1.118L12 15.203l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674-3.976-2.888c-.783-.57-.38-1.81.588-1.81h4.914l1.518-4.674z"/>
+            </svg>
+            <span *ngIf="isRecommending" class="w-4 h-4 border-2 border-green-600 border-t-transparent rounded-full animate-spin"></span>
+            {{ isRecommending ? 'Envoi...' : 'Recommander cette ressource à la communauté' }}
+          </button>
+        </div>
+        <div *ngIf="isCardRecommended()" class="flex items-center gap-2 py-2.5 px-3 rounded-xl bg-amber-50 border border-amber-200 text-amber-700 text-sm">
+          <svg class="w-4 h-4 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/>
+          </svg>
+          Recommandation envoyée — en attente de validation
+        </div>
+      </div>
+
       <div class="border-t border-gray-100 pt-4 mt-6">
         <div class="flex justify-between items-center mb-3">
-            <h3 class="text-xs font-bold text-gray-400 uppercase tracking-widest">Liens & Docs</h3>
+            <h3 class="text-xs font-bold text-gray-400 uppercase tracking-widest">Ressources</h3>
             <button (click)="showAddForm = !showAddForm" class="text-xs text-green-700 font-bold hover:underline">
                 {{ showAddForm ? 'Annuler' : '+ Ajouter un lien personnel' }}
             </button>
@@ -142,16 +163,34 @@
         <div *ngIf="!isEditMode" class="space-y-2">
           <div *ngIf="!card.items || card.items.length === 0" class="text-sm text-gray-400 italic text-center py-2">Aucun lien</div>
 
-          <a *ngFor="let item of card.items" [href]="item.final_url" target="_blank"
-             class="flex items-center gap-3 p-3 rounded-xl border border-gray-200 hover:border-green-400 hover:shadow-md transition-all bg-white group">
-             <div class="w-8 h-8 rounded-full bg-gray-50 flex items-center justify-center text-sm text-gray-500 group-hover:text-green-700 group-hover:bg-green-50">
-                <span *ngIf="item.type === 'WEB'">🌐</span>
-                <span *ngIf="item.type === 'PDF'">📄</span>
-                <span *ngIf="item.type === 'TEL'">📞</span>
-             </div>
-             <span class="flex-1 text-sm font-bold text-gray-700 group-hover:text-green-700 truncate">{{ item.label }}</span>
-             <span class="text-gray-300 group-hover:text-green-500">→</span>
-          </a>
+          <div *ngFor="let item of card.items" class="flex items-center gap-2">
+            <a [href]="item.final_url" target="_blank"
+               class="flex-1 flex items-center gap-3 p-3 rounded-xl border border-gray-200 hover:border-green-400 hover:shadow-md transition-all bg-white group">
+               <div class="w-8 h-8 rounded-full bg-gray-50 flex items-center justify-center text-sm text-gray-500 group-hover:text-green-700 group-hover:bg-green-50">
+                  <span *ngIf="item.type === 'WEB'">🌐</span>
+                  <span *ngIf="item.type === 'PDF'">📄</span>
+                  <span *ngIf="item.type === 'TEL'">📞</span>
+               </div>
+               <span class="flex-1 text-sm font-bold text-gray-700 group-hover:text-green-700 truncate">{{ item.label }}</span>
+               <span class="text-gray-300 group-hover:text-green-500">→</span>
+            </a>
+            <!-- Bouton recommander item -->
+            <button *ngIf="canRecommendItem(item)"
+                    (click)="recommendItem(item)"
+                    class="w-8 h-8 flex items-center justify-center rounded-full border border-green-200 text-green-600 hover:bg-green-50 transition-colors flex-shrink-0"
+                    title="Recommander ce lien à la communauté">
+              <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.518 4.674h4.914c.969 0 1.371 1.24.588 1.81l-3.976 2.888 1.518 4.674c.3.921-.755 1.688-1.538 1.118L12 15.203l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674-3.976-2.888c-.783-.57-.38-1.81.588-1.81h4.914l1.518-4.674z"/>
+              </svg>
+            </button>
+            <span *ngIf="isItemRecommended(item)"
+                  class="w-8 h-8 flex items-center justify-center rounded-full bg-amber-50 text-amber-500 flex-shrink-0"
+                  title="Recommandé — en attente de validation">
+              <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/>
+              </svg>
+            </span>
+          </div>
         </div>
 
         <!-- ✅ LISTE DES LIENS - MODE ÉDITION -->

@@ -107,7 +107,7 @@ export class AdminLoginComponent {
 
     this.adminAuthService.verifyTotp(this.sessionToken, code).subscribe({
       next: () => {
-        this.router.navigate(['/admin/dashboard']);
+        this.router.navigate(['/admin']);
       },
       error: () => {
         this.isLoading = false;

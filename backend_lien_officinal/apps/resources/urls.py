@@ -24,6 +24,8 @@ urlpatterns = [
     path('cards/<int:pk>/toggle-favorite/', views.toggle_favorite, name='toggle-favorite'),
     path('cards/<int:pk>/toggle-visibility/', views.toggle_visibility, name='toggle-visibility'),
     path('cards/<int:pk>/update-notes/', views.update_notes, name='update-notes'),
+    path('cards/<int:pk>/recommend/', views.recommend_card, name='recommend-card'),
+    path('items/<int:pk>/recommend/', views.recommend_item, name='recommend-item'),
     
     # ✅ Router en dernier
     path('', include(router.urls)),

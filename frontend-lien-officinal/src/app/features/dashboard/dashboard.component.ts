@@ -17,7 +17,6 @@ import { CategoryAssignerModalComponent } from '../../shared/ui/category-assigne
 import { MoveCardModalComponent } from '../../shared/ui/move-card-modal/move-card-modal.component';
 import { ResourceCardComponent } from './components/resource-card/resource-card.component';
 import { PubBannerComponent } from './components/pub-banner/pub-banner.component';
-import { PubSidebarComponent } from './components/pub-sidebar/pub-sidebar.component';
 
 // --- INTERFACES ---
 export interface ResourceItem {
@@ -65,7 +64,6 @@ export interface Category {
     MoveCardModalComponent,
     ResourceCardComponent,
     PubBannerComponent,
-    PubSidebarComponent,
   ],
   templateUrl: './dashboard.component.html',
   styleUrl: './dashboard.component.css'
@@ -88,6 +86,8 @@ export class DashboardComponent implements OnInit {
 
   // Filtres
   activeFilter = 'Tous';
+  isExpanded = false;
+  readonly VISIBLE_COUNT = 3;
   showOnlyFavorites = false;
   searchTerm = '';
   isSearching = false;
@@ -156,6 +156,7 @@ export class DashboardComponent implements OnInit {
   // ============================================================
 
   setFilter(filter: string) {
+    this.isExpanded = false;
     this.activeFilter = filter;
     this.showOnlyFavorites = (filter === 'Favoris');
     this.updateDisplay();

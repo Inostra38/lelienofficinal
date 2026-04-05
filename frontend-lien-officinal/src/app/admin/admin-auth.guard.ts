@@ -26,7 +26,7 @@ export const adminNoAuthGuard: CanActivateFn = () => {
   const router = inject(Router);
 
   if (adminAuthService.isAuthenticated()) {
-    return router.createUrlTree(['/admin/dashboard']);
+    return router.createUrlTree(['/admin']);
   }
 
   return true;

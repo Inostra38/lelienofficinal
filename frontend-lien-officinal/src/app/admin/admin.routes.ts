@@ -9,14 +9,31 @@ export const adminRoutes: Routes = [
     canActivate: [adminNoAuthGuard],
   },
   {
-    path: 'dashboard',
-    loadComponent: () =>
-      import('./pages/admin-dashboard/admin-dashboard.component').then(m => m.AdminDashboardComponent),
-    canActivate: [adminAuthGuard],
-  },
-  {
     path: '',
-    redirectTo: 'dashboard',
-    pathMatch: 'full',
+    loadComponent: () =>
+      import('./components/admin-layout/admin-layout.component').then(m => m.AdminLayoutComponent),
+    canActivate: [adminAuthGuard],
+    children: [
+      {
+        path: 'statistiques',
+        loadComponent: () =>
+          import('./pages/admin-dashboard/admin-dashboard.component').then(m => m.AdminDashboardComponent),
+      },
+      {
+        path: 'ressources',
+        loadComponent: () =>
+          import('./pages/admin-resources/admin-resources.component').then(m => m.AdminResourcesComponent),
+      },
+      {
+        path: 'recommandations',
+        loadComponent: () =>
+          import('./pages/admin-recommendations/admin-recommendations.component').then(m => m.AdminRecommendationsComponent),
+      },
+      {
+        path: '',
+        redirectTo: 'statistiques',
+        pathMatch: 'full',
+      },
+    ],
   },
 ];

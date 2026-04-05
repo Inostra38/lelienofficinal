@@ -307,6 +307,7 @@ SMS_WEBHOOK_SECRET = os.environ.get('SMS_WEBHOOK_SECRET', '')
 MAILGUN_API_KEY = os.environ.get('MAILGUN_API_KEY', '')
 MAILGUN_DOMAIN = os.environ.get('MAILGUN_DOMAIN', 'mg.lienofficinal.fr')
 FRONTEND_BASE_URL = os.environ.get('FRONTEND_BASE_URL', 'http://localhost:4200')
+ADMIN_NOTIFICATION_EMAIL = os.environ.get('ADMIN_NOTIFICATION_EMAIL', 'admin@lienofficinal.fr')
 
 # --- CACHE (Redis) ---
 CACHES = {

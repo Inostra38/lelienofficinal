@@ -91,6 +91,35 @@ class ResourceCard(models.Model):
         help_text=_("Cocher pour afficher cette ressource en tête de liste.")
     )
 
+    # --- Recommandation communautaire ---
+    recommended_to_community = models.BooleanField(
+        _("Recommandé à la communauté"),
+        default=False,
+    )
+    recommended_at = models.DateTimeField(
+        _("Date de recommandation"),
+        null=True,
+        blank=True,
+    )
+    recommended_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='recommended_cards',
+        verbose_name=_("Recommandé par"),
+    )
+    recommendation_status = models.CharField(
+        _("Statut recommandation"),
+        max_length=20,
+        choices=[
+            ('PENDING', 'En attente'),
+            ('APPROVED', 'Approuvée'),
+            ('REJECTED', 'Rejetée'),
+        ],
+        default='PENDING',
+    )
+
     class Meta:
         verbose_name = _("Carte de Ressource")
         verbose_name_plural = _("Cartes de Ressources")
@@ -126,6 +155,44 @@ class ResourceItem(models.Model):
     )
     
     ordre = models.PositiveIntegerField(default=0)
+
+    # --- Recommandation communautaire ---
+    recommended_to_community = models.BooleanField(
+        _("Recommandé à la communauté"),
+        default=False,
+    )
+    recommended_at = models.DateTimeField(
+        _("Date de recommandation"),
+        null=True,
+        blank=True,
+    )
+    recommended_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='recommended_items',
+        verbose_name=_("Recommandé par"),
+    )
+    recommendation_status = models.CharField(
+        _("Statut recommandation"),
+        max_length=20,
+        choices=[
+            ('PENDING', 'En attente'),
+            ('APPROVED', 'Approuvée'),
+            ('REJECTED', 'Rejetée'),
+        ],
+        default='PENDING',
+    )
+    target_official_card = models.ForeignKey(
+        'ResourceCard',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='pending_community_items',
+        verbose_name=_("Carte OFFICIAL cible"),
+        help_text=_("Carte OFFICIAL sur laquelle rattacher cet item après approbation"),
+    )
 
     @property
     def final_url(self):

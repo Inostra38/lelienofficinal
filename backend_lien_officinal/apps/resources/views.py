@@ -682,6 +682,83 @@ def update_notes(request, pk):
 
 
 # =====================================================
+# RECOMMANDATION COMMUNAUTAIRE (côté pharmacien)
+# =====================================================
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+@authentication_classes([JWTAuthentication])
+def recommend_card(request, pk):
+    """
+    Recommande une carte PRIVATE à la communauté.
+    POST /api/cards/<id>/recommend/
+    """
+    card = get_object_or_404(ResourceCard, pk=pk)
+
+    if card.type != 'PRIVATE' or card.owner_pharmacy != request.user:
+        return Response(
+            {"detail": "Seules vos cartes privées peuvent être recommandées."},
+            status=status.HTTP_403_FORBIDDEN
+        )
+
+    if card.recommended_to_community:
+        return Response(
+            {"detail": "Cette carte a déjà été recommandée.", "status": card.recommendation_status},
+            status=status.HTTP_400_BAD_REQUEST
+        )
+
+    card.recommended_to_community = True
+    card.recommended_by = request.user
+    card.save()  # le signal pre_save remplit recommended_at et recommendation_status
+
+    return Response({
+        "detail": "Carte recommandée à la communauté.",
+        "card_id": card.id,
+        "recommendation_status": card.recommendation_status,
+    })
+
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+@authentication_classes([JWTAuthentication])
+def recommend_item(request, pk):
+    """
+    Recommande un item personnel à la communauté.
+    POST /api/items/<id>/recommend/
+    Body optionnel : { "target_card_id": 123 }
+    """
+    item = get_object_or_404(ResourceItem, pk=pk)
+
+    if item.owner != request.user:
+        return Response(
+            {"detail": "Seuls vos liens personnels peuvent être recommandés."},
+            status=status.HTTP_403_FORBIDDEN
+        )
+
+    if item.recommended_to_community:
+        return Response(
+            {"detail": "Ce lien a déjà été recommandé.", "status": item.recommendation_status},
+            status=status.HTTP_400_BAD_REQUEST
+        )
+
+    # Carte OFFICIAL cible optionnelle
+    target_card_id = request.data.get('target_card_id')
+    if target_card_id:
+        target_card = get_object_or_404(ResourceCard, pk=target_card_id, type='OFFICIAL')
+        item.target_official_card = target_card
+
+    item.recommended_to_community = True
+    item.recommended_by = request.user
+    item.save()  # le signal pre_save remplit recommended_at et recommendation_status
+
+    return Response({
+        "detail": "Lien recommandé à la communauté.",
+        "item_id": item.id,
+        "recommendation_status": item.recommendation_status,
+    })
+
+
+# =====================================================
 # ✅ CRÉATION RESSOURCE COMPLÈTE
 # =====================================================
 

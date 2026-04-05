@@ -1,0 +1,55 @@
+<div class="flex h-screen bg-gray-50">
+
+  <!-- Sidebar -->
+  <aside class="w-56 bg-white border-r border-gray-100 flex flex-col">
+
+    <!-- Logo -->
+    <div class="px-5 py-5 border-b border-gray-100">
+      <h1 class="text-sm font-bold text-gray-800 tracking-tight">Le Lien Officinal</h1>
+      <span class="text-[10px] font-medium text-green-700 uppercase tracking-widest">Admin</span>
+    </div>
+
+    <!-- Navigation -->
+    <nav class="flex-1 py-4 px-3 space-y-1">
+      <a *ngFor="let item of navItems"
+         [routerLink]="item.route"
+         routerLinkActive="bg-green-50 text-green-700 font-semibold"
+         class="flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm text-gray-600 hover:bg-gray-50 transition-colors">
+
+        <!-- Statistiques -->
+        <svg *ngIf="item.icon === 'chart'" class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M3 13v6h4v-6H3zm7-4v10h4V9h-4zm7-6v16h4V3h-4z"/>
+        </svg>
+
+        <!-- Ressources -->
+        <svg *ngIf="item.icon === 'grid'" class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M4 5a1 1 0 011-1h4a1 1 0 011 1v4a1 1 0 01-1 1H5a1 1 0 01-1-1V5zm10 0a1 1 0 011-1h4a1 1 0 011 1v4a1 1 0 01-1 1h-4a1 1 0 01-1-1V5zM4 15a1 1 0 011-1h4a1 1 0 011 1v4a1 1 0 01-1 1H5a1 1 0 01-1-1v-4zm10 0a1 1 0 011-1h4a1 1 0 011 1v4a1 1 0 01-1 1h-4a1 1 0 01-1-1v-4z"/>
+        </svg>
+
+        <!-- Recommandations -->
+        <svg *ngIf="item.icon === 'star'" class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.518 4.674h4.914c.969 0 1.371 1.24.588 1.81l-3.976 2.888 1.518 4.674c.3.921-.755 1.688-1.538 1.118L12 15.203l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674-3.976-2.888c-.783-.57-.38-1.81.588-1.81h4.914l1.518-4.674z"/>
+        </svg>
+
+        {{ item.label }}
+      </a>
+    </nav>
+
+    <!-- Footer -->
+    <div class="px-3 py-4 border-t border-gray-100">
+      <button (click)="logout()"
+              class="flex items-center gap-2 w-full px-3 py-2 rounded-lg text-sm text-gray-500 hover:bg-red-50 hover:text-red-600 transition-colors">
+        <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"/>
+        </svg>
+        Déconnexion
+      </button>
+    </div>
+  </aside>
+
+  <!-- Contenu principal -->
+  <main class="flex-1 overflow-y-auto">
+    <router-outlet></router-outlet>
+  </main>
+
+</div>

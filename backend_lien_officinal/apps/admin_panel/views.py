@@ -293,6 +293,314 @@ class AdminTotpSetupConfirmView(APIView):
         return Response({'detail': 'TOTP configuré avec succès.'})
 
 
+# ── Ressources (liste admin) ────────────────────────────────────────────────
+
+from apps.resources.models import ResourceCard, ResourceItem
+from .serializers import RecommendationCardSerializer, RecommendationItemSerializer
+from django.db.models import Count, Q
+
+
+class ListCreateResourceView(APIView):
+    """
+    GET  /api/admin/resources/         → liste toutes les ressources
+    POST /api/admin/resources/         → crée une nouvelle ressource
+    """
+    authentication_classes = [AdminJWTAuthentication]
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        cards = ResourceCard.objects.annotate(
+            pharmacy_count=Count(
+                'preferences',
+                filter=Q(preferences__assigned_category__isnull=False),
+                distinct=True,
+            )
+        ).order_by('-is_featured', 'titre').values(
+            'id', 'titre', 'description_officielle', 'type',
+            'is_featured', 'pharmacy_count',
+        )
+        return Response(list(cards))
+
+    def post(self, request):
+        titre = request.data.get('titre', '').strip()
+        if not titre:
+            return Response({'error': 'Le titre est obligatoire.'}, status=status.HTTP_400_BAD_REQUEST)
+
+        card = ResourceCard.objects.create(
+            titre=titre,
+            description_officielle=request.data.get('description_officielle', ''),
+            type=request.data.get('type', 'OFFICIAL'),
+            is_featured=request.data.get('is_featured', False),
+        )
+        return Response({
+            'id': card.id,
+            'titre': card.titre,
+            'description_officielle': card.description_officielle,
+            'type': card.type,
+            'is_featured': card.is_featured,
+        }, status=status.HTTP_201_CREATED)
+
+
+class ResourceDetailView(APIView):
+    """
+    GET    /api/admin/resources/<id>/  → détail avec items
+    PATCH  /api/admin/resources/<id>/  → modification
+    DELETE /api/admin/resources/<id>/  → suppression
+    """
+    authentication_classes = [AdminJWTAuthentication]
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request, card_id):
+        try:
+            card = ResourceCard.objects.prefetch_related('items').get(pk=card_id)
+        except ResourceCard.DoesNotExist:
+            return Response({'error': 'Ressource non trouvée'}, status=status.HTTP_404_NOT_FOUND)
+
+        items = [
+            {
+                'id': item.id,
+                'type': item.type,
+                'label': item.label,
+                'url': item.url,
+                'file': item.file.url if item.file else None,
+                'ordre': item.ordre,
+            }
+            for item in card.items.order_by('ordre', 'id')
+        ]
+
+        return Response({
+            'id': card.id,
+            'titre': card.titre,
+            'description_officielle': card.description_officielle,
+            'type': card.type,
+            'is_featured': card.is_featured,
+            'items': items,
+        })
+
+    def patch(self, request, card_id):
+        try:
+            card = ResourceCard.objects.get(pk=card_id)
+        except ResourceCard.DoesNotExist:
+            return Response({'error': 'Ressource non trouvée'}, status=status.HTTP_404_NOT_FOUND)
+
+        fields_to_update = []
+        for field in ('titre', 'description_officielle', 'type', 'is_featured'):
+            if field in request.data:
+                setattr(card, field, request.data[field])
+                fields_to_update.append(field)
+
+        if fields_to_update:
+            card.save(update_fields=fields_to_update)
+
+        return Response({
+            'id': card.id,
+            'titre': card.titre,
+            'description_officielle': card.description_officielle,
+            'type': card.type,
+            'is_featured': card.is_featured,
+        })
+
+    def delete(self, request, card_id):
+        try:
+            card = ResourceCard.objects.get(pk=card_id)
+        except ResourceCard.DoesNotExist:
+            return Response({'error': 'Ressource non trouvée'}, status=status.HTTP_404_NOT_FOUND)
+        card.delete()
+        return Response(status=status.HTTP_204_NO_CONTENT)
+
+
+class ResourceItemCreateView(APIView):
+    """POST /api/admin/resources/<card_id>/items/  → ajouter un item"""
+    authentication_classes = [AdminJWTAuthentication]
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request, card_id):
+        try:
+            card = ResourceCard.objects.get(pk=card_id)
+        except ResourceCard.DoesNotExist:
+            return Response({'error': 'Ressource non trouvée'}, status=status.HTTP_404_NOT_FOUND)
+
+        label = request.data.get('label', '').strip()
+        if not label:
+            return Response({'error': 'Le label est obligatoire.'}, status=status.HTTP_400_BAD_REQUEST)
+
+        last_ordre = card.items.count()
+        item = ResourceItem.objects.create(
+            card=card,
+            type=request.data.get('type', 'WEB'),
+            label=label,
+            url=request.data.get('url', ''),
+            ordre=last_ordre,
+        )
+        return Response({
+            'id': item.id,
+            'type': item.type,
+            'label': item.label,
+            'url': item.url,
+            'ordre': item.ordre,
+        }, status=status.HTTP_201_CREATED)
+
+
+class ResourceItemDeleteView(APIView):
+    """DELETE /api/admin/resources/items/<item_id>/"""
+    authentication_classes = [AdminJWTAuthentication]
+    permission_classes = [IsAuthenticated]
+
+    def delete(self, request, item_id):
+        try:
+            item = ResourceItem.objects.get(pk=item_id)
+        except ResourceItem.DoesNotExist:
+            return Response({'error': 'Item non trouvé'}, status=status.HTTP_404_NOT_FOUND)
+        item.delete()
+        return Response(status=status.HTTP_204_NO_CONTENT)
+
+
+# ── Recommandations communautaires ──────────────────────────────────────────
+
+
+class ListRecommendationsView(APIView):
+    """GET /api/admin/recommendations/?status=PENDING"""
+    authentication_classes = [AdminJWTAuthentication]
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        status_filter = request.query_params.get('status', 'PENDING')
+
+        cards_qs = ResourceCard.objects.filter(
+            recommended_to_community=True,
+        ).select_related('owner_pharmacy').prefetch_related('items')
+
+        items_qs = ResourceItem.objects.filter(
+            recommended_to_community=True,
+        ).select_related('card', 'card__owner_pharmacy', 'target_official_card')
+
+        if status_filter != 'ALL':
+            cards_qs = cards_qs.filter(recommendation_status=status_filter)
+            items_qs = items_qs.filter(recommendation_status=status_filter)
+
+        cards_data = RecommendationCardSerializer(cards_qs.order_by('-recommended_at'), many=True).data
+        items_data = RecommendationItemSerializer(items_qs.order_by('-recommended_at'), many=True).data
+
+        return Response({
+            'cards': cards_data,
+            'items': items_data,
+            'counts': {
+                'pending_cards': ResourceCard.objects.filter(
+                    recommended_to_community=True, recommendation_status='PENDING'
+                ).count(),
+                'pending_items': ResourceItem.objects.filter(
+                    recommended_to_community=True, recommendation_status='PENDING'
+                ).count(),
+            }
+        })
+
+
+class ApproveCardView(APIView):
+    """POST /api/admin/recommendations/card/<id>/approve/"""
+    authentication_classes = [AdminJWTAuthentication]
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request, card_id):
+        try:
+            card = ResourceCard.objects.get(pk=card_id, recommended_to_community=True)
+        except ResourceCard.DoesNotExist:
+            return Response({'error': 'Carte non trouvée'}, status=status.HTTP_404_NOT_FOUND)
+
+        card.type = 'OFFICIAL'
+        card.owner_pharmacy = None
+        card.recommendation_status = 'APPROVED'
+        card.save(update_fields=['type', 'owner_pharmacy', 'recommendation_status'])
+
+        return Response({'success': True, 'message': f'Carte "{card.titre}" promue en OFFICIAL'})
+
+
+class ApproveItemView(APIView):
+    """POST /api/admin/recommendations/item/<id>/approve/"""
+    authentication_classes = [AdminJWTAuthentication]
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request, item_id):
+        try:
+            item = ResourceItem.objects.select_related(
+                'card', 'target_official_card'
+            ).get(pk=item_id, recommended_to_community=True)
+        except ResourceItem.DoesNotExist:
+            return Response({'error': 'Item non trouvé'}, status=status.HTTP_404_NOT_FOUND)
+
+        target_card = item.target_official_card
+        if not target_card:
+            target_card_id = request.data.get('target_card_id')
+            if not target_card_id:
+                return Response(
+                    {'error': 'target_card_id requis (aucune carte cible définie)'},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+            try:
+                target_card = ResourceCard.objects.get(pk=target_card_id, type='OFFICIAL')
+            except ResourceCard.DoesNotExist:
+                return Response(
+                    {'error': 'Carte OFFICIAL cible non trouvée'},
+                    status=status.HTTP_404_NOT_FOUND
+                )
+
+        ResourceItem.objects.create(
+            card=target_card,
+            type=item.type,
+            label=item.label,
+            url=item.url,
+            file=item.file,
+        )
+
+        item.recommendation_status = 'APPROVED'
+        item.save(update_fields=['recommendation_status'])
+        item.delete()
+
+        return Response({
+            'success': True,
+            'message': f'Lien "{item.label}" ajouté à la carte "{target_card.titre}"'
+        })
+
+
+class RejectRecommendationView(APIView):
+    """POST /api/admin/recommendations/reject/  body: {type, id}"""
+    authentication_classes = [AdminJWTAuthentication]
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request):
+        rec_type = request.data.get('type')
+        rec_id = request.data.get('id')
+
+        if rec_type == 'card':
+            try:
+                card = ResourceCard.objects.get(pk=rec_id, recommended_to_community=True)
+            except ResourceCard.DoesNotExist:
+                return Response({'error': 'Carte non trouvée'}, status=status.HTTP_404_NOT_FOUND)
+            card.recommendation_status = 'REJECTED'
+            card.save(update_fields=['recommendation_status'])
+            return Response({'success': True, 'message': f'Recommandation carte "{card.titre}" rejetée'})
+
+        elif rec_type == 'item':
+            try:
+                item = ResourceItem.objects.get(pk=rec_id, recommended_to_community=True)
+            except ResourceItem.DoesNotExist:
+                return Response({'error': 'Item non trouvé'}, status=status.HTTP_404_NOT_FOUND)
+            item.recommendation_status = 'REJECTED'
+            item.save(update_fields=['recommendation_status'])
+            return Response({'success': True, 'message': f'Recommandation lien "{item.label}" rejetée'})
+
+        return Response({'error': 'type doit être "card" ou "item"'}, status=status.HTTP_400_BAD_REQUEST)
+
+
+class ListOfficialCardsView(APIView):
+    """GET /api/admin/recommendations/official-cards/"""
+    authentication_classes = [AdminJWTAuthentication]
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        cards = ResourceCard.objects.filter(type='OFFICIAL').values('id', 'titre').order_by('titre')
+        return Response({'cards': list(cards)})
+
+
 # ── Helpers ──────────────────────────────────────────────────────────────────
 
 def _get_ip(request) -> str:

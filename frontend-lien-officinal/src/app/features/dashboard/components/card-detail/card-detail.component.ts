@@ -39,6 +39,8 @@ export class CardDetailComponent implements OnInit {
   // États
   isSaving = false;
   saveSuccess = false;
+  isRecommending = false;
+  recommendedItemIds = new Set<number>();
 
   readonly quillModules = {
     toolbar: [
@@ -275,6 +277,65 @@ export class CardDetailComponent implements OnInit {
         error: (err) => {
           console.error('Erreur lors de l\'ajout:', err);
           this.toast.error('Erreur lors de l\'ajout de l\'item.');
+        }
+      });
+  }
+
+  // ============================================
+  // RECOMMANDATION COMMUNAUTAIRE
+  // ============================================
+
+  canRecommendCard(): boolean {
+    return this.card.type === 'PRIVATE' && !this.card.recommended_to_community;
+  }
+
+  isCardRecommended(): boolean {
+    return this.card.recommended_to_community === true;
+  }
+
+  recommendCard() {
+    this.isRecommending = true;
+    const token = localStorage.getItem('access_token');
+    const headers = new HttpHeaders().set('Authorization', `Bearer ${token}`);
+
+    this.http.post(`${environment.apiUrl}/api/cards/${this.card.id}/recommend/`, {}, { headers })
+      .subscribe({
+        next: () => {
+          this.card.recommended_to_community = true;
+          this.card.recommendation_status = 'PENDING';
+          this.isRecommending = false;
+          this.cardUpdated.emit(this.card);
+          this.toast.success('Carte recommandée à la communauté !');
+        },
+        error: (err) => {
+          this.isRecommending = false;
+          this.toast.error(err.error?.detail || 'Erreur lors de la recommandation.');
+        }
+      });
+  }
+
+  canRecommendItem(item: any): boolean {
+    return item.owner !== null && !item.recommended_to_community && !this.recommendedItemIds.has(item.id);
+  }
+
+  isItemRecommended(item: any): boolean {
+    return item.recommended_to_community === true || this.recommendedItemIds.has(item.id);
+  }
+
+  recommendItem(item: any) {
+    const token = localStorage.getItem('access_token');
+    const headers = new HttpHeaders().set('Authorization', `Bearer ${token}`);
+
+    this.http.post(`${environment.apiUrl}/api/items/${item.id}/recommend/`, {}, { headers })
+      .subscribe({
+        next: () => {
+          item.recommended_to_community = true;
+          item.recommendation_status = 'PENDING';
+          this.recommendedItemIds.add(item.id);
+          this.toast.success('Lien recommandé à la communauté !');
+        },
+        error: (err) => {
+          this.toast.error(err.error?.detail || 'Erreur lors de la recommandation.');
         }
       });
   }
