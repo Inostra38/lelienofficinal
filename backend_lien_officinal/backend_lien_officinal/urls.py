@@ -1,5 +1,6 @@
 # backend_lien_officinal/urls.py
 from django.contrib import admin
+from django.http import HttpResponseNotFound
 from django.urls import path, include
 from django.conf import settings
 from django.conf.urls.static import static
@@ -7,8 +8,13 @@ from apps.core.views import health_check, CookiePharmacyLoginView, CookieTokenRe
 from apps.core.views_media import serve_protected_media
 
 
-urlpatterns = [
-    path('admin/', admin.site.urls),
+urlpatterns = []
+
+# Interface Django admin : uniquement en dev (en prod, utiliser l'admin SaaS Angular)
+if settings.DEBUG:
+    urlpatterns += [path('admin/', admin.site.urls)]
+
+urlpatterns += [
 
     # Monitoring
     path('api/health/', health_check, name='health_check'),

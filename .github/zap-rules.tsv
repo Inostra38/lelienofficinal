@@ -1,0 +1,8 @@
+10003	IGNORE	(Vulnerable JS Library - false positive for Angular bundles)
+10015	IGNORE	(Incomplete or No Cache-control Header Set - API responses)
+10021	WARN	(X-Content-Type-Options Header Missing)
+10038	WARN	(Content Security Policy Header Not Set)
+10049	IGNORE	(Storable and Cacheable Content - API)
+10098	WARN	(Cross-Domain Misconfiguration)
+10109	IGNORE	(Modern Web Application - informational)
+10202	IGNORE	(Absence of Anti-CSRF Tokens - JWT API)

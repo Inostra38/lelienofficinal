@@ -29,9 +29,11 @@ sys.path.insert(0, os.path.join(BASE_DIR, 'apps'))
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/5.0/howto/deployment/checklist/
 
-SECRET_KEY = os.environ.get('SECRET_KEY', 'django-insecure-CHANGE-ME-IN-PRODUCTION')
-
 DEBUG = os.environ.get('DEBUG', 'True') == 'True'
+
+SECRET_KEY = os.environ.get('SECRET_KEY', 'django-insecure-CHANGE-ME-IN-PRODUCTION')
+if not DEBUG and SECRET_KEY.startswith('django-insecure'):
+    raise Exception("SECRET_KEY must be set in production (DEBUG=False).")
 
 ALLOWED_HOSTS = os.environ.get('ALLOWED_HOSTS', 'localhost,127.0.0.1').split(',')
 
@@ -74,21 +76,40 @@ MIDDLEWARE = [
     # --- IP whitelist admin (EN PREMIER : bloque avant tout traitement) ---
     'apps.admin_panel.middleware.AdminIPWhitelistMiddleware',
 
-    # --- 2. CORS (avant SecurityMiddleware et avant le guard admin) ---
+    # --- Sécurité HTTP (HSTS, X-Content-Type-Options, etc.) ---
+    'django.middleware.security.SecurityMiddleware',
+    'whitenoise.middleware.WhiteNoiseMiddleware',
+
+    # --- CORS (après SecurityMiddleware pour que les headers sécu soient présents) ---
     'corsheaders.middleware.CorsMiddleware',
+
+    # --- Rate limiting admin par IP (indépendant de DRF) ---
+    'apps.admin_panel.middleware.AdminRateLimitMiddleware',
 
     # --- Guard admin (force password change + TOTP, après CORS) ---
     'apps.admin_panel.middleware.AdminAccountGuardMiddleware',
 
-    'django.middleware.security.SecurityMiddleware',
-    'whitenoise.middleware.WhiteNoiseMiddleware',  # Fichiers statiques en prod (après SecurityMiddleware)
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
+    'apps.core.middleware.ContentSecurityPolicyMiddleware',
 ]
+
+# --- Headers de sécurité HTTP ---
+SECURE_CONTENT_TYPE_NOSNIFF = True
+X_FRAME_OPTIONS = 'DENY'
+
+if not DEBUG:
+    SECURE_SSL_REDIRECT = True
+    SECURE_HSTS_SECONDS = 31536000  # 1 an
+    SECURE_HSTS_INCLUDE_SUBDOMAINS = True
+    SECURE_HSTS_PRELOAD = True
+    SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
+    SESSION_COOKIE_SECURE = True
+    CSRF_COOKIE_SECURE = True
 
 ROOT_URLCONF = 'backend_lien_officinal.urls'
 
@@ -255,6 +276,8 @@ REST_FRAMEWORK = {
         'messaging': '30/minute', # envoi de messages (REST fallback)
         'sms_send': '200/hour',             # envoi SMS par pharmacie
         'sms_send_collaborator': '50/hour', # envoi SMS par collaborateur
+        'admin_login': '5/hour',            # tentatives login admin
+        'admin_totp': '10/hour',            # tentatives TOTP admin
     },
 }
 
@@ -337,6 +360,9 @@ CELERY_BEAT_SCHEDULE = {
 }
 
 # --- LOGGING ---
+_LOG_DIR = BASE_DIR / 'logs'
+_LOG_DIR.mkdir(exist_ok=True)
+
 LOGGING = {
     "version": 1,
     "disable_existing_loggers": False,
@@ -345,11 +371,22 @@ LOGGING = {
             "format": "[{asctime}] {levelname} {name} {message}",
             "style": "{",
         },
+        "admin_audit": {
+            "format": "[{asctime}] {levelname} {message}",
+            "style": "{",
+        },
     },
     "handlers": {
         "console": {
             "class": "logging.StreamHandler",
             "formatter": "verbose",
+        },
+        "admin_file": {
+            "class": "logging.handlers.RotatingFileHandler",
+            "filename": str(_LOG_DIR / "admin_audit.log"),
+            "maxBytes": 5 * 1024 * 1024,  # 5 Mo
+            "backupCount": 10,
+            "formatter": "admin_audit",
         },
     },
     "root": {
@@ -365,6 +402,11 @@ LOGGING = {
         "apps": {
             "handlers": ["console"],
             "level": "DEBUG",
+            "propagate": False,
+        },
+        "apps.admin_panel": {
+            "handlers": ["console", "admin_file"],
+            "level": "INFO",
             "propagate": False,
         },
     },

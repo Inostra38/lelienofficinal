@@ -1,6 +1,7 @@
 import jwt
 
 from django.conf import settings
+from django.core.cache import cache
 from django.http import HttpResponse, JsonResponse
 
 from .models import AdminUser
@@ -14,7 +15,7 @@ class AdminIPWhitelistMiddleware:
     Lit l'IP depuis HTTP_X_FORWARDED_FOR en premier (Scalingo proxy),
     sinon REMOTE_ADDR.
     """
-    ADMIN_PREFIX = '/api/admin/'
+    PROTECTED_PREFIXES = ('/api/admin/', '/admin/')
 
     def __init__(self, get_response):
         self.get_response = get_response
@@ -22,10 +23,53 @@ class AdminIPWhitelistMiddleware:
         self.allowed = set(ip.strip() for ip in raw.split(',') if ip.strip())
 
     def __call__(self, request):
-        if request.path.startswith(self.ADMIN_PREFIX):
+        if any(request.path.startswith(p) for p in self.PROTECTED_PREFIXES):
             ip = self._get_ip(request)
             if ip not in self.allowed:
                 return HttpResponse(status=403)
+        return self.get_response(request)
+
+    def _get_ip(self, request):
+        forwarded = request.META.get('HTTP_X_FORWARDED_FOR')
+        if forwarded:
+            return forwarded.split(',')[0].strip()
+        return request.META.get('REMOTE_ADDR', '')
+
+
+class AdminRateLimitMiddleware:
+    """
+    Rate limiting par IP sur les endpoints admin sensibles.
+    Indépendant de DRF — s'applique même sans cookie/session.
+    Login : 20 requêtes / 15 min par IP.
+    TOTP : 30 requêtes / 15 min par IP.
+    """
+    RATE_LIMITS = {
+        'auth/login/': ('admin_rl_login', 20, 900),      # 20 req / 15 min
+        'auth/totp-verify/': ('admin_rl_totp', 30, 900),  # 30 req / 15 min
+    }
+    ADMIN_PREFIX = '/api/admin/'
+
+    def __init__(self, get_response):
+        self.get_response = get_response
+
+    def __call__(self, request):
+        if not request.path.startswith(self.ADMIN_PREFIX) or request.method != 'POST':
+            return self.get_response(request)
+
+        relative = request.path[len(self.ADMIN_PREFIX):]
+        for endpoint, (prefix, max_hits, window) in self.RATE_LIMITS.items():
+            if relative == endpoint:
+                ip = self._get_ip(request)
+                key = f"{prefix}_{ip}"
+                hits = cache.get(key, 0)
+                if hits >= max_hits:
+                    return JsonResponse(
+                        {'detail': 'Trop de tentatives. Réessayez plus tard.'},
+                        status=429,
+                    )
+                cache.set(key, hits + 1, timeout=window)
+                break
+
         return self.get_response(request)
 
     def _get_ip(self, request):

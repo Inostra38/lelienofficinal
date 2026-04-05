@@ -2,20 +2,23 @@ import base64
 import io
 import logging
 import time
+import uuid
 from datetime import datetime, timezone, timedelta
 
 import jwt
 import pyotp
 import qrcode
 from django.conf import settings
+from django.core.cache import cache
 from django.utils import timezone as django_tz
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
+from rest_framework.throttling import AnonRateThrottle
 from rest_framework.views import APIView
 from rest_framework import status
 
 from .authentication import AdminJWTAuthentication
-from .models import AdminUser
+from .models import AdminUser, AdminAuditLog
 from .crypto import decrypt_totp_secret, encrypt_totp_secret
 from .serializers import ChangePasswordSerializer
 
@@ -23,10 +26,19 @@ logger = logging.getLogger(__name__)
 
 # Durées des tokens admin (indépendants de SIMPLE_JWT)
 _ACCESS_LIFETIME = timedelta(minutes=15)
-_REFRESH_LIFETIME = timedelta(days=7)
+_REFRESH_LIFETIME = timedelta(days=1)
 _SESSION_LIFETIME = timedelta(minutes=5)
 
 _ALGORITHM = 'HS256'
+
+
+# ── Throttles admin ─────────────────────────────────────────────────────────
+
+class AdminLoginThrottle(AnonRateThrottle):
+    rate = '5/hour'
+
+class AdminTotpThrottle(AnonRateThrottle):
+    rate = '10/hour'
 
 
 def _secret():
@@ -48,11 +60,12 @@ def _issue_session_token(admin_id: int) -> str:
 
 
 def _issue_access_token(admin_id: int) -> str:
-    """JWT d'accès admin (15 min)."""
+    """JWT d'accès admin (15 min) avec jti pour révocation."""
     now = datetime.now(tz=timezone.utc)
     payload = {
         'type': 'admin',
         'sub': str(admin_id),
+        'jti': str(uuid.uuid4()),
         'iat': now,
         'exp': now + _ACCESS_LIFETIME,
     }
@@ -60,11 +73,13 @@ def _issue_access_token(admin_id: int) -> str:
 
 
 def _issue_refresh_token(admin_id: int) -> str:
-    """JWT de refresh admin (7 jours)."""
+    """JWT de refresh admin (1 jour) avec jti."""
     now = datetime.now(tz=timezone.utc)
+    jti = str(uuid.uuid4())
     payload = {
         'type': 'admin_refresh',
         'sub': str(admin_id),
+        'jti': jti,
         'iat': now,
         'exp': now + _REFRESH_LIFETIME,
     }
@@ -85,7 +100,7 @@ def _set_refresh_cookie(response: Response, token: str) -> None:
         value=token,
         max_age=int(_REFRESH_LIFETIME.total_seconds()),
         httponly=True,
-        samesite='Strict',
+        samesite='Strict' if not settings.DEBUG else 'Lax',
         secure=not settings.DEBUG,
         path='/api/admin/auth/',
     )
@@ -98,6 +113,18 @@ def _clear_refresh_cookie(response: Response) -> None:
     )
 
 
+def _audit(action: str, request, admin=None, detail: str = ''):
+    """Enregistre une action dans le journal d'audit admin."""
+    ip = _get_ip(request)
+    AdminAuditLog.objects.create(
+        admin=admin or getattr(request, 'user', None),
+        action=action,
+        detail=detail,
+        ip_address=ip,
+    )
+    logger.info(f"AUDIT {action}: {detail} [admin={admin or getattr(request, 'user', None)}, ip={ip}]")
+
+
 # ── Views ────────────────────────────────────────────────────────────────────
 
 class AdminLoginView(APIView):
@@ -107,21 +134,25 @@ class AdminLoginView(APIView):
     """
     permission_classes = [AllowAny]
     authentication_classes = []
+    throttle_classes = [AdminLoginThrottle]
 
     def post(self, request):
-        email = request.data.get('email', '').strip()
+        email = request.data.get('email', '').strip().lower()
         password = request.data.get('password', '')
 
         try:
             admin = AdminUser.objects.get(email=email, is_active=True)
         except AdminUser.DoesNotExist:
-            time.sleep(0.5)  # protection timing attack
-            return Response(status=status.HTTP_401_UNAUTHORIZED)
-
-        if not admin.check_password(password):
+            _audit('LOGIN_FAIL', request, detail=f"Unknown email: {email}")
             time.sleep(0.5)
             return Response(status=status.HTTP_401_UNAUTHORIZED)
 
+        if not admin.check_password(password):
+            _audit('LOGIN_FAIL', request, admin=admin, detail=f"Wrong password for {email}")
+            time.sleep(0.5)
+            return Response(status=status.HTTP_401_UNAUTHORIZED)
+
+        _audit('LOGIN_OK', request, admin=admin, detail=f"Step 1 OK for {email}")
         session_token = _issue_session_token(admin.pk)
         return Response({
             'step': 'totp_required',
@@ -137,6 +168,7 @@ class AdminTotpVerifyView(APIView):
     """
     permission_classes = [AllowAny]
     authentication_classes = []
+    throttle_classes = [AdminTotpThrottle]
 
     def post(self, request):
         session_token = request.data.get('session_token', '')
@@ -155,14 +187,20 @@ class AdminTotpVerifyView(APIView):
 
         # Vérifier le code TOTP
         if not admin.totp_secret:
-            # TOTP pas encore configuré : on autorise le passage pour le setup initial
-            # (protégé côté endpoint setup par le token d'accès)
             pass
         else:
             raw_secret = decrypt_totp_secret(admin.totp_secret)
             totp = pyotp.TOTP(raw_secret)
             if not totp.verify(totp_code, valid_window=1):
+                # Anti-replay : vérifier que le code n'a pas déjà été utilisé
+                _audit('LOGIN_FAIL', request, admin=admin, detail="TOTP code invalid")
                 return Response(status=status.HTTP_401_UNAUTHORIZED)
+            # Anti-replay TOTP
+            totp_key = f"totp_used_{admin.pk}_{totp_code}"
+            if cache.get(totp_key):
+                _audit('LOGIN_FAIL', request, admin=admin, detail="TOTP replay detected")
+                return Response(status=status.HTTP_401_UNAUTHORIZED)
+            cache.set(totp_key, True, timeout=60)
 
         # Émettre les tokens
         access_token = _issue_access_token(admin.pk)
@@ -172,6 +210,7 @@ class AdminTotpVerifyView(APIView):
         admin.last_login_at = django_tz.now()
         admin.last_login_ip = _get_ip(request)
         admin.save(update_fields=['last_login_at', 'last_login_ip'])
+        _audit('LOGIN_OK', request, admin=admin, detail=f"Full login OK for {admin.email}")
 
         response = Response({
             'access_token': access_token,
@@ -216,12 +255,27 @@ class AdminTokenRefreshView(APIView):
 class AdminLogoutView(APIView):
     """
     POST /api/admin/auth/logout/
-    Efface le cookie refresh (le token access expire naturellement après 15 min).
+    Blackliste le token d'accès + efface le cookie refresh.
     """
     permission_classes = [AllowAny]
     authentication_classes = []
 
     def post(self, request):
+        # Blacklister l'access token en cours
+        auth_header = request.META.get('HTTP_AUTHORIZATION', '')
+        if auth_header.startswith('Bearer '):
+            token = auth_header.split(' ', 1)[1]
+            try:
+                payload = jwt.decode(token, _secret(), algorithms=[_ALGORITHM])
+                jti = payload.get('jti')
+                if jti:
+                    ttl = int(payload.get('exp', 0) - datetime.now(tz=timezone.utc).timestamp())
+                    if ttl > 0:
+                        cache.set(f"admin_blacklist_{jti}", True, timeout=ttl)
+                _audit('LOGOUT', request, detail=f"Admin id={payload.get('sub')}")
+            except jwt.PyJWTError:
+                pass
+
         response = Response(status=status.HTTP_204_NO_CONTENT)
         _clear_refresh_cookie(response)
         return response
@@ -252,6 +306,9 @@ class AdminTotpSetupView(APIView):
             issuer_name='Le Lien Officinal Admin',
         )
 
+        # Stocker le secret en cache (10 min TTL), PAS envoyé au frontend
+        cache.set(f"totp_setup_{admin.pk}", secret, timeout=600)
+
         # Générer le QR code en PNG base64
         img = qrcode.make(otpauth_url)
         buffer = io.BytesIO()
@@ -260,7 +317,6 @@ class AdminTotpSetupView(APIView):
 
         return Response({
             'otpauth_url': otpauth_url,
-            'secret': secret,
             'qr_base64': qr_base64,
         })
 
@@ -268,8 +324,7 @@ class AdminTotpSetupView(APIView):
 class AdminTotpSetupConfirmView(APIView):
     """
     POST /api/admin/auth/totp-setup/confirm/
-    Reçoit { totp_code } + le secret brut généré côté client (dans la session du setup).
-    Vérifie le code, puis sauvegarde le secret chiffré.
+    Reçoit { totp_code } uniquement. Le secret est récupéré depuis le cache backend.
     """
     authentication_classes = [AdminJWTAuthentication]
     permission_classes = [IsAuthenticated]
@@ -283,10 +338,16 @@ class AdminTotpSetupConfirmView(APIView):
             )
 
         totp_code = request.data.get('totp_code', '')
-        secret = request.data.get('secret', '')
-
-        if not secret or not totp_code:
+        if not totp_code:
             return Response(status=status.HTTP_400_BAD_REQUEST)
+
+        # Récupérer le secret depuis le cache (généré par GET /totp-setup/)
+        secret = cache.get(f"totp_setup_{admin.pk}")
+        if not secret:
+            return Response(
+                {'detail': 'Session TOTP expirée. Rechargez le QR code.'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
 
         totp = pyotp.TOTP(secret)
         if not totp.verify(totp_code, valid_window=1):
@@ -297,6 +358,8 @@ class AdminTotpSetupConfirmView(APIView):
 
         admin.totp_secret = encrypt_totp_secret(secret)
         admin.save(update_fields=['totp_secret'])
+        cache.delete(f"totp_setup_{admin.pk}")
+        _audit('TOTP_SETUP', request, admin=admin, detail="TOTP configured")
 
         return Response({'detail': 'TOTP configuré avec succès.'})
 
@@ -324,7 +387,7 @@ class AdminChangePasswordView(APIView):
         admin.force_password_change = False
         admin.save(update_fields=['password', 'force_password_change'])
 
-        logger.info(f"Admin {admin.email} changed password")
+        _audit('PASSWORD_CHANGE', request, admin=admin, detail="Password changed")
         return Response({'detail': 'Mot de passe modifié avec succès.'})
 
 
@@ -344,17 +407,24 @@ class ListCreateResourceView(APIView):
     permission_classes = [IsAuthenticated]
 
     def get(self, request):
-        cards = ResourceCard.objects.annotate(
+        limit = min(int(request.query_params.get('limit', 100)), 500)
+        offset = int(request.query_params.get('offset', 0))
+
+        qs = ResourceCard.objects.annotate(
             pharmacy_count=Count(
                 'preferences',
                 filter=Q(preferences__assigned_category__isnull=False),
                 distinct=True,
             )
-        ).order_by('-is_featured', 'titre').values(
+        ).order_by('-is_featured', 'titre')
+
+        total = qs.count()
+        cards = qs.values(
             'id', 'titre', 'description_officielle', 'type',
             'is_featured', 'pharmacy_count',
-        )
-        return Response(list(cards))
+        )[offset:offset + limit]
+
+        return Response({'count': total, 'results': list(cards)})
 
     def post(self, request):
         titre = request.data.get('titre', '').strip()
@@ -367,6 +437,7 @@ class ListCreateResourceView(APIView):
             type=request.data.get('type', 'OFFICIAL'),
             is_featured=request.data.get('is_featured', False),
         )
+        _audit('RESOURCE_CREATE', request, detail=f"Created '{card.titre}' (id={card.id})")
         return Response({
             'id': card.id,
             'titre': card.titre,
@@ -426,6 +497,7 @@ class ResourceDetailView(APIView):
 
         if fields_to_update:
             card.save(update_fields=fields_to_update)
+            _audit('RESOURCE_UPDATE', request, detail=f"Updated '{card.titre}' (id={card.id}, fields={fields_to_update})")
 
         return Response({
             'id': card.id,
@@ -440,8 +512,13 @@ class ResourceDetailView(APIView):
             card = ResourceCard.objects.get(pk=card_id)
         except ResourceCard.DoesNotExist:
             return Response({'error': 'Ressource non trouvée'}, status=status.HTTP_404_NOT_FOUND)
+        _audit('RESOURCE_DELETE', request, detail=f"Deleted '{card.titre}' (id={card_id})")
         card.delete()
         return Response(status=status.HTTP_204_NO_CONTENT)
+
+
+ALLOWED_UPLOAD_TYPES = {'application/pdf', 'image/jpeg', 'image/png', 'image/webp'}
+MAX_UPLOAD_SIZE = 10 * 1024 * 1024  # 10 Mo
 
 
 class ResourceItemCreateView(APIView):
@@ -459,14 +536,24 @@ class ResourceItemCreateView(APIView):
         if not label:
             return Response({'error': 'Le label est obligatoire.'}, status=status.HTTP_400_BAD_REQUEST)
 
+        # Validation fichier
+        uploaded = request.FILES.get('file')
+        if uploaded:
+            if uploaded.content_type not in ALLOWED_UPLOAD_TYPES:
+                return Response({'error': 'Type de fichier non autorisé.'}, status=status.HTTP_400_BAD_REQUEST)
+            if uploaded.size > MAX_UPLOAD_SIZE:
+                return Response({'error': 'Fichier trop volumineux (max 10 Mo).'}, status=status.HTTP_400_BAD_REQUEST)
+
         last_ordre = card.items.count()
         item = ResourceItem.objects.create(
             card=card,
             type=request.data.get('type', 'WEB'),
             label=label,
             url=request.data.get('url', ''),
+            file=uploaded,
             ordre=last_ordre,
         )
+        _audit('ITEM_CREATE', request, detail=f"Added item '{label}' to card '{card.titre}' (id={card_id})")
         return Response({
             'id': item.id,
             'type': item.type,
@@ -486,6 +573,7 @@ class ResourceItemDeleteView(APIView):
             item = ResourceItem.objects.get(pk=item_id)
         except ResourceItem.DoesNotExist:
             return Response({'error': 'Item non trouvé'}, status=status.HTTP_404_NOT_FOUND)
+        _audit('ITEM_DELETE', request, detail=f"Deleted item '{item.label}' (id={item_id})")
         item.delete()
         return Response(status=status.HTTP_204_NO_CONTENT)
 
@@ -545,6 +633,7 @@ class ApproveCardView(APIView):
         card.owner_pharmacy = None
         card.recommendation_status = 'APPROVED'
         card.save(update_fields=['type', 'owner_pharmacy', 'recommendation_status'])
+        _audit('RECOMMEND_APPROVE', request, detail=f"Approved card '{card.titre}' (id={card_id})")
 
         return Response({'success': True, 'message': f'Carte "{card.titre}" promue en OFFICIAL'})
 
@@ -588,6 +677,7 @@ class ApproveItemView(APIView):
 
         item.recommendation_status = 'APPROVED'
         item.save(update_fields=['recommendation_status'])
+        _audit('RECOMMEND_APPROVE', request, detail=f"Approved item '{item.label}' (id={item_id}) → card '{target_card.titre}'")
         item.delete()
 
         return Response({
@@ -612,6 +702,7 @@ class RejectRecommendationView(APIView):
                 return Response({'error': 'Carte non trouvée'}, status=status.HTTP_404_NOT_FOUND)
             card.recommendation_status = 'REJECTED'
             card.save(update_fields=['recommendation_status'])
+            _audit('RECOMMEND_REJECT', request, detail=f"Rejected card '{card.titre}' (id={rec_id})")
             return Response({'success': True, 'message': f'Recommandation carte "{card.titre}" rejetée'})
 
         elif rec_type == 'item':
@@ -621,6 +712,7 @@ class RejectRecommendationView(APIView):
                 return Response({'error': 'Item non trouvé'}, status=status.HTTP_404_NOT_FOUND)
             item.recommendation_status = 'REJECTED'
             item.save(update_fields=['recommendation_status'])
+            _audit('RECOMMEND_REJECT', request, detail=f"Rejected item '{item.label}' (id={rec_id})")
             return Response({'success': True, 'message': f'Recommandation lien "{item.label}" rejetée'})
 
         return Response({'error': 'type doit être "card" ou "item"'}, status=status.HTTP_400_BAD_REQUEST)

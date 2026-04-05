@@ -1,0 +1,78 @@
+name: OWASP ZAP Security Scan
+
+on:
+  # Lance le scan à chaque push sur main ou dev
+  push:
+    branches: [main, dev]
+  # Permet le lancement manuel
+  workflow_dispatch:
+  # Scan hebdomadaire le lundi à 6h
+  schedule:
+    - cron: '0 6 * * 1'
+
+jobs:
+  zap-baseline:
+    name: ZAP Baseline Scan
+    runs-on: ubuntu-latest
+    # Ne pas bloquer les PR, juste reporter
+    continue-on-error: true
+
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_DB: test_lien
+          POSTGRES_USER: test_user
+          POSTGRES_PASSWORD: test_pass
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+      redis:
+        image: redis:7
+        ports:
+          - 6379:6379
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install backend dependencies
+        working-directory: backend_lien_officinal
+        run: pip install -r requirements.txt
+
+      - name: Start Django server
+        working-directory: backend_lien_officinal
+        env:
+          SECRET_KEY: zap-test-secret-key-not-for-production
+          DEBUG: 'True'
+          DATABASE_URL: postgres://test_user:test_pass@localhost:5432/test_lien
+          REDIS_URL: redis://localhost:6379
+          ADMIN_ALLOWED_IPS: '127.0.0.1,::1'
+        run: |
+          python manage.py migrate --noinput
+          python manage.py runserver 0.0.0.0:8000 &
+          sleep 5
+          curl -f http://localhost:8000/api/health/ || exit 1
+
+      - name: OWASP ZAP Baseline Scan
+        uses: zaproxy/action-baseline@v0.12.0
+        with:
+          target: 'http://localhost:8000'
+          rules_file_name: '.github/zap-rules.tsv'
+          cmd_options: '-a -j -l WARN'
+
+      - name: Upload ZAP Report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: zap-report
+          path: report_html.html
+          retention-days: 30

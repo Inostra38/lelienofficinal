@@ -37,8 +37,10 @@ export class AdminTotpSetupComponent implements OnInit {
     this.http.get<any>(`${environment.apiUrl}/api/admin/auth/totp-setup/`).subscribe({
       next: (res) => {
         this.qrBase64 = res.qr_base64;
-        this.secret = res.secret;
         this.otpauthUrl = res.otpauth_url;
+        // Extraire le secret depuis l'otpauth URL pour affichage manuel
+        const match = res.otpauth_url?.match(/secret=([A-Z2-7]+)/i);
+        this.secret = match ? match[1] : '';
         this.loading = false;
         setTimeout(() => this.focusHiddenInput(), 100);
       },
@@ -76,7 +78,6 @@ export class AdminTotpSetupComponent implements OnInit {
 
     this.http.post<any>(`${environment.apiUrl}/api/admin/auth/totp-setup/confirm/`, {
       totp_code: this.code,
-      secret: this.secret,
     }).subscribe({
       next: () => {
         this.confirming = false;

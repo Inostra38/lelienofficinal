@@ -12,6 +12,15 @@ class PartnerSerializer(serializers.ModelSerializer):
         fields = ['id', 'nom', 'logo']
 
 
+ALLOWED_FILE_TYPES = {
+    'application/pdf',
+    'image/jpeg',
+    'image/png',
+    'image/webp',
+}
+MAX_FILE_SIZE = 10 * 1024 * 1024  # 10 Mo
+
+
 class ResourceItemSerializer(serializers.ModelSerializer):
     final_url = serializers.SerializerMethodField()
 
@@ -21,8 +30,19 @@ class ResourceItemSerializer(serializers.ModelSerializer):
         extra_kwargs = {
             'file': {'required': False},
             'url': {'required': False},
-            'owner': {'read_only': True} 
+            'owner': {'read_only': True}
         }
+
+    def validate_file(self, value):
+        if value:
+            if value.content_type not in ALLOWED_FILE_TYPES:
+                raise serializers.ValidationError(
+                    f"Type de fichier non autorisé ({value.content_type}). "
+                    f"Acceptés : PDF, JPEG, PNG, WebP."
+                )
+            if value.size > MAX_FILE_SIZE:
+                raise serializers.ValidationError("Le fichier ne doit pas dépasser 10 Mo.")
+        return value
 
     def get_final_url(self, obj):
         if obj.file:
