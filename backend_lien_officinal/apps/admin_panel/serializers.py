@@ -1,5 +1,30 @@
+import re
+
 from rest_framework import serializers
 from apps.resources.models import ResourceCard, ResourceItem
+
+
+class ChangePasswordSerializer(serializers.Serializer):
+    old_password = serializers.CharField(required=True)
+    new_password = serializers.CharField(required=True, min_length=12)
+
+    def validate_new_password(self, value):
+        if not re.search(r'[A-Z]', value):
+            raise serializers.ValidationError("Doit contenir au moins une majuscule.")
+        if not re.search(r'[a-z]', value):
+            raise serializers.ValidationError("Doit contenir au moins une minuscule.")
+        if not re.search(r'\d', value):
+            raise serializers.ValidationError("Doit contenir au moins un chiffre.")
+        if not re.search(r'[^A-Za-z0-9]', value):
+            raise serializers.ValidationError("Doit contenir au moins un caractère spécial.")
+        return value
+
+    def validate(self, attrs):
+        if attrs['old_password'] == attrs['new_password']:
+            raise serializers.ValidationError({
+                "new_password": "Le nouveau mot de passe doit être différent de l'ancien."
+            })
+        return attrs
 
 
 class RecommendationCardSerializer(serializers.ModelSerializer):

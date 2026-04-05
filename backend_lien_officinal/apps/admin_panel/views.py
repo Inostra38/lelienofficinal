@@ -1,5 +1,6 @@
 import base64
 import io
+import logging
 import time
 from datetime import datetime, timezone, timedelta
 
@@ -16,6 +17,9 @@ from rest_framework import status
 from .authentication import AdminJWTAuthentication
 from .models import AdminUser
 from .crypto import decrypt_totp_secret, encrypt_totp_secret
+from .serializers import ChangePasswordSerializer
+
+logger = logging.getLogger(__name__)
 
 # Durées des tokens admin (indépendants de SIMPLE_JWT)
 _ACCESS_LIFETIME = timedelta(minutes=15)
@@ -169,7 +173,11 @@ class AdminTotpVerifyView(APIView):
         admin.last_login_ip = _get_ip(request)
         admin.save(update_fields=['last_login_at', 'last_login_ip'])
 
-        response = Response({'access_token': access_token})
+        response = Response({
+            'access_token': access_token,
+            'force_password_change': admin.force_password_change,
+            'totp_configured': bool(admin.totp_secret),
+        })
         _set_refresh_cookie(response, refresh_token)
         return response
 
@@ -291,6 +299,33 @@ class AdminTotpSetupConfirmView(APIView):
         admin.save(update_fields=['totp_secret'])
 
         return Response({'detail': 'TOTP configuré avec succès.'})
+
+
+class AdminChangePasswordView(APIView):
+    """
+    POST /api/admin/auth/change-password/
+    Changement de mot de passe admin (requis au premier login).
+    """
+    authentication_classes = [AdminJWTAuthentication]
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request):
+        serializer = ChangePasswordSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+
+        admin = request.user
+        if not admin.check_password(serializer.validated_data['old_password']):
+            return Response(
+                {'old_password': 'Mot de passe actuel incorrect.'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        admin.set_password(serializer.validated_data['new_password'])
+        admin.force_password_change = False
+        admin.save(update_fields=['password', 'force_password_change'])
+
+        logger.info(f"Admin {admin.email} changed password")
+        return Response({'detail': 'Mot de passe modifié avec succès.'})
 
 
 # ── Ressources (liste admin) ────────────────────────────────────────────────

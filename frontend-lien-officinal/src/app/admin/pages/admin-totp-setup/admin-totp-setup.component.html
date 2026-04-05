@@ -1,0 +1,78 @@
+<div class="min-h-screen bg-gray-50 flex items-center justify-center p-4">
+  <div class="max-w-md w-full bg-white rounded-2xl shadow-lg p-8">
+
+    <div class="text-center mb-6">
+      <div class="w-14 h-14 bg-green-700 text-white rounded-full flex items-center justify-center text-xl mx-auto mb-3">
+        🔐
+      </div>
+      <h2 class="text-xl font-bold text-gray-800">Configuration TOTP</h2>
+      <p class="text-sm text-gray-400 mt-1">Scannez le QR code avec votre application d'authentification</p>
+    </div>
+
+    <!-- Loading -->
+    <div *ngIf="loading" class="text-center py-8 text-gray-400 text-sm">Chargement...</div>
+
+    <!-- Erreur chargement -->
+    <div *ngIf="!loading && errorMessage && !qrBase64"
+         class="bg-red-50 text-red-600 text-sm p-4 rounded-xl border border-red-100 text-center">
+      {{ errorMessage }}
+    </div>
+
+    <!-- Setup -->
+    <div *ngIf="!loading && qrBase64" class="space-y-6">
+
+      <!-- QR Code -->
+      <div class="flex justify-center">
+        <img [src]="'data:image/png;base64,' + qrBase64"
+             alt="QR Code TOTP"
+             class="w-48 h-48 rounded-xl border border-gray-100" />
+      </div>
+
+      <!-- Secret manuel -->
+      <div class="bg-gray-50 rounded-xl p-3 text-center">
+        <p class="text-xs text-gray-400 mb-1">Ou entrez ce code manuellement :</p>
+        <p class="font-mono text-sm font-bold text-gray-700 tracking-widest select-all">{{ secret }}</p>
+      </div>
+
+      <!-- Saisie du code -->
+      <div>
+        <p class="text-sm font-medium text-gray-700 text-center mb-3">Entrez le code à 6 chiffres pour confirmer</p>
+        <div class="relative flex justify-center gap-2 cursor-text" (click)="focusHiddenInput()">
+          <!-- Input caché -->
+          <input #hiddenInput
+                 type="text"
+                 inputmode="numeric"
+                 maxlength="6"
+                 [value]="code"
+                 (input)="onCodeInput($event)"
+                 [disabled]="confirming"
+                 class="absolute opacity-0 w-0 h-0" />
+          <!-- Affichage visuel -->
+          <div *ngFor="let digit of digits; let i = index"
+               class="w-11 h-14 flex items-center justify-center text-xl font-bold border rounded-xl transition-all"
+               [ngClass]="i === code.length && !confirming
+                 ? 'border-green-400 ring-2 ring-green-200'
+                 : digit ? 'border-gray-300 bg-gray-50' : 'border-gray-200'">
+            {{ digit }}
+          </div>
+        </div>
+      </div>
+
+      <!-- Erreur validation -->
+      <div *ngIf="errorMessage" class="bg-red-50 text-red-600 text-sm p-3 rounded-xl border border-red-100 text-center">
+        {{ errorMessage }}
+      </div>
+
+      <!-- Succès -->
+      <div *ngIf="successMessage" class="bg-green-50 text-green-700 text-sm p-3 rounded-xl border border-green-100 text-center">
+        {{ successMessage }}
+      </div>
+
+      <!-- Status -->
+      <div *ngIf="confirming" class="text-center text-sm text-gray-400 flex items-center justify-center gap-2">
+        <span class="w-4 h-4 border-2 border-green-600 border-t-transparent rounded-full animate-spin"></span>
+        Vérification...
+      </div>
+    </div>
+  </div>
+</div>

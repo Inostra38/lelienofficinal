@@ -12,6 +12,8 @@ export const adminAuthInterceptor: HttpInterceptorFn = (req, next) => {
 
   const adminAuthService = inject(AdminAuthService);
   const router = inject(Router);
+
+  const isAuthEndpoint = req.url.includes('/api/admin/auth/');
   const token = adminAuthService.getAccessToken();
 
   const authReq = token
@@ -20,8 +22,21 @@ export const adminAuthInterceptor: HttpInterceptorFn = (req, next) => {
 
   return next(authReq).pipe(
     catchError((err: HttpErrorResponse) => {
-      // Sur 401 : tenter un refresh silencieux (sauf si c'est déjà un appel auth)
-      if (err.status === 401 && !req.url.includes('/api/admin/auth/')) {
+      // Guard middleware 403 → rediriger vers la page appropriée
+      if (err.status === 403) {
+        const body = typeof err.error === 'string' ? (() => { try { return JSON.parse(err.error); } catch { return {}; } })() : err.error;
+        if (body?.code === 'password_change_required') {
+          router.navigate(['/admin/change-password']);
+          return throwError(() => err);
+        }
+        if (body?.code === 'totp_setup_required') {
+          router.navigate(['/admin/totp-setup']);
+          return throwError(() => err);
+        }
+      }
+
+      // Sur 401 : tenter un refresh silencieux (sauf endpoints auth)
+      if (err.status === 401 && !isAuthEndpoint) {
         return adminAuthService.refreshToken().pipe(
           switchMap(() => {
             const newToken = adminAuthService.getAccessToken();
@@ -37,10 +52,7 @@ export const adminAuthInterceptor: HttpInterceptorFn = (req, next) => {
         );
       }
 
-      if (err.status === 401) {
-        router.navigate(['/admin/login']);
-      }
-
+      // 401 sur endpoint auth → laisser remonter au composant
       return throwError(() => err);
     })
   );

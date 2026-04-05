@@ -9,6 +9,18 @@ export const adminRoutes: Routes = [
     canActivate: [adminNoAuthGuard],
   },
   {
+    path: 'change-password',
+    loadComponent: () =>
+      import('./pages/admin-change-password/admin-change-password.component').then(m => m.AdminChangePasswordComponent),
+    canActivate: [adminAuthGuard],
+  },
+  {
+    path: 'totp-setup',
+    loadComponent: () =>
+      import('./pages/admin-totp-setup/admin-totp-setup.component').then(m => m.AdminTotpSetupComponent),
+    canActivate: [adminAuthGuard],
+  },
+  {
     path: '',
     loadComponent: () =>
       import('./components/admin-layout/admin-layout.component').then(m => m.AdminLayoutComponent),

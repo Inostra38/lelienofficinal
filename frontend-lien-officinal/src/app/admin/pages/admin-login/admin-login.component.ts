@@ -106,8 +106,14 @@ export class AdminLoginComponent {
     this.errorMessage = '';
 
     this.adminAuthService.verifyTotp(this.sessionToken, code).subscribe({
-      next: () => {
-        this.router.navigate(['/admin']);
+      next: (flags) => {
+        if (flags.force_password_change) {
+          this.router.navigate(['/admin/change-password']);
+        } else if (!flags.totp_configured) {
+          this.router.navigate(['/admin/totp-setup']);
+        } else {
+          this.router.navigate(['/admin']);
+        }
       },
       error: () => {
         this.isLoading = false;

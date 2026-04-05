@@ -74,8 +74,11 @@ MIDDLEWARE = [
     # --- IP whitelist admin (EN PREMIER : bloque avant tout traitement) ---
     'apps.admin_panel.middleware.AdminIPWhitelistMiddleware',
 
-    # --- 2. CORS (avant SecurityMiddleware) ---
+    # --- 2. CORS (avant SecurityMiddleware et avant le guard admin) ---
     'corsheaders.middleware.CorsMiddleware',
+
+    # --- Guard admin (force password change + TOTP, après CORS) ---
+    'apps.admin_panel.middleware.AdminAccountGuardMiddleware',
 
     'django.middleware.security.SecurityMiddleware',
     'whitenoise.middleware.WhiteNoiseMiddleware',  # Fichiers statiques en prod (après SecurityMiddleware)

@@ -28,8 +28,12 @@ export class AdminAuthService {
     );
   }
 
-  verifyTotp(sessionToken: string, totpCode: string): Observable<void> {
-    return this.http.post<{ access_token: string }>(
+  verifyTotp(sessionToken: string, totpCode: string): Observable<{ force_password_change: boolean; totp_configured: boolean }> {
+    return this.http.post<{
+      access_token: string;
+      force_password_change: boolean;
+      totp_configured: boolean;
+    }>(
       `${this.baseUrl}/totp-verify/`,
       { session_token: sessionToken, totp_code: totpCode },
       { withCredentials: true }
@@ -38,8 +42,11 @@ export class AdminAuthService {
         this._accessToken = response.access_token;
         this.isAuthenticated$.next(true);
       }),
-      switchMap(() => new Observable<void>(observer => {
-        observer.next();
+      switchMap(response => new Observable<{ force_password_change: boolean; totp_configured: boolean }>(observer => {
+        observer.next({
+          force_password_change: response.force_password_change,
+          totp_configured: response.totp_configured,
+        });
         observer.complete();
       }))
     );

@@ -1,5 +1,9 @@
+import jwt
+
 from django.conf import settings
-from django.http import HttpResponse
+from django.http import HttpResponse, JsonResponse
+
+from .models import AdminUser
 
 
 class AdminIPWhitelistMiddleware:
@@ -29,3 +33,68 @@ class AdminIPWhitelistMiddleware:
         if forwarded:
             return forwarded.split(',')[0].strip()
         return request.META.get('REMOTE_ADDR', '')
+
+
+class AdminAccountGuardMiddleware:
+    """
+    Bloque les requêtes admin si le compte n'est pas entièrement configuré :
+      - force_password_change == True → 403 password_change_required
+      - totp_secret == '' → 403 totp_setup_required
+    Les endpoints d'auth sont toujours autorisés.
+    """
+    ADMIN_PREFIX = '/api/admin/'
+    AUTH_WHITELIST = (
+        'auth/login/',
+        'auth/totp-verify/',
+        'auth/refresh/',
+        'auth/logout/',
+        'auth/totp-setup/',
+        'auth/totp-setup/confirm/',
+        'auth/change-password/',
+    )
+
+    def __init__(self, get_response):
+        self.get_response = get_response
+
+    def __call__(self, request):
+        path = request.path
+        if not path.startswith(self.ADMIN_PREFIX):
+            return self.get_response(request)
+
+        # Vérifier si l'endpoint est dans la whitelist
+        relative = path[len(self.ADMIN_PREFIX):]
+        if any(relative.startswith(ep) for ep in self.AUTH_WHITELIST):
+            return self.get_response(request)
+
+        # Résoudre l'admin depuis le JWT
+        admin = self._resolve_admin(request)
+        if admin is None:
+            # Pas de token valide → laisser passer, les vues gèrent le 401
+            return self.get_response(request)
+
+        if admin.force_password_change:
+            return JsonResponse(
+                {'detail': 'Changement de mot de passe requis', 'code': 'password_change_required'},
+                status=403,
+            )
+
+        if not admin.totp_secret:
+            return JsonResponse(
+                {'detail': 'Configuration TOTP requise', 'code': 'totp_setup_required'},
+                status=403,
+            )
+
+        return self.get_response(request)
+
+    def _resolve_admin(self, request):
+        auth_header = request.META.get('HTTP_AUTHORIZATION', '')
+        if not auth_header.startswith('Bearer '):
+            return None
+        token = auth_header.split(' ', 1)[1]
+        try:
+            payload = jwt.decode(token, settings.SECRET_KEY, algorithms=['HS256'])
+            if payload.get('type') != 'admin':
+                return None
+            return AdminUser.objects.get(pk=int(payload['sub']), is_active=True)
+        except Exception:
+            return None

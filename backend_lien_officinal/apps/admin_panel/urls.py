@@ -6,6 +6,7 @@ from .views import (
     AdminLogoutView,
     AdminTotpSetupView,
     AdminTotpSetupConfirmView,
+    AdminChangePasswordView,
     ListCreateResourceView,
     ResourceDetailView,
     ResourceItemCreateView,
@@ -25,6 +26,7 @@ urlpatterns = [
     path('auth/logout/', AdminLogoutView.as_view(), name='admin-logout'),
     path('auth/totp-setup/', AdminTotpSetupView.as_view(), name='admin-totp-setup'),
     path('auth/totp-setup/confirm/', AdminTotpSetupConfirmView.as_view(), name='admin-totp-setup-confirm'),
+    path('auth/change-password/', AdminChangePasswordView.as_view(), name='admin-change-password'),
 
     # Ressources
     path('resources/', ListCreateResourceView.as_view(), name='admin-resources'),
