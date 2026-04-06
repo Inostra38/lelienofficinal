@@ -208,9 +208,9 @@ STATIC_ROOT = BASE_DIR / 'staticfiles'
 _ANGULAR_DIST = BASE_DIR.parent / 'frontend-lien-officinal' / 'dist' / 'frontend-lien-officinal' / 'browser'
 STATICFILES_DIRS = [_ANGULAR_DIST] if _ANGULAR_DIST.is_dir() else []
 
-# WhiteNoise sert le build Angular directement à la racine /
-# (index.html, main.js, styles.css, etc. — sans préfixe /static/)
-WHITENOISE_ROOT = str(_ANGULAR_DIST) if _ANGULAR_DIST.is_dir() else str(STATIC_ROOT)
+# WhiteNoise sert les fichiers Angular directement à la racine /
+# (main-XXX.js, styles-XXX.css, etc. accessibles sans /static/)
+WHITENOISE_ROOT = str(STATIC_ROOT)
 
 # --- Scaleway Object Storage (S3-compatible) ---
 SCW_ACCESS_KEY = os.environ.get('SCW_ACCESS_KEY')
