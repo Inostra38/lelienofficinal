@@ -55,10 +55,9 @@ urlpatterns += [
     path('api/token/refresh/', CookieTokenRefreshView.as_view(), name='token_refresh'),
 ]
 
-# Catch-all SPA : activé uniquement si le build Angular existe
-_spa_index = os.path.join(settings.STATIC_ROOT or '', 'index.html')
-_spa_dist = settings.BASE_DIR.parent / 'frontend-lien-officinal' / 'dist' / 'frontend-lien-officinal' / 'browser' / 'index.html'
-if os.path.isfile(_spa_index) or _spa_dist.is_file():
+# Catch-all SPA : en prod (DEBUG=False), toutes les routes non-API servent index.html
+# En dev/test (DEBUG=True), pas de catch-all pour ne pas casser les 404 des tests
+if not settings.DEBUG:
     urlpatterns += [
         re_path(r'^(?!api/|media/|admin/|static/).*$', _spa_fallback),
     ]

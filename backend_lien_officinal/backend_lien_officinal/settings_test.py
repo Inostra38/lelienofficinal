@@ -1,5 +1,8 @@
 from .settings import *
 
+# Force DEBUG=True en test pour désactiver le catch-all SPA et les redirects HTTPS
+DEBUG = True
+
 DATABASES = {
     "default": {
         "ENGINE": "django.db.backends.sqlite3",
