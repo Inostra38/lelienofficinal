@@ -1,17 +1,34 @@
 # backend_lien_officinal/urls.py
 from django.contrib import admin
-from django.http import HttpResponseRedirect
+from django.http import HttpResponse
 from django.urls import path, include, re_path
 from django.conf import settings
 from apps.core.views import health_check, CookiePharmacyLoginView, CookieTokenRefreshView
 from apps.core.views_media import serve_protected_media
 
+# Charger index.html une seule fois au démarrage (perf)
+_index_html = None
+
 
 def _spa_fallback(request):
     """
-    Catch-all SPA : redirige vers /static/index.html servi par WhiteNoise.
+    Catch-all SPA : sert le index.html Angular pour que le routing client fonctionne.
+    WhiteNoise sert les JS/CSS/assets via WHITENOISE_ROOT.
     """
-    return HttpResponseRedirect('/static/index.html')
+    global _index_html
+    if _index_html is None:
+        import os
+        for candidate in [
+            os.path.join(settings.STATIC_ROOT, 'index.html'),
+            str(settings.BASE_DIR.parent / 'frontend-lien-officinal' / 'dist' / 'frontend-lien-officinal' / 'browser' / 'index.html'),
+        ]:
+            if os.path.isfile(candidate):
+                with open(candidate, 'r') as f:
+                    _index_html = f.read()
+                break
+        if _index_html is None:
+            _index_html = '<h1>Application not found</h1>'
+    return HttpResponse(_index_html, content_type='text/html')
 
 
 urlpatterns = []
