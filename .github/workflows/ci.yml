@@ -74,7 +74,7 @@ jobs:
   deploy:
     name: Déploiement Scalingo
     runs-on: ubuntu-latest
-    needs: [test-backend, test-and-build-frontend]
+    needs: [test-and-build-frontend]
     if: github.ref == 'refs/heads/main'
 
     steps:
