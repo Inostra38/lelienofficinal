@@ -13,21 +13,36 @@ _index_html = None
 def _spa_fallback(request):
     """
     Catch-all SPA : sert le index.html Angular pour que le routing client fonctionne.
-    WhiteNoise sert les JS/CSS/assets via WHITENOISE_ROOT.
     """
     global _index_html
     if _index_html is None:
         import os
-        for candidate in [
-            os.path.join(settings.STATIC_ROOT, 'index.html'),
+        import glob
+        candidates = [
+            str(settings.STATIC_ROOT / 'index.html'),
             str(settings.BASE_DIR.parent / 'frontend-lien-officinal' / 'dist' / 'frontend-lien-officinal' / 'browser' / 'index.html'),
-        ]:
+        ]
+        # Debug : chercher index.html dans staticfiles récursivement
+        static_root = str(settings.STATIC_ROOT)
+        found_files = glob.glob(os.path.join(static_root, '**/index*'), recursive=True)
+
+        for candidate in candidates:
             if os.path.isfile(candidate):
                 with open(candidate, 'r') as f:
                     _index_html = f.read()
                 break
+
         if _index_html is None:
-            _index_html = '<h1>Application not found</h1>'
+            # Debug info pour diagnostic
+            debug_info = (
+                f"<h1>Application not found</h1>"
+                f"<pre>STATIC_ROOT: {settings.STATIC_ROOT}\n"
+                f"Exists: {os.path.isdir(static_root)}\n"
+                f"Candidates: {candidates}\n"
+                f"index* files found: {found_files}\n"
+                f"Files in STATIC_ROOT (first 20): {os.listdir(static_root)[:20] if os.path.isdir(static_root) else 'DIR NOT FOUND'}</pre>"
+            )
+            _index_html = debug_info
     return HttpResponse(_index_html, content_type='text/html')
 
 
