@@ -55,8 +55,8 @@ urlpatterns += [
     path('api/token/refresh/', CookieTokenRefreshView.as_view(), name='token_refresh'),
 ]
 
-# Catch-all SPA : toutes les routes non-API servent index.html (routing Angular)
-# Doit être EN DERNIER pour ne pas intercepter /api/, /media/, /admin/, /static/
-urlpatterns += [
-    re_path(r'^(?!api/|media/|admin/|static/).*$', _spa_fallback),
-]
+# Catch-all SPA : uniquement en prod (pas en tests/dev pour ne pas casser les 404)
+if not settings.DEBUG:
+    urlpatterns += [
+        re_path(r'^(?!api/|media/|admin/|static/).*$', _spa_fallback),
+    ]
