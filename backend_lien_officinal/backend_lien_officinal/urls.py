@@ -33,14 +33,20 @@ def _spa_fallback(request):
                 break
 
         if _index_html is None:
-            # Debug info pour diagnostic
+            # Debug : check si le build Angular existe
+            angular_dist = str(settings.BASE_DIR.parent / 'frontend-lien-officinal' / 'dist' / 'frontend-lien-officinal' / 'browser')
+            angular_parent = str(settings.BASE_DIR.parent / 'frontend-lien-officinal')
+            app_root = str(settings.BASE_DIR.parent)
             debug_info = (
                 f"<h1>Application not found</h1>"
                 f"<pre>STATIC_ROOT: {settings.STATIC_ROOT}\n"
-                f"Exists: {os.path.isdir(static_root)}\n"
-                f"Candidates: {candidates}\n"
-                f"index* files found: {found_files}\n"
-                f"Files in STATIC_ROOT (first 20): {os.listdir(static_root)[:20] if os.path.isdir(static_root) else 'DIR NOT FOUND'}</pre>"
+                f"STATICFILES_DIRS: {settings.STATICFILES_DIRS}\n"
+                f"Angular dist: {angular_dist}\n"
+                f"Angular dist exists: {os.path.isdir(angular_dist)}\n"
+                f"frontend-lien-officinal exists: {os.path.isdir(angular_parent)}\n"
+                f"Files in /app (first 20): {os.listdir(app_root)[:20] if os.path.isdir(app_root) else 'NOT FOUND'}\n"
+                f"Files in frontend (first 10): {os.listdir(angular_parent)[:10] if os.path.isdir(angular_parent) else 'NOT FOUND'}\n"
+                f"Files in STATIC_ROOT (first 20): {os.listdir(static_root)[:20] if os.path.isdir(static_root) else 'NOT FOUND'}</pre>"
             )
             _index_html = debug_info
     return HttpResponse(_index_html, content_type='text/html')
