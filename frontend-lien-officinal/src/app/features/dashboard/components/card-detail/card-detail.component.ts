@@ -341,6 +341,24 @@ export class CardDetailComponent implements OnInit {
   }
 
   // ============================================
+  // OUVERTURE FICHIER PROTÉGÉ (PDF)
+  // ============================================
+
+  openProtectedFile(item: any) {
+    this.http.get(item.final_url, { responseType: 'blob' }).subscribe({
+      next: (blob) => {
+        const url = URL.createObjectURL(blob);
+        window.open(url, '_blank');
+        // Libérer après un délai (le navigateur a besoin du temps de charger)
+        setTimeout(() => URL.revokeObjectURL(url), 60_000);
+      },
+      error: () => {
+        this.toast.error('Impossible d\'ouvrir le fichier.');
+      }
+    });
+  }
+
+  // ============================================
   // SAUVEGARDE DES NOTES
   // ============================================
 
