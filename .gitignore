@@ -42,7 +42,6 @@ media/
 # ------------------------------------
 # Dépendances (Très lourd, se recrée via npm install)
 /node_modules
-/package-lock.json 
 
 # Dossiers de compilation et de cache
 /dist/
