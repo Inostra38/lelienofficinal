@@ -1,0 +1,11 @@
+{
+  "name": "lelienofficinal",
+  "private": true,
+  "engines": {
+    "node": ">=20.0.0"
+  },
+  "scripts": {
+    "build": "cd frontend-lien-officinal && npm ci && npm run build",
+    "heroku-postbuild": "cd frontend-lien-officinal && npm ci && npm run build"
+  }
+}

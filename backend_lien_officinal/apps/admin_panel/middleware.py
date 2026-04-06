@@ -40,8 +40,7 @@ class AdminRateLimitMiddleware:
     """
     Rate limiting par IP sur les endpoints admin sensibles.
     Indépendant de DRF — s'applique même sans cookie/session.
-    Login : 20 requêtes / 15 min par IP.
-    TOTP : 30 requêtes / 15 min par IP.
+    Désactivé en DEBUG pour le développement.
     """
     RATE_LIMITS = {
         'auth/login/': ('admin_rl_login', 20, 900),      # 20 req / 15 min
@@ -53,6 +52,9 @@ class AdminRateLimitMiddleware:
         self.get_response = get_response
 
     def __call__(self, request):
+        if settings.DEBUG:
+            return self.get_response(request)
+
         if not request.path.startswith(self.ADMIN_PREFIX) or request.method != 'POST':
             return self.get_response(request)
 

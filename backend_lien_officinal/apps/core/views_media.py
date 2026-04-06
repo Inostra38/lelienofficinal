@@ -15,8 +15,10 @@ Préfixes gérés :
 import os
 from django.http import FileResponse, Http404
 from django.conf import settings
-from rest_framework.decorators import api_view, permission_classes
+from rest_framework.decorators import api_view, permission_classes, authentication_classes
 from rest_framework.permissions import IsAuthenticated
+from rest_framework_simplejwt.authentication import JWTAuthentication
+from apps.admin_panel.authentication import AdminJWTAuthentication
 
 
 def _resolve_path(path: str):
@@ -53,31 +55,38 @@ def _check_pharmacy_logo(path: str, pharmacy) -> bool:
 
 
 @api_view(["GET"])
+@authentication_classes([JWTAuthentication, AdminJWTAuthentication])
 @permission_classes([IsAuthenticated])
 def serve_protected_media(request, path):
     """
     GET /media/<path> — Sert un fichier media après vérification JWT + appartenance.
     """
     full_path = _resolve_path(path)
-    pharmacy = request.user
+    user = request.user
 
-    # Pièces jointes procédures (PDF, documents)
-    if path.startswith("quality/attachments/"):
-        if not _check_quality_attachment(path, pharmacy):
-            raise Http404
+    # Admin : accès complet à tous les fichiers (pas de vérification d'appartenance)
+    from apps.admin_panel.models import AdminUser
+    is_admin = isinstance(user, AdminUser)
 
-    # Images procédures
-    elif path.startswith("quality/images/"):
-        if not _check_quality_image(path, pharmacy):
-            raise Http404
+    if not is_admin:
+        pharmacy = user
 
-    # Logo pharmacie
-    elif path.startswith("pharmacy_logos/"):
-        if not _check_pharmacy_logo(path, pharmacy):
-            raise Http404
+        # Pièces jointes procédures (PDF, documents)
+        if path.startswith("quality/attachments/"):
+            if not _check_quality_attachment(path, pharmacy):
+                raise Http404
 
-    # cards/ et messaging/ : ressources semi-publiques dans le contexte SaaS
-    # (icônes de fiches, pièces jointes messagerie interne)
-    # Authentification JWT suffisante — pas de vérification d'appartenance stricte
+        # Images procédures
+        elif path.startswith("quality/images/"):
+            if not _check_quality_image(path, pharmacy):
+                raise Http404
+
+        # Logo pharmacie
+        elif path.startswith("pharmacy_logos/"):
+            if not _check_pharmacy_logo(path, pharmacy):
+                raise Http404
+
+        # cards/ et messaging/ : ressources semi-publiques dans le contexte SaaS
+        # Authentification JWT suffisante — pas de vérification d'appartenance stricte
 
     return FileResponse(open(full_path, "rb"))

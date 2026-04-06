@@ -1,11 +1,28 @@
 # backend_lien_officinal/urls.py
+import os
 from django.contrib import admin
-from django.http import HttpResponseNotFound
-from django.urls import path, include
+from django.http import HttpResponseNotFound, FileResponse
+from django.urls import path, include, re_path
 from django.conf import settings
 from django.conf.urls.static import static
 from apps.core.views import health_check, CookiePharmacyLoginView, CookieTokenRefreshView
 from apps.core.views_media import serve_protected_media
+
+
+def _spa_fallback(request):
+    """
+    Catch-all : sert index.html du build Angular pour que le routing SPA fonctionne.
+    WhiteNoise sert les assets statiques (JS/CSS/images) — cette vue ne sert que
+    les routes Angular (ex: /dashboard, /admin/login, /planning...).
+    """
+    index_path = os.path.join(settings.STATIC_ROOT, 'index.html')
+    if os.path.isfile(index_path):
+        return FileResponse(open(index_path, 'rb'), content_type='text/html')
+    # Fallback dev : essayer depuis le dist Angular directement
+    dist_index = settings.BASE_DIR.parent / 'frontend-lien-officinal' / 'dist' / 'frontend-lien-officinal' / 'browser' / 'index.html'
+    if dist_index.is_file():
+        return FileResponse(open(str(dist_index), 'rb'), content_type='text/html')
+    return HttpResponseNotFound('Application not found.')
 
 
 urlpatterns = []
@@ -38,7 +55,8 @@ urlpatterns += [
     path('api/token/refresh/', CookieTokenRefreshView.as_view(), name='token_refresh'),
 ]
 
-# En développement, NE PAS ajouter static() pour /media/ :
-# la route protected_media ci-dessus prend en charge toutes les requêtes /media/
-# if settings.DEBUG:
-#     urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
+# Catch-all SPA : toutes les routes non-API servent index.html (routing Angular)
+# Doit être EN DERNIER pour ne pas intercepter /api/, /media/, /admin/, /static/
+urlpatterns += [
+    re_path(r'^(?!api/|media/|admin/|static/).*$', _spa_fallback),
+]

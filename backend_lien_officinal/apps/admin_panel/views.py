@@ -37,8 +37,19 @@ _ALGORITHM = 'HS256'
 class AdminLoginThrottle(AnonRateThrottle):
     rate = '5/hour'
 
+    def allow_request(self, request, view):
+        if settings.DEBUG:
+            return True
+        return super().allow_request(request, view)
+
+
 class AdminTotpThrottle(AnonRateThrottle):
     rate = '10/hour'
+
+    def allow_request(self, request, view):
+        if settings.DEBUG:
+            return True
+        return super().allow_request(request, view)
 
 
 def _secret():
