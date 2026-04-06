@@ -58,6 +58,7 @@ INSTALLED_APPS = [
     'rest_framework_simplejwt.token_blacklist',    # Invalidation des tokens après changement de mdp
     'corsheaders',              # Communication Angular <-> Django
     'encrypted_model_fields',   # Chiffrement au repos (messagerie)
+    'storages',                 # Scaleway Object Storage (S3)
 
     # --- NOS APPS (Le Lien Officinal) ---
     'apps.core',           # Auth Pharmacie
@@ -207,19 +208,44 @@ STATIC_ROOT = BASE_DIR / 'staticfiles'
 _ANGULAR_DIST = BASE_DIR.parent / 'frontend-lien-officinal' / 'dist' / 'frontend-lien-officinal' / 'browser'
 STATICFILES_DIRS = [_ANGULAR_DIST] if _ANGULAR_DIST.is_dir() else []
 
-# WhiteNoise : compression gzip/brotli + hashes de cache-busting
-STORAGES = {
-    'default': {
-        'BACKEND': 'django.core.files.storage.FileSystemStorage',
-    },
-    'staticfiles': {
-        'BACKEND': 'whitenoise.storage.CompressedManifestStaticFilesStorage',
-    },
-}
+# --- Scaleway Object Storage (S3-compatible) ---
+SCW_ACCESS_KEY = os.environ.get('SCW_ACCESS_KEY')
+SCW_SECRET_KEY = os.environ.get('SCW_SECRET_KEY')
+SCW_BUCKET_NAME = os.environ.get('SCW_BUCKET_NAME', 'lienofficinal-media')
+SCW_REGION = os.environ.get('SCW_REGION', 'fr-par')
 
-# --- 4. GESTION DES FICHIERS MÉDIAS (Images/PDF) ---
-MEDIA_URL = '/media/'
-MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
+if SCW_ACCESS_KEY and SCW_SECRET_KEY:
+    # Production : Scaleway S3
+    STORAGES = {
+        'default': {
+            'BACKEND': 'storages.backends.s3boto3.S3Boto3Storage',
+        },
+        'staticfiles': {
+            'BACKEND': 'whitenoise.storage.CompressedManifestStaticFilesStorage',
+        },
+    }
+    AWS_ACCESS_KEY_ID = SCW_ACCESS_KEY
+    AWS_SECRET_ACCESS_KEY = SCW_SECRET_KEY
+    AWS_STORAGE_BUCKET_NAME = SCW_BUCKET_NAME
+    AWS_S3_REGION_NAME = SCW_REGION
+    AWS_S3_ENDPOINT_URL = f'https://s3.{SCW_REGION}.scw.cloud'
+    AWS_QUERYSTRING_AUTH = True          # signed URLs (privé)
+    AWS_QUERYSTRING_EXPIRE = 3600       # URLs valides 1h
+    AWS_DEFAULT_ACL = 'private'
+    AWS_S3_FILE_OVERWRITE = False
+    MEDIA_URL = f'https://{SCW_BUCKET_NAME}.s3.{SCW_REGION}.scw.cloud/'
+else:
+    # Dev local : stockage fichiers classique
+    STORAGES = {
+        'default': {
+            'BACKEND': 'django.core.files.storage.FileSystemStorage',
+        },
+        'staticfiles': {
+            'BACKEND': 'whitenoise.storage.CompressedManifestStaticFilesStorage',
+        },
+    }
+    MEDIA_URL = '/media/'
+    MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
 
 
 # Default primary key field type
