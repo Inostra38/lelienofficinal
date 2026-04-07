@@ -56,5 +56,5 @@ urlpatterns += [
 # Catch-all SPA : en prod (DEBUG=False)
 if not settings.DEBUG:
     urlpatterns += [
-        re_path(r'^(?!api/|media/|admin/|static/).*$', _spa_fallback),
+        re_path(r'^(?!api/|media/|admin/|static/|ws/).*$', _spa_fallback),
     ]
