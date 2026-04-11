@@ -30,7 +30,7 @@ export const authInterceptor: HttpInterceptorFn = (req, next) => {
           })
         );
       }
-      if (err.status === 401 && !req.url.includes('/api/admin/')) {
+      if (err.status === 401 && !req.url.includes('/api/admin/') && !req.url.includes('/token/')) {
         authService.logout(router.url);
       }
       if (err.status === 403 && req.url.includes('/api/quality/')) {
