@@ -142,7 +142,7 @@ WSGI_APPLICATION = 'backend_lien_officinal.wsgi.application'
 # Priorité 3 : SQLite (développement local)
 if os.environ.get("DATABASE_URL"):
     import dj_database_url
-    DATABASES = {"default": dj_database_url.parse(os.environ["DATABASE_URL"], conn_max_age=600)}
+    DATABASES = {"default": dj_database_url.parse(os.environ["DATABASE_URL"], conn_max_age=0)}
 elif os.environ.get("DB_NAME"):
     DATABASES = {
         "default": {
