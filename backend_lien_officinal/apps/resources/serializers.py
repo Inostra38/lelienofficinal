@@ -149,13 +149,14 @@ class ResourceCardSerializer(serializers.ModelSerializer):
         if request and request.user.is_authenticated:
             preference, created = PharmacyPreference.objects.get_or_create(
                 pharmacy=request.user,
-                card=instance
+                card=instance,
+                defaults={'note_courte': '', 'note_longue': ''}
             )
-            
+
             if note_courte is not None:
-                preference.note_courte = note_courte
+                preference.note_courte = note_courte or ''
             if note_longue is not None:
-                preference.note_longue = note_longue
+                preference.note_longue = note_longue or ''
             
             preference.save()
         

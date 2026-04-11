@@ -661,16 +661,17 @@ def update_notes(request, pk):
     # Récupérer ou créer la préférence
     preference, created = PharmacyPreference.objects.get_or_create(
         pharmacy=request.user,
-        card=card
+        card=card,
+        defaults={'note_courte': '', 'note_longue': ''}
     )
-    
-    # Mettre à jour les notes si fournies
+
+    # Mettre à jour les notes si fournies (null → "" pour éviter NOT NULL violation)
     if 'note_courte' in request.data:
-        note_courte = request.data['note_courte'][:150]  # Limite à 150 caractères
+        note_courte = (request.data['note_courte'] or '')[:150]
         preference.note_courte = note_courte
-    
+
     if 'note_longue' in request.data:
-        preference.note_longue = request.data['note_longue']
+        preference.note_longue = request.data['note_longue'] or ''
     
     preference.save()
 
@@ -776,9 +777,9 @@ def create_full_card(request):
         category_id = request.data.get('category')
         description_courte = request.data.get('description_courte', '')
 
-        # Notes
-        note_courte = request.data.get('note_courte', '')
-        note_longue = request.data.get('note_longue', '')
+        # Notes (null → "" pour éviter NOT NULL violation)
+        note_courte = request.data.get('note_courte') or ''
+        note_longue = request.data.get('note_longue') or ''
         
         # Items (JSON stringifié)
         items_json = request.data.get('items')
