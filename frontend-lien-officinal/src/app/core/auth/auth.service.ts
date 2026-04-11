@@ -209,6 +209,10 @@ export class AuthService {
     return this._accessToken;
   }
 
+  hasSessionInfo(): boolean {
+    return !!this._getSessionInfo()?.['auth_type'];
+  }
+
   // ── Helpers privés ────────────────────────────────────────────────────────
 
   private _readCollaboratorIdFromToken(): number | null {
