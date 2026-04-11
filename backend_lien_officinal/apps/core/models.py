@@ -57,7 +57,7 @@ class Pharmacy(AbstractBaseUser, PermissionsMixin):
     phone = models.CharField(_("Téléphone"), max_length=20, blank=True)
 
     # Crédits SMS
-    sms_credits = models.PositiveIntegerField(_("Crédits SMS"), default=0)
+    sms_credits = models.PositiveIntegerField(_("Crédits SMS"), default=20)
 
     # Type de pharmacie
     class PharmacyType(models.TextChoices):
