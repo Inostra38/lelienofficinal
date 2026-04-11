@@ -8,7 +8,7 @@ export const authGuard: CanActivateFn = (route, state) => {
   const authService = inject(AuthService);
   const router = inject(Router);
 
-  // Token en mémoire → accès immédiat
+  // Token en mémoire et non expiré → accès immédiat
   if (authService.isAuthenticated()) {
     if (!authService.isOnboardingCompleted() && !state.url.startsWith('/onboarding')) {
       router.navigate(['/onboarding']);
@@ -17,24 +17,18 @@ export const authGuard: CanActivateFn = (route, state) => {
     return true;
   }
 
-  // Pas de token en mémoire mais session_info cookie présent → tenter un refresh
-  if (authService.hasSessionInfo()) {
-    return authService.refreshAccessToken().pipe(
-      map(() => {
-        if (!authService.isOnboardingCompleted() && !state.url.startsWith('/onboarding')) {
-          router.navigate(['/onboarding']);
-          return false;
-        }
-        return true;
-      }),
-      catchError(() => {
-        router.navigate(['/login'], { queryParams: { returnUrl: state.url } });
-        return of(false);
-      })
-    );
-  }
-
-  // Rien → login
-  router.navigate(['/login'], { queryParams: { returnUrl: state.url } });
-  return false;
+  // Pas de token en mémoire (reload) → tenter un refresh via cookie HttpOnly
+  return authService.refreshAccessToken().pipe(
+    map(() => {
+      if (!authService.isOnboardingCompleted() && !state.url.startsWith('/onboarding')) {
+        router.navigate(['/onboarding']);
+        return false;
+      }
+      return true;
+    }),
+    catchError(() => {
+      router.navigate(['/login'], { queryParams: { returnUrl: state.url } });
+      return of(false);
+    })
+  );
 };
