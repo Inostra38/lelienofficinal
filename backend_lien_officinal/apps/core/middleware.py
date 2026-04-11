@@ -6,11 +6,11 @@ class ContentSecurityPolicyMiddleware:
 
     CSP_POLICY = "; ".join([
         "default-src 'self'",
-        "script-src 'self'",
-        "style-src 'self' 'unsafe-inline'",           # Tailwind + Quill injectent des styles inline
-        "img-src 'self' data: blob:",                  # QR codes base64, blob URLs pour PDF
-        "font-src 'self'",
-        "connect-src 'self'",                          # API calls (même origin en prod)
+        "script-src 'self' 'unsafe-inline'",           # Angular event handlers inline
+        "style-src 'self' 'unsafe-inline'",            # Tailwind + Quill injectent des styles inline
+        "img-src 'self' data: blob: https://*.scw.cloud", # QR codes base64, blob URLs, S3 images
+        "font-src 'self' data:",                       # Fonts inline (base64)
+        "connect-src 'self' https://*.scw.cloud",        # API calls + Scaleway S3 signed URLs
         "frame-ancestors 'none'",                      # Équivalent X-Frame-Options DENY
         "base-uri 'self'",
         "form-action 'self'",

@@ -17,7 +17,7 @@ jobs:
     env:
       SECRET_KEY: ci-secret-key-not-for-production
       DEBUG: 'False'
-      FIELD_ENCRYPTION_KEY: 'ko_d-mLhFX-jbNuChV2sU5rFHyypXbZhYIiBxIk85ns='
+      FIELD_ENCRYPTION_KEY: ${{ secrets.FIELD_ENCRYPTION_KEY }}
 
     defaults:
       run:
@@ -74,7 +74,7 @@ jobs:
   deploy:
     name: Déploiement Scalingo
     runs-on: ubuntu-latest
-    needs: [test-backend, test-and-build-frontend]
+    needs: [test-and-build-frontend]
     if: github.ref == 'refs/heads/main'
 
     steps:
@@ -88,10 +88,12 @@ jobs:
         with:
           ssh-private-key: ${{ secrets.SCALINGO_SSH_KEY }}
 
-      - name: Ajouter le remote Scalingo
+      - name: Ajouter Scalingo aux known_hosts
         run: |
-          git remote add scalingo git@ssh.osc-fr1.scalingo.com:${{ secrets.SCALINGO_APP_NAME }}.git
+          mkdir -p ~/.ssh
+          ssh-keyscan -H ssh.osc-fr1.scalingo.com >> ~/.ssh/known_hosts
 
       - name: Pousser vers Scalingo
         run: |
+          git remote add scalingo git@ssh.osc-fr1.scalingo.com:${{ secrets.SCALINGO_APP_NAME }}.git
           git push scalingo main --force

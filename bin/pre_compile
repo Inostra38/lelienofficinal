@@ -1,0 +1,26 @@
+#!/bin/bash
+# Pre-compile hook : installe Node.js et build Angular avant collectstatic
+set -e
+
+echo "-----> Installing Node.js 22..."
+curl -sL https://deb.nodesource.com/setup_22.x | bash - > /dev/null 2>&1
+apt-get install -y nodejs > /dev/null 2>&1 || {
+    # Fallback si apt n'est pas dispo : télécharger le binaire
+    NODE_VERSION="22.16.0"
+    curl -sL "https://nodejs.org/dist/v${NODE_VERSION}/node-v${NODE_VERSION}-linux-x64.tar.xz" -o /tmp/node.tar.xz
+    tar -xJf /tmp/node.tar.xz -C /tmp
+    export PATH="/tmp/node-v${NODE_VERSION}-linux-x64/bin:$PATH"
+    rm /tmp/node.tar.xz
+}
+
+echo "       Node $(node --version) installed"
+echo "       npm $(npm --version) installed"
+
+echo "-----> Building Angular frontend..."
+cd frontend-lien-officinal
+npm install --legacy-peer-deps
+npx ng build --configuration production
+cd ..
+
+echo "-----> Angular build complete"
+ls -la frontend-lien-officinal/dist/frontend-lien-officinal/browser/index.html

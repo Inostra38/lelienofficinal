@@ -57,7 +57,7 @@ class SMSSendSerializer(serializers.Serializer):
     to = serializers.CharField()
     message = serializers.CharField()
     template_id = serializers.IntegerField(required=False)
-    recipient_civilite = serializers.CharField(max_length=3, required=False, default='')
-    recipient_name = serializers.CharField(max_length=200, required=False, default='')
-    motif = serializers.CharField(max_length=255, required=False, default='')
+    recipient_civilite = serializers.CharField(max_length=3, required=False, default='', allow_blank=True)
+    recipient_name = serializers.CharField(max_length=200, required=False, default='', allow_blank=True)
+    motif = serializers.CharField(max_length=255, required=False, default='', allow_blank=True)
 

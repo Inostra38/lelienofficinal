@@ -208,6 +208,10 @@ STATIC_ROOT = BASE_DIR / 'staticfiles'
 _ANGULAR_DIST = BASE_DIR.parent / 'frontend-lien-officinal' / 'dist' / 'frontend-lien-officinal' / 'browser'
 STATICFILES_DIRS = [_ANGULAR_DIST] if _ANGULAR_DIST.is_dir() else []
 
+# WhiteNoise sert les fichiers Angular directement à la racine /
+# (main-XXX.js, styles-XXX.css, etc. accessibles sans /static/)
+WHITENOISE_ROOT = str(STATIC_ROOT)
+
 # --- Scaleway Object Storage (S3-compatible) ---
 SCW_ACCESS_KEY = os.environ.get('SCW_ACCESS_KEY')
 SCW_SECRET_KEY = os.environ.get('SCW_SECRET_KEY')
@@ -325,12 +329,15 @@ FIELD_ENCRYPTION_KEY = os.environ.get('FIELD_ENCRYPTION_KEY', '')
 # --- WEBSOCKET / DJANGO CHANNELS ---
 ASGI_APPLICATION = "backend_lien_officinal.asgi.application"
 
-if os.environ.get('REDIS_URL'):
+# Scalingo fournit SCALINGO_REDIS_URL, en local c'est REDIS_URL
+_REDIS_URL = os.environ.get('SCALINGO_REDIS_URL') or os.environ.get('REDIS_URL')
+
+if _REDIS_URL:
     CHANNEL_LAYERS = {
         "default": {
             "BACKEND": "channels_redis.core.RedisChannelLayer",
             "CONFIG": {
-                "hosts": [os.environ.get('REDIS_URL')],
+                "hosts": [_REDIS_URL],
             },
         }
     }
@@ -365,13 +372,13 @@ ADMIN_NOTIFICATION_EMAIL = os.environ.get('ADMIN_NOTIFICATION_EMAIL', 'admin@lie
 CACHES = {
     "default": {
         "BACKEND": "django.core.cache.backends.redis.RedisCache",
-        "LOCATION": os.environ.get('REDIS_URL', 'redis://localhost:6379/1'),
+        "LOCATION": _REDIS_URL or 'redis://localhost:6379/1',
     }
 }
 
 # --- CELERY ---
-CELERY_BROKER_URL = os.environ.get('REDIS_URL', 'redis://localhost:6379/0')
-CELERY_RESULT_BACKEND = os.environ.get('REDIS_URL', 'redis://localhost:6379/0')
+CELERY_BROKER_URL = _REDIS_URL or 'redis://localhost:6379/0'
+CELERY_RESULT_BACKEND = _REDIS_URL or 'redis://localhost:6379/0'
 CELERY_ACCEPT_CONTENT = ['json']
 CELERY_TASK_SERIALIZER = 'json'
 CELERY_TIMEZONE = 'Europe/Paris'
