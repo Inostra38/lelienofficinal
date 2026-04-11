@@ -230,14 +230,16 @@ class PharmacyPreference(models.Model):
     
     # ✅ NOUVEAU : Deux champs distincts pour les notes
     note_courte = models.CharField(
-        _("Note courte (mémo rapide)"), 
-        max_length=150, 
+        _("Note courte (mémo rapide)"),
+        max_length=150,
         blank=True,
+        default="",
         help_text="Affichée sur la carte (max 150 caractères)"
     )
     note_longue = models.TextField(
-        _("Note longue (détails)"), 
+        _("Note longue (détails)"),
         blank=True,
+        default="",
         help_text="Notes détaillées, procédures, informations..."
     )
     
