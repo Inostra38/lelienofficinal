@@ -141,10 +141,11 @@ export class MessagingService implements OnDestroy {
 
   private _doConnectToConversation(conversationId: string, token: string): void {
     this.currentConversationId = conversationId;
-    const url = `${this.wsUrl}/ws/messaging/conversations/${conversationId}/?token=${encodeURIComponent(token)}`;
+    const url = `${this.wsUrl}/ws/messaging/conversations/${conversationId}/`;
     this.wsStatus$.next('connecting');
 
-    this.socket = new WebSocket(url);
+    // Token JWT passé en sous-protocole (pas dans l'URL pour éviter l'exposition dans les logs)
+    this.socket = new WebSocket(url, ['bearer', token]);
 
     this.socket.onopen = () => {
       this.wsStatus$.next('connected');

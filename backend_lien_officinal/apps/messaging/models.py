@@ -17,7 +17,7 @@ class Conversation(models.Model):
         related_name='conversations',
         verbose_name=_("Pharmacie")
     )
-    subject = models.CharField(_("Sujet"), max_length=200)
+    subject = EncryptedTextField(_("Sujet"))
     created_by = models.ForeignKey(
         'team.Collaborator',
         on_delete=models.SET_NULL,

@@ -1,11 +1,9 @@
 """
-Middleware WebSocket — authentification JWT via query parameter.
+Middleware WebSocket — authentification JWT via sous-protocole.
 
-Le token JWT est stocké dans localStorage (pas HttpOnly cookie),
-donc on le passe en query param : ws://.../?token=<jwt>
+Le token JWT est passé comme sous-protocole WebSocket au lieu
+de l'URL query string, pour éviter l'exposition dans les logs serveur.
 """
-from urllib.parse import parse_qs
-
 import jwt
 from django.conf import settings
 from channels.middleware import BaseMiddleware
@@ -17,7 +15,6 @@ from apps.team.models import Collaborator
 def get_collaborator_from_token(token: str):
     """
     Décode le JWT et retourne le Collaborator correspondant, ou None.
-    Même logique que _get_collaborator() dans views.py.
     """
     try:
         payload = jwt.decode(
@@ -39,14 +36,16 @@ def get_collaborator_from_token(token: str):
 
 class JWTAuthMiddleware(BaseMiddleware):
     """
-    Middleware WebSocket : lit le JWT depuis ?token=<jwt> dans l'URL,
-    authentifie le collaborateur et l'attache à la scope.
+    Middleware WebSocket : lit le JWT depuis le sous-protocole.
+    Le client envoie : new WebSocket(url, ['bearer', '<token>'])
     """
     async def __call__(self, scope, receive, send):
-        query_string = scope.get('query_string', b'').decode()
-        params = parse_qs(query_string)
-        token_list = params.get('token', [])
-        token = token_list[0] if token_list else None
+        subprotocols = scope.get('subprotocols', [])
+        token = None
+
+        # Le client envoie ['bearer', '<jwt>'] comme sous-protocoles
+        if len(subprotocols) >= 2 and subprotocols[0] == 'bearer':
+            token = subprotocols[1]
 
         if token:
             scope['collaborator'] = await get_collaborator_from_token(token)
