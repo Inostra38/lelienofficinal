@@ -74,51 +74,39 @@
       </button>
     </div>
 
-    <!-- Grille membres actifs -->
-    <div *ngIf="activeMembers.length > 0"
-         class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+    <!-- Liste membres actifs -->
+    <div *ngIf="activeMembers.length > 0" class="flex flex-col gap-3">
 
       <div *ngFor="let member of activeMembers"
-           class="bg-white border border-gray-200 rounded-xl shadow-sm hover:border-green-400 hover:shadow-md transition-all flex flex-col">
+           class="bg-white border border-gray-200 rounded-xl shadow-sm hover:border-green-400 hover:shadow-md transition-all">
 
-        <!-- Corps de la carte -->
-        <div class="p-5 flex-1">
+        <div class="px-5 py-4 flex items-center gap-4">
 
-          <!-- En-tête : couleur + nom + badge "Vous" -->
-          <div class="flex items-start gap-3 mb-3">
-            <div class="w-10 h-10 rounded-full flex-shrink-0 mt-0.5" [style.background-color]="member.color"></div>
-            <div class="flex-1 min-w-0">
-              <p class="font-semibold text-gray-900 text-sm leading-tight truncate">
+          <!-- Avatar couleur -->
+          <div class="w-10 h-10 rounded-full flex-shrink-0" [style.background-color]="member.color"></div>
+
+          <!-- Infos principales -->
+          <div class="flex-1 min-w-0">
+            <div class="flex items-center gap-2 flex-wrap">
+              <p class="font-semibold text-gray-900 text-sm truncate">
                 {{ member.civility }} {{ member.firstName }} {{ member.lastName }}
               </p>
-              <span class="inline-block mt-1 text-xs px-2 py-0.5 rounded-full font-medium" [ngClass]="getRoleBadgeClass(member.role)">
+              <span class="text-xs px-2 py-0.5 rounded-full font-medium" [ngClass]="getRoleBadgeClass(member.role)">
                 {{ member.role }}
               </span>
+              <span *ngIf="isCurrentCollaborator(member)"
+                    class="text-[10px] bg-green-100 text-green-700 px-2 py-0.5 rounded-full font-medium">
+                Vous
+              </span>
             </div>
-            <span *ngIf="isCurrentCollaborator(member)"
-                  class="text-[10px] bg-green-100 text-green-700 px-2 py-0.5 rounded-full font-medium flex-shrink-0">
-              Vous
-            </span>
-          </div>
-
-          <!-- Email -->
-          <div *ngIf="member.email" class="flex items-center gap-2 text-xs text-gray-500 mb-2">
-            <svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
-            </svg>
-            <span class="truncate">{{ member.email }}</span>
-          </div>
-
-          <!-- PIN masqué -->
-          <div class="flex items-center gap-2 text-xs text-gray-400 mb-3">
-            <svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
-            </svg>
-            <span class="font-mono tracking-widest text-sm">••••</span>
+            <div class="flex items-center gap-4 mt-1">
+              <span *ngIf="member.email" class="text-xs text-gray-500 truncate">{{ member.email }}</span>
+              <span class="text-xs text-gray-400 font-mono tracking-widest">••••</span>
+            </div>
           </div>
 
           <!-- Permissions -->
-          <div class="flex flex-wrap gap-1">
+          <div class="hidden sm:flex flex-wrap gap-1 max-w-[240px]">
             <span *ngIf="member.can_manage_account"
                   class="text-[10px] bg-blue-100 text-blue-700 px-1.5 py-0.5 rounded font-medium">Compte</span>
             <span *ngIf="member.can_manage_team"
@@ -127,40 +115,39 @@
                   class="text-[10px] bg-orange-100 text-orange-700 px-1.5 py-0.5 rounded font-medium">Planning</span>
             <span *ngIf="member.can_assign_task"
                   class="text-[10px] bg-amber-100 text-amber-700 px-1.5 py-0.5 rounded font-medium">Tâches</span>
-            <!-- Badge qualité unique avec indicateurs de niveau -->
             <span *ngIf="member.can_manage_quality"
                   class="text-[10px] bg-teal-100 text-teal-700 px-1.5 py-0.5 rounded font-medium">
               Qualité{{ (member.can_manage_procedures || member.can_publish_procedures || member.can_close_nonconformities) ? ' +' : '' }}
             </span>
             <span *ngIf="!hasAnyPermission(member)"
-                  class="text-[10px] text-gray-400 italic">Aucun droit spécifique</span>
+                  class="text-[10px] text-gray-400 italic">Aucun droit</span>
           </div>
-        </div>
 
-        <!-- Boutons d'action -->
-        <div class="px-5 py-3 border-t border-gray-100 flex items-center justify-end gap-1">
-          <button (click)="openContractsPanel(member)"
-                  class="p-2 text-gray-500 hover:bg-gray-50 rounded-lg transition-colors"
-                  title="Historique des contrats">
-            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-            </svg>
-          </button>
-          <button (click)="openEditModal(member)"
-                  class="p-2 text-green-700 hover:bg-green-50 rounded-lg transition-colors"
-                  title="Modifier">
-            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-            </svg>
-          </button>
-          <button *ngIf="canManageTeam && !isTitulaire(member) && !isCurrentCollaborator(member)"
-                  (click)="confirmDelete(member)"
-                  class="p-2 text-red-500 hover:bg-red-50 rounded-lg transition-colors"
-                  title="Supprimer">
-            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-            </svg>
-          </button>
+          <!-- Actions -->
+          <div class="flex items-center gap-1 flex-shrink-0">
+            <button (click)="openContractsPanel(member)"
+                    class="p-2 text-gray-500 hover:bg-gray-50 rounded-lg transition-colors"
+                    title="Historique des contrats">
+              <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+              </svg>
+            </button>
+            <button (click)="openEditModal(member)"
+                    class="p-2 text-green-700 hover:bg-green-50 rounded-lg transition-colors"
+                    title="Modifier">
+              <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+              </svg>
+            </button>
+            <button *ngIf="canManageTeam && !isTitulaire(member) && !isCurrentCollaborator(member)"
+                    (click)="confirmDelete(member)"
+                    class="p-2 text-red-500 hover:bg-red-50 rounded-lg transition-colors"
+                    title="Supprimer">
+              <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+              </svg>
+            </button>
+          </div>
         </div>
       </div>
     </div>
@@ -177,40 +164,33 @@
         <div class="flex-1 h-px bg-gray-200"></div>
       </div>
 
-      <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+      <div class="flex flex-col gap-3">
         <div *ngFor="let member of archivedMembers"
-             class="bg-white border border-gray-200 rounded-xl shadow-sm opacity-60 flex flex-col">
+             class="bg-white border border-gray-200 rounded-xl shadow-sm opacity-60">
 
-          <!-- Corps de la carte -->
-          <div class="p-5 flex-1">
-            <div class="flex items-start gap-3 mb-3">
-              <div class="w-10 h-10 rounded-full flex-shrink-0 mt-0.5 grayscale" [style.background-color]="member.color"></div>
-              <div class="flex-1 min-w-0">
-                <p class="font-semibold text-gray-500 text-sm leading-tight truncate line-through">
+          <div class="px-5 py-4 flex items-center gap-4">
+            <div class="w-10 h-10 rounded-full flex-shrink-0 grayscale" [style.background-color]="member.color"></div>
+
+            <div class="flex-1 min-w-0">
+              <div class="flex items-center gap-2 flex-wrap">
+                <p class="font-semibold text-gray-500 text-sm truncate line-through">
                   {{ member.civility }} {{ member.firstName }} {{ member.lastName }}
                 </p>
-                <span class="inline-block mt-1 text-xs px-2 py-0.5 rounded-full font-medium bg-gray-100 text-gray-500">
+                <span class="text-xs px-2 py-0.5 rounded-full font-medium bg-gray-100 text-gray-500">
                   {{ member.role }}
                 </span>
+                <span class="text-[10px] bg-gray-100 text-gray-500 px-2 py-0.5 rounded-full font-medium">
+                  Archivé
+                </span>
               </div>
-              <span class="text-[10px] bg-gray-100 text-gray-500 px-2 py-0.5 rounded-full font-medium flex-shrink-0">
-                Archivé
+              <span *ngIf="member.archived_at" class="text-xs text-gray-400 mt-0.5 block">
+                Archivé le {{ member.archived_at | date:'dd/MM/yyyy' }}
               </span>
             </div>
 
-            <div *ngIf="member.archived_at" class="flex items-center gap-2 text-xs text-gray-400 mt-2">
-              <svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
-              </svg>
-              <span>Archivé le {{ member.archived_at | date:'dd/MM/yyyy' }}</span>
-            </div>
-          </div>
-
-          <!-- Bouton réactiver -->
-          <div class="px-5 py-3 border-t border-gray-100 flex items-center justify-end">
             <button *ngIf="canManageTeam"
                     (click)="reactivate(member)"
-                    class="px-3 py-1.5 text-xs font-medium text-green-700 bg-green-50 hover:bg-green-100 border border-green-200 rounded-lg transition-colors flex items-center gap-1.5">
+                    class="px-3 py-1.5 text-xs font-medium text-green-700 bg-green-50 hover:bg-green-100 border border-green-200 rounded-lg transition-colors flex items-center gap-1.5 flex-shrink-0">
               <svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
               </svg>
