@@ -1,4 +1,4 @@
-import { Component, EventEmitter, Input, Output, inject } from '@angular/core';
+import { Component, EventEmitter, HostListener, Input, Output, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { RouterLink, RouterLinkActive } from '@angular/router';
 import { Router } from '@angular/router';
@@ -34,8 +34,16 @@ export class SidebarComponent {
   private authService = inject(AuthService);
   constructor(private router: Router) {}
 
-  isCollapsed = false;
+  private readonly COLLAPSE_BREAKPOINT = 1280;
+  isCollapsed = window.innerWidth <= this.COLLAPSE_BREAKPOINT;
   isPharmacyMenuOpen = false;
+
+  @HostListener('window:resize')
+  onResize() {
+    if (window.innerWidth <= this.COLLAPSE_BREAKPOINT) {
+      this.isCollapsed = true;
+    }
+  }
 
   navItems: NavItem[] = [
     {
