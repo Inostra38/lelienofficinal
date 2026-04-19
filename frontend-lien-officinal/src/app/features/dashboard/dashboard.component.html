@@ -180,10 +180,21 @@
               {{ getCardInitials(card) }}
             </span>
           </div>
-          <span class="text-xs text-center text-gray-700 font-medium leading-tight max-w-[96px] truncate flex items-center gap-1">
-            <span *ngIf="card.is_favorite" class="text-red-500 text-[10px]">♥</span>
-            {{ card.titre }}
-          </span>
+          <div class="flex items-center gap-1 max-w-[96px]">
+            <button (click)="toggleFavorite(card, $event); $event.stopPropagation()"
+                    class="flex-shrink-0 transition-colors"
+                    [class.text-red-500]="card.is_favorite"
+                    [class.text-gray-300]="!card.is_favorite"
+                    [class.hover\:text-red-400]="!card.is_favorite">
+              <svg *ngIf="card.is_favorite" xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5" viewBox="0 0 20 20" fill="currentColor">
+                <path fill-rule="evenodd" d="M3.172 5.172a4 4 0 015.656 0L10 6.343l1.172-1.171a4 4 0 115.656 5.656L10 17.657l-6.828-6.829a4 4 0 010-5.656z" clip-rule="evenodd"/>
+              </svg>
+              <svg *ngIf="!card.is_favorite" xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z"/>
+              </svg>
+            </button>
+            <span class="text-xs text-gray-700 font-medium leading-tight truncate">{{ card.titre }}</span>
+          </div>
         </div>
       </div>
 
