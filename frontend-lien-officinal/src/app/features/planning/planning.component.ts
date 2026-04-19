@@ -1,4 +1,4 @@
-import { Component, OnInit, OnDestroy, inject } from '@angular/core';
+import { Component, OnInit, OnDestroy, HostListener, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { Subject, Subscription, forkJoin } from 'rxjs';
 import { takeUntil } from 'rxjs/operators';
@@ -38,6 +38,15 @@ export class PlanningComponent implements OnInit, OnDestroy {
   showCollaboratorPicker            = false;
   showPinModal                      = false;
   isManager                         = false;
+
+  // ── Responsive ────────────────────────────────────────────────────────────
+  private readonly COMPACT_BREAKPOINT = 1280;
+  isCompactToolbar = window.innerWidth <= this.COMPACT_BREAKPOINT;
+
+  @HostListener('window:resize')
+  onResize() {
+    this.isCompactToolbar = window.innerWidth <= this.COMPACT_BREAKPOINT;
+  }
 
   // ── Vue semaine ───────────────────────────────────────────────────────────
   weekData: WeekResponse | null = null;

@@ -10,6 +10,9 @@
 .toolbar-l1 {
   height: 44px;
 }
+.toolbar-l1-compact {
+  height: auto;
+}
 
 /* Bouton action standard (Analytique, Templates IA, Imprimer) */
 .toolbar-action-btn {

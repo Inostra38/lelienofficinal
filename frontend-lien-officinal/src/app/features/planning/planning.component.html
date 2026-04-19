@@ -94,234 +94,281 @@
     <!-- ═══════════════════════════════════════════════════════════════════════
          TOOLBAR NIVEAU 1 — Navigation + vue + actions globales
     ════════════════════════════════════════════════════════════════════════ -->
-    <div class="no-print bg-white border-b border-gray-200 px-[14px] flex items-center gap-2 shrink-0 toolbar-l1">
+    <div class="no-print bg-white border-b border-gray-200 px-[14px] shrink-0 toolbar-l1"
+         [class.toolbar-l1-compact]="isCompactToolbar">
 
-      <!-- ── Navigation semaine ── -->
-      @if (viewMode !== 'month') {
-        <button (click)="prevWeek()"
-                class="p-1.5 rounded-lg hover:bg-gray-100 text-gray-400 hover:text-gray-700 transition-colors shrink-0">
-          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/>
-          </svg>
-        </button>
-        <div class="flex items-center gap-1.5">
-          <span class="text-[11px] text-gray-400 font-medium tabular-nums">S{{ currentWeekNumber }}</span>
-          <span class="week-label text-sm font-semibold text-gray-800">{{ getWeekLabel() }}</span>
+      <!-- ── LIGNE 1 : Navigation + View mode + Déployer + Settings + Session ── -->
+      <div class="flex items-center gap-2 h-[44px]">
+
+        <!-- Navigation semaine -->
+        @if (viewMode !== 'month') {
+          <button (click)="prevWeek()"
+                  class="p-1.5 rounded-lg hover:bg-gray-100 text-gray-400 hover:text-gray-700 transition-colors shrink-0">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/>
+            </svg>
+          </button>
+          <div class="flex items-center gap-1.5">
+            <span class="text-[11px] text-gray-400 font-medium tabular-nums">S{{ currentWeekNumber }}</span>
+            <span class="week-label text-sm font-semibold text-gray-800">{{ getWeekLabel() }}</span>
+          </div>
+          <button (click)="nextWeek()"
+                  class="p-1.5 rounded-lg hover:bg-gray-100 text-gray-400 hover:text-gray-700 transition-colors shrink-0">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
+            </svg>
+          </button>
+          @if (weekData?.template_letter) {
+          <span class="text-[11px] font-bold bg-indigo-100 text-indigo-700 rounded px-1.5 py-0.5 tracking-wide shrink-0">
+            Sem.&nbsp;{{ weekData!.template_letter }}
+          </span>
+          }
+          @if (!isCurrentWeek()) {
+          <button (click)="goToCurrentWeek()"
+                  class="text-[11px] text-green-700 hover:text-green-800 font-semibold border border-green-200 rounded px-1.5 py-0.5 hover:bg-green-50 transition-colors shrink-0">
+            Aujourd'hui
+          </button>
+          }
+        }
+
+        <!-- Navigation mois -->
+        @if (viewMode === 'month') {
+          <button (click)="prevMonth()"
+                  class="p-1.5 rounded-lg hover:bg-gray-100 text-gray-400 hover:text-gray-700 transition-colors shrink-0">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/>
+            </svg>
+          </button>
+          <span class="text-sm font-semibold text-gray-800 capitalize whitespace-nowrap">{{ getMonthLabel() }}</span>
+          <button (click)="nextMonth()"
+                  class="p-1.5 rounded-lg hover:bg-gray-100 text-gray-400 hover:text-gray-700 transition-colors shrink-0">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
+            </svg>
+          </button>
+        }
+
+        <!-- Séparateur vertical -->
+        <div class="h-5 w-px bg-gray-200 mx-1 shrink-0"></div>
+
+        <!-- Segmented control : Vue 24h | Semaine | Mois (manager) -->
+        @if (isManager) {
+        <div class="flex bg-gray-100 rounded-lg p-0.5 gap-0.5 shrink-0">
+          <button (click)="setViewMode('24h')"
+                  class="px-2.5 py-1 rounded-md text-xs font-semibold transition-all"
+                  [class.bg-white]="currentViewMode === '24h'"
+                  [class.text-gray-800]="currentViewMode === '24h'"
+                  [class.shadow-sm]="currentViewMode === '24h'"
+                  [class.text-gray-500]="currentViewMode !== '24h'">
+            Vue 24h
+          </button>
+          <button (click)="setViewMode('week')"
+                  class="px-2.5 py-1 rounded-md text-xs font-semibold transition-all"
+                  [class.bg-white]="currentViewMode === 'week'"
+                  [class.text-gray-800]="currentViewMode === 'week'"
+                  [class.shadow-sm]="currentViewMode === 'week'"
+                  [class.text-gray-500]="currentViewMode !== 'week'">
+            Semaine
+          </button>
+          <button (click)="setViewMode('month')"
+                  class="px-2.5 py-1 rounded-md text-xs font-semibold transition-all"
+                  [class.bg-white]="currentViewMode === 'month'"
+                  [class.text-gray-800]="currentViewMode === 'month'"
+                  [class.shadow-sm]="currentViewMode === 'month'"
+                  [class.text-gray-500]="currentViewMode !== 'month'">
+            Mois
+          </button>
         </div>
-        <button (click)="nextWeek()"
-                class="p-1.5 rounded-lg hover:bg-gray-100 text-gray-400 hover:text-gray-700 transition-colors shrink-0">
-          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
-          </svg>
-        </button>
-        @if (weekData?.template_letter) {
-        <span class="text-[11px] font-bold bg-indigo-100 text-indigo-700 rounded px-1.5 py-0.5 tracking-wide shrink-0">
-          Sem.&nbsp;{{ weekData!.template_letter }}
-        </span>
-        }
-        @if (!isCurrentWeek()) {
-        <button (click)="goToCurrentWeek()"
-                class="text-[11px] text-green-700 hover:text-green-800 font-semibold border border-green-200 rounded px-1.5 py-0.5 hover:bg-green-50 transition-colors shrink-0">
-          Aujourd'hui
-        </button>
-        }
-      }
-
-      <!-- ── Navigation mois ── -->
-      @if (viewMode === 'month') {
-        <button (click)="prevMonth()"
-                class="p-1.5 rounded-lg hover:bg-gray-100 text-gray-400 hover:text-gray-700 transition-colors shrink-0">
-          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/>
-          </svg>
-        </button>
-        <span class="text-sm font-semibold text-gray-800 capitalize whitespace-nowrap">{{ getMonthLabel() }}</span>
-        <button (click)="nextMonth()"
-                class="p-1.5 rounded-lg hover:bg-gray-100 text-gray-400 hover:text-gray-700 transition-colors shrink-0">
-          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
-          </svg>
-        </button>
-      }
-
-      <!-- ── Séparateur vertical ── -->
-      <div class="h-5 w-px bg-gray-200 mx-1 shrink-0"></div>
-
-      <!-- ── Segmented control : Vue 24h | Semaine | Mois (manager) ── -->
-      @if (isManager) {
-      <div class="flex bg-gray-100 rounded-lg p-0.5 gap-0.5 shrink-0">
-        <button (click)="setViewMode('24h')"
-                class="px-2.5 py-1 rounded-md text-xs font-semibold transition-all"
-                [class.bg-white]="currentViewMode === '24h'"
-                [class.text-gray-800]="currentViewMode === '24h'"
-                [class.shadow-sm]="currentViewMode === '24h'"
-                [class.text-gray-500]="currentViewMode !== '24h'">
-          Vue 24h
-        </button>
-        <button (click)="setViewMode('week')"
-                class="px-2.5 py-1 rounded-md text-xs font-semibold transition-all"
-                [class.bg-white]="currentViewMode === 'week'"
-                [class.text-gray-800]="currentViewMode === 'week'"
-                [class.shadow-sm]="currentViewMode === 'week'"
-                [class.text-gray-500]="currentViewMode !== 'week'">
-          Semaine
-        </button>
-        <button (click)="setViewMode('month')"
-                class="px-2.5 py-1 rounded-md text-xs font-semibold transition-all"
-                [class.bg-white]="currentViewMode === 'month'"
-                [class.text-gray-800]="currentViewMode === 'month'"
-                [class.shadow-sm]="currentViewMode === 'month'"
-                [class.text-gray-500]="currentViewMode !== 'month'">
-          Mois
-        </button>
-      </div>
-      }
-
-      <!-- ── Segmented control : Ma semaine | Voir l'équipe (non-manager) ── -->
-      @if (!isManager && activeCollaborator) {
-      <div class="flex bg-gray-100 rounded-lg p-0.5 gap-0.5 shrink-0">
-        <button (click)="showFullTeam = false"
-                class="px-2.5 py-1 rounded-md text-xs font-semibold transition-all"
-                [class.bg-white]="!showFullTeam"
-                [class.text-gray-800]="!showFullTeam"
-                [class.shadow-sm]="!showFullTeam"
-                [class.text-gray-500]="showFullTeam">
-          Ma semaine
-        </button>
-        <button (click)="showFullTeam = true"
-                class="px-2.5 py-1 rounded-md text-xs font-semibold transition-all"
-                [class.bg-white]="showFullTeam"
-                [class.text-gray-800]="showFullTeam"
-                [class.shadow-sm]="showFullTeam"
-                [class.text-gray-500]="!showFullTeam">
-          Voir l'équipe
-        </button>
-      </div>
-      }
-
-      <!-- ── Spacer ── -->
-      <div class="flex-1"></div>
-
-      <!-- ── Actions droite (managers) ── -->
-      @if (isManager) {
-
-        <!-- Analytique -->
-        <button (click)="showAnalyticsPanel = true"
-                class="toolbar-action-btn"
-                title="Analytique">
-          <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                  d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/>
-          </svg>
-          <span>Analytique</span>
-        </button>
-
-        <!-- Templates IA -->
-        <button (click)="showTemplateModal = true"
-                class="toolbar-action-btn"
-                title="Templates IA">
-          <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                  d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"/>
-          </svg>
-          <span>Templates IA</span>
-        </button>
-
-        <!-- Imprimer (semaine uniquement) -->
-        @if (viewMode === 'week' && weekData) {
-        <button (click)="printWeek()"
-                class="toolbar-action-btn"
-                title="Imprimer">
-          <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                  d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"/>
-          </svg>
-          <span>Imprimer</span>
-        </button>
         }
 
-        <!-- Absences -->
-        <button (click)="showAbsenceModal = true"
+        <!-- Segmented control : Ma semaine | Voir l'équipe (non-manager) -->
+        @if (!isManager && activeCollaborator) {
+        <div class="flex bg-gray-100 rounded-lg p-0.5 gap-0.5 shrink-0">
+          <button (click)="showFullTeam = false"
+                  class="px-2.5 py-1 rounded-md text-xs font-semibold transition-all"
+                  [class.bg-white]="!showFullTeam"
+                  [class.text-gray-800]="!showFullTeam"
+                  [class.shadow-sm]="!showFullTeam"
+                  [class.text-gray-500]="showFullTeam">
+            Ma semaine
+          </button>
+          <button (click)="showFullTeam = true"
+                  class="px-2.5 py-1 rounded-md text-xs font-semibold transition-all"
+                  [class.bg-white]="showFullTeam"
+                  [class.text-gray-800]="showFullTeam"
+                  [class.shadow-sm]="showFullTeam"
+                  [class.text-gray-500]="!showFullTeam">
+            Voir l'équipe
+          </button>
+        </div>
+        }
+
+        <!-- Spacer -->
+        <div class="flex-1"></div>
+
+        <!-- Actions droite sur ligne 1 en mode compact : uniquement Déployer + Settings + Session -->
+        <!-- Actions droite en mode normal : tout sur cette ligne -->
+
+        @if (isManager) {
+
+          <!-- Actions secondaires — visibles uniquement en mode non-compact -->
+          @if (!isCompactToolbar) {
+            <button (click)="showAnalyticsPanel = true" class="toolbar-action-btn" title="Analytique">
+              <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                      d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/>
+              </svg>
+              <span>Analytique</span>
+            </button>
+            <button (click)="showTemplateModal = true" class="toolbar-action-btn" title="Templates IA">
+              <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                      d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"/>
+              </svg>
+              <span>Templates IA</span>
+            </button>
+            @if (viewMode === 'week' && weekData) {
+            <button (click)="printWeek()" class="toolbar-action-btn" title="Imprimer">
+              <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                      d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"/>
+              </svg>
+              <span>Imprimer</span>
+            </button>
+            }
+            <button (click)="showAbsenceModal = true" class="toolbar-action-btn">
+              <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                      d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/>
+              </svg>
+              <span>Absences</span>
+            </button>
+            <div class="h-5 w-px bg-gray-200 mx-0.5 shrink-0"></div>
+          }
+
+          <!-- Déployer / Dépublier — toujours visible -->
+          @if (viewMode === 'week' && hasUnpublishedShifts) {
+          <button (click)="publishWeek()" class="toolbar-deploy-btn">
+            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                    d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
+            </svg>
+            Déployer la semaine
+          </button>
+          }
+          @if (viewMode === 'week' && isWeekFullyPublished) {
+          <button (click)="unpublishWeek()" class="toolbar-action-btn border border-gray-300">
+            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                    d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z"/>
+            </svg>
+            Dépublier
+          </button>
+          }
+
+          <!-- Settings -->
+          <button (click)="showSettingsModal = true"
+                  class="p-1.5 rounded-lg hover:bg-gray-100 text-gray-400 hover:text-gray-600 transition-colors shrink-0"
+                  title="Paramètres du planning">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                    d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/>
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
+            </svg>
+          </button>
+
+        }
+
+        <!-- Actions (collaborateur non-manager) — ligne 1 en mode normal -->
+        @if (!isManager && activeCollaborator && !isCompactToolbar) {
+        <button (click)="adjustmentsMode = 'adjustments'; adjustmentsTab = 'list'; showAdjustmentsModal = true"
                 class="toolbar-action-btn">
+          <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                  d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/>
+          </svg>
+          <span>Saisie rapide</span>
+        </button>
+        <button (click)="showAbsenceModal = true" class="toolbar-action-btn">
           <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                   d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/>
           </svg>
           <span>Absences</span>
         </button>
-
-        <!-- Séparateur vertical -->
-        <div class="h-5 w-px bg-gray-200 mx-0.5 shrink-0"></div>
-
-        <!-- Déployer la semaine -->
-        @if (viewMode === 'week' && hasUnpublishedShifts) {
-        <button (click)="publishWeek()"
-                class="toolbar-deploy-btn">
-          <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                  d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
-          </svg>
-          Déployer la semaine
-        </button>
         }
 
-        <!-- Dépublier la semaine -->
-        @if (viewMode === 'week' && isWeekFullyPublished) {
-        <button (click)="unpublishWeek()"
-                class="toolbar-action-btn border border-gray-300">
-          <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                  d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z"/>
-          </svg>
-          Dépublier
-        </button>
-        }
-
-        <!-- Paramètres -->
-        <button (click)="showSettingsModal = true"
-                class="p-1.5 rounded-lg hover:bg-gray-100 text-gray-400 hover:text-gray-600 transition-colors shrink-0"
-                title="Paramètres du planning">
-          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                  d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/>
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
-          </svg>
-        </button>
-
-      }
-
-      <!-- ── Actions (collaborateur non-manager) ── -->
-      @if (!isManager && activeCollaborator) {
-      <button (click)="adjustmentsMode = 'adjustments'; adjustmentsTab = 'list'; showAdjustmentsModal = true"
-              class="toolbar-action-btn">
-        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/>
-        </svg>
-        <span>Saisie rapide</span>
-      </button>
-      <button (click)="showAbsenceModal = true"
-              class="toolbar-action-btn">
-        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/>
-        </svg>
-        <span>Absences</span>
-      </button>
-      }
-
-      <!-- ── Session collaborateur (avatar compact) ── -->
-      @if (activeCollaborator) {
-      <div class="flex items-center gap-1.5 ml-1 pl-2 border-l border-gray-200 shrink-0">
-        <div class="w-6 h-6 rounded-full text-white text-[11px] font-bold flex items-center justify-center shrink-0"
-             [style.background-color]="activeCollaborator.color">
-          {{ getInitials(activeCollaborator) }}
+        <!-- Session collaborateur -->
+        @if (activeCollaborator) {
+        <div class="flex items-center gap-1.5 ml-1 pl-2 border-l border-gray-200 shrink-0">
+          <div class="w-6 h-6 rounded-full text-white text-[11px] font-bold flex items-center justify-center shrink-0"
+               [style.background-color]="activeCollaborator.color">
+            {{ getInitials(activeCollaborator) }}
+          </div>
+          <span class="text-xs text-gray-700 font-medium">{{ activeCollaborator.first_name }}</span>
+          <button (click)="changeCollaborator()"
+                  class="text-[11px] text-gray-400 hover:text-red-500 transition-colors">
+            Changer
+          </button>
         </div>
-        <span class="text-xs text-gray-700 font-medium">{{ activeCollaborator.first_name }}</span>
-        <button (click)="changeCollaborator()"
-                class="text-[11px] text-gray-400 hover:text-red-500 transition-colors">
-          Changer
-        </button>
+        }
+      </div>
+
+      <!-- ── LIGNE 2 (compact uniquement) : Actions secondaires ── -->
+      @if (isCompactToolbar) {
+      <div class="flex items-center gap-1 flex-wrap h-[34px] border-t border-gray-100">
+
+        @if (isManager) {
+          <button (click)="showAnalyticsPanel = true" class="toolbar-action-btn" title="Analytique">
+            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                    d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/>
+            </svg>
+            <span>Analytique</span>
+          </button>
+          <button (click)="showTemplateModal = true" class="toolbar-action-btn" title="Templates IA">
+            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                    d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"/>
+            </svg>
+            <span>Templates IA</span>
+          </button>
+          @if (viewMode === 'week' && weekData) {
+          <button (click)="printWeek()" class="toolbar-action-btn" title="Imprimer">
+            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                    d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"/>
+            </svg>
+            <span>Imprimer</span>
+          </button>
+          }
+          <button (click)="showAbsenceModal = true" class="toolbar-action-btn">
+            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                    d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/>
+            </svg>
+            <span>Absences</span>
+          </button>
+        }
+
+        @if (!isManager && activeCollaborator) {
+          <button (click)="adjustmentsMode = 'adjustments'; adjustmentsTab = 'list'; showAdjustmentsModal = true"
+                  class="toolbar-action-btn">
+            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                    d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/>
+          </svg>
+            <span>Saisie rapide</span>
+          </button>
+          <button (click)="showAbsenceModal = true" class="toolbar-action-btn">
+            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                    d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/>
+            </svg>
+            <span>Absences</span>
+          </button>
+        }
+
       </div>
       }
     </div>
