@@ -173,17 +173,15 @@
         <div *ngFor="let card of getFilteredCards(); trackBy: trackCard"
              (click)="openCard(card)"
              class="flex flex-col items-center gap-1.5 p-2.5 rounded-xl cursor-pointer hover:bg-gray-100 transition-colors duration-150">
-          <div class="relative">
-            <div class="w-24 h-24 rounded-2xl overflow-hidden flex items-center justify-center flex-shrink-0"
-                 [style.background-color]="getCardLogoColors(card).bg"
-                 [style.border]="'1px solid ' + getCardLogoColors(card).border">
-              <span class="text-2xl font-semibold" [style.color]="getCardLogoColors(card).text">
-                {{ getCardInitials(card) }}
-              </span>
-            </div>
-            <span *ngIf="card.is_favorite" class="absolute -top-1 -right-1 text-red-500 text-sm">♥</span>
+          <div class="w-24 h-24 rounded-2xl overflow-hidden flex items-center justify-center flex-shrink-0"
+               [style.background-color]="getCardLogoColors(card).bg"
+               [style.border]="'1px solid ' + getCardLogoColors(card).border">
+            <span class="text-2xl font-semibold" [style.color]="getCardLogoColors(card).text">
+              {{ getCardInitials(card) }}
+            </span>
           </div>
-          <span class="text-xs text-center text-gray-700 font-medium leading-tight max-w-[96px] truncate">
+          <span class="text-xs text-center text-gray-700 font-medium leading-tight max-w-[96px] truncate flex items-center gap-1">
+            <span *ngIf="card.is_favorite" class="text-red-500 text-[10px]">♥</span>
             {{ card.titre }}
           </span>
         </div>
