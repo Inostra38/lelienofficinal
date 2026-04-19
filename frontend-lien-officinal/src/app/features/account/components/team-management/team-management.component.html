@@ -14,24 +14,24 @@
       <div class="flex items-center gap-2">
         <button *ngIf="canManageTeam"
                 (click)="toggleShowArchived()"
-                class="px-3 py-2 text-sm font-medium rounded-lg border transition-colors"
+                class="px-2.5 py-1.5 text-xs font-medium rounded-lg border transition-colors"
                 [ngClass]="showArchived
                   ? 'bg-gray-200 border-gray-300 text-gray-800'
                   : 'bg-white border-gray-300 text-gray-600 hover:bg-gray-50'">
-          <span class="flex items-center gap-1.5">
-            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <span class="flex items-center gap-1">
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8l1 12a2 2 0 002 2h8a2 2 0 002-2l1-12" />
             </svg>
-            {{ showArchived ? 'Masquer les archivés' : 'Voir les archivés' }}
+            {{ showArchived ? 'Masquer les archivés' : 'Archivés' }}
           </span>
         </button>
         <button *ngIf="canManageTeam"
               (click)="openAddModal()"
-              class="px-4 py-2 bg-green-600 hover:bg-green-700 text-white font-medium rounded-lg transition-colors flex items-center gap-2">
-        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              class="px-3 py-1.5 bg-green-600 hover:bg-green-700 text-white text-xs font-medium rounded-lg transition-colors flex items-center gap-1.5">
+        <svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
         </svg>
-        Ajouter un membre
+        Ajouter
       </button>
     </div>
   </div>
