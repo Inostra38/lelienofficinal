@@ -75,48 +75,48 @@
     </div>
 
     <!-- Liste membres actifs -->
-    <div *ngIf="activeMembers.length > 0" class="flex flex-col gap-3">
+    <div *ngIf="activeMembers.length > 0" class="flex flex-col gap-2">
 
       <div *ngFor="let member of activeMembers"
-           class="bg-white border border-gray-200 rounded-xl shadow-sm hover:border-green-400 hover:shadow-md transition-all px-5 py-4">
+           class="bg-white border border-gray-200 rounded-xl shadow-sm hover:border-green-400 hover:shadow-md transition-all px-4 py-3">
 
         <!-- Ligne 1 : Avatar + Nom + Rôle + Badge Vous + Actions -->
-        <div class="flex items-center gap-3">
-          <div class="w-10 h-10 rounded-full flex-shrink-0" [style.background-color]="member.color"></div>
+        <div class="flex items-center gap-2.5">
+          <div class="w-8 h-8 rounded-full flex-shrink-0" [style.background-color]="member.color"></div>
 
-          <p class="font-semibold text-gray-900 text-sm">
+          <p class="font-semibold text-gray-900 text-xs">
             {{ member.civility }} {{ member.firstName }} {{ member.lastName }}
           </p>
-          <span class="text-xs px-2 py-0.5 rounded-full font-medium flex-shrink-0" [ngClass]="getRoleBadgeClass(member.role)">
+          <span class="text-[10px] px-1.5 py-0.5 rounded-full font-medium flex-shrink-0" [ngClass]="getRoleBadgeClass(member.role)">
             {{ member.role }}
           </span>
           <span *ngIf="isCurrentCollaborator(member)"
-                class="text-[10px] bg-green-100 text-green-700 px-2 py-0.5 rounded-full font-medium flex-shrink-0">
+                class="text-[9px] bg-green-100 text-green-700 px-1.5 py-0.5 rounded-full font-medium flex-shrink-0">
             Vous
           </span>
 
           <div class="flex-1"></div>
 
-          <div class="flex items-center gap-1 flex-shrink-0">
+          <div class="flex items-center gap-0.5 flex-shrink-0">
             <button (click)="openContractsPanel(member)"
-                    class="p-2 text-gray-500 hover:bg-gray-50 rounded-lg transition-colors"
+                    class="p-1.5 text-gray-500 hover:bg-gray-50 rounded-lg transition-colors"
                     title="Historique des contrats">
-              <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
               </svg>
             </button>
             <button (click)="openEditModal(member)"
-                    class="p-2 text-green-700 hover:bg-green-50 rounded-lg transition-colors"
+                    class="p-1.5 text-green-700 hover:bg-green-50 rounded-lg transition-colors"
                     title="Modifier">
-              <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
               </svg>
             </button>
             <button *ngIf="canManageTeam && !isTitulaire(member) && !isCurrentCollaborator(member)"
                     (click)="confirmDelete(member)"
-                    class="p-2 text-red-500 hover:bg-red-50 rounded-lg transition-colors"
+                    class="p-1.5 text-red-500 hover:bg-red-50 rounded-lg transition-colors"
                     title="Supprimer">
-              <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
               </svg>
             </button>
@@ -124,24 +124,24 @@
         </div>
 
         <!-- Ligne 2 : Email + Permissions -->
-        <div class="flex items-center gap-3 mt-2 ml-[52px]">
-          <span *ngIf="member.email" class="text-xs text-gray-500">{{ member.email }}</span>
-          <span *ngIf="member.email && hasAnyPermission(member)" class="text-gray-300">·</span>
+        <div class="flex items-center gap-2 mt-1.5 ml-[42px]">
+          <span *ngIf="member.email" class="text-[11px] text-gray-500">{{ member.email }}</span>
+          <span *ngIf="member.email && hasAnyPermission(member)" class="text-gray-300 text-[10px]">·</span>
           <div class="flex flex-wrap gap-1">
             <span *ngIf="member.can_manage_account"
-                  class="text-[10px] bg-blue-100 text-blue-700 px-1.5 py-0.5 rounded font-medium">Compte</span>
+                  class="text-[9px] bg-blue-100 text-blue-700 px-1.5 py-0.5 rounded font-medium">Compte</span>
             <span *ngIf="member.can_manage_team"
-                  class="text-[10px] bg-purple-100 text-purple-700 px-1.5 py-0.5 rounded font-medium">Équipe</span>
+                  class="text-[9px] bg-purple-100 text-purple-700 px-1.5 py-0.5 rounded font-medium">Équipe</span>
             <span *ngIf="member.can_manage_planning"
-                  class="text-[10px] bg-orange-100 text-orange-700 px-1.5 py-0.5 rounded font-medium">Planning</span>
+                  class="text-[9px] bg-orange-100 text-orange-700 px-1.5 py-0.5 rounded font-medium">Planning</span>
             <span *ngIf="member.can_assign_task"
-                  class="text-[10px] bg-amber-100 text-amber-700 px-1.5 py-0.5 rounded font-medium">Tâches</span>
+                  class="text-[9px] bg-amber-100 text-amber-700 px-1.5 py-0.5 rounded font-medium">Tâches</span>
             <span *ngIf="member.can_manage_quality"
-                  class="text-[10px] bg-teal-100 text-teal-700 px-1.5 py-0.5 rounded font-medium">
+                  class="text-[9px] bg-teal-100 text-teal-700 px-1.5 py-0.5 rounded font-medium">
               Qualité{{ (member.can_manage_procedures || member.can_publish_procedures || member.can_close_nonconformities) ? ' +' : '' }}
             </span>
             <span *ngIf="!hasAnyPermission(member)"
-                  class="text-[10px] text-gray-400 italic">Aucun droit spécifique</span>
+                  class="text-[9px] text-gray-400 italic">Aucun droit spécifique</span>
           </div>
         </div>
       </div>
