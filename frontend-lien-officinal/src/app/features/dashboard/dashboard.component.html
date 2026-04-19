@@ -153,8 +153,8 @@
         </p>
       </div>
 
-      <!-- GRILLE DE CARTES -->
-      <div *ngIf="!isLoading && getFilteredCards().length > 0" class="grid gap-4 grid-cards">
+      <!-- GRILLE DE CARTES — vue standard -->
+      <div *ngIf="!isLoading && getFilteredCards().length > 0 && !isSmallScreen" class="grid gap-4 grid-cards">
         <app-resource-card
           *ngFor="let card of getFilteredCards(); trackBy: trackCard"
           [card]="card"
@@ -165,6 +165,28 @@
           (moveCardRequest)="openMoveCardModal($event.card, getCardCategoryId($event.card), $event.event)"
           (deleteCardRequest)="hideOrDeleteCard($event.card, $event.event)">
         </app-resource-card>
+      </div>
+
+      <!-- GRILLE ICÔNES COMPACTES — petits écrans -->
+      <div *ngIf="!isLoading && getFilteredCards().length > 0 && isSmallScreen"
+           class="grid grid-cols-[repeat(auto-fill,minmax(112px,1fr))] gap-2">
+        <div *ngFor="let card of getFilteredCards(); trackBy: trackCard"
+             (click)="openCard(card)"
+             class="flex flex-col items-center gap-1.5 p-2.5 rounded-xl cursor-pointer hover:bg-gray-100 transition-colors duration-150">
+          <div class="relative">
+            <div class="w-24 h-24 rounded-2xl overflow-hidden flex items-center justify-center flex-shrink-0"
+                 [style.background-color]="getCardLogoColors(card).bg"
+                 [style.border]="'1px solid ' + getCardLogoColors(card).border">
+              <span class="text-2xl font-semibold" [style.color]="getCardLogoColors(card).text">
+                {{ getCardInitials(card) }}
+              </span>
+            </div>
+            <span *ngIf="card.is_favorite" class="absolute -top-1 -right-1 text-red-500 text-sm">♥</span>
+          </div>
+          <span class="text-xs text-center text-gray-700 font-medium leading-tight max-w-[96px] truncate">
+            {{ card.titre }}
+          </span>
+        </div>
       </div>
 
     </div>

@@ -1,4 +1,4 @@
-import { Component, inject, OnInit } from '@angular/core';
+import { Component, HostListener, inject, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
@@ -105,6 +105,15 @@ export class DashboardComponent implements OnInit {
   // Déplacement de carte
   cardToMove: ResourceCard | null = null;
   currentCategoryIdForMove: number | null = null;
+
+  // Responsive
+  private readonly COMPACT_BREAKPOINT = 1280;
+  isSmallScreen = window.innerWidth <= this.COMPACT_BREAKPOINT;
+
+  @HostListener('window:resize')
+  onResize() {
+    this.isSmallScreen = window.innerWidth <= this.COMPACT_BREAKPOINT;
+  }
 
   // Renommage catégorie
   editingCategoryId: number | null = null;
@@ -446,6 +455,20 @@ export class DashboardComponent implements OnInit {
   }
 
   trackCard(_: number, card: ResourceCard): number { return card.id; }
+
+  getCardInitials(card: ResourceCard): string {
+    const words = card.titre.trim().split(/\s+/);
+    if (words.length >= 2) return (words[0][0] + words[1][0]).toUpperCase();
+    return card.titre.substring(0, 2).toUpperCase();
+  }
+
+  getCardLogoColors(card: ResourceCard): { bg: string; text: string; border: string } {
+    switch (card.type) {
+      case 'OFFICIAL': return { bg: '#f0fdf4', text: '#15803d', border: '#bbf7d0' };
+      case 'PARTNER':  return { bg: '#ecfdf5', text: '#059669', border: '#a7f3d0' };
+      default:         return { bg: '#eff6ff', text: '#2563eb', border: '#bfdbfe' };
+    }
+  }
 
   getBadgeLabel(cardType: string): string {
     switch (cardType) {
