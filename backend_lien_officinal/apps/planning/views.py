@@ -11,6 +11,7 @@ from django.utils import timezone
 from rest_framework import status
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
+from rest_framework.throttling import UserRateThrottle
 from rest_framework.views import APIView
 from rest_framework_simplejwt.authentication import JWTAuthentication
 
@@ -1406,26 +1407,17 @@ class ConstraintDetailView(APIView):
         return Response(status=status.HTTP_204_NO_CONTENT)
 
 
+class GenerateTemplateThrottle(UserRateThrottle):
+    rate = '10/hour'
+
+
 class GenerateTemplateView(APIView):
     """POST /api/planning/constraints/generate/"""
     permission_classes = [IsAuthenticated]
     authentication_classes = [JWTAuthentication]
+    throttle_classes = [GenerateTemplateThrottle]
 
     def post(self, request):
-        from django_ratelimit.core import is_ratelimited
-        limited = is_ratelimited(
-            request,
-            fn=GenerateTemplateView.post,
-            key='user',
-            rate='10/h',
-            method='POST',
-            increment=True,
-        )
-        if limited:
-            return Response(
-                {'detail': 'Limite atteinte : 10 générations IA par heure. Réessayez plus tard.'},
-                status=status.HTTP_429_TOO_MANY_REQUESTS,
-            )
         rotation     = int(request.data.get('rotation', 2))
         conversation = request.data.get('conversation', [])
 
