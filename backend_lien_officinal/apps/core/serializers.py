@@ -77,6 +77,15 @@ class PharmacySerializer(serializers.ModelSerializer):
         read_only_fields = ['id', 'email', 'date_joined', 'is_premium', 'sms_credits', 'email_verified', 'pending_email']
 
 
+class ForgotPasswordSerializer(serializers.Serializer):
+    email = serializers.EmailField()
+
+
+class ResetPasswordSerializer(serializers.Serializer):
+    token = serializers.UUIDField()
+    password = serializers.CharField(min_length=8, write_only=True)
+
+
 class PharmacyUpdateSerializer(serializers.ModelSerializer):
     """Serializer pour mettre à jour les informations de la pharmacie"""
 

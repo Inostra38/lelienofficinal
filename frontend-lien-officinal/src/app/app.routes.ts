@@ -34,6 +34,16 @@ export const routes: Routes = [
 
   { path: 'login', component: LoginComponent, canActivate: [noAuthGuard] },
   { path: 'register', component: RegisterComponent, canActivate: [noAuthGuard] },
+  {
+    path: 'forgot-password',
+    loadComponent: () =>
+      import('./features/forgot-password/forgot-password.component').then(m => m.ForgotPasswordComponent)
+  },
+  {
+    path: 'reset-password',
+    loadComponent: () =>
+      import('./features/reset-password/reset-password.component').then(m => m.ResetPasswordComponent)
+  },
   { path: 'onboarding', component: OnboardingComponent, canActivate: [onboardingGuard] },
   {
     path: 'verify-email',

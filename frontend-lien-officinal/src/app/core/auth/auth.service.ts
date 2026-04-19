@@ -197,6 +197,14 @@ export class AuthService {
     localStorage.setItem(this.emailVerifiedKey, 'true');
   }
 
+  forgotPassword(email: string): Observable<any> {
+    return this.http.post(`${this.baseUrl}/auth/forgot-password/`, { email });
+  }
+
+  resetPassword(token: string, password: string): Observable<any> {
+    return this.http.post(`${this.baseUrl}/auth/reset-password/`, { token, password });
+  }
+
   verifyEmail(token: string): Observable<any> {
     return this.http.post(`${this.baseUrl}/auth/verify-email/`, { token });
   }

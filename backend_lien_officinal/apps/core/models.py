@@ -122,6 +122,25 @@ class Pharmacy(AbstractBaseUser, PermissionsMixin):
         return f"{self.nom_officine} ({self.email})"
 
 
+class PasswordResetToken(models.Model):
+    pharmacy = models.ForeignKey(
+        'Pharmacy', on_delete=models.CASCADE, related_name='reset_tokens'
+    )
+    token = models.UUIDField(default=uuid.uuid4, unique=True, db_index=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    expires_at = models.DateTimeField()
+    used = models.BooleanField(default=False)
+
+    class Meta:
+        verbose_name = _("Token réinitialisation mot de passe")
+
+    def is_valid(self):
+        return not self.used and self.expires_at > timezone.now()
+
+    def __str__(self):
+        return f"Reset {self.pharmacy.email} — {'valide' if self.is_valid() else 'expiré/utilisé'}"
+
+
 class SMSTemplate(models.Model):
     pharmacy = models.ForeignKey(
         'Pharmacy', on_delete=models.CASCADE, related_name='sms_templates'

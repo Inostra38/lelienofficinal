@@ -19,8 +19,11 @@ from .serializers import PharmacyTokenObtainPairSerializer
 logger = logging.getLogger(__name__)
 from django.contrib.auth.password_validation import validate_password
 from django.core.exceptions import ValidationError
-from .models import Pharmacy
-from .serializers import PharmacySerializer, PharmacyUpdateSerializer, RegisterSerializer, ProfileSetupSerializer
+from .models import Pharmacy, PasswordResetToken
+from .serializers import (
+    PharmacySerializer, PharmacyUpdateSerializer, RegisterSerializer,
+    ProfileSetupSerializer, ForgotPasswordSerializer, ResetPasswordSerializer,
+)
 from .auth_helpers import get_collaborator_from_jwt
 from apps.team.models import Collaborator
 
@@ -669,3 +672,78 @@ class ResendVerificationEmailView(APIView):
         send_verification_email_task.delay(pharmacy.email, str(token))
 
         return Response({"detail": "Email de vérification renvoyé."}, status=status.HTTP_200_OK)
+
+
+class ForgotPasswordThrottle(AnonRateThrottle):
+    rate = '5/hour'
+
+
+class ForgotPasswordView(APIView):
+    """POST /api/auth/forgot-password/ — Envoie un lien de réinitialisation."""
+    permission_classes = [AllowAny]
+    authentication_classes = []
+    throttle_classes = [ForgotPasswordThrottle]
+
+    def post(self, request):
+        serializer = ForgotPasswordSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        email = serializer.validated_data['email']
+
+        try:
+            pharmacy = Pharmacy.objects.get(email=email)
+            PasswordResetToken.objects.filter(pharmacy=pharmacy, used=False).update(used=True)
+            reset_token = PasswordResetToken.objects.create(
+                pharmacy=pharmacy,
+                expires_at=timezone.now() + timedelta(hours=1),
+            )
+            from apps.core.tasks import send_password_reset_task
+            send_password_reset_task.delay(pharmacy.email, str(reset_token.token))
+        except Pharmacy.DoesNotExist:
+            pass
+
+        return Response(
+            {"message": "Si cet email existe, un lien a été envoyé."},
+            status=status.HTTP_200_OK,
+        )
+
+
+class ResetPasswordView(APIView):
+    """POST /api/auth/reset-password/ — Réinitialise le mot de passe."""
+    permission_classes = [AllowAny]
+    authentication_classes = []
+
+    def post(self, request):
+        serializer = ResetPasswordSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+
+        try:
+            reset_token = PasswordResetToken.objects.select_related('pharmacy').get(
+                token=serializer.validated_data['token']
+            )
+        except PasswordResetToken.DoesNotExist:
+            return Response(
+                {"detail": "Ce lien est invalide ou a expiré."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        if not reset_token.is_valid():
+            return Response(
+                {"detail": "Ce lien est invalide ou a expiré."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        new_password = serializer.validated_data['password']
+        try:
+            validate_password(new_password, reset_token.pharmacy)
+        except ValidationError as e:
+            return Response({"detail": e.messages}, status=status.HTTP_400_BAD_REQUEST)
+
+        reset_token.pharmacy.set_password(new_password)
+        reset_token.pharmacy.save(update_fields=['password'])
+        reset_token.used = True
+        reset_token.save(update_fields=['used'])
+
+        return Response(
+            {"message": "Mot de passe mis à jour avec succès."},
+            status=status.HTTP_200_OK,
+        )

@@ -8,6 +8,7 @@ from .views import (
     LogoutView, CollabLogoutView,
     VerifyEmailView, ResendVerificationEmailView,
     ConfirmEmailChangeView, CancelEmailChangeView,
+    ForgotPasswordView, ResetPasswordView,
 )
 from .views_sms import SMSTemplateViewSet, SMSLogViewSet, SMSPreviewView, SMSSendView, SMSWebhookView, SMSCreditsView, SMSStatsView
 
@@ -26,6 +27,8 @@ urlpatterns = [
     path('auth/collab-logout/', CollabLogoutView.as_view(), name='collab-logout'),
     path('auth/verify-email/', VerifyEmailView.as_view(), name='verify-email'),
     path('auth/resend-verification/', ResendVerificationEmailView.as_view(), name='resend-verification'),
+    path('auth/forgot-password/', ForgotPasswordView.as_view(), name='forgot-password'),
+    path('auth/reset-password/', ResetPasswordView.as_view(), name='reset-password'),
     # Formulaires directs (old_password dans le corps de la requête)
     path('account/change-password/', AccountChangePasswordView.as_view(), name='account-change-password'),
     path('account/change-email/', AccountChangeEmailView.as_view(), name='account-change-email'),

@@ -16,6 +16,16 @@ def send_verification_email_task(self, email: str, token: str):
 
 
 @shared_task(bind=True, max_retries=3, default_retry_delay=60)
+def send_password_reset_task(self, email: str, token: str):
+    """Envoie l'email de réinitialisation de mot de passe (async, retry x3)."""
+    from apps.core.email import send_password_reset_email
+    try:
+        send_password_reset_email(email, token)
+    except Exception as exc:
+        raise self.retry(exc=exc)
+
+
+@shared_task(bind=True, max_retries=3, default_retry_delay=60)
 def send_email_change_task(self, old_email: str, new_email: str, token: str):
     """Envoie l'email de confirmation de changement d'adresse (async, retry x3)."""
     from apps.core.email import send_email_change_confirmation
