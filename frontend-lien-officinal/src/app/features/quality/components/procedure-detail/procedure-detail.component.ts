@@ -8,6 +8,7 @@ import { AuthService } from '../../../../core/auth/auth.service';
 import { ConfirmService } from '../../../../core/services/confirm.service';
 import { Procedure, ProcedureVersion } from '../../models/procedure.model';
 import { getCollaboratorColor } from '../../../../core/utils/collaborator-colors';
+import { sanitizeQuillHtml } from '../../../../core/utils/html-sanitizer';
 
 @Component({
   selector: 'app-procedure-detail',
@@ -50,7 +51,10 @@ export class ProcedureDetailComponent implements OnInit {
   }
 
   safeHtml(content: string): SafeHtml {
-    return this.sanitizer.bypassSecurityTrustHtml(content);
+    // C4 : purifier le HTML (DOMPurify, allowlist Quill) AVANT de le marquer
+    // comme sûr. Sans cela, bypassSecurityTrustHtml désactive le sanitizer
+    // Angular et permet un XSS stocké via le contenu des procédures.
+    return this.sanitizer.bypassSecurityTrustHtml(sanitizeQuillHtml(content));
   }
 
   /** Dernière version publiée — non null si la procédure est en brouillon et a déjà été publiée. */

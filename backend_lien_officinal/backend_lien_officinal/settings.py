@@ -29,11 +29,19 @@ sys.path.insert(0, os.path.join(BASE_DIR, 'apps'))
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/5.0/howto/deployment/checklist/
 
-DEBUG = os.environ.get('DEBUG', 'True') == 'True'
+# F2 : fail-safe — DEBUG désactivé par défaut, à activer explicitement en dev.
+DEBUG = os.environ.get('DEBUG', 'False') == 'True'
 
-SECRET_KEY = os.environ.get('SECRET_KEY', 'django-insecure-CHANGE-ME-IN-PRODUCTION')
-if not DEBUG and SECRET_KEY.startswith('django-insecure'):
-    raise Exception("SECRET_KEY must be set in production (DEBUG=False).")
+SECRET_KEY = os.environ.get('SECRET_KEY')
+# C3 : interdire le démarrage avec une clé faible/par défaut, quel que soit DEBUG.
+# Cette clé signe TOUS les JWT (HTTP + WebSocket) ; une valeur publique connue
+# permettrait de forger des tokens arbitraires. Générer une vraie clé même en dev :
+#   python -c "from django.core.management.utils import get_random_secret_key; print(get_random_secret_key())"
+if not SECRET_KEY or SECRET_KEY.startswith('django-insecure'):
+    raise Exception(
+        "SECRET_KEY manquante ou non sécurisée. Définissez une clé aléatoire forte "
+        "dans la variable d'environnement SECRET_KEY (≥ 50 caractères), y compris en développement."
+    )
 
 ALLOWED_HOSTS = os.environ.get('ALLOWED_HOSTS', 'localhost,127.0.0.1').split(',')
 

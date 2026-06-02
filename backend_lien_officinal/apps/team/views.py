@@ -77,6 +77,38 @@ class CollaboratorViewSet(viewsets.ModelViewSet):
 
         return super().create(request, *args, **kwargs)
 
+    def update(self, request, *args, **kwargs):
+        """
+        PATCH/PUT /api/team/{id}/ — mise à jour d'un collaborateur.
+
+        Sécurité (C1) : le ModelViewSet par défaut n'exigeait que IsAuthenticated,
+        laissant n'importe quel collaborateur modifier son propre rôle, ses
+        permissions (can_manage_*) ou son PIN → escalade de privilèges.
+        On exige désormais can_manage_team et on interdit l'auto-modification.
+        Note : partial_update() du ModelViewSet délègue à update(), donc cette
+        surcharge protège aussi les requêtes PATCH partielles.
+        """
+        instance = self.get_object()
+        actor = _get_collaborator(request)
+
+        err = _check_permission(actor, 'can_manage_team')
+        if err:
+            return err
+
+        if actor and actor.id == instance.id:
+            return Response(
+                {"detail": "Impossible de modifier votre propre fiche via cette route."},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+
+        if instance.role == Collaborator.Role.TITULAIRE and actor and actor.role != Collaborator.Role.TITULAIRE:
+            return Response(
+                {"detail": "Seul un Titulaire peut modifier la fiche d'un Titulaire."},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+
+        return super().update(request, *args, **kwargs)
+
     def destroy(self, request, *args, **kwargs):
         instance = self.get_object()
         actor = _get_collaborator(request)

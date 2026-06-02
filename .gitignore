@@ -24,6 +24,12 @@ __pycache__/
 db.sqlite3
 sqlite.db
 
+# Dumps / backups de base (peuvent contenir des données de santé en clair — C2)
+backup_*.json
+*.sql
+*.dump
+celerybeat-schedule
+
 # Fichiers de médias (uploads utilisateurs)
 media/
 

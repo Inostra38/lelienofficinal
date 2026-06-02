@@ -5,6 +5,7 @@ import { ControlValueAccessor, NG_VALUE_ACCESSOR } from '@angular/forms';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { QuillModule, QuillEditorComponent } from 'ngx-quill';
+import { sanitizeQuillHtml } from '../../../../core/utils/html-sanitizer';
 
 const QUILL_TOOLBAR = [
   ['bold', 'italic', 'underline'],
@@ -85,10 +86,13 @@ export class QuillEditorWrapperComponent implements ControlValueAccessor {
   setFullContent(html: string): void {
     if (!this.editorRef?.quillEditor) return;
     const quill = this.editorRef.quillEditor as any;
-    quill.root.innerHTML = html;
-    this.value = html;
-    this.onChange(html);
-    this.contentChange.emit(html);
+    // C4 : purifier avant injection directe dans le DOM (innerHTML). Le contenu
+    // peut provenir de l'IA qualité ou d'une source non fiable → XSS stocké.
+    const clean = sanitizeQuillHtml(html);
+    quill.root.innerHTML = clean;
+    this.value = clean;
+    this.onChange(clean);
+    this.contentChange.emit(clean);
   }
 
   isEmpty(): boolean {
