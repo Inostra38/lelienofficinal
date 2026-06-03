@@ -246,6 +246,19 @@ class ProcedureViewSet(viewsets.ModelViewSet):
         image_file = request.FILES.get('image')
         if not image_file:
             return Response({'detail': 'Champ image manquant.'}, status=status.HTTP_400_BAD_REQUEST)
+        # M3 : valider type/taille (images uniquement)
+        from django.core.exceptions import ValidationError as DjangoValidationError
+        from apps.core.upload_validation import (
+            validate_upload, ALLOWED_IMAGE_TYPES, ALLOWED_IMAGE_EXTENSIONS,
+        )
+        try:
+            validate_upload(
+                image_file,
+                allowed_types=ALLOWED_IMAGE_TYPES,
+                allowed_extensions=ALLOWED_IMAGE_EXTENSIONS,
+            )
+        except DjangoValidationError as e:
+            return Response({'detail': e.messages[0]}, status=status.HTTP_400_BAD_REQUEST)
         img = ProcedureImage.objects.create(procedure=procedure, image=image_file)
         return Response(
             ProcedureImageSerializer(img, context={'request': request}).data,
@@ -261,11 +274,13 @@ class ProcedureViewSet(viewsets.ModelViewSet):
         file = request.FILES.get('file')
         if not file:
             return Response({'detail': 'Champ file manquant.'}, status=status.HTTP_400_BAD_REQUEST)
-        if file.size > 10 * 1024 * 1024:
-            return Response(
-                {'detail': 'Le fichier dépasse la limite de 10 Mo.'},
-                status=status.HTTP_400_BAD_REQUEST,
-            )
+        # M3 : valider type + taille (documents + images)
+        from django.core.exceptions import ValidationError as DjangoValidationError
+        from apps.core.upload_validation import validate_upload
+        try:
+            validate_upload(file)
+        except DjangoValidationError as e:
+            return Response({'detail': e.messages[0]}, status=status.HTTP_400_BAD_REQUEST)
         original_name = file.name
         filename = request.data.get('filename', '') or original_name
         ext = original_name.rsplit('.', 1)[-1].lower() if '.' in original_name else ''

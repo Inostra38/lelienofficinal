@@ -107,6 +107,25 @@ def _decode_token(token: str, expected_type: str) -> dict:
     return payload
 
 
+def _blacklist_jti(payload: dict) -> None:
+    """
+    M4 : blackliste le jti d'un token jusqu'à son expiration (même namespace
+    que la blacklist d'access token vérifiée dans AdminJWTAuthentication).
+    Utilisé pour les access ET refresh tokens, au logout et à la rotation.
+    """
+    jti = payload.get('jti')
+    if not jti:
+        return
+    ttl = int(payload.get('exp', 0) - datetime.now(tz=timezone.utc).timestamp())
+    if ttl > 0:
+        cache.set(f"admin_blacklist_{jti}", True, timeout=ttl)
+
+
+def _is_blacklisted(payload: dict) -> bool:
+    jti = payload.get('jti')
+    return bool(jti and cache.get(f"admin_blacklist_{jti}"))
+
+
 def _set_refresh_cookie(response: Response, token: str) -> None:
     response.set_cookie(
         key='admin_refresh_token',
@@ -205,15 +224,15 @@ class AdminTotpVerifyView(APIView):
             raw_secret = decrypt_totp_secret(admin.totp_secret)
             totp = pyotp.TOTP(raw_secret)
             if not totp.verify(totp_code, valid_window=1):
-                # Anti-replay : vérifier que le code n'a pas déjà été utilisé
                 _audit('LOGIN_FAIL', request, admin=admin, detail="TOTP code invalid")
                 return Response(status=status.HTTP_401_UNAUTHORIZED)
-            # Anti-replay TOTP
+            # Anti-replay TOTP (M5) : claim ATOMIQUE du code via cache.add, qui
+            # renvoie False si la clé existe déjà → rejeu détecté sans course.
+            # TTL ≥ fenêtre de validité (valid_window=1 ⇒ code accepté ~90 s).
             totp_key = f"totp_used_{admin.pk}_{totp_code}"
-            if cache.get(totp_key):
+            if not cache.add(totp_key, True, timeout=90):
                 _audit('LOGIN_FAIL', request, admin=admin, detail="TOTP replay detected")
                 return Response(status=status.HTTP_401_UNAUTHORIZED)
-            cache.set(totp_key, True, timeout=60)
 
         # Émettre les tokens
         access_token = _issue_access_token(admin.pk)
@@ -252,10 +271,18 @@ class AdminTokenRefreshView(APIView):
         except jwt.PyJWTError:
             return Response(status=status.HTTP_401_UNAUTHORIZED)
 
+        # M4 : un refresh révoqué (logout ou déjà tourné) ne doit plus servir.
+        if _is_blacklisted(payload):
+            return Response(status=status.HTTP_401_UNAUTHORIZED)
+
         try:
             admin = AdminUser.objects.get(pk=int(payload['sub']), is_active=True)
         except AdminUser.DoesNotExist:
             return Response(status=status.HTTP_401_UNAUTHORIZED)
+
+        # M4 : rotation — blacklister l'ancien refresh avant d'en émettre un
+        # nouveau (un refresh ne peut être consommé qu'une fois).
+        _blacklist_jti(payload)
 
         access_token = _issue_access_token(admin.pk)
         new_refresh_token = _issue_refresh_token(admin.pk)
@@ -280,12 +307,18 @@ class AdminLogoutView(APIView):
             token = auth_header.split(' ', 1)[1]
             try:
                 payload = jwt.decode(token, _secret(), algorithms=[_ALGORITHM])
-                jti = payload.get('jti')
-                if jti:
-                    ttl = int(payload.get('exp', 0) - datetime.now(tz=timezone.utc).timestamp())
-                    if ttl > 0:
-                        cache.set(f"admin_blacklist_{jti}", True, timeout=ttl)
+                _blacklist_jti(payload)
                 _audit('LOGOUT', request, detail=f"Admin id={payload.get('sub')}")
+            except jwt.PyJWTError:
+                pass
+
+        # M4 : blacklister AUSSI le refresh token du cookie (avant, il restait
+        # valide ~24 h après le logout). On efface le cookie ET on révoque le jti.
+        refresh_token = request.COOKIES.get('admin_refresh_token', '')
+        if refresh_token:
+            try:
+                refresh_payload = jwt.decode(refresh_token, _secret(), algorithms=[_ALGORITHM])
+                _blacklist_jti(refresh_payload)
             except jwt.PyJWTError:
                 pass
 
@@ -530,8 +563,10 @@ class ResourceDetailView(APIView):
         return Response(status=status.HTTP_204_NO_CONTENT)
 
 
-ALLOWED_UPLOAD_TYPES = {'application/pdf', 'image/jpeg', 'image/png', 'image/webp'}
-MAX_UPLOAD_SIZE = 10 * 1024 * 1024  # 10 Mo
+# M3 : validation factorisée dans apps.core.upload_validation (partagée avec
+# les uploads côté pharmacie).
+from apps.core.upload_validation import validate_upload as _validate_upload
+from django.core.exceptions import ValidationError as _DjangoValidationError
 
 
 class ResourceItemCreateView(APIView):
@@ -549,13 +584,12 @@ class ResourceItemCreateView(APIView):
         if not label:
             return Response({'error': 'Le label est obligatoire.'}, status=status.HTTP_400_BAD_REQUEST)
 
-        # Validation fichier
+        # Validation fichier (M3 : helper partagé)
         uploaded = request.FILES.get('file')
-        if uploaded:
-            if uploaded.content_type not in ALLOWED_UPLOAD_TYPES:
-                return Response({'error': 'Type de fichier non autorisé.'}, status=status.HTTP_400_BAD_REQUEST)
-            if uploaded.size > MAX_UPLOAD_SIZE:
-                return Response({'error': 'Fichier trop volumineux (max 10 Mo).'}, status=status.HTTP_400_BAD_REQUEST)
+        try:
+            _validate_upload(uploaded)
+        except _DjangoValidationError as e:
+            return Response({'error': e.messages[0]}, status=status.HTTP_400_BAD_REQUEST)
 
         last_ordre = card.items.count()
         item = ResourceItem.objects.create(

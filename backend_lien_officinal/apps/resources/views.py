@@ -430,18 +430,35 @@ class ResourceCardViewSet(viewsets.ModelViewSet):
         return Response({"detail": "Ordre mis à jour."}, status=status.HTTP_200_OK)
 
     def perform_create(self, serializer):
+        from rest_framework import serializers as drf_serializers
+        from django.core.exceptions import ValidationError as DjangoValidationError
+        from apps.core.upload_validation import (
+            validate_upload, ALLOWED_IMAGE_TYPES, ALLOWED_IMAGE_EXTENSIONS,
+        )
+
         # Vérifier que la catégorie appartient à l'utilisateur
         category = serializer.validated_data.get('category')
         if category and category.owner_pharmacy != self.request.user:
-            from rest_framework import serializers as drf_serializers
             raise drf_serializers.ValidationError({"category": "Cette catégorie ne vous appartient pas."})
-        
+
+        item_file = self.request.FILES.get('document')
+        icon_file = self.request.FILES.get('icon')
+        # M3 : valider type/taille avant toute création
+        try:
+            validate_upload(item_file)
+            validate_upload(
+                icon_file,
+                allowed_types=ALLOWED_IMAGE_TYPES,
+                allowed_extensions=ALLOWED_IMAGE_EXTENSIONS,
+            )
+        except DjangoValidationError as e:
+            raise drf_serializers.ValidationError({"file": e.messages})
+
         card = serializer.save(owner_pharmacy=self.request.user, type='PRIVATE')
-        
+
         item_type = self.request.data.get('type', 'WEB')
         item_url = self.request.data.get('url', '')
-        item_file = self.request.FILES.get('document')
-        
+
         ResourceItem.objects.create(
             card=card,
             type=item_type,
@@ -792,7 +809,16 @@ def create_full_card(request):
         
         # Vérifier que la catégorie appartient à l'utilisateur
         category = get_object_or_404(Category, pk=category_id, owner_pharmacy=request.user)
-        
+
+        # M3 : valider type/taille de TOUS les fichiers avant toute création
+        from django.core.exceptions import ValidationError as DjangoValidationError
+        from apps.core.upload_validation import validate_upload
+        for uploaded in request.FILES.values():
+            try:
+                validate_upload(uploaded)
+            except DjangoValidationError as e:
+                return Response({"error": e.messages[0]}, status=status.HTTP_400_BAD_REQUEST)
+
         # 2. Créer la carte
         card = ResourceCard.objects.create(
             titre=titre,

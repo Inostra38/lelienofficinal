@@ -8,8 +8,8 @@ Préfixes gérés :
   quality/attachments/  → ProcedureAttachment (vérifié via procedure.pharmacy)
   quality/images/       → ProcedureImage (vérifié via procedure.pharmacy)
   pharmacy_logos/       → Pharmacy.logo (vérifié via request.user)
-  cards/                → accès libre (icônes publiques / fiches partenaires)
-  messaging/            → accès libre (pièces jointes messagerie interne)
+  cards/                → OFFICIAL/PARTNER : partagés ; PRIVATE : réservé au propriétaire (M1)
+  (tout autre préfixe)  → refusé par défaut (M1 : deny-by-default)
 """
 
 import os
@@ -42,6 +42,40 @@ def _check_pharmacy_logo(path: str, pharmacy) -> bool:
     return str(pharmacy.logo) == path if pharmacy.logo else False
 
 
+def _check_card_media(path: str, pharmacy) -> bool:
+    """
+    M1 : un fichier de carte n'est servi que s'il est public (OFFICIAL/PARTNER,
+    ressources partagées entre toutes les pharmacies) ou s'il appartient à la
+    pharmacie demandeuse (carte PRIVATE). Empêche l'accès cross-tenant aux
+    icônes/fichiers de cartes privées d'autres pharmacies.
+    """
+    from apps.resources.models import ResourceCard, ResourceItem
+
+    if path.startswith("cards/icons/"):
+        card = ResourceCard.objects.filter(icon=path).only('type', 'owner_pharmacy').first()
+        if not card:
+            return False
+        if card.type in ('OFFICIAL', 'PARTNER'):
+            return True
+        return card.owner_pharmacy_id == pharmacy.id
+
+    if path.startswith("cards/files/"):
+        item = (
+            ResourceItem.objects
+            .filter(file=path)
+            .select_related('card')
+            .only('owner', 'card__type')
+            .first()
+        )
+        if not item:
+            return False
+        if item.card and item.card.type in ('OFFICIAL', 'PARTNER'):
+            return True
+        return item.owner_id == pharmacy.id
+
+    return False
+
+
 @api_view(["GET"])
 @authentication_classes([JWTAuthentication, AdminJWTAuthentication])
 @permission_classes([IsAuthenticated])
@@ -58,17 +92,21 @@ def serve_protected_media(request, path):
     if not is_admin:
         pharmacy = user
 
+        # M1 : deny-by-default — chaque préfixe connu a son contrôle
+        # d'appartenance ; tout préfixe non listé est refusé.
         if path.startswith("quality/attachments/"):
-            if not _check_quality_attachment(path, pharmacy):
-                raise Http404
-
+            allowed = _check_quality_attachment(path, pharmacy)
         elif path.startswith("quality/images/"):
-            if not _check_quality_image(path, pharmacy):
-                raise Http404
-
+            allowed = _check_quality_image(path, pharmacy)
         elif path.startswith("pharmacy_logos/"):
-            if not _check_pharmacy_logo(path, pharmacy):
-                raise Http404
+            allowed = _check_pharmacy_logo(path, pharmacy)
+        elif path.startswith("cards/"):
+            allowed = _check_card_media(path, pharmacy)
+        else:
+            allowed = False
+
+        if not allowed:
+            raise Http404
 
     # Mode S3 : rediriger vers une signed URL
     if hasattr(settings, 'AWS_S3_ENDPOINT_URL'):

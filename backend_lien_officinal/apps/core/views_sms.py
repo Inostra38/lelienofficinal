@@ -1,3 +1,4 @@
+import hmac
 import logging
 from rest_framework import viewsets, status
 from rest_framework.pagination import PageNumberPagination
@@ -202,9 +203,15 @@ class SMSWebhookView(APIView):
     def _handle(self, request, token):
         from django.conf import settings as s
 
-        # Vérification du token dans le path
+        # Vérification du token dans le path (M2)
+        # Fail-closed : si le secret n'est pas configuré, on REFUSE au lieu
+        # d'accepter aveuglément (avant, secret vide = vérification ignorée →
+        # n'importe qui pouvait falsifier les accusés de réception).
         secret = getattr(s, 'SMS_WEBHOOK_SECRET', '')
-        if secret and token != secret:
+        if not secret:
+            return Response(status=status.HTTP_503_SERVICE_UNAVAILABLE)
+        # Comparaison à temps constant (anti timing-attack).
+        if not hmac.compare_digest(str(token), str(secret)):
             return Response(status=status.HTTP_403_FORBIDDEN)
 
         # SMS Partner envoie messageId + status
