@@ -155,9 +155,16 @@ class RegisterView(APIView):
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 
+class LoginRateThrottle(AnonRateThrottle):
+    """E3 : limite les tentatives de login pharmacie par IP (anti brute-force /
+    credential stuffing). L'endpoint /api/token/ n'avait aucune limite."""
+    scope = 'login'
+
+
 class CookiePharmacyLoginView(TokenObtainPairView):
     """POST /api/token/ — Authentification pharmacie avec cookie refresh HttpOnly."""
     serializer_class = PharmacyTokenObtainPairSerializer
+    throttle_classes = [LoginRateThrottle]
 
     def post(self, request, *args, **kwargs):
         response = super().post(request, *args, **kwargs)

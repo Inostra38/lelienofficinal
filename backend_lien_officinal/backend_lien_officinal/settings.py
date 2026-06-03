@@ -333,6 +333,7 @@ REST_FRAMEWORK = {
     ),
     'DEFAULT_THROTTLE_RATES': {
         'user': '1000/day',       # limite globale par défaut
+        'login': '10/min',        # E3 : login pharmacie /api/token/ (anti brute-force par IP)
         'register': '5/hour',     # création de compte (anti-spam)
         'messaging': '30/minute', # envoi de messages (REST fallback)
         'sms_send': '200/hour',             # envoi SMS par pharmacie
