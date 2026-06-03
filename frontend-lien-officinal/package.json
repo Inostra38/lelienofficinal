@@ -31,7 +31,7 @@
     "@angular/platform-browser": "^20.2.0",
     "@angular/platform-server": "^20.2.0",
     "@angular/router": "^20.2.0",
-    "@angular/ssr": "^20.2.2",
+    "@angular/ssr": "^21.2.13",
     "dompurify": "^3.4.7",
     "express": "^5.1.0",
     "flatpickr": "^4.6.13",
