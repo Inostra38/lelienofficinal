@@ -53,7 +53,9 @@ class AdminTotpThrottle(AnonRateThrottle):
 
 
 def _secret():
-    return settings.SECRET_KEY
+    # E1 : les JWT admin sont signés avec une clé dédiée, indépendante de
+    # SECRET_KEY, pour qu'une fuite de SECRET_KEY ne permette pas de les forger.
+    return settings.ADMIN_JWT_SECRET
 
 
 # ── Helpers JWT ──────────────────────────────────────────────────────────────

@@ -43,6 +43,29 @@ if not SECRET_KEY or SECRET_KEY.startswith('django-insecure'):
         "dans la variable d'environnement SECRET_KEY (≥ 50 caractères), y compris en développement."
     )
 
+# E1 : secrets admin dédiés, INDÉPENDANTS de SECRET_KEY.
+# Avant, les JWT admin étaient signés avec SECRET_KEY et les secrets TOTP
+# dérivés de sha256(SECRET_KEY) : une seule fuite de SECRET_KEY permettait de
+# forger des JWT admin ET de déchiffrer tous les secrets TOTP (bypass 2FA).
+# En production, ces deux clés DOIVENT être définies et distinctes.
+# En dev, on les dérive de façon namespacée depuis SECRET_KEY pour éviter une
+# config supplémentaire, tout en conservant une séparation logique.
+ADMIN_JWT_SECRET = os.environ.get('ADMIN_JWT_SECRET')
+ADMIN_TOTP_KEY = os.environ.get('ADMIN_TOTP_KEY')
+if not DEBUG:
+    if not ADMIN_JWT_SECRET or not ADMIN_TOTP_KEY:
+        raise Exception(
+            "ADMIN_JWT_SECRET et ADMIN_TOTP_KEY doivent être définis (et distincts "
+            "de SECRET_KEY) en production. Générer : "
+            "python -c \"import secrets; print(secrets.token_urlsafe(50))\""
+        )
+else:
+    import hashlib as _hashlib
+    if not ADMIN_JWT_SECRET:
+        ADMIN_JWT_SECRET = _hashlib.sha256(('admin-jwt:' + SECRET_KEY).encode()).hexdigest()
+    if not ADMIN_TOTP_KEY:
+        ADMIN_TOTP_KEY = _hashlib.sha256(('admin-totp:' + SECRET_KEY).encode()).hexdigest()
+
 ALLOWED_HOSTS = os.environ.get('ALLOWED_HOSTS', 'localhost,127.0.0.1').split(',')
 
 

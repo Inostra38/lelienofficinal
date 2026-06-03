@@ -138,7 +138,7 @@ class AdminAccountGuardMiddleware:
             return None
         token = auth_header.split(' ', 1)[1]
         try:
-            payload = jwt.decode(token, settings.SECRET_KEY, algorithms=['HS256'])
+            payload = jwt.decode(token, settings.ADMIN_JWT_SECRET, algorithms=['HS256'])  # E1 : clé admin dédiée
             if payload.get('type') != 'admin':
                 return None
             return AdminUser.objects.get(pk=int(payload['sub']), is_active=True)

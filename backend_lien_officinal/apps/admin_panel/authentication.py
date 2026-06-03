@@ -24,7 +24,7 @@ class AdminJWTAuthentication(BaseAuthentication):
 
         token = auth_header.split(' ', 1)[1]
         try:
-            payload = jwt.decode(token, settings.SECRET_KEY, algorithms=[_ALGORITHM])
+            payload = jwt.decode(token, settings.ADMIN_JWT_SECRET, algorithms=[_ALGORITHM])  # E1 : clé admin dédiée
         except jwt.PyJWTError:
             raise AuthenticationFailed('Token admin invalide ou expiré.')
 
