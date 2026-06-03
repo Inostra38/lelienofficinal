@@ -212,22 +212,16 @@ class CollaboratorViewSet(viewsets.ModelViewSet):
         except (Collaborator.DoesNotExist, ValueError):
             return Response({"detail": "Collaborateur introuvable."}, status=status.HTTP_404_NOT_FOUND)
 
-        # Verrouillage PIN : vérifier avant la tentative
-        if collaborator.pin_locked_until and collaborator.pin_locked_until > timezone.now():
-            remaining = max(1, int((collaborator.pin_locked_until - timezone.now()).total_seconds() / 60))
+        # Verrouillage PIN : vérifier avant la tentative (E4)
+        if collaborator.is_pin_locked():
+            remaining = collaborator.pin_lock_remaining_minutes()
             return Response(
                 {"detail": f"Compte verrouillé. Réessayez dans {remaining} minute(s)."},
                 status=status.HTTP_423_LOCKED,
             )
 
         if not collaborator.check_pin(str(pin_code)):
-            collaborator.pin_fail_count += 1
-            if collaborator.pin_fail_count >= 50:
-                collaborator.pin_locked_until = timezone.now() + timedelta(hours=24)
-                collaborator.pin_fail_count = 0
-                collaborator.save(update_fields=["pin_fail_count", "pin_locked_until"])
-            else:
-                collaborator.save(update_fields=["pin_fail_count"])
+            collaborator.register_pin_failure()
             CollaboratorLoginLog.objects.create(
                 collaborator=collaborator,
                 pharmacy=request.user,
@@ -253,11 +247,8 @@ class CollaboratorViewSet(viewsets.ModelViewSet):
         token['can_close_nonconformities'] = collaborator.can_close_nonconformities
         token['can_assign_task'] = collaborator.can_assign_task
 
-        # Réinitialiser le compteur d'échecs
-        if collaborator.pin_fail_count > 0 or collaborator.pin_locked_until:
-            collaborator.pin_fail_count = 0
-            collaborator.pin_locked_until = None
-            collaborator.save(update_fields=["pin_fail_count", "pin_locked_until"])
+        # Réinitialiser le compteur d'échecs après un PIN valide (E4)
+        collaborator.reset_pin_failures()
 
         CollaboratorLoginLog.objects.create(
             collaborator=collaborator,
@@ -292,9 +283,20 @@ class CollaboratorViewSet(viewsets.ModelViewSet):
             except Collaborator.DoesNotExist:
                 return Response({"success": False, "message": "Collaborateur introuvable."}, status=status.HTTP_404_NOT_FOUND)
 
+            # E4 : même verrouillage anti-brute-force que collaborator_login,
+            # keyé sur le collaborateur cible (compteur d'échecs partagé).
+            if collab.is_pin_locked():
+                remaining = collab.pin_lock_remaining_minutes()
+                return Response(
+                    {"success": False, "message": f"Compte verrouillé. Réessayez dans {remaining} minute(s)."},
+                    status=status.HTTP_423_LOCKED,
+                )
+
             if collab.check_pin(pin_code):
+                collab.reset_pin_failures()
                 return Response({"success": True, "message": "PIN Valide"})
             else:
+                collab.register_pin_failure()
                 return Response({"success": False, "message": "Code PIN incorrect"}, status=status.HTTP_403_FORBIDDEN)
 
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)

@@ -2,6 +2,7 @@
 from datetime import date as date_type, timedelta
 from django.db import models
 from django.conf import settings
+from django.utils import timezone
 from django.db.models.signals import post_save
 from django.dispatch import receiver
 from django.utils.translation import gettext_lazy as _
@@ -118,6 +119,44 @@ class Collaborator(models.Model):
     def check_pin(self, raw_pin):
         """Vérifie si le PIN fourni correspond au hash stocké."""
         return check_password(raw_pin, self.pin_hash)
+
+    # --- Verrouillage PIN anti-brute-force (E4) ---
+    # Logique unifiée utilisée par collaborator_login ET verify_pin, keyée sur
+    # le collaborateur cible (pas sur la session appelante). Seuil bas + verrou
+    # court : ralentit drastiquement le brute-force des PIN.
+    PIN_MAX_ATTEMPTS = 5
+    PIN_LOCKOUT_MINUTES = 15
+
+    def is_pin_locked(self):
+        """True si le collaborateur est actuellement verrouillé."""
+        return bool(self.pin_locked_until and self.pin_locked_until > timezone.now())
+
+    def pin_lock_remaining_minutes(self):
+        """Minutes restantes avant déverrouillage (≥ 1), 0 si non verrouillé."""
+        if not self.is_pin_locked():
+            return 0
+        return max(1, int((self.pin_locked_until - timezone.now()).total_seconds() / 60))
+
+    def register_pin_failure(self):
+        """
+        Enregistre un échec de PIN. Verrouille au seuil PIN_MAX_ATTEMPTS.
+        Retourne True si le compte est désormais verrouillé.
+        """
+        self.pin_fail_count += 1
+        if self.pin_fail_count >= self.PIN_MAX_ATTEMPTS:
+            self.pin_locked_until = timezone.now() + timedelta(minutes=self.PIN_LOCKOUT_MINUTES)
+            self.pin_fail_count = 0
+            self.save(update_fields=["pin_fail_count", "pin_locked_until"])
+            return True
+        self.save(update_fields=["pin_fail_count"])
+        return False
+
+    def reset_pin_failures(self):
+        """Réinitialise le compteur d'échecs et le verrou après un PIN valide."""
+        if self.pin_fail_count > 0 or self.pin_locked_until:
+            self.pin_fail_count = 0
+            self.pin_locked_until = None
+            self.save(update_fields=["pin_fail_count", "pin_locked_until"])
 
     def active_contract_on(self, target_date: date_type):
         """Retourne le ContractHistory actif à la date donnée, ou None."""
