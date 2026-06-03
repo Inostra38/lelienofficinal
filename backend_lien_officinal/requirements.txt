@@ -21,7 +21,7 @@ anthropic==0.86.0
 python-dotenv==1.2.2
 requests==2.33.0
 bleach==6.3.0
-celery==5.6.2
+celery==5.6.3
 psycopg2-binary==2.9.11
 sentry-sdk==2.55.0
 whitenoise==6.12.0
