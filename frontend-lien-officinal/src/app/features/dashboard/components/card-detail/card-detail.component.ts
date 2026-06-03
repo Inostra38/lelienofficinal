@@ -1,7 +1,7 @@
 import { Component, Input, Output, EventEmitter, HostListener, OnInit, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { HttpClient, HttpHeaders } from '@angular/common/http';
+import { HttpClient } from '@angular/common/http';
 import { QuillModule } from 'ngx-quill';
 import { ToastService } from '../../../../core/services/toast.service';
 import { environment } from '../../../../../environments/environment';
@@ -118,10 +118,8 @@ export class CardDetailComponent implements OnInit {
   // ============================================
 
   deleteItem(itemId: number) {
-    const token = localStorage.getItem('access_token');
-    const headers = new HttpHeaders().set('Authorization', `Bearer ${token}`);
-
-    this.http.delete(`${environment.apiUrl}/api/items/${itemId}/`, { headers })
+    // M6 : l'Authorization est ajoutée par authInterceptor (token en mémoire).
+    this.http.delete(`${environment.apiUrl}/api/items/${itemId}/`)
       .subscribe({
         next: () => {
           this.card.items = this.card.items.filter((item: any) => item.id !== itemId);
@@ -160,19 +158,14 @@ export class CardDetailComponent implements OnInit {
   }
 
   saveItemsOrder() {
-    const token = localStorage.getItem('access_token');
-    const headers = new HttpHeaders()
-      .set('Authorization', `Bearer ${token}`)
-      .set('Content-Type', 'application/json');
-
     const itemsData = this.card.items.map((item: any, index: number) => ({
       id: item.id,
       ordre: index
     }));
 
-    this.http.post(`${environment.apiUrl}/api/items/reorder/`, 
-      { items: itemsData }, 
-      { headers }
+    // M6 : Authorization via authInterceptor ; Content-Type JSON auto (body objet).
+    this.http.post(`${environment.apiUrl}/api/items/reorder/`,
+      { items: itemsData }
     ).subscribe({
       next: () => {
         console.log('Ordre mis à jour');
@@ -198,14 +191,12 @@ export class CardDetailComponent implements OnInit {
     this.isSaving = true;
     this.saveSuccess = false;
 
-    const token = localStorage.getItem('access_token');
-    const headers = new HttpHeaders().set('Authorization', `Bearer ${token}`);
-
     const formData = new FormData();
     formData.append('titre', this.editableTitre);
     formData.append('description_officielle', this.editableDescription);
 
-    this.http.patch(`${environment.apiUrl}/api/cards/${this.card.id}/`, formData, { headers })
+    // M6 : Authorization via authInterceptor.
+    this.http.patch(`${environment.apiUrl}/api/cards/${this.card.id}/`, formData)
       .subscribe({
         next: (updatedCard: any) => {
           this.card.titre = updatedCard.titre;
@@ -250,9 +241,6 @@ export class CardDetailComponent implements OnInit {
       return;
     }
 
-    const token = localStorage.getItem('access_token');
-    const headers = new HttpHeaders().set('Authorization', `Bearer ${token}`);
-
     const formData = new FormData();
     formData.append('label', this.newItem.label);
     formData.append('type', this.newItem.type);
@@ -264,7 +252,8 @@ export class CardDetailComponent implements OnInit {
       formData.append('file', this.newItem.file);
     }
 
-    this.http.post(`${environment.apiUrl}/api/items/`, formData, { headers })
+    // M6 : Authorization via authInterceptor.
+    this.http.post(`${environment.apiUrl}/api/items/`, formData)
       .subscribe({
         next: (newItemResponse: any) => {
           this.card.items = this.card.items || [];
@@ -295,10 +284,8 @@ export class CardDetailComponent implements OnInit {
 
   recommendCard() {
     this.isRecommending = true;
-    const token = localStorage.getItem('access_token');
-    const headers = new HttpHeaders().set('Authorization', `Bearer ${token}`);
-
-    this.http.post(`${environment.apiUrl}/api/cards/${this.card.id}/recommend/`, {}, { headers })
+    // M6 : Authorization via authInterceptor.
+    this.http.post(`${environment.apiUrl}/api/cards/${this.card.id}/recommend/`, {})
       .subscribe({
         next: () => {
           this.card.recommended_to_community = true;
@@ -323,10 +310,8 @@ export class CardDetailComponent implements OnInit {
   }
 
   recommendItem(item: any) {
-    const token = localStorage.getItem('access_token');
-    const headers = new HttpHeaders().set('Authorization', `Bearer ${token}`);
-
-    this.http.post(`${environment.apiUrl}/api/items/${item.id}/recommend/`, {}, { headers })
+    // M6 : Authorization via authInterceptor.
+    this.http.post(`${environment.apiUrl}/api/items/${item.id}/recommend/`, {})
       .subscribe({
         next: () => {
           item.recommended_to_community = true;
@@ -366,17 +351,13 @@ export class CardDetailComponent implements OnInit {
     this.isSaving = true;
     this.saveSuccess = false;
 
-    const token = localStorage.getItem('access_token');
-    const headers = new HttpHeaders()
-      .set('Authorization', `Bearer ${token}`)
-      .set('Content-Type', 'application/json');
-
     const body = {
       note_courte: this.editableNoteCourte,
       note_longue: this.editableNoteLongue
     };
 
-    this.http.patch(`${environment.apiUrl}/api/cards/${this.card.id}/update-notes/`, body, { headers })
+    // M6 : Authorization via authInterceptor ; Content-Type JSON auto (body objet).
+    this.http.patch(`${environment.apiUrl}/api/cards/${this.card.id}/update-notes/`, body)
       .subscribe({
         next: (response: any) => {
           this.card.note_courte = response.note_courte;

@@ -1,7 +1,7 @@
 import { Component, inject, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { HttpClient, HttpHeaders } from '@angular/common/http';
+import { HttpClient } from '@angular/common/http';
 import { Router } from '@angular/router';
 import { AuthService } from '../../../../core/auth/auth.service';
 import { PharmacyService } from '../../../../core/services/pharmacy.service';
@@ -63,11 +63,10 @@ export class AccountSecurityComponent implements OnInit {
   }
 
   onPinGateConfirmed(pin: string) {
-    const token = localStorage.getItem('access_token');
+    // M6 : Authorization via authInterceptor.
     this.http.post(
       `${environment.apiUrl}/api/account/verify-security-access/`,
-      { confirmation_pin: pin },
-      { headers: new HttpHeaders({ Authorization: `Bearer ${token ?? ''}` }) }
+      { confirmation_pin: pin }
     ).subscribe({
       next: () => {
         this.isUnlocked = true;
@@ -103,18 +102,16 @@ export class AccountSecurityComponent implements OnInit {
     }
 
     this.isChangingPassword = true;
-    const token = localStorage.getItem('access_token');
-    const refreshToken = localStorage.getItem('refresh_token');
 
+    // M6 : Authorization via authInterceptor ; le refresh est géré côté serveur
+    // via le cookie HttpOnly.
     this.http.post(
       `${environment.apiUrl}/api/account/change-password/`,
       {
         old_password: this.oldPassword,
         new_password: this.newPassword,
         new_password_confirm: this.newPasswordConfirm,
-        refresh_token: refreshToken ?? ''
-      },
-      { headers: new HttpHeaders({ Authorization: `Bearer ${token ?? ''}` }) }
+      }
     ).subscribe({
       next: () => {
         this.isChangingPassword = false;
@@ -148,13 +145,10 @@ export class AccountSecurityComponent implements OnInit {
   deleteAccount(password: string) {
     this.isDeletingAccount = true;
     this.deleteError = '';
-    const token = localStorage.getItem('access_token');
+    // M6 : Authorization via authInterceptor.
     this.http.delete(
       `${environment.apiUrl}/api/account/delete/`,
-      {
-        body: { password },
-        headers: new HttpHeaders({ Authorization: `Bearer ${token ?? ''}` }),
-      }
+      { body: { password } }
     ).subscribe({
       next: () => {
         this.authService.logout();
@@ -168,11 +162,10 @@ export class AccountSecurityComponent implements OnInit {
   }
 
   cancelEmailChange() {
-    const token = localStorage.getItem('access_token');
+    // M6 : Authorization via authInterceptor.
     this.http.post(
       `${environment.apiUrl}/api/account/cancel-email-change/`,
-      {},
-      { headers: new HttpHeaders({ Authorization: `Bearer ${token ?? ''}` }) }
+      {}
     ).subscribe({
       next: () => { this.pendingEmail = ''; }
     });
@@ -192,12 +185,11 @@ export class AccountSecurityComponent implements OnInit {
     }
 
     this.isChangingEmail = true;
-    const token = localStorage.getItem('access_token');
 
+    // M6 : Authorization via authInterceptor.
     this.http.post(
       `${environment.apiUrl}/api/account/change-email/`,
-      { new_email: this.newEmail, password: this.emailPassword },
-      { headers: new HttpHeaders({ Authorization: `Bearer ${token ?? ''}` }) }
+      { new_email: this.newEmail, password: this.emailPassword }
     ).subscribe({
       next: (res: any) => {
         this.isChangingEmail = false;
