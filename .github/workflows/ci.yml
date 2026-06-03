@@ -18,6 +18,10 @@ jobs:
       SECRET_KEY: ci-secret-key-not-for-production
       DEBUG: 'False'
       FIELD_ENCRYPTION_KEY: ${{ secrets.FIELD_ENCRYPTION_KEY }}
+      # E1 : settings.py (importé par settings_test) exige ces clés quand
+      # DEBUG=False. Valeurs factices suffisantes pour les tests.
+      ADMIN_JWT_SECRET: ci-admin-jwt-secret-not-for-production
+      ADMIN_TOTP_KEY: ci-admin-totp-key-not-for-production
 
     defaults:
       run:
