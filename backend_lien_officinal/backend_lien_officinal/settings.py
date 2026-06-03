@@ -383,6 +383,12 @@ else:
 # --- Admin Panel ---
 ADMIN_ALLOWED_IPS = os.environ.get('ADMIN_ALLOWED_IPS', '127.0.0.1')
 
+# E2 : nombre de proxys de confiance devant l'app (qui ajoutent X-Forwarded-For).
+# L'IP client réelle est lue depuis la DROITE de la chaîne XFF en sautant ce
+# nombre d'entrées, pour qu'un client ne puisse pas usurper son IP en forgeant
+# le header. Scalingo place un routeur edge unique → 1 par défaut.
+ADMIN_TRUSTED_PROXY_COUNT = int(os.environ.get('ADMIN_TRUSTED_PROXY_COUNT', '1'))
+
 # --- API Claude (Anthropic) ---
 ANTHROPIC_API_KEY = os.environ.get('ANTHROPIC_API_KEY', '')
 

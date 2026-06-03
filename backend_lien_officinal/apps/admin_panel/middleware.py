@@ -7,6 +7,28 @@ from django.http import HttpResponse, JsonResponse
 from .models import AdminUser
 
 
+def get_client_ip(request):
+    """
+    Résout l'IP client réelle de façon robuste face au spoofing (E2).
+
+    X-Forwarded-For a le format « client, proxy1, proxy2, … » : chaque proxy
+    AJOUTE l'IP qui s'est connectée à lui. Les entrées de DROITE sont donc
+    ajoutées par notre infra de confiance et sont fiables ; celles de gauche
+    sont contrôlables par le client. On lit donc l'IP à la position
+    -ADMIN_TRUSTED_PROXY_COUNT (en partant de la droite), et non [0].
+
+    Si la chaîne est plus courte que le nombre de proxys de confiance (XFF
+    forgé/absent), on retombe sur REMOTE_ADDR.
+    """
+    forwarded = request.META.get('HTTP_X_FORWARDED_FOR')
+    trusted = getattr(settings, 'ADMIN_TRUSTED_PROXY_COUNT', 1)
+    if forwarded and trusted >= 1:
+        parts = [p.strip() for p in forwarded.split(',') if p.strip()]
+        if len(parts) >= trusted:
+            return parts[-trusted]
+    return request.META.get('REMOTE_ADDR', '')
+
+
 class AdminIPWhitelistMiddleware:
     """
     Bloque toutes les requêtes vers /api/admin/* dont l'IP source
@@ -24,16 +46,10 @@ class AdminIPWhitelistMiddleware:
 
     def __call__(self, request):
         if any(request.path.startswith(p) for p in self.PROTECTED_PREFIXES):
-            ip = self._get_ip(request)
+            ip = get_client_ip(request)
             if ip not in self.allowed:
                 return HttpResponse(status=403)
         return self.get_response(request)
-
-    def _get_ip(self, request):
-        forwarded = request.META.get('HTTP_X_FORWARDED_FOR')
-        if forwarded:
-            return forwarded.split(',')[0].strip()
-        return request.META.get('REMOTE_ADDR', '')
 
 
 class AdminRateLimitMiddleware:
@@ -61,7 +77,7 @@ class AdminRateLimitMiddleware:
         relative = request.path[len(self.ADMIN_PREFIX):]
         for endpoint, (prefix, max_hits, window) in self.RATE_LIMITS.items():
             if relative == endpoint:
-                ip = self._get_ip(request)
+                ip = get_client_ip(request)
                 key = f"{prefix}_{ip}"
                 hits = cache.get(key, 0)
                 if hits >= max_hits:
@@ -73,12 +89,6 @@ class AdminRateLimitMiddleware:
                 break
 
         return self.get_response(request)
-
-    def _get_ip(self, request):
-        forwarded = request.META.get('HTTP_X_FORWARDED_FOR')
-        if forwarded:
-            return forwarded.split(',')[0].strip()
-        return request.META.get('REMOTE_ADDR', '')
 
 
 class AdminAccountGuardMiddleware:
