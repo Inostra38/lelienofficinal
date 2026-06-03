@@ -355,8 +355,23 @@ SIMPLE_JWT = {
 COLLABORATOR_TOKEN_LIFETIME = timedelta(minutes=30)
 
 
-# --- CHIFFREMENT AU REPOS (Messagerie) ---
-FIELD_ENCRYPTION_KEY = os.environ.get('FIELD_ENCRYPTION_KEY', '')
+# --- CHIFFREMENT AU REPOS (Messagerie) — E5 Phase 1 ---
+# Clé(s) de chiffrement des champs sensibles (messagerie = données de santé).
+# Support d'une LISTE de clés séparées par des virgules pour la ROTATION :
+# la 1re clé chiffre, toutes déchiffrent (MultiFernet). Pour roter :
+#   1. mettre "nouvelle_clé,ancienne_clé" dans FIELD_ENCRYPTION_KEY
+#   2. lancer `manage.py reencrypt_messaging` (re-chiffre tout avec la nouvelle)
+#   3. retirer l'ancienne clé de la variable
+# La clé doit être fournie via l'environnement / un KMS — jamais en dur ni vide.
+FIELD_ENCRYPTION_KEY = [
+    k.strip() for k in os.environ.get('FIELD_ENCRYPTION_KEY', '').split(',') if k.strip()
+]
+if not FIELD_ENCRYPTION_KEY:
+    raise Exception(
+        "FIELD_ENCRYPTION_KEY manquante : définissez au moins une clé Fernet "
+        "(via l'environnement / un KMS). Générer : "
+        "python manage.py generate_encryption_key"
+    )
 
 # --- WEBSOCKET / DJANGO CHANNELS ---
 ASGI_APPLICATION = "backend_lien_officinal.asgi.application"
