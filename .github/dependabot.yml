@@ -1,0 +1,31 @@
+# F5 — surveillance et mise à jour automatique des dépendances (+ alertes
+# de sécurité GitHub). Couvre le backend Python, le frontend npm et les
+# GitHub Actions. Builds reproductibles : requirements.txt est entièrement
+# figé (==) ; Dependabot proposera les montées de version via PR.
+version: 2
+updates:
+  - package-ecosystem: "pip"
+    directory: "/backend_lien_officinal"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 10
+    labels:
+      - "dependencies"
+      - "backend"
+
+  - package-ecosystem: "npm"
+    directory: "/frontend-lien-officinal"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 10
+    labels:
+      - "dependencies"
+      - "frontend"
+
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    labels:
+      - "dependencies"
+      - "ci"

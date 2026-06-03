@@ -226,12 +226,12 @@
             <span class="text-sm">{{ getItemTypeIcon(item.type) }}</span>
             <div class="flex-1 min-w-0">
               <span class="text-sm font-medium text-gray-700 truncate block">{{ item.label }}</span>
-              <a *ngIf="item.file" [href]="getFileUrl(item.file)" target="_blank"
+              <a *ngIf="item.file" [href]="getFileUrl(item.file)" target="_blank" rel="noopener noreferrer"
                  class="text-[11px] text-green-600 hover:underline truncate block"
                  (click)="$event.stopPropagation()">
                 Ouvrir le document
               </a>
-              <a *ngIf="!item.file && item.url" [href]="item.url" target="_blank"
+              <a *ngIf="!item.file && item.url" [href]="item.url" target="_blank" rel="noopener noreferrer"
                  class="text-[11px] text-blue-500 hover:underline truncate block"
                  (click)="$event.stopPropagation()">
                 {{ item.url }}

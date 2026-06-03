@@ -19,6 +19,18 @@ class RegisterSerializer(serializers.ModelSerializer):
         model = Pharmacy
         fields = ['email', 'password', 'password_confirm']
 
+    def validate_password(self, value):
+        # F1 : appliquer les validateurs Django (AUTH_PASSWORD_VALIDATORS) comme
+        # les flux reset/change — bloque les mots de passe faibles (12345678,
+        # mots de passe communs, etc.). Avant, seule min_length=8 s'appliquait.
+        from django.contrib.auth.password_validation import validate_password as dj_validate_password
+        from django.core.exceptions import ValidationError as DjangoValidationError
+        try:
+            dj_validate_password(value)
+        except DjangoValidationError as e:
+            raise serializers.ValidationError(list(e.messages))
+        return value
+
     def validate(self, data):
         if data['password'] != data['password_confirm']:
             raise serializers.ValidationError({'password_confirm': 'Les mots de passe ne correspondent pas.'})
