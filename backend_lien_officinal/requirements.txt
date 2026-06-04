@@ -3,7 +3,7 @@ channels==4.3.2
 channels-redis==4.3.0
 daphne==4.2.1
 cffi==2.0.0
-cryptography==46.0.5
+cryptography==48.0.0
 boto3==1.42.83
 Django==6.0.1
 django-cors-headers==4.9.0
