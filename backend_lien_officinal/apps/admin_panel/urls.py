@@ -17,6 +17,13 @@ from .views import (
     RejectRecommendationView,
     ListOfficialCardsView,
 )
+from .billing_views import (
+    AdminSubscriptionListView,
+    AdminSubscriptionDetailView,
+    AdminSubscriptionActionView,
+    AdminPromoCodeListCreateView,
+    AdminPromoCodeDetailView,
+)
 
 urlpatterns = [
     # Auth
@@ -40,4 +47,11 @@ urlpatterns = [
     path('recommendations/item/<int:item_id>/approve/', ApproveItemView.as_view(), name='admin-approve-item'),
     path('recommendations/reject/', RejectRecommendationView.as_view(), name='admin-reject'),
     path('recommendations/official-cards/', ListOfficialCardsView.as_view(), name='admin-official-cards'),
+
+    # Abonnements & facturation
+    path('subscriptions/', AdminSubscriptionListView.as_view(), name='admin-subscriptions'),
+    path('subscriptions/<int:pharmacy_id>/', AdminSubscriptionDetailView.as_view(), name='admin-subscription-detail'),
+    path('subscriptions/<int:pharmacy_id>/action/', AdminSubscriptionActionView.as_view(), name='admin-subscription-action'),
+    path('promo-codes/', AdminPromoCodeListCreateView.as_view(), name='admin-promo-codes'),
+    path('promo-codes/<int:promo_id>/', AdminPromoCodeDetailView.as_view(), name='admin-promo-code-detail'),
 ]

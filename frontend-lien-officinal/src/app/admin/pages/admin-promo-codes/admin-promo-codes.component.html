@@ -1,0 +1,96 @@
+<div class="p-6 max-w-5xl mx-auto space-y-6">
+
+  <h1 class="text-xl font-bold text-gray-900">Codes promo</h1>
+
+  @if (error()) {
+    <div class="bg-red-50 border border-red-200 text-red-800 rounded-lg px-4 py-2 text-sm">{{ error() }}</div>
+  }
+
+  <!-- Création -->
+  <div class="bg-white border border-gray-200 rounded-xl p-5 space-y-3">
+    <h2 class="font-semibold text-gray-900 text-sm">Nouveau code</h2>
+    <div class="grid grid-cols-1 sm:grid-cols-4 gap-3">
+      <div>
+        <label class="block text-xs text-gray-500 mb-1">Code</label>
+        <input [value]="newCode()" (input)="newCode.set($any($event.target).value.toUpperCase())"
+               placeholder="LIENVIP"
+               class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm uppercase focus:outline-none focus:ring-2 focus:ring-green-500">
+      </div>
+      <div>
+        <label class="block text-xs text-gray-500 mb-1">Mois offerts</label>
+        <input type="number" [value]="newMonths()" (input)="newMonths.set(+$any($event.target).value || 0)"
+               class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-500">
+        <p class="text-[11px] text-gray-400 mt-1">{{ yearsLabel(newMonths()) }} — 1200 ≈ à vie</p>
+      </div>
+      <div>
+        <label class="block text-xs text-gray-500 mb-1">Usages max (vide = illimité)</label>
+        <input type="number" [value]="newMaxUses() ?? ''"
+               (input)="newMaxUses.set($any($event.target).value ? +$any($event.target).value : null)"
+               placeholder="10"
+               class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-500">
+      </div>
+      <div>
+        <label class="block text-xs text-gray-500 mb-1">Note (interne)</label>
+        <input [value]="newNote()" (input)="newNote.set($any($event.target).value)"
+               placeholder="Offre pilote"
+               class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-500">
+      </div>
+    </div>
+    <button (click)="create()" [disabled]="creating() || !newCode()"
+            class="bg-green-700 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-green-800 disabled:opacity-50">
+      {{ creating() ? 'Création…' : 'Créer le code' }}
+    </button>
+  </div>
+
+  <!-- Liste -->
+  @if (loading()) {
+    <p class="text-sm text-gray-400">Chargement…</p>
+  } @else {
+    <div class="bg-white border border-gray-200 rounded-xl overflow-hidden">
+      <table class="w-full text-sm">
+        <thead>
+          <tr class="bg-gray-50 text-left text-gray-500">
+            <th class="px-4 py-2 font-medium">Code</th>
+            <th class="px-4 py-2 font-medium">Mois offerts</th>
+            <th class="px-4 py-2 font-medium">Usages</th>
+            <th class="px-4 py-2 font-medium">Note</th>
+            <th class="px-4 py-2 font-medium">Actif</th>
+            <th class="px-4 py-2 font-medium text-right">Actions</th>
+          </tr>
+        </thead>
+        <tbody class="divide-y divide-gray-50">
+          @for (c of codes(); track c.id) {
+            <tr class="hover:bg-gray-50/50">
+              <td class="px-4 py-2 font-mono font-medium text-gray-900">{{ c.code }}</td>
+              <td class="px-4 py-2 text-gray-600">{{ c.months_free }} <span class="text-xs text-gray-400">({{ yearsLabel(c.months_free) }})</span></td>
+              <td class="px-4 py-2 text-gray-600">{{ c.current_uses }}{{ c.max_uses ? ' / ' + c.max_uses : '' }}</td>
+              <td class="px-4 py-2 text-gray-500">{{ c.note }}</td>
+              <td class="px-4 py-2">
+                @if (c.is_active) {
+                  <span class="px-2 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">Actif</span>
+                } @else {
+                  <span class="px-2 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-500">Inactif</span>
+                }
+              </td>
+              <td class="px-4 py-2">
+                <div class="flex gap-1 justify-end">
+                  <button (click)="toggle(c)"
+                          class="text-xs border border-gray-300 text-gray-700 px-2 py-1 rounded hover:bg-gray-100">
+                    {{ c.is_active ? 'Désactiver' : 'Activer' }}
+                  </button>
+                  <button (click)="remove(c)"
+                          class="text-xs border border-red-300 text-red-600 px-2 py-1 rounded hover:bg-red-50">
+                    Supprimer
+                  </button>
+                </div>
+              </td>
+            </tr>
+          } @empty {
+            <tr><td colspan="6" class="px-4 py-6 text-center text-gray-400">Aucun code promo.</td></tr>
+          }
+        </tbody>
+      </table>
+    </div>
+  }
+
+</div>

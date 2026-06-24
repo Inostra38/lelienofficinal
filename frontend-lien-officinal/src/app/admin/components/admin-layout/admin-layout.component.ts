@@ -24,6 +24,8 @@ export class AdminLayoutComponent implements OnInit, OnDestroy {
     { label: 'Statistiques', icon: 'chart', route: '/admin/statistiques' },
     { label: 'Ressources', icon: 'grid', route: '/admin/ressources' },
     { label: 'Recommandations', icon: 'star', route: '/admin/recommandations' },
+    { label: 'Abonnements', icon: 'credit', route: '/admin/abonnements' },
+    { label: 'Codes promo', icon: 'tag', route: '/admin/codes-promo' },
   ];
 
   @HostListener('document:mousemove')

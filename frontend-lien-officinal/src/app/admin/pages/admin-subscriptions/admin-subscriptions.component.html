@@ -1,0 +1,134 @@
+<div class="p-6 max-w-6xl mx-auto space-y-6">
+
+  <div class="flex items-center justify-between">
+    <h1 class="text-xl font-bold text-gray-900">Abonnements</h1>
+    <span class="text-sm text-gray-400">{{ count() }} pharmacie(s)</span>
+  </div>
+
+  <!-- Recherche -->
+  <div class="flex gap-2">
+    <input
+      [value]="query()"
+      (input)="query.set($any($event.target).value)"
+      (keyup.enter)="load()"
+      placeholder="Rechercher par email ou officine…"
+      class="flex-1 border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-500">
+    <button (click)="load()"
+            class="bg-green-700 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-green-800">
+      Rechercher
+    </button>
+  </div>
+
+  @if (error()) {
+    <div class="bg-red-50 border border-red-200 text-red-800 rounded-lg px-4 py-2 text-sm">{{ error() }}</div>
+  }
+
+  @if (loading()) {
+    <p class="text-sm text-gray-400">Chargement…</p>
+  } @else {
+    <div class="bg-white border border-gray-200 rounded-xl overflow-hidden">
+      <table class="w-full text-sm">
+        <thead>
+          <tr class="bg-gray-50 text-left text-gray-500">
+            <th class="px-4 py-2 font-medium">Officine</th>
+            <th class="px-4 py-2 font-medium">Email</th>
+            <th class="px-4 py-2 font-medium">SMS</th>
+            <th class="px-4 py-2 font-medium">Abonnement</th>
+            <th class="px-4 py-2 font-medium text-right">Actions</th>
+          </tr>
+        </thead>
+        <tbody class="divide-y divide-gray-50">
+          @for (row of rows(); track row.pharmacy_id) {
+            <tr class="hover:bg-gray-50/50">
+              <td class="px-4 py-2 font-medium text-gray-900">{{ row.nom_officine }}</td>
+              <td class="px-4 py-2 text-gray-600">{{ row.email }}</td>
+              <td class="px-4 py-2 text-gray-600">{{ row.sms_credits }}</td>
+              <td class="px-4 py-2">
+                @if (row.subscription) {
+                  <span [class]="badgeClass(row.subscription.status)">{{ row.subscription.status_display }}</span>
+                  <span class="text-xs text-gray-400 ml-1">{{ row.subscription.plan_display }}</span>
+                  @if (row.subscription.is_comp) {
+                    <span class="text-xs text-green-700 ml-1">(offert)</span>
+                  }
+                } @else {
+                  <span class="text-xs text-gray-400">—</span>
+                }
+              </td>
+              <td class="px-4 py-2">
+                <div class="flex flex-wrap gap-1 justify-end">
+                  @if (!row.subscription) {
+                    <button (click)="act(row, 'grant_free', 'small')" [disabled]="busyId() === row.pharmacy_id"
+                            class="text-xs bg-green-700 text-white px-2 py-1 rounded hover:bg-green-800 disabled:opacity-50">
+                      Gratuit à vie
+                    </button>
+                  } @else {
+                    <button (click)="act(row, 'change_plan', row.subscription.plan === 'small' ? 'large' : 'small')"
+                            [disabled]="busyId() === row.pharmacy_id"
+                            class="text-xs border border-gray-300 text-gray-700 px-2 py-1 rounded hover:bg-gray-100 disabled:opacity-50">
+                      → {{ row.subscription.plan === 'small' ? 'Large' : 'Small' }}
+                    </button>
+                    @if (row.subscription.status === 'suspended') {
+                      <button (click)="act(row, 'reactivate')" [disabled]="busyId() === row.pharmacy_id"
+                              class="text-xs border border-green-300 text-green-700 px-2 py-1 rounded hover:bg-green-50 disabled:opacity-50">
+                        Réactiver
+                      </button>
+                    } @else {
+                      <button (click)="act(row, 'suspend')" [disabled]="busyId() === row.pharmacy_id"
+                              class="text-xs border border-amber-300 text-amber-700 px-2 py-1 rounded hover:bg-amber-50 disabled:opacity-50">
+                        Suspendre
+                      </button>
+                    }
+                    @if (row.subscription.is_comp) {
+                      <button (click)="act(row, 'revoke')" [disabled]="busyId() === row.pharmacy_id"
+                              class="text-xs border border-red-300 text-red-600 px-2 py-1 rounded hover:bg-red-50 disabled:opacity-50">
+                        Révoquer
+                      </button>
+                    }
+                  }
+                  <button (click)="openDetail(row)"
+                          class="text-xs text-gray-500 px-2 py-1 rounded hover:bg-gray-100">
+                    Détail
+                  </button>
+                </div>
+              </td>
+            </tr>
+          } @empty {
+            <tr><td colspan="5" class="px-4 py-6 text-center text-gray-400">Aucune pharmacie.</td></tr>
+          }
+        </tbody>
+      </table>
+    </div>
+  }
+
+  <!-- Détail (factures) -->
+  @if (detail(); as d) {
+    <div class="bg-white border border-gray-200 rounded-xl p-5 space-y-3">
+      <div class="flex items-center justify-between">
+        <h2 class="font-semibold text-gray-900">{{ d.nom_officine }} — factures</h2>
+        <button (click)="closeDetail()" class="text-sm text-gray-400 hover:text-gray-700">Fermer ✕</button>
+      </div>
+      @if (d.invoices.length === 0) {
+        <p class="text-sm text-gray-400">Aucune facture.</p>
+      } @else {
+        <table class="w-full text-sm">
+          <thead><tr class="text-left text-gray-500 border-b border-gray-100">
+            <th class="py-1 font-medium">N°</th><th class="py-1 font-medium">Type</th>
+            <th class="py-1 font-medium">TTC</th><th class="py-1 font-medium">Date</th><th class="py-1 font-medium">Payée</th>
+          </tr></thead>
+          <tbody class="divide-y divide-gray-50">
+            @for (inv of d.invoices; track inv.id) {
+              <tr>
+                <td class="py-1 font-mono text-xs text-gray-700">{{ inv.invoice_number }}</td>
+                <td class="py-1 text-gray-600">{{ inv.invoice_type === 'subscription' ? 'Abonnement' : 'Pack SMS' }}</td>
+                <td class="py-1 text-gray-900">{{ inv.amount_ttc }}€</td>
+                <td class="py-1 text-gray-500">{{ inv.issued_at | date:'dd/MM/yyyy' }}</td>
+                <td class="py-1">{{ inv.paid_at ? '✓' : '—' }}</td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      }
+    </div>
+  }
+
+</div>

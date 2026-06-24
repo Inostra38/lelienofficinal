@@ -54,6 +54,8 @@ class AdminAuditLog(models.Model):
         ('ITEM_DELETE', 'Suppression item'),
         ('RECOMMEND_APPROVE', 'Approbation recommandation'),
         ('RECOMMEND_REJECT', 'Rejet recommandation'),
+        ('SUBSCRIPTION_UPDATE', 'Modification abonnement'),
+        ('PROMO_UPDATE', 'Modification code promo'),
     ]
 
     admin = models.ForeignKey(

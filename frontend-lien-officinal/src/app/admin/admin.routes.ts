@@ -42,6 +42,16 @@ export const adminRoutes: Routes = [
           import('./pages/admin-recommendations/admin-recommendations.component').then(m => m.AdminRecommendationsComponent),
       },
       {
+        path: 'abonnements',
+        loadComponent: () =>
+          import('./pages/admin-subscriptions/admin-subscriptions.component').then(m => m.AdminSubscriptionsComponent),
+      },
+      {
+        path: 'codes-promo',
+        loadComponent: () =>
+          import('./pages/admin-promo-codes/admin-promo-codes.component').then(m => m.AdminPromoCodesComponent),
+      },
+      {
         path: '',
         redirectTo: 'statistiques',
         pathMatch: 'full',
