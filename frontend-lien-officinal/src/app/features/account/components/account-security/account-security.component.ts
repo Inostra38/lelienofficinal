@@ -45,15 +45,19 @@ export class AccountSecurityComponent implements OnInit {
   emailSuccess = '';
   isChangingEmail = false;
 
-  // Suppression du compte
+  // Suppression du compte (programmée / différée — voir backend AccountDeleteView)
   showDeleteWarning = false;
-  showDeleteConfirm = false;
   deleteError = '';
+  deleteSuccess = '';
   isDeletingAccount = false;
+  deletionScheduledFor: string | null = null;
 
   ngOnInit() {
     this.pharmacyService.getCurrentPharmacy().subscribe({
-      next: (p) => { this.pendingEmail = p.pending_email || ''; }
+      next: (p) => {
+        this.pendingEmail = p.pending_email || '';
+        this.deletionScheduledFor = p.deletion_scheduled_for || null;
+      }
     });
   }
 
@@ -136,27 +140,42 @@ export class AccountSecurityComponent implements OnInit {
     });
   }
 
-  onDeleteWarningConfirmed() {
-    this.showDeleteWarning = false;
-    this.deleteError = '';
-    this.showDeleteConfirm = true;
-  }
-
   deleteAccount(password: string) {
     this.isDeletingAccount = true;
     this.deleteError = '';
-    // M6 : Authorization via authInterceptor.
-    this.http.delete(
+    // Programme la suppression (différée en fin de période). Le compte reste
+    // utilisable jusqu'à l'échéance : pas de logout.
+    this.http.delete<{ deletion_scheduled_for?: string }>(
       `${environment.apiUrl}/api/account/delete/`,
       { body: { password } }
     ).subscribe({
-      next: () => {
-        this.authService.logout();
-        this.router.navigate(['/login'], { queryParams: { deleted: 'true' } });
+      next: (res) => {
+        this.isDeletingAccount = false;
+        this.showDeleteWarning = false;
+        this.deletionScheduledFor = res?.deletion_scheduled_for ?? null;
+        this.deleteSuccess = 'Suppression programmée. Vous pouvez l\'annuler jusqu\'à l\'échéance.';
       },
       error: (err) => {
         this.isDeletingAccount = false;
-        this.deleteError = err.error?.detail || 'Erreur lors de la suppression du compte.';
+        this.deleteError = err.error?.detail || 'Erreur lors de la programmation de la suppression.';
+      },
+    });
+  }
+
+  cancelDeletion() {
+    this.isDeletingAccount = true;
+    this.deleteError = '';
+    this.http.post(
+      `${environment.apiUrl}/api/account/delete/cancel/`, {}
+    ).subscribe({
+      next: () => {
+        this.isDeletingAccount = false;
+        this.deletionScheduledFor = null;
+        this.deleteSuccess = 'Suppression annulée. Votre compte est conservé.';
+      },
+      error: (err) => {
+        this.isDeletingAccount = false;
+        this.deleteError = err.error?.detail || 'Erreur lors de l\'annulation.';
       },
     });
   }

@@ -23,6 +23,7 @@ export interface PharmacyData {
   phone?: string;
   pending_email?: string;
   email_verified?: boolean;
+  deletion_scheduled_for?: string | null;
 }
 
 @Injectable({

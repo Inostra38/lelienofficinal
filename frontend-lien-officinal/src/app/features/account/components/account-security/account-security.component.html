@@ -137,17 +137,44 @@
         </svg>
         <h3 class="text-sm font-bold text-red-800">Zone de danger</h3>
       </div>
-      <div class="px-6 py-5 bg-white flex items-center justify-between gap-6">
-        <div>
-          <p class="text-sm font-medium text-gray-800">Supprimer le compte</p>
-          <p class="text-xs text-gray-500 mt-0.5">
-            Supprime définitivement la pharmacie, ses collaborateurs, ressources, messages et toutes les données associées.
-          </p>
-        </div>
-        <button type="button" (click)="showDeleteWarning = true"
-                class="flex-shrink-0 px-4 py-2 text-sm font-medium text-red-600 border border-red-300 rounded-lg hover:bg-red-50 transition-colors whitespace-nowrap">
-          Supprimer le compte
-        </button>
+      <div class="px-6 py-5 bg-white space-y-4">
+
+        @if (deleteSuccess) {
+          <div class="bg-green-50 border border-green-200 text-green-800 rounded-lg px-3 py-2 text-sm">{{ deleteSuccess }}</div>
+        }
+        @if (deleteError && !showDeleteWarning) {
+          <div class="bg-red-50 border border-red-200 text-red-800 rounded-lg px-3 py-2 text-sm">{{ deleteError }}</div>
+        }
+
+        @if (deletionScheduledFor) {
+          <!-- Suppression déjà programmée -->
+          <div class="flex items-center justify-between gap-6">
+            <div>
+              <p class="text-sm font-medium text-gray-800">Suppression programmée</p>
+              <p class="text-xs text-gray-500 mt-0.5">
+                Votre compte sera supprimé le <strong>{{ deletionScheduledFor | date:'dd/MM/yyyy' }}</strong>.
+                Vous gardez l'accès jusque-là.
+              </p>
+            </div>
+            <button type="button" (click)="cancelDeletion()" [disabled]="isDeletingAccount"
+                    class="flex-shrink-0 px-4 py-2 text-sm font-medium text-green-700 border border-green-300 rounded-lg hover:bg-green-50 disabled:opacity-50 transition-colors whitespace-nowrap">
+              Annuler la suppression
+            </button>
+          </div>
+        } @else {
+          <div class="flex items-center justify-between gap-6">
+            <div>
+              <p class="text-sm font-medium text-gray-800">Supprimer le compte</p>
+              <p class="text-xs text-gray-500 mt-0.5">
+                Programme la suppression définitive du compte et de toutes ses données en fin de période. Réservé au titulaire.
+              </p>
+            </div>
+            <button type="button" (click)="showDeleteWarning = true; deleteError = ''; deleteSuccess = ''"
+                    class="flex-shrink-0 px-4 py-2 text-sm font-medium text-red-600 border border-red-300 rounded-lg hover:bg-red-50 transition-colors whitespace-nowrap">
+              Supprimer le compte
+            </button>
+          </div>
+        }
       </div>
     </div>
 
@@ -167,22 +194,12 @@
   />
 }
 
-<!-- Modale avertissement suppression -->
+<!-- Modale de suppression : saisie « je supprime » + mot de passe -->
 @if (showDeleteWarning) {
   <app-delete-account-warning-modal
-    (confirmed)="onDeleteWarningConfirmed()"
-    (cancelled)="showDeleteWarning = false"
-  />
-}
-
-<!-- Modale confirmation mot de passe pour suppression -->
-@if (showDeleteConfirm) {
-  <app-confirm-sensitive-action-modal
-    actionLabel="Supprimer définitivement le compte"
-    confirmationType="password"
-    hint="Confirmez votre mot de passe pour supprimer définitivement le compte"
     [errorMessage]="deleteError"
+    [loading]="isDeletingAccount"
     (confirmed)="deleteAccount($event)"
-    (cancelled)="showDeleteConfirm = false; deleteError = ''"
+    (cancelled)="showDeleteWarning = false; deleteError = ''"
   />
 }
