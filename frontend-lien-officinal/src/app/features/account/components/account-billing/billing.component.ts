@@ -36,6 +36,12 @@ export class AccountBillingComponent implements OnInit {
   private stripe: Stripe | null = null;
   private elements: StripeElements | null = null;
 
+  // Achat pack SMS (paiement carte)
+  selectedPack = signal<'S' | 'M' | 'L' | null>(null);
+  paymentProcessing = signal(false);
+  private smsClientSecret: string | null = null;
+  private cardElement: any = null;
+
   readonly smsPacks = [
     { key: 'S' as const, label: '100 SMS', price: '9€' },
     { key: 'M' as const, label: '250 SMS', price: '22€' },
@@ -182,32 +188,89 @@ export class AccountBillingComponent implements OnInit {
   // ------------------------------------------------------------------ //
 
   buySmsPack(pack: 'S' | 'M' | 'L') {
-    this.smsLoading.set(pack);
     this.errorMessage.set(null);
+    this.successMessage.set(null);
+    this.smsLoading.set(pack);
 
+    // 1) Crée le PaymentIntent côté backend, puis 2) révèle le formulaire carte.
     this.billingService.createSmsPackIntent(pack).subscribe({
-      next: async ({ client_secret, quantity }) => {
-        if (!this.stripe) return;
-
-        const { error, paymentIntent } = await this.stripe.confirmCardPayment(
-          client_secret,
-          { payment_method: { card: {} as any } }  // Stripe Elements card à monter (à finaliser)
-        );
-
-        if (error) {
-          this.errorMessage.set(error.message ?? 'Erreur paiement');
-        } else if (paymentIntent?.status === 'succeeded') {
-          this.successMessage.set(`Pack ${quantity} SMS acheté avec succès !`);
-          this.loadData();
-        }
-
+      next: ({ client_secret }) => {
+        this.smsClientSecret = client_secret;
+        this.selectedPack.set(pack);
         this.smsLoading.set(null);
+        // Monte le Card Element une fois le <div id="sms-card-element"> rendu.
+        setTimeout(() => this.mountCardElement(), 0);
       },
       error: () => {
         this.errorMessage.set('Erreur lors de la création du paiement.');
         this.smsLoading.set(null);
       },
     });
+  }
+
+  private mountCardElement() {
+    if (!this.stripe) {
+      this.errorMessage.set('Le module de paiement n\'a pas pu se charger. Réessayez.');
+      this.cancelSmsPayment();
+      return;
+    }
+    if (this.cardElement) {
+      this.cardElement.unmount();
+      this.cardElement = null;
+    }
+    const elements = this.stripe.elements();
+    this.cardElement = elements.create('card', {
+      style: {
+        base: {
+          fontSize: '16px',
+          color: '#1f2937',
+          '::placeholder': { color: '#9ca3af' },
+        },
+      },
+    });
+    this.cardElement.mount('#sms-card-element');
+  }
+
+  async paySmsPack() {
+    if (!this.stripe || !this.cardElement || !this.smsClientSecret) return;
+    this.paymentProcessing.set(true);
+    this.errorMessage.set(null);
+
+    const { error, paymentIntent } = await this.stripe.confirmCardPayment(
+      this.smsClientSecret,
+      { payment_method: { card: this.cardElement } },
+    );
+
+    if (error) {
+      this.errorMessage.set(error.message ?? 'Le paiement a échoué.');
+      this.paymentProcessing.set(false);
+      return;
+    }
+
+    if (paymentIntent?.status === 'succeeded') {
+      this.successMessage.set('Paiement réussi ! Vos crédits SMS seront ajoutés sur votre solde dans quelques instants.');
+      this.cancelSmsPayment();
+      this.loadData();
+    }
+    this.paymentProcessing.set(false);
+  }
+
+  cancelSmsPayment() {
+    if (this.cardElement) {
+      this.cardElement.unmount();
+      this.cardElement = null;
+    }
+    this.smsClientSecret = null;
+    this.selectedPack.set(null);
+    this.paymentProcessing.set(false);
+  }
+
+  selectedPackLabel(): string {
+    return this.smsPacks.find(p => p.key === this.selectedPack())?.label ?? '';
+  }
+
+  selectedPackPrice(): string {
+    return this.smsPacks.find(p => p.key === this.selectedPack())?.price ?? '';
   }
 
   // ------------------------------------------------------------------ //

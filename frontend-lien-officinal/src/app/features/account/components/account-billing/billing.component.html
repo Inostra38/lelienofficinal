@@ -118,8 +118,10 @@
         @for (pack of smsPacks; track pack.key) {
           <button
             (click)="buySmsPack(pack.key)"
-            [disabled]="smsLoading() !== null"
-            class="border border-gray-200 rounded-xl p-4 text-center hover:border-green-400 hover:bg-green-50 transition disabled:opacity-50">
+            [disabled]="smsLoading() !== null || selectedPack() !== null"
+            class="border rounded-xl p-4 text-center hover:border-green-400 hover:bg-green-50 transition disabled:opacity-50"
+            [class.border-green-500]="selectedPack() === pack.key"
+            [class.border-gray-200]="selectedPack() !== pack.key">
             <p class="text-lg font-bold text-gray-900">{{ pack.label }}</p>
             <p class="text-green-700 font-semibold">{{ pack.price }}</p>
             @if (smsLoading() === pack.key) {
@@ -128,6 +130,30 @@
           </button>
         }
       </div>
+
+      <!-- Paiement carte du pack sélectionné -->
+      @if (selectedPack()) {
+        <div class="border-t border-gray-100 pt-4 space-y-3">
+          <p class="text-sm text-gray-600">
+            Paiement du pack <strong>{{ selectedPackLabel() }}</strong> ({{ selectedPackPrice() }}) par carte :
+          </p>
+          <div id="sms-card-element" class="border border-gray-300 rounded-lg px-3 py-3 bg-white"></div>
+          <div class="flex gap-2">
+            <button
+              (click)="paySmsPack()"
+              [disabled]="paymentProcessing()"
+              class="bg-green-700 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-green-800 disabled:opacity-50">
+              {{ paymentProcessing() ? 'Paiement...' : 'Payer ' + selectedPackPrice() }}
+            </button>
+            <button
+              (click)="cancelSmsPayment()"
+              [disabled]="paymentProcessing()"
+              class="text-gray-600 px-4 py-2 rounded-lg text-sm hover:bg-gray-100 disabled:opacity-50">
+              Annuler
+            </button>
+          </div>
+        </div>
+      }
     </div>
 
     <!-- Historique factures -->
