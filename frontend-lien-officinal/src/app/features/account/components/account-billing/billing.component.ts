@@ -19,8 +19,12 @@ export class AccountBillingComponent implements OnInit {
   loading = signal(true);
   sepaLoading = signal(false);
   sepaReady = signal(false);        // true une fois le champ IBAN monté
+  sepaMode = signal<'start' | 'change'>('start');  // 'start' = souscrire, 'change' = changer de RIB
   ownerName = signal('');
   ownerEmail = signal('');
+  cancelLoading = signal(false);
+  resumeLoading = signal(false);
+  confirmingCancel = signal(false);  // inline confirm de la résiliation
   smsLoading = signal<'S' | 'M' | 'L' | null>(null);
   successMessage = signal<string | null>(null);
   errorMessage = signal<string | null>(null);
@@ -155,19 +159,96 @@ export class AccountBillingComponent implements OnInit {
       return;
     }
 
+    const paymentMethodId = setupIntent!.payment_method as string;
+
+    // Mode "changer de RIB" : on rattache simplement le nouveau moyen de paiement.
+    if (this.sepaMode() === 'change') {
+      this.billingService.updatePaymentMethod(paymentMethodId).subscribe({
+        next: () => {
+          this.successMessage.set('Votre RIB a été mis à jour avec succès.');
+          this.resetSepaForm();
+          this.loadData();
+          this.sepaLoading.set(false);
+        },
+        error: () => {
+          this.errorMessage.set('Erreur lors de la mise à jour du RIB.');
+          this.sepaLoading.set(false);
+        },
+      });
+      return;
+    }
+
+    // Mode "souscrire" : on crée l'abonnement Stripe.
     this.billingService.confirmSubscription(
-      setupIntent!.payment_method as string,
+      paymentMethodId,
       this.promoCode() || undefined,
     ).subscribe({
       next: () => {
         this.successMessage.set('Abonnement activé avec succès !');
-        this.sepaReady.set(false);
+        this.resetSepaForm();
         this.loadData();
         this.sepaLoading.set(false);
       },
       error: () => {
         this.errorMessage.set('Erreur lors de l\'activation de l\'abonnement.');
         this.sepaLoading.set(false);
+      },
+    });
+  }
+
+  /** Démarre le flux SEPA en mode "changer de RIB". */
+  startChangeRib() {
+    this.successMessage.set(null);
+    this.errorMessage.set(null);
+    this.sepaMode.set('change');
+    this.setupSepa();
+  }
+
+  /** Réinitialise et masque le formulaire SEPA. */
+  resetSepaForm() {
+    this.sepaReady.set(false);
+    this.sepaMode.set('start');
+    this.ownerName.set('');
+    this.ownerEmail.set('');
+  }
+
+  // ------------------------------------------------------------------ //
+  // Résiliation / reprise                                               //
+  // ------------------------------------------------------------------ //
+
+  cancelSubscription() {
+    this.cancelLoading.set(true);
+    this.errorMessage.set(null);
+    this.successMessage.set(null);
+
+    this.billingService.cancelSubscription().subscribe({
+      next: () => {
+        this.successMessage.set('Résiliation programmée. Vous conservez l\'accès jusqu\'à la fin de la période en cours.');
+        this.confirmingCancel.set(false);
+        this.loadData();
+        this.cancelLoading.set(false);
+      },
+      error: () => {
+        this.errorMessage.set('Erreur lors de la résiliation. Réessayez plus tard.');
+        this.cancelLoading.set(false);
+      },
+    });
+  }
+
+  resumeSubscription() {
+    this.resumeLoading.set(true);
+    this.errorMessage.set(null);
+    this.successMessage.set(null);
+
+    this.billingService.resumeSubscription().subscribe({
+      next: () => {
+        this.successMessage.set('Votre abonnement a été repris. Il ne sera pas résilié.');
+        this.loadData();
+        this.resumeLoading.set(false);
+      },
+      error: () => {
+        this.errorMessage.set('Erreur lors de la reprise de l\'abonnement.');
+        this.resumeLoading.set(false);
       },
     });
   }

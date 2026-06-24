@@ -32,7 +32,8 @@
     <div class="bg-white border border-gray-200 rounded-xl p-6 space-y-4">
       <h2 class="text-lg font-semibold text-gray-900">Abonnement</h2>
 
-      @if (status()?.subscription) {
+      @if (status()?.subscription?.has_stripe_subscription) {
+        <!-- ============ Abonnement existant : statut + gestion ============ -->
         <div class="flex items-center justify-between">
           <div>
             <p class="text-sm text-gray-500">Plan actuel</p>
@@ -45,26 +46,111 @@
           </span>
         </div>
 
-        @if (status()?.subscription?.trial_ends_at) {
+        @if (status()?.subscription?.status === 'trialing' && status()?.subscription?.trial_ends_at) {
           <p class="text-sm text-amber-600">
             Période d'essai jusqu'au {{ status()!.subscription!.trial_ends_at | date:'dd/MM/yyyy' }}
           </p>
         }
+
+        @if (status()?.subscription?.cancel_at_period_end) {
+          <div class="bg-amber-50 border border-amber-200 text-amber-800 rounded-lg px-4 py-3 text-sm">
+            Résiliation programmée
+            @if (status()?.subscription?.current_period_end) {
+              le {{ status()!.subscription!.current_period_end | date:'dd/MM/yyyy' }}
+            }
+            . Vous conservez l'accès jusqu'à cette date.
+          </div>
+        }
+
+        @if (status()?.subscription?.is_access_allowed) {
+          <div class="border-t border-gray-100 pt-4 space-y-4">
+
+            @if (!sepaReady()) {
+              <div class="flex flex-wrap items-center gap-2">
+                <button
+                  (click)="startChangeRib()"
+                  [disabled]="sepaLoading()"
+                  class="bg-gray-100 text-gray-700 px-4 py-2 rounded-lg text-sm font-medium hover:bg-gray-200 disabled:opacity-50">
+                  {{ sepaLoading() ? 'Chargement...' : 'Changer mon RIB' }}
+                </button>
+
+                @if (status()?.subscription?.cancel_at_period_end) {
+                  <button
+                    (click)="resumeSubscription()"
+                    [disabled]="resumeLoading()"
+                    class="bg-green-700 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-green-800 disabled:opacity-50">
+                    {{ resumeLoading() ? '...' : 'Reprendre l\'abonnement' }}
+                  </button>
+                } @else if (!confirmingCancel()) {
+                  <button
+                    (click)="confirmingCancel.set(true)"
+                    class="text-red-600 px-4 py-2 rounded-lg text-sm font-medium hover:bg-red-50">
+                    Résilier mon abonnement
+                  </button>
+                } @else {
+                  <span class="text-sm text-gray-600">Confirmer la résiliation en fin de période ?</span>
+                  <button
+                    (click)="cancelSubscription()"
+                    [disabled]="cancelLoading()"
+                    class="bg-red-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-red-700 disabled:opacity-50">
+                    {{ cancelLoading() ? '...' : 'Oui, résilier' }}
+                  </button>
+                  <button
+                    (click)="confirmingCancel.set(false)"
+                    [disabled]="cancelLoading()"
+                    class="text-gray-600 px-4 py-2 rounded-lg text-sm hover:bg-gray-100 disabled:opacity-50">
+                    Annuler
+                  </button>
+                }
+              </div>
+            }
+
+            <!-- Formulaire SEPA pour changer de RIB (monté ici en mode 'change') -->
+            <div id="sepa-element"
+                 [class.hidden]="!(sepaReady() && sepaMode() === 'change')"
+                 class="border border-gray-300 rounded-lg px-3 py-3 bg-white"></div>
+
+            @if (sepaReady() && sepaMode() === 'change') {
+              <p class="text-xs text-gray-400 flex items-start gap-1.5">
+                <span>🔒</span>
+                <span>Paiement sécurisé via notre partenaire Stripe. Aucun RIB n'est stocké par Le Lien Officinal.</span>
+              </p>
+              <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                <input
+                  [value]="ownerName()" (input)="ownerName.set($any($event.target).value)"
+                  placeholder="Nom du titulaire du compte"
+                  class="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-500">
+                <input
+                  type="email" [value]="ownerEmail()" (input)="ownerEmail.set($any($event.target).value)"
+                  placeholder="Email du titulaire"
+                  class="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-500">
+              </div>
+              <div class="flex gap-2">
+                <button
+                  (click)="confirmSepa(ownerName(), ownerEmail())"
+                  [disabled]="sepaLoading() || !ownerName() || !ownerEmail()"
+                  class="bg-green-700 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-green-800 disabled:opacity-50">
+                  {{ sepaLoading() ? 'Enregistrement...' : 'Enregistrer mon nouveau RIB' }}
+                </button>
+                <button
+                  (click)="resetSepaForm()"
+                  [disabled]="sepaLoading()"
+                  class="text-gray-600 px-4 py-2 rounded-lg text-sm hover:bg-gray-100 disabled:opacity-50">
+                  Annuler
+                </button>
+              </div>
+            }
+          </div>
+        }
       } @else {
+        <!-- ============ Pas d'abonnement : démarrage ============ -->
         <p class="text-sm text-gray-500">
           Aucun abonnement actif. Démarrez votre abonnement ci-dessous — premier mois d'essai offert.
         </p>
-      }
 
-      <!-- Formulaire SEPA : visible si pas d'abonnement OU abonnement en essai -->
-      @if (!status()?.subscription || status()?.subscription?.status === 'trialing') {
         <div class="border-t border-gray-100 pt-4 space-y-4">
           <p class="text-sm text-gray-600">
-            @if (status()?.subscription) {
-              Saisissez votre IBAN pour activer l'abonnement à la fin de votre essai.
-            } @else {
-              Saisissez votre IBAN pour démarrer votre abonnement (1 mois d'essai gratuit).
-            }
+            Saisissez votre IBAN pour démarrer votre abonnement (1 mois d'essai gratuit).
           </p>
           <div id="sepa-element" [class.hidden]="!sepaReady()" class="border border-gray-300 rounded-lg px-3 py-3 bg-white"></div>
 
@@ -113,7 +199,7 @@
               (click)="setupSepa()"
               [disabled]="sepaLoading()"
               class="bg-green-700 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-green-800 disabled:opacity-50">
-              {{ sepaLoading() ? 'Chargement...' : (status()?.subscription ? 'Configurer le prélèvement SEPA' : 'Démarrer mon abonnement') }}
+              {{ sepaLoading() ? 'Chargement...' : 'Démarrer mon abonnement' }}
             </button>
           } @else {
             <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">

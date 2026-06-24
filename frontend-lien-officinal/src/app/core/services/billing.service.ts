@@ -8,6 +8,8 @@ export interface SubscriptionStatus {
   status: 'trialing' | 'active' | 'past_due' | 'suspended' | 'canceled';
   trial_ends_at: string | null;
   current_period_end: string | null;
+  cancel_at_period_end: boolean;
+  has_stripe_subscription: boolean;
   is_access_allowed: boolean;
 }
 
@@ -73,5 +75,24 @@ export class BillingService {
 
   downloadInvoice(invoiceId: number): Observable<{ download_url: string }> {
     return this.http.get<{ download_url: string }>(`${this.base}/invoices/${invoiceId}/download/`);
+  }
+
+  /** Change le RIB (SEPA) d'un abonnement existant. */
+  updatePaymentMethod(payment_method_id: string): Observable<{ status: string }> {
+    return this.http.post<{ status: string }>(`${this.base}/payment-method/`, {
+      payment_method_id,
+    });
+  }
+
+  /** Résilie l'abonnement en fin de période courante. */
+  cancelSubscription(): Observable<{ status: string; current_period_end: string | null }> {
+    return this.http.post<{ status: string; current_period_end: string | null }>(
+      `${this.base}/cancel/`, {},
+    );
+  }
+
+  /** Annule la résiliation programmée (reprend l'abonnement). */
+  resumeSubscription(): Observable<{ status: string }> {
+    return this.http.post<{ status: string }>(`${this.base}/resume/`, {});
   }
 }
