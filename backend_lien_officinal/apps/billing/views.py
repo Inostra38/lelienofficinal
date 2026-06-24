@@ -1,3 +1,4 @@
+import json
 import logging
 from datetime import datetime, timezone as dt_timezone
 
@@ -35,13 +36,17 @@ class StripeWebhookView(View):
         sig_header = request.META.get('HTTP_STRIPE_SIGNATURE', '')
 
         try:
-            event = StripeService.construct_webhook_event(payload, sig_header)
+            StripeService.construct_webhook_event(payload, sig_header)  # vérifie la signature
         except stripe.SignatureVerificationError:
             logger.warning('Stripe webhook: signature invalide')
             return HttpResponse(status=400)
         except Exception as exc:
             logger.error('Stripe webhook: erreur construction event — %s', exc)
             return HttpResponse(status=400)
+
+        # stripe v15 : les objets ressources n'exposent pas .get(). On retravaille
+        # sur le JSON brut (déjà authentifié par la vérif de signature) en dicts natifs.
+        event = json.loads(payload)
 
         handler = self._get_handler(event['type'])
         if handler:

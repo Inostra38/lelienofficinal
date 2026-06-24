@@ -1,4 +1,5 @@
 """Tests du webhook Stripe : vérification de signature et routage des événements."""
+import json
 from unittest.mock import patch
 
 import stripe
@@ -8,6 +9,10 @@ from apps.billing.models import Subscription
 from apps.billing.tests.utils import make_pharmacy
 
 WEBHOOK_URL = '/api/billing/webhook/stripe/'
+
+
+def _post(client, event):
+    return client.post(WEBHOOK_URL, data=json.dumps(event), content_type='application/json')
 
 
 class StripeWebhookTests(TestCase):
@@ -20,50 +25,48 @@ class StripeWebhookTests(TestCase):
         resp = self.client.post(WEBHOOK_URL, data='{}', content_type='application/json')
         self.assertEqual(resp.status_code, 400)
 
-    @patch('apps.billing.views.StripeService.construct_webhook_event')
-    def test_unknown_event_returns_200(self, mock_evt):
-        mock_evt.return_value = {'type': 'some.unhandled.event', 'data': {'object': {}}}
-        resp = self.client.post(WEBHOOK_URL, data='{}', content_type='application/json')
+    # Cas valides : la signature est OK (mock ne lève pas). Le handler travaille
+    # sur le JSON brut du payload (stripe v15 → pas de .get() sur les objets ressources).
+    @patch('apps.billing.views.StripeService.construct_webhook_event', return_value=None)
+    def test_unknown_event_returns_200(self, _mock):
+        resp = _post(self.client, {'type': 'some.unhandled.event', 'data': {'object': {}}})
         self.assertEqual(resp.status_code, 200)
 
-    @patch('apps.billing.views.StripeService.construct_webhook_event')
-    def test_subscription_deleted_sets_canceled(self, mock_evt):
+    @patch('apps.billing.views.StripeService.construct_webhook_event', return_value=None)
+    def test_subscription_deleted_sets_canceled(self, _mock):
         pharmacy = make_pharmacy()
         sub = Subscription.objects.create(
             pharmacy=pharmacy, stripe_subscription_id='sub_1', status='active',
         )
-        mock_evt.return_value = {
+        resp = _post(self.client, {
             'type': 'customer.subscription.deleted',
             'data': {'object': {'id': 'sub_1'}},
-        }
-        resp = self.client.post(WEBHOOK_URL, data='{}', content_type='application/json')
+        })
         self.assertEqual(resp.status_code, 200)
         sub.refresh_from_db()
         self.assertEqual(sub.status, Subscription.Status.CANCELED)
 
     @patch('apps.billing.views.credit_sms_balance')
-    @patch('apps.billing.views.StripeService.construct_webhook_event')
-    def test_payment_intent_sms_pack_triggers_credit(self, mock_evt, mock_task):
-        mock_evt.return_value = {
+    @patch('apps.billing.views.StripeService.construct_webhook_event', return_value=None)
+    def test_payment_intent_sms_pack_triggers_credit(self, _mock, mock_task):
+        resp = _post(self.client, {
             'type': 'payment_intent.succeeded',
             'data': {'object': {
                 'id': 'pi_1', 'amount': 900,
                 'metadata': {'type': 'sms_pack', 'pharmacy_id': '5'},
             }},
-        }
-        resp = self.client.post(WEBHOOK_URL, data='{}', content_type='application/json')
+        })
         self.assertEqual(resp.status_code, 200)
         mock_task.delay.assert_called_once()
         # 900 cents → 100 SMS
         self.assertEqual(mock_task.delay.call_args.kwargs['quantity'], 100)
 
     @patch('apps.billing.views.credit_sms_balance')
-    @patch('apps.billing.views.StripeService.construct_webhook_event')
-    def test_payment_intent_non_sms_ignored(self, mock_evt, mock_task):
-        mock_evt.return_value = {
+    @patch('apps.billing.views.StripeService.construct_webhook_event', return_value=None)
+    def test_payment_intent_non_sms_ignored(self, _mock, mock_task):
+        resp = _post(self.client, {
             'type': 'payment_intent.succeeded',
             'data': {'object': {'id': 'pi_2', 'amount': 900, 'metadata': {'type': 'autre'}}},
-        }
-        resp = self.client.post(WEBHOOK_URL, data='{}', content_type='application/json')
+        })
         self.assertEqual(resp.status_code, 200)
         mock_task.delay.assert_not_called()
