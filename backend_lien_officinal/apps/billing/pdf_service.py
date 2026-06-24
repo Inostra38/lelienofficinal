@@ -137,6 +137,14 @@ def generate_subscription_invoice_pdf(
     """
     ht, tva_amount, ttc = _compute_amounts(amount_ttc_cents, tva_rate)
 
+    # Montants enregistrés AVANT le rendu PDF (qui peut prendre plusieurs secondes),
+    # pour que la facture n'apparaisse jamais à 0 dans l'historique.
+    invoice.amount_ht = ht
+    invoice.amount_ttc = ttc
+    invoice.tva_rate = tva_rate
+    invoice.paid_at = timezone.now()
+    invoice.save(update_fields=['amount_ht', 'amount_ttc', 'tva_rate', 'paid_at'])
+
     plan_labels = {'small': 'Small — < 10 collaborateurs', 'large': 'Large — ≥ 10 collaborateurs'}
     try:
         plan = pharmacy.subscription.plan
@@ -166,13 +174,7 @@ def generate_subscription_invoice_pdf(
     storage_key = _save_pdf(pdf_bytes, f'invoices/{pharmacy.id}/{invoice.invoice_number}.pdf')
 
     invoice.pdf_storage_key = storage_key
-    invoice.amount_ht       = ht
-    invoice.amount_ttc      = ttc
-    invoice.tva_rate        = tva_rate
-    invoice.paid_at         = timezone.now()
-    invoice.save(update_fields=[
-        'pdf_storage_key', 'amount_ht', 'amount_ttc', 'tva_rate', 'paid_at'
-    ])
+    invoice.save(update_fields=['pdf_storage_key'])
 
     return storage_key
 
@@ -189,6 +191,14 @@ def generate_sms_receipt_pdf(
     Retourne la storage_key.
     """
     ht, tva_amount, ttc = _compute_amounts(amount_ttc_cents, tva_rate)
+
+    # Montants enregistrés AVANT le rendu PDF (qui peut prendre plusieurs secondes),
+    # pour que le reçu n'apparaisse jamais à 0 dans l'historique.
+    invoice.amount_ht = ht
+    invoice.amount_ttc = ttc
+    invoice.tva_rate = tva_rate
+    invoice.paid_at = timezone.now()
+    invoice.save(update_fields=['amount_ht', 'amount_ttc', 'tva_rate', 'paid_at'])
 
     context = {
         **_emetteur_context(),
@@ -210,12 +220,6 @@ def generate_sms_receipt_pdf(
     storage_key = _save_pdf(pdf_bytes, f'invoices/{pharmacy.id}/{invoice.invoice_number}.pdf')
 
     invoice.pdf_storage_key = storage_key
-    invoice.amount_ht       = ht
-    invoice.amount_ttc      = ttc
-    invoice.tva_rate        = tva_rate
-    invoice.paid_at         = timezone.now()
-    invoice.save(update_fields=[
-        'pdf_storage_key', 'amount_ht', 'amount_ttc', 'tva_rate', 'paid_at'
-    ])
+    invoice.save(update_fields=['pdf_storage_key'])
 
     return storage_key
