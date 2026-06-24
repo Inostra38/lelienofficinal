@@ -166,7 +166,11 @@ class StripeWebhookView(View):
             sub.save(update_fields=fields)
 
     def _handle_subscription_deleted(self, stripe_sub):
-        """Abonnement résilié → status canceled."""
+        """Abonnement résilié → status canceled.
+
+        Si une suppression de compte est programmée (résiliation demandée par le
+        titulaire), on l'exécute immédiatement à la fin de période.
+        """
         try:
             sub = Subscription.objects.get(stripe_subscription_id=stripe_sub['id'])
         except Subscription.DoesNotExist:
@@ -174,6 +178,11 @@ class StripeWebhookView(View):
 
         sub.status = Subscription.Status.CANCELED
         sub.save(update_fields=['status', 'updated_at'])
+
+        pharmacy = sub.pharmacy
+        if pharmacy.deletion_scheduled_for and not pharmacy.anonymized_at:
+            from apps.core.tasks import execute_account_deletion_task
+            execute_account_deletion_task.delay(pharmacy.id)
 
     def _handle_trial_will_end(self, stripe_sub):
         """Trial se termine dans 3 jours (Stripe envoie cet event à J-3)."""

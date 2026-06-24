@@ -455,6 +455,10 @@ CELERY_BEAT_SCHEDULE = {
         'task': 'apps.billing.tasks.check_plan_upgrades',
         'schedule': crontab(hour=2, minute=0),  # chaque nuit à 2h00
     },
+    'account-execute-scheduled-deletions-nightly': {
+        'task': 'apps.core.tasks.execute_scheduled_deletions',
+        'schedule': crontab(hour=2, minute=30),  # chaque nuit à 2h30
+    },
 }
 
 # --- LOGGING ---

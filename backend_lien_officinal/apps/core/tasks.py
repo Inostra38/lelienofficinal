@@ -69,6 +69,47 @@ def send_sms_task(self, log_id: int, phone: str, message: str):
             )
 
 
+@shared_task(bind=True, max_retries=3, default_retry_delay=120)
+def execute_account_deletion_task(self, pharmacy_id: int):
+    """Exécute l'anonymisation d'un compte (déclenchée par le webhook Stripe à
+    la fin de la période, pour une exécution immédiate)."""
+    from apps.core.account_deletion import execute_account_deletion
+    try:
+        execute_account_deletion(pharmacy_id)
+    except Exception as exc:
+        raise self.retry(exc=exc)
+
+
+@shared_task(name='apps.core.tasks.execute_scheduled_deletions')
+def execute_scheduled_deletions():
+    """Balayage quotidien : anonymise les comptes dont la suppression est échue.
+
+    Filet de sécurité (le webhook Stripe déclenche l'exécution immédiate en fin
+    de période ; ce balayage couvre les comptes sans abonnement — délai 30 j —
+    et les éventuels webhooks manqués).
+    """
+    from django.utils import timezone
+    from apps.core.models import Pharmacy
+    from apps.core.account_deletion import execute_account_deletion
+
+    due_ids = list(
+        Pharmacy.objects.filter(
+            deletion_scheduled_for__isnull=False,
+            deletion_scheduled_for__lte=timezone.now(),
+            anonymized_at__isnull=True,
+        ).values_list('id', flat=True)
+    )
+    count = 0
+    for pid in due_ids:
+        try:
+            if execute_account_deletion(pid):
+                count += 1
+        except Exception:
+            logger.exception("[Account Deletion Sweep] échec pharmacy_id=%s", pid)
+    logger.info("[Account Deletion Sweep] %s compte(s) anonymisé(s)", count)
+    return count
+
+
 @shared_task(name='sms.cleanup_old_sms_logs')
 def cleanup_old_sms_logs():
     """
