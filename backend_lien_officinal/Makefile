@@ -17,6 +17,9 @@ TESTS := \
   apps.core.tests.test_sms apps.core.tests.test_auth \
   apps.team.tests.test_models apps.team.tests.test_views \
   apps.resources.tests.test_models apps.admin_panel.tests.test_auth \
+  apps.billing.tests.test_models apps.billing.tests.test_promo \
+  apps.billing.tests.test_pdf apps.billing.tests.test_webhook \
+  apps.billing.tests.test_api apps.billing.tests.test_tasks \
   tests.test_isolation
 
 help:
