@@ -6,11 +6,12 @@ class ContentSecurityPolicyMiddleware:
 
     CSP_POLICY = "; ".join([
         "default-src 'self'",
-        "script-src 'self' 'unsafe-inline'",           # Angular event handlers inline
+        "script-src 'self' 'unsafe-inline' https://js.stripe.com",  # Angular inline + Stripe.js
         "style-src 'self' 'unsafe-inline'",            # Tailwind + Quill injectent des styles inline
         "img-src 'self' data: blob: https://*.scw.cloud", # QR codes base64, blob URLs, S3 images
         "font-src 'self' data:",                       # Fonts inline (base64)
-        "connect-src 'self' https://*.scw.cloud",        # API calls + Scaleway S3 signed URLs
+        "connect-src 'self' https://*.scw.cloud https://api.stripe.com",  # API + Scaleway S3 + Stripe
+        "frame-src https://js.stripe.com https://hooks.stripe.com",  # iframes Stripe Elements / 3DS / SEPA
         "frame-ancestors 'none'",                      # Équivalent X-Frame-Options DENY
         "base-uri 'self'",
         "form-action 'self'",
