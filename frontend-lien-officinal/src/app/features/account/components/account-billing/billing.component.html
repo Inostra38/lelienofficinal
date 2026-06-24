@@ -66,7 +66,7 @@
               Saisissez votre IBAN pour démarrer votre abonnement (1 mois d'essai gratuit).
             }
           </p>
-          <div id="sepa-element" class="border border-gray-300 rounded-lg px-3 py-3 bg-white"></div>
+          <div id="sepa-element" [class.hidden]="!sepaReady()" class="border border-gray-300 rounded-lg px-3 py-3 bg-white"></div>
 
           <!-- Champ code promo -->
           <div class="space-y-2">
@@ -103,12 +103,31 @@
             }
           </div>
 
-          <button
-            (click)="setupSepa()"
-            [disabled]="sepaLoading()"
-            class="bg-green-700 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-green-800 disabled:opacity-50">
-            {{ sepaLoading() ? 'Chargement...' : (status()?.subscription ? 'Configurer le prélèvement SEPA' : 'Démarrer mon abonnement') }}
-          </button>
+          @if (!sepaReady()) {
+            <button
+              (click)="setupSepa()"
+              [disabled]="sepaLoading()"
+              class="bg-green-700 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-green-800 disabled:opacity-50">
+              {{ sepaLoading() ? 'Chargement...' : (status()?.subscription ? 'Configurer le prélèvement SEPA' : 'Démarrer mon abonnement') }}
+            </button>
+          } @else {
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
+              <input
+                [value]="ownerName()" (input)="ownerName.set($any($event.target).value)"
+                placeholder="Nom du titulaire du compte"
+                class="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-500">
+              <input
+                type="email" [value]="ownerEmail()" (input)="ownerEmail.set($any($event.target).value)"
+                placeholder="Email du titulaire"
+                class="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-500">
+            </div>
+            <button
+              (click)="confirmSepa(ownerName(), ownerEmail())"
+              [disabled]="sepaLoading() || !ownerName() || !ownerEmail()"
+              class="bg-green-700 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-green-800 disabled:opacity-50">
+              {{ sepaLoading() ? 'Activation...' : 'Confirmer et activer' }}
+            </button>
+          }
         </div>
       }
     </div>

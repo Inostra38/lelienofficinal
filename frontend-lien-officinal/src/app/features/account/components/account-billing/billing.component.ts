@@ -18,6 +18,9 @@ export class AccountBillingComponent implements OnInit {
   invoices = signal<Invoice[]>([]);
   loading = signal(true);
   sepaLoading = signal(false);
+  sepaReady = signal(false);        // true une fois le champ IBAN monté
+  ownerName = signal('');
+  ownerEmail = signal('');
   smsLoading = signal<'S' | 'M' | 'L' | null>(null);
   successMessage = signal<string | null>(null);
   errorMessage = signal<string | null>(null);
@@ -109,6 +112,7 @@ export class AccountBillingComponent implements OnInit {
         });
 
         sepaElement.mount('#sepa-element');
+        this.sepaReady.set(true);
         this.sepaLoading.set(false);
       },
       error: () => {
@@ -147,6 +151,7 @@ export class AccountBillingComponent implements OnInit {
     ).subscribe({
       next: () => {
         this.successMessage.set('Abonnement activé avec succès !');
+        this.sepaReady.set(false);
         this.loadData();
         this.sepaLoading.set(false);
       },
