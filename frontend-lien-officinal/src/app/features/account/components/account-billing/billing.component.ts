@@ -38,6 +38,7 @@ export class AccountBillingComponent implements OnInit {
   // Stripe
   private stripe: Stripe | null = null;
   private elements: StripeElements | null = null;
+  private sepaClientSecret: string | null = null;
 
   // Achat pack SMS (paiement carte)
   selectedPack = signal<'S' | 'M' | 'L' | null>(null);
@@ -97,6 +98,7 @@ export class AccountBillingComponent implements OnInit {
       next: async ({ client_secret }) => {
         if (!this.stripe) return;
 
+        this.sepaClientSecret = client_secret;
         this.elements = this.stripe.elements({ clientSecret: client_secret });
 
         const sepaElement = this.elements.create('iban', {
@@ -123,24 +125,32 @@ export class AccountBillingComponent implements OnInit {
   }
 
   async confirmSepa(ownerName: string, ownerEmail: string) {
-    if (!this.stripe || !this.elements) return;
+    if (!this.stripe || !this.elements || !this.sepaClientSecret) return;
     this.sepaLoading.set(true);
+    this.errorMessage.set(null);
 
     const sepaElement = this.elements.getElement('iban');
-    if (!sepaElement) return;
+    if (!sepaElement) {
+      this.sepaLoading.set(false);
+      return;
+    }
 
-    const { setupIntent, error } = await this.stripe.confirmSepaDebitSetup(
-      (this.elements as any)._commonOptions.clientSecret,
-      {
+    let setupIntent: any;
+    try {
+      const res = await this.stripe.confirmSepaDebitSetup(this.sepaClientSecret, {
         payment_method: {
           sepa_debit: sepaElement,
           billing_details: { name: ownerName, email: ownerEmail },
         },
+      });
+      if (res.error) {
+        this.errorMessage.set(res.error.message ?? 'Erreur SEPA');
+        this.sepaLoading.set(false);
+        return;
       }
-    );
-
-    if (error) {
-      this.errorMessage.set(error.message ?? 'Erreur SEPA');
+      setupIntent = res.setupIntent;
+    } catch (e: any) {
+      this.errorMessage.set(e?.message ?? 'Erreur lors de la validation du prélèvement SEPA.');
       this.sepaLoading.set(false);
       return;
     }
