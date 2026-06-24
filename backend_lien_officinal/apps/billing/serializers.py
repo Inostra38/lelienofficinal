@@ -5,14 +5,20 @@ from apps.billing.models import Subscription, Invoice
 
 class SubscriptionSerializer(serializers.ModelSerializer):
     is_access_allowed = serializers.BooleanField(read_only=True)
+    has_stripe_subscription = serializers.SerializerMethodField()
 
     class Meta:
         model = Subscription
         fields = [
             'plan', 'status', 'trial_ends_at',
-            'current_period_end', 'is_access_allowed',
+            'current_period_end', 'cancel_at_period_end',
+            'has_stripe_subscription', 'is_access_allowed',
         ]
         read_only_fields = fields
+
+    def get_has_stripe_subscription(self, obj) -> bool:
+        """True dès qu'un abonnement Stripe réel existe (vs simple ébauche)."""
+        return bool(obj.stripe_subscription_id)
 
 
 class InvoiceSerializer(serializers.ModelSerializer):

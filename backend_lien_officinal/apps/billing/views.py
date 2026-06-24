@@ -154,9 +154,16 @@ class StripeWebhookView(View):
             'canceled':   Subscription.Status.CANCELED,
             'unpaid':     Subscription.Status.PAST_DUE,
         }
+        fields = []
         if stripe_status in status_map:
             sub.status = status_map[stripe_status]
-            sub.save(update_fields=['status', 'updated_at'])
+            fields.append('status')
+        if 'cancel_at_period_end' in stripe_sub:
+            sub.cancel_at_period_end = bool(stripe_sub['cancel_at_period_end'])
+            fields.append('cancel_at_period_end')
+        if fields:
+            fields.append('updated_at')
+            sub.save(update_fields=fields)
 
     def _handle_subscription_deleted(self, stripe_sub):
         """Abonnement résilié → status canceled."""
@@ -430,3 +437,76 @@ class ValidatePromoCodeView(APIView):
             'trial_days':  promo.trial_days_total,
             'message':     f'{promo.months_free} mois offerts après votre mois d\'essai.',
         })
+
+
+class UpdatePaymentMethodView(APIView):
+    """Change le moyen de paiement SEPA d'un abonnement existant (changer de RIB)."""
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request):
+        pharmacy = request.user
+        payment_method_id = request.data.get('payment_method_id')
+        if not payment_method_id:
+            return Response({'error': 'payment_method_id requis'},
+                            status=drf_status.HTTP_400_BAD_REQUEST)
+        try:
+            sub = Subscription.objects.get(pharmacy=pharmacy)
+        except Subscription.DoesNotExist:
+            return Response({'error': 'Abonnement introuvable'},
+                            status=drf_status.HTTP_404_NOT_FOUND)
+        if not sub.stripe_customer_id:
+            return Response({'error': 'Aucun client Stripe associé.'},
+                            status=drf_status.HTTP_400_BAD_REQUEST)
+
+        stripe.PaymentMethod.attach(payment_method_id, customer=sub.stripe_customer_id)
+        stripe.Customer.modify(
+            sub.stripe_customer_id,
+            invoice_settings={'default_payment_method': payment_method_id},
+        )
+        if sub.stripe_subscription_id:
+            stripe.Subscription.modify(
+                sub.stripe_subscription_id, default_payment_method=payment_method_id,
+            )
+        return Response({'status': 'payment_method_updated'})
+
+
+class CancelSubscriptionView(APIView):
+    """Résilie l'abonnement en fin de période courante (cancel_at_period_end)."""
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request):
+        pharmacy = request.user
+        try:
+            sub = Subscription.objects.get(pharmacy=pharmacy)
+        except Subscription.DoesNotExist:
+            return Response({'error': 'Abonnement introuvable'},
+                            status=drf_status.HTTP_404_NOT_FOUND)
+        if not sub.stripe_subscription_id:
+            return Response({'error': 'Aucun abonnement Stripe à résilier.'},
+                            status=drf_status.HTTP_400_BAD_REQUEST)
+
+        StripeService.cancel_subscription(sub.stripe_subscription_id)
+        sub.cancel_at_period_end = True
+        sub.save(update_fields=['cancel_at_period_end', 'updated_at'])
+        return Response({
+            'status': 'cancellation_scheduled',
+            'current_period_end': sub.current_period_end,
+        })
+
+
+class ResumeSubscriptionView(APIView):
+    """Annule la résiliation programmée (reprend l'abonnement)."""
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request):
+        pharmacy = request.user
+        try:
+            sub = Subscription.objects.get(pharmacy=pharmacy)
+        except Subscription.DoesNotExist:
+            return Response({'error': 'Abonnement introuvable'},
+                            status=drf_status.HTTP_404_NOT_FOUND)
+        if sub.stripe_subscription_id:
+            stripe.Subscription.modify(sub.stripe_subscription_id, cancel_at_period_end=False)
+        sub.cancel_at_period_end = False
+        sub.save(update_fields=['cancel_at_period_end', 'updated_at'])
+        return Response({'status': 'resumed'})

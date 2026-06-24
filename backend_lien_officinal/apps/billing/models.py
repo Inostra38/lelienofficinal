@@ -27,6 +27,7 @@ class Subscription(models.Model):
     trial_ends_at          = models.DateTimeField(null=True, blank=True)
     current_period_end     = models.DateTimeField(null=True, blank=True)
     suspended_at           = models.DateTimeField(null=True, blank=True)
+    cancel_at_period_end   = models.BooleanField(default=False)
     created_at             = models.DateTimeField(auto_now_add=True)
     updated_at             = models.DateTimeField(auto_now=True)
 

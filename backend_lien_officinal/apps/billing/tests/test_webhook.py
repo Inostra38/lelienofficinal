@@ -46,6 +46,33 @@ class StripeWebhookTests(TestCase):
         sub.refresh_from_db()
         self.assertEqual(sub.status, Subscription.Status.CANCELED)
 
+    @patch('apps.billing.views.StripeService.construct_webhook_event', return_value=None)
+    def test_subscription_updated_syncs_cancel_at_period_end(self, _mock):
+        pharmacy = make_pharmacy()
+        sub = Subscription.objects.create(
+            pharmacy=pharmacy, stripe_subscription_id='sub_c', status='active',
+        )
+        # Stripe signale une résiliation programmée
+        resp = _post(self.client, {
+            'type': 'customer.subscription.updated',
+            'data': {'object': {
+                'id': 'sub_c', 'status': 'active', 'cancel_at_period_end': True,
+            }},
+        })
+        self.assertEqual(resp.status_code, 200)
+        sub.refresh_from_db()
+        self.assertTrue(sub.cancel_at_period_end)
+
+        # Puis reprise
+        _post(self.client, {
+            'type': 'customer.subscription.updated',
+            'data': {'object': {
+                'id': 'sub_c', 'status': 'active', 'cancel_at_period_end': False,
+            }},
+        })
+        sub.refresh_from_db()
+        self.assertFalse(sub.cancel_at_period_end)
+
     @patch('apps.billing.views.credit_sms_balance')
     @patch('apps.billing.views.StripeService.construct_webhook_event', return_value=None)
     def test_payment_intent_sms_pack_triggers_credit(self, _mock, mock_task):

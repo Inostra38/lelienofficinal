@@ -5,7 +5,7 @@ from unittest.mock import patch
 from django.test import TestCase
 from rest_framework.test import APIClient
 
-from apps.billing.models import Invoice, PromoCode
+from apps.billing.models import Invoice, PromoCode, Subscription
 from apps.billing.tests.utils import make_pharmacy
 
 
@@ -87,3 +87,78 @@ class ValidatePromoCodeViewTests(TestCase):
     def test_missing_code_400(self):
         resp = self.client.post('/api/billing/promo/validate/', {}, format='json')
         self.assertEqual(resp.status_code, 400)
+
+
+class UpdatePaymentMethodViewTests(TestCase):
+    """Changement de RIB en autonomie."""
+
+    def setUp(self):
+        self.pharmacy = make_pharmacy()
+        self.client = _auth_client(self.pharmacy)
+
+    def test_404_without_subscription(self):
+        resp = self.client.post('/api/billing/payment-method/',
+                                {'payment_method_id': 'pm_1'}, format='json')
+        self.assertEqual(resp.status_code, 404)
+
+    def test_400_without_payment_method(self):
+        Subscription.objects.create(pharmacy=self.pharmacy, stripe_customer_id='cus_1')
+        resp = self.client.post('/api/billing/payment-method/', {}, format='json')
+        self.assertEqual(resp.status_code, 400)
+
+    @patch('apps.billing.views.stripe.Subscription.modify')
+    @patch('apps.billing.views.stripe.Customer.modify')
+    @patch('apps.billing.views.stripe.PaymentMethod.attach')
+    def test_updates_payment_method(self, mock_attach, mock_cust, mock_sub):
+        Subscription.objects.create(
+            pharmacy=self.pharmacy,
+            stripe_customer_id='cus_1', stripe_subscription_id='sub_1',
+        )
+        resp = self.client.post('/api/billing/payment-method/',
+                                {'payment_method_id': 'pm_new'}, format='json')
+        self.assertEqual(resp.status_code, 200)
+        mock_attach.assert_called_once_with('pm_new', customer='cus_1')
+        mock_cust.assert_called_once()
+        mock_sub.assert_called_once_with('sub_1', default_payment_method='pm_new')
+
+
+class CancelSubscriptionViewTests(TestCase):
+    """Résiliation en fin de période + reprise."""
+
+    def setUp(self):
+        self.pharmacy = make_pharmacy()
+        self.client = _auth_client(self.pharmacy)
+
+    def test_404_without_subscription(self):
+        resp = self.client.post('/api/billing/cancel/', {}, format='json')
+        self.assertEqual(resp.status_code, 404)
+
+    def test_400_without_stripe_subscription(self):
+        Subscription.objects.create(pharmacy=self.pharmacy, stripe_customer_id='cus_1')
+        resp = self.client.post('/api/billing/cancel/', {}, format='json')
+        self.assertEqual(resp.status_code, 400)
+
+    @patch('apps.billing.views.StripeService.cancel_subscription')
+    def test_schedules_cancellation(self, mock_cancel):
+        sub = Subscription.objects.create(
+            pharmacy=self.pharmacy,
+            stripe_customer_id='cus_1', stripe_subscription_id='sub_1',
+        )
+        resp = self.client.post('/api/billing/cancel/', {}, format='json')
+        self.assertEqual(resp.status_code, 200)
+        mock_cancel.assert_called_once_with('sub_1')
+        sub.refresh_from_db()
+        self.assertTrue(sub.cancel_at_period_end)
+
+    @patch('apps.billing.views.stripe.Subscription.modify')
+    def test_resume_clears_cancellation(self, mock_modify):
+        sub = Subscription.objects.create(
+            pharmacy=self.pharmacy,
+            stripe_customer_id='cus_1', stripe_subscription_id='sub_1',
+            cancel_at_period_end=True,
+        )
+        resp = self.client.post('/api/billing/resume/', {}, format='json')
+        self.assertEqual(resp.status_code, 200)
+        mock_modify.assert_called_once_with('sub_1', cancel_at_period_end=False)
+        sub.refresh_from_db()
+        self.assertFalse(sub.cancel_at_period_end)

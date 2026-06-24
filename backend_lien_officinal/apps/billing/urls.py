@@ -9,6 +9,9 @@ from apps.billing.views import (
     InvoiceListView,
     InvoiceDownloadView,
     ValidatePromoCodeView,
+    UpdatePaymentMethodView,
+    CancelSubscriptionView,
+    ResumeSubscriptionView,
 )
 
 app_name = 'billing'
@@ -22,4 +25,7 @@ urlpatterns = [
     path('invoices/',        InvoiceListView.as_view(),           name='invoice-list'),
     path('invoices/<int:invoice_id>/download/', InvoiceDownloadView.as_view(), name='invoice-download'),
     path('promo/validate/', ValidatePromoCodeView.as_view(),    name='promo-validate'),
+    path('payment-method/', UpdatePaymentMethodView.as_view(),  name='update-payment-method'),
+    path('cancel/',         CancelSubscriptionView.as_view(),    name='cancel-subscription'),
+    path('resume/',         ResumeSubscriptionView.as_view(),    name='resume-subscription'),
 ]
