@@ -42,9 +42,20 @@ export class AccountBillingComponent implements OnInit {
     { key: 'L' as const, label: '500 SMS', price: '39€' },
   ];
 
-  async ngOnInit() {
-    this.stripe = await loadStripe(environment.stripePk);
+  ngOnInit() {
+    // Le chargement des données ne doit PAS dépendre de Stripe.js : si loadStripe
+    // échoue (clé placeholder, CSP bloquant js.stripe.com, hors-ligne), l'UI doit
+    // quand même s'afficher. On charge donc Stripe en parallèle, sans bloquer.
     this.loadData();
+    void this.initStripe();
+  }
+
+  private async initStripe(): Promise<void> {
+    try {
+      this.stripe = await loadStripe(environment.stripePk);
+    } catch {
+      this.stripe = null;  // les fonctions SEPA se dégradent proprement
+    }
   }
 
   private loadData() {
@@ -54,7 +65,10 @@ export class AccountBillingComponent implements OnInit {
         this.status.set(data);
         this.loading.set(false);
       },
-      error: () => this.loading.set(false),
+      error: () => {
+        this.errorMessage.set('Impossible de charger les informations de facturation. Réessayez plus tard.');
+        this.loading.set(false);
+      },
     });
 
     this.billingService.getInvoices().subscribe({
