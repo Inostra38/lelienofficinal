@@ -84,9 +84,10 @@ class PharmacySerializer(serializers.ModelSerializer):
             'onboarding_completed',
             'email_verified',
             'pending_email',
-            'date_joined'
+            'date_joined',
+            'deletion_scheduled_for',
         ]
-        read_only_fields = ['id', 'email', 'date_joined', 'is_premium', 'sms_credits', 'email_verified', 'pending_email']
+        read_only_fields = ['id', 'email', 'date_joined', 'is_premium', 'sms_credits', 'email_verified', 'pending_email', 'deletion_scheduled_for']
 
 
 class ForgotPasswordSerializer(serializers.Serializer):

@@ -468,13 +468,12 @@ class AccountVerifySecurityAccessView(APIView):
 class AccountDeleteView(APIView):
     """
     DELETE /api/account/delete/
-    Supprime définitivement le compte pharmacie et toutes ses données (cascade complète).
+    Programme la suppression du compte **en fin de période payée** (ou sous 30 j
+    si aucun abonnement actif). Le compte reste utilisable jusqu'à l'échéance ;
+    l'anonymisation effective est exécutée à ce moment (voir account_deletion.py).
 
-    Authentification acceptée :
-    - Session directe (pharmacie) → champ `password` requis dans le body
-    - Session collaborateur (PIN)  → champ `confirmation_pin` requis dans le body
-
-    Permission requise : can_manage_account (ou session directe pharmacie).
+    Réservé au **titulaire** : seules les sessions directes pharmacie (mot de passe)
+    sont acceptées — les sessions collaborateur sont refusées.
     """
     permission_classes = [IsAuthenticated]
     throttle_classes = [PinVerifyThrottle]
@@ -483,52 +482,112 @@ class AccountDeleteView(APIView):
         pharmacy = request.user
         actor = _get_collaborator(request)
 
-        # Vérification de permission (collaborateur seulement — la session directe
-        # pharmacie a les droits implicites de titulaire)
-        err = _check_permission(actor, 'can_manage_account')
-        if err:
-            return err
-
-        # Validation de l'identité selon le type de session
-        if actor:
-            # Session collaborateur → PIN
-            err = _verify_sensitive_action(request, actor)
-            if err:
-                return err
-        else:
-            # Session directe pharmacie → mot de passe
-            password = request.data.get('password', '').strip()
-            if not password:
-                return Response(
-                    {"detail": "Le mot de passe est requis pour supprimer le compte."},
-                    status=status.HTTP_400_BAD_REQUEST,
-                )
-            if not pharmacy.check_password(password):
-                return Response(
-                    {"detail": "Mot de passe incorrect."},
-                    status=status.HTTP_401_UNAUTHORIZED,
-                )
-
-        # Blacklister tous les tokens JWT actifs liés à cette pharmacie
-        try:
-            from rest_framework_simplejwt.token_blacklist.models import (
-                OutstandingToken, BlacklistedToken,
+        # Titulaire uniquement : une session collaborateur ne peut pas supprimer.
+        if actor is not None:
+            return Response(
+                {"detail": "Seul le titulaire du compte peut demander la suppression."},
+                status=status.HTTP_403_FORBIDDEN,
             )
-            outstanding = OutstandingToken.objects.filter(user=pharmacy)
-            for token in outstanding:
-                BlacklistedToken.objects.get_or_create(token=token)
-        except Exception:
-            pass  # token_blacklist non configuré — on continue
+
+        # Ré-authentification par mot de passe (prouve l'identité du titulaire).
+        password = request.data.get('password', '').strip()
+        if not password:
+            return Response(
+                {"detail": "Le mot de passe est requis pour supprimer le compte."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        if not pharmacy.check_password(password):
+            return Response(
+                {"detail": "Mot de passe incorrect."},
+                status=status.HTTP_401_UNAUTHORIZED,
+            )
+
+        # Déjà programmée ?
+        if pharmacy.deletion_scheduled_for and not pharmacy.anonymized_at:
+            return Response(
+                {"detail": "Une suppression est déjà programmée.",
+                 "deletion_scheduled_for": pharmacy.deletion_scheduled_for},
+                status=status.HTTP_409_CONFLICT,
+            )
+
+        # Résilier l'abonnement Stripe en fin de période et caler l'échéance dessus.
+        from apps.billing.models import Subscription
+        from apps.billing.stripe_service import StripeService
+        scheduled_for = None
+        sub = Subscription.objects.filter(pharmacy=pharmacy).first()
+        if sub and sub.stripe_subscription_id and sub.is_access_allowed:
+            try:
+                StripeService.cancel_subscription(sub.stripe_subscription_id)
+                sub.cancel_at_period_end = True
+                sub.save(update_fields=['cancel_at_period_end', 'updated_at'])
+                scheduled_for = sub.current_period_end or sub.trial_ends_at
+            except Exception:
+                logger.exception(
+                    "Stripe cancel failed during deletion request — pharmacy_id=%s",
+                    pharmacy.id,
+                )
+        if scheduled_for is None:
+            scheduled_for = timezone.now() + timedelta(days=30)
+
+        pharmacy.deletion_requested_at = timezone.now()
+        pharmacy.deletion_scheduled_for = scheduled_for
+        pharmacy.save(update_fields=['deletion_requested_at', 'deletion_scheduled_for'])
 
         logger.warning(
-            "ACCOUNT DELETION — pharmacy_id=%s email=%s nom=%s",
-            pharmacy.id, pharmacy.email, pharmacy.nom_officine,
+            "ACCOUNT DELETION REQUESTED — pharmacy_id=%s email=%s scheduled_for=%s",
+            pharmacy.id, pharmacy.email, scheduled_for,
+        )
+        # (email de confirmation + exécution à l'échéance : étape suivante)
+        return Response(
+            {"detail": "Suppression programmée.",
+             "deletion_scheduled_for": scheduled_for},
+            status=status.HTTP_200_OK,
         )
 
-        # Suppression en cascade (voir audit Prompt 1 — aucun PROTECT bloquant)
-        pharmacy.delete()
 
-        return Response(status=status.HTTP_204_NO_CONTENT)
+class CancelAccountDeletionView(APIView):
+    """
+    POST /api/account/delete/cancel/
+    Annule une suppression programmée (réservé au titulaire) et reprend
+    l'abonnement Stripe le cas échéant.
+    """
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request):
+        pharmacy = request.user
+        actor = _get_collaborator(request)
+        if actor is not None:
+            return Response(
+                {"detail": "Seul le titulaire du compte peut annuler la suppression."},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+        if not pharmacy.deletion_scheduled_for or pharmacy.anonymized_at:
+            return Response(
+                {"detail": "Aucune suppression programmée."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        # Reprendre l'abonnement Stripe (annule le cancel_at_period_end).
+        import stripe
+        from apps.billing.models import Subscription
+        sub = Subscription.objects.filter(pharmacy=pharmacy).first()
+        if sub and sub.stripe_subscription_id and sub.cancel_at_period_end:
+            try:
+                stripe.Subscription.modify(sub.stripe_subscription_id, cancel_at_period_end=False)
+                sub.cancel_at_period_end = False
+                sub.save(update_fields=['cancel_at_period_end', 'updated_at'])
+            except Exception:
+                logger.exception(
+                    "Stripe resume failed during deletion cancel — pharmacy_id=%s",
+                    pharmacy.id,
+                )
+
+        pharmacy.deletion_requested_at = None
+        pharmacy.deletion_scheduled_for = None
+        pharmacy.save(update_fields=['deletion_requested_at', 'deletion_scheduled_for'])
+
+        logger.warning("ACCOUNT DELETION CANCELLED — pharmacy_id=%s", pharmacy.id)
+        return Response({"detail": "Suppression annulée."}, status=status.HTTP_200_OK)
 
 
 # ── Health-check ──────────────────────────────────────────────────────────────
