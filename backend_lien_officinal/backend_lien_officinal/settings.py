@@ -101,6 +101,7 @@ INSTALLED_APPS = [
     'apps.planning',       # Planning d'équipe
     'apps.quality',        # Qualité & procédures
     'apps.admin_panel',    # Admin SaaS interne
+    'apps.billing',        # Abonnements Stripe & crédits SMS
     # 'apps.notifications',  # Système de notifs (TEMPORAIREMENT DÉSACTIVÉ)
 ]
 
@@ -421,6 +422,13 @@ MAILGUN_DOMAIN = os.environ.get('MAILGUN_DOMAIN', 'mg.lienofficinal.fr')
 FRONTEND_BASE_URL = os.environ.get('FRONTEND_BASE_URL', 'http://localhost:4200')
 ADMIN_NOTIFICATION_EMAIL = os.environ.get('ADMIN_NOTIFICATION_EMAIL', 'admin@lienofficinal.fr')
 
+# --- Stripe (abonnements + packs SMS) ---
+STRIPE_SECRET_KEY      = os.environ.get('STRIPE_SECRET_KEY', '')
+STRIPE_PUBLISHABLE_KEY = os.environ.get('STRIPE_PUBLISHABLE_KEY', '')
+STRIPE_WEBHOOK_SECRET  = os.environ.get('STRIPE_WEBHOOK_SECRET', '')
+STRIPE_PRICE_SMALL     = os.environ.get('STRIPE_PRICE_SMALL', '')
+STRIPE_PRICE_LARGE     = os.environ.get('STRIPE_PRICE_LARGE', '')
+
 # --- CACHE (Redis) ---
 CACHES = {
     "default": {
@@ -441,6 +449,10 @@ from celery.schedules import crontab  # noqa: E402
 CELERY_BEAT_SCHEDULE = {
     'sms-cleanup-old-logs': {
         'task': 'sms.cleanup_old_sms_logs',
+        'schedule': crontab(hour=2, minute=0),  # chaque nuit à 2h00
+    },
+    'billing-check-plan-upgrades-nightly': {
+        'task': 'apps.billing.tasks.check_plan_upgrades',
         'schedule': crontab(hour=2, minute=0),  # chaque nuit à 2h00
     },
 }

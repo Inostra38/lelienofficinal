@@ -1,0 +1,44 @@
+{% extends "billing/invoice_base.html" %}
+
+{% block content %}
+<table class="invoice-table">
+  <thead>
+    <tr>
+      <th style="width: 50%">Description</th>
+      <th>Période</th>
+      <th>Quantité</th>
+      <th style="text-align: right">Montant HT</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>
+        <strong>Abonnement Le Lien Officinal</strong><br>
+        <span style="color: #6b7280; font-size: 8pt;">
+          Plan {{ plan_label }} — Accès à tous les modules
+        </span>
+      </td>
+      <td>{{ period_start }} au {{ period_end }}</td>
+      <td>1 mois</td>
+      <td class="amount">{{ amount_ht }}€</td>
+    </tr>
+  </tbody>
+</table>
+
+<div class="totals">
+  <table>
+    <tr>
+      <td>Sous-total HT</td>
+      <td>{{ amount_ht }}€</td>
+    </tr>
+    <tr>
+      <td>TVA ({{ tva_rate }}%)</td>
+      <td>{{ amount_tva }}€</td>
+    </tr>
+    <tr class="total-ttc">
+      <td>Total TTC</td>
+      <td>{{ amount_ttc }}€</td>
+    </tr>
+  </table>
+</div>
+{% endblock %}

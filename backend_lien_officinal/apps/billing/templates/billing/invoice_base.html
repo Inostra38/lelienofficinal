@@ -1,0 +1,259 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <style>
+    @page {
+      size: A4;
+      margin: 2cm 2cm 3cm 2cm;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
+      font-size: 10pt;
+      color: #1f2937;
+      line-height: 1.5;
+    }
+
+    /* En-tête */
+    .header {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      margin-bottom: 2cm;
+      padding-bottom: 0.5cm;
+      border-bottom: 2pt solid #15803d;
+    }
+
+    .header-left img {
+      height: 40pt;
+      margin-bottom: 6pt;
+    }
+
+    .header-left .company-name {
+      font-size: 13pt;
+      font-weight: bold;
+      color: #15803d;
+    }
+
+    .header-left .company-details {
+      font-size: 8pt;
+      color: #6b7280;
+      margin-top: 4pt;
+    }
+
+    .header-right {
+      text-align: right;
+    }
+
+    .header-right .doc-type {
+      font-size: 18pt;
+      font-weight: bold;
+      color: #1f2937;
+      text-transform: uppercase;
+      letter-spacing: 1pt;
+    }
+
+    .header-right .doc-number {
+      font-size: 9pt;
+      color: #6b7280;
+      margin-top: 4pt;
+    }
+
+    /* Bloc émetteur / destinataire */
+    .parties {
+      display: flex;
+      justify-content: space-between;
+      margin-bottom: 1.5cm;
+    }
+
+    .party-block {
+      width: 45%;
+    }
+
+    .party-label {
+      font-size: 7pt;
+      text-transform: uppercase;
+      letter-spacing: 0.5pt;
+      color: #9ca3af;
+      margin-bottom: 4pt;
+    }
+
+    .party-name {
+      font-size: 10pt;
+      font-weight: bold;
+      color: #1f2937;
+    }
+
+    .party-details {
+      font-size: 9pt;
+      color: #4b5563;
+      margin-top: 2pt;
+    }
+
+    /* Tableau lignes */
+    .invoice-table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-bottom: 1cm;
+    }
+
+    .invoice-table thead tr {
+      background-color: #f3f4f6;
+    }
+
+    .invoice-table th {
+      padding: 6pt 8pt;
+      text-align: left;
+      font-size: 8pt;
+      text-transform: uppercase;
+      letter-spacing: 0.3pt;
+      color: #6b7280;
+      border-bottom: 1pt solid #e5e7eb;
+    }
+
+    .invoice-table td {
+      padding: 8pt;
+      font-size: 9pt;
+      border-bottom: 0.5pt solid #f3f4f6;
+      vertical-align: top;
+    }
+
+    .invoice-table td.amount {
+      text-align: right;
+      font-variant-numeric: tabular-nums;
+    }
+
+    /* Totaux */
+    .totals {
+      width: 40%;
+      margin-left: auto;
+      margin-bottom: 1cm;
+    }
+
+    .totals table {
+      width: 100%;
+      border-collapse: collapse;
+    }
+
+    .totals td {
+      padding: 4pt 8pt;
+      font-size: 9pt;
+    }
+
+    .totals td:last-child {
+      text-align: right;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .totals .total-ttc td {
+      font-size: 11pt;
+      font-weight: bold;
+      color: #15803d;
+      border-top: 1pt solid #e5e7eb;
+      padding-top: 6pt;
+    }
+
+    /* Mentions légales */
+    .legal {
+      margin-top: 1cm;
+      padding-top: 0.5cm;
+      border-top: 0.5pt solid #e5e7eb;
+      font-size: 7pt;
+      color: #9ca3af;
+      line-height: 1.6;
+    }
+
+    /* Pied de page */
+    .footer {
+      position: fixed;
+      bottom: 1cm;
+      left: 2cm;
+      right: 2cm;
+      font-size: 7pt;
+      color: #d1d5db;
+      text-align: center;
+      border-top: 0.5pt solid #f3f4f6;
+      padding-top: 4pt;
+    }
+
+    /* Badge statut */
+    .badge-paid {
+      display: inline-block;
+      background-color: #d1fae5;
+      color: #065f46;
+      font-size: 8pt;
+      font-weight: bold;
+      padding: 2pt 8pt;
+      border-radius: 4pt;
+      text-transform: uppercase;
+      letter-spacing: 0.5pt;
+    }
+  </style>
+</head>
+<body>
+
+  <div class="header">
+    <div class="header-left">
+      {% if logo_base64 %}
+        <img src="data:image/png;base64,{{ logo_base64 }}" alt="Le Lien Officinal">
+      {% endif %}
+      <div class="company-name">Le Lien Officinal</div>
+      <div class="company-details">
+        {{ emetteur_adresse }}<br>
+        SIRET : {{ emetteur_siret }}<br>
+        {{ emetteur_email }}
+      </div>
+    </div>
+    <div class="header-right">
+      <div class="doc-type">{{ doc_type }}</div>
+      <div class="doc-number">N° {{ invoice_number }}</div>
+      <div class="doc-number">Date : {{ issued_at }}</div>
+      {% if paid_at %}
+        <div style="margin-top: 6pt;">
+          <span class="badge-paid">Payée</span>
+        </div>
+      {% endif %}
+    </div>
+  </div>
+
+  <div class="parties">
+    <div class="party-block">
+      <div class="party-label">Émetteur</div>
+      <div class="party-name">Le Lien Officinal SAS</div>
+      <div class="party-details">
+        {{ emetteur_adresse }}<br>
+        SIRET : {{ emetteur_siret }}<br>
+        N° TVA : {{ emetteur_tva_intra }}
+      </div>
+    </div>
+    <div class="party-block">
+      <div class="party-label">Facturé à</div>
+      <div class="party-name">{{ pharmacy_name }}</div>
+      <div class="party-details">
+        {{ pharmacy_adresse }}<br>
+        SIRET : {{ pharmacy_siret }}<br>
+        {{ pharmacy_email }}
+      </div>
+    </div>
+  </div>
+
+  {% block content %}{% endblock %}
+
+  <div class="legal">
+    <strong>Conditions de paiement :</strong> Prélèvement SEPA automatique.<br>
+    <strong>Mentions légales :</strong> Le Lien Officinal SAS — Capital social : {{ capital_social }}€ —
+    RCS {{ rcs }} — SIRET {{ emetteur_siret }} — N° TVA intracommunautaire : {{ emetteur_tva_intra }}.<br>
+    En cas de retard de paiement, des pénalités de retard au taux légal en vigueur seront appliquées,
+    ainsi qu'une indemnité forfaitaire pour frais de recouvrement de 40€ (art. L.441-10 du Code de commerce).
+    TVA non applicable si micro-entreprise — sinon TVA à {{ tva_rate }}%.
+  </div>
+
+  <div class="footer">
+    Le Lien Officinal SAS — {{ emetteur_adresse }} — contact@lienofficinal.fr — lienofficinal.fr
+  </div>
+
+</body>
+</html>
