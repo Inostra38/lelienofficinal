@@ -138,6 +138,7 @@ class SmsCreditTransaction(models.Model):
         PURCHASE = 'purchase', 'Achat de pack'
         SEND     = 'send',     'Envoi SMS'
         REFUND   = 'refund',   'Remboursement'
+        CLOSURE  = 'closure',  'Clôture du compte'
 
     pharmacy   = models.ForeignKey(
                      'core.Pharmacy',

@@ -90,6 +90,11 @@ class Pharmacy(AbstractBaseUser, PermissionsMixin):
     is_staff = models.BooleanField(default=False) # Nécessaire pour accéder à l'admin Django
     date_joined = models.DateTimeField(default=timezone.now)
 
+    # Suppression de compte différée + anonymisation RGPD (voir apps/core/account_deletion.py)
+    deletion_requested_at  = models.DateTimeField(_("Suppression demandée le"), null=True, blank=True)
+    deletion_scheduled_for = models.DateTimeField(_("Suppression programmée pour"), null=True, blank=True)
+    anonymized_at          = models.DateTimeField(_("Compte anonymisé le"), null=True, blank=True)
+
     # Configuration du Manager
     objects = PharmacyManager()
 
