@@ -148,13 +148,18 @@ def _clear_refresh_cookie(response: Response) -> None:
 def _audit(action: str, request, admin=None, detail: str = ''):
     """Enregistre une action dans le journal d'audit admin."""
     ip = _get_ip(request)
+    if admin is None:
+        # Sur les endpoints non authentifiés (login), request.user est un
+        # AnonymousUser : le FK admin n'accepte qu'un AdminUser (ou None).
+        user = getattr(request, 'user', None)
+        admin = user if isinstance(user, AdminUser) else None
     AdminAuditLog.objects.create(
-        admin=admin or getattr(request, 'user', None),
+        admin=admin,
         action=action,
         detail=detail,
         ip_address=ip,
     )
-    logger.info(f"AUDIT {action}: {detail} [admin={admin or getattr(request, 'user', None)}, ip={ip}]")
+    logger.info(f"AUDIT {action}: {detail} [admin={admin or 'unknown'}, ip={ip}]")
 
 
 # ── Views ────────────────────────────────────────────────────────────────────

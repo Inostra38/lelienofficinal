@@ -6,7 +6,7 @@ tests/integration/test_flux_sms.py. Ici on teste les cas unitaires.
 
 from unittest.mock import patch
 
-from django.test import TestCase
+from django.test import TestCase, override_settings
 from rest_framework.test import APIClient
 from rest_framework_simplejwt.tokens import RefreshToken
 
@@ -165,11 +165,16 @@ class TestSMSPreviewEncodage(TestCase):
 
 # ── SMSWebhookView ────────────────────────────────────────────────────────────
 
+WEBHOOK_SECRET = 'test-webhook-secret'
+
+
+@override_settings(SMS_WEBHOOK_SECRET=WEBHOOK_SECRET)
 class TestSMSWebhookDelivered(TestCase):
     """
     Webhook SMS Partner — POST /api/sms/webhook/<token>/?messageId=X&status=1
     Met à jour le statut SMSLog de PENDING à DELIVERED.
-    En test, SMS_WEBHOOK_SECRET n'est pas défini → token ignoré.
+    Le webhook est fail-closed (M2) : le token dans l'URL doit correspondre à
+    SMS_WEBHOOK_SECRET, sinon 503 (secret absent) ou 403 (token erroné).
     """
 
     def setUp(self):
@@ -186,7 +191,7 @@ class TestSMSWebhookDelivered(TestCase):
         """POST webhook avec status=1 (SMS Partner livré) → SMSLog.status = DELIVERED."""
         client = APIClient()
         resp = client.post(
-            '/api/sms/webhook/any-token/',
+            f'/api/sms/webhook/{WEBHOOK_SECRET}/',
             {'messageId': 'SP-MSG-42', 'status': 1},
             format='json',
         )
@@ -198,7 +203,7 @@ class TestSMSWebhookDelivered(TestCase):
         """POST webhook avec status≠1 → SMSLog.status = FAILED."""
         client = APIClient()
         resp = client.post(
-            '/api/sms/webhook/any-token/',
+            f'/api/sms/webhook/{WEBHOOK_SECRET}/',
             {'messageId': 'SP-MSG-42', 'status': 2},
             format='json',
         )
@@ -210,7 +215,7 @@ class TestSMSWebhookDelivered(TestCase):
         """Webhook avec messageId inexistant → 200 silencieux (pas d'erreur)."""
         client = APIClient()
         resp = client.post(
-            '/api/sms/webhook/any-token/',
+            f'/api/sms/webhook/{WEBHOOK_SECRET}/',
             {'messageId': 'INCONNU-9999', 'status': 1},
             format='json',
         )
@@ -220,7 +225,7 @@ class TestSMSWebhookDelivered(TestCase):
         """Webhook sans messageId → 400."""
         client = APIClient()
         resp = client.post(
-            '/api/sms/webhook/any-token/',
+            f'/api/sms/webhook/{WEBHOOK_SECRET}/',
             {'status': 1},
             format='json',
         )
@@ -230,7 +235,7 @@ class TestSMSWebhookDelivered(TestCase):
         """SMS Partner peut envoyer en GET (query params) — les deux méthodes supportées."""
         client = APIClient()
         resp = client.get(
-            '/api/sms/webhook/any-token/?messageId=SP-MSG-42&status=1',
+            f'/api/sms/webhook/{WEBHOOK_SECRET}/?messageId=SP-MSG-42&status=1',
         )
         self.assertEqual(resp.status_code, 200)
         self.log.refresh_from_db()

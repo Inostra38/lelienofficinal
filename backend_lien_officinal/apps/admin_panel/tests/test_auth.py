@@ -13,7 +13,7 @@ from apps.admin_panel.crypto import encrypt_totp_secret
 from apps.admin_panel.views import _issue_session_token
 
 
-def _make_admin(email='admin@test.com', password='AdminPass1!', totp_secret=''):
+def _make_admin(email='admin@lienofficinal.fr', password='AdminPass1!', totp_secret=''):
     admin = AdminUser.objects.create_admin(
         email=email,
         password=password,
@@ -38,14 +38,14 @@ class TestAdminLogin(TestCase):
     def test_login_wrong_password_401(self):
         with patch('apps.admin_panel.views.time.sleep'):  # accélère le test
             resp = self.client.post(self.url, {
-                'email': 'admin@test.com',
+                'email': 'admin@lienofficinal.fr',
                 'password': 'wrong',
             }, format='json', REMOTE_ADDR='127.0.0.1')
         self.assertEqual(resp.status_code, 401)
 
     def test_login_correct_returns_session_token(self):
         resp = self.client.post(self.url, {
-            'email': 'admin@test.com',
+            'email': 'admin@lienofficinal.fr',
             'password': 'AdminPass1!',
         }, format='json', REMOTE_ADDR='127.0.0.1')
         self.assertEqual(resp.status_code, 200)
@@ -56,7 +56,7 @@ class TestAdminLogin(TestCase):
     def test_login_unknown_email_401(self):
         with patch('apps.admin_panel.views.time.sleep'):
             resp = self.client.post(self.url, {
-                'email': 'nobody@test.com',
+                'email': 'nobody@lienofficinal.fr',
                 'password': 'AdminPass1!',
             }, format='json', REMOTE_ADDR='127.0.0.1')
         self.assertEqual(resp.status_code, 401)
@@ -117,7 +117,7 @@ class TestAdminIPWhitelist(TestCase):
     @override_settings(ADMIN_ALLOWED_IPS='10.0.0.1')
     def test_ip_blocked_returns_403(self):
         resp = self.client.post('/api/admin/auth/login/', {
-            'email': 'admin@test.com',
+            'email': 'admin@lienofficinal.fr',
             'password': 'AdminPass1!',
         }, format='json', REMOTE_ADDR='127.0.0.1')
         self.assertEqual(resp.status_code, 403)
@@ -126,20 +126,26 @@ class TestAdminIPWhitelist(TestCase):
     def test_ip_allowed_passes_middleware(self):
         with patch('apps.admin_panel.views.time.sleep'):
             resp = self.client.post('/api/admin/auth/login/', {
-                'email': 'admin@test.com',
+                'email': 'admin@lienofficinal.fr',
                 'password': 'wrong',
             }, format='json', REMOTE_ADDR='127.0.0.1')
         # Le middleware laisse passer → la vue répond (401 et non 403)
         self.assertEqual(resp.status_code, 401)
 
-    @override_settings(ADMIN_ALLOWED_IPS='127.0.0.1')
+    @override_settings(ADMIN_ALLOWED_IPS='127.0.0.1', ADMIN_TRUSTED_PROXY_COUNT=1)
     def test_ip_from_x_forwarded_for(self):
-        """L'IP est lue depuis X-Forwarded-For (proxy Scalingo)."""
+        """L'IP est lue depuis X-Forwarded-For, position anti-spoof (E2).
+
+        Avec 1 proxy de confiance (Scalingo), l'IP fiable est la DERNIÈRE de
+        X-Forwarded-For (ajoutée par notre infra) ; les entrées de gauche sont
+        contrôlables par le client. La vraie IP cliente (127.0.0.1) est donc en
+        fin de chaîne ; '10.0.0.99' à gauche simule une tentative de spoof.
+        """
         resp = self.client.post('/api/admin/auth/login/', {
-            'email': 'admin@test.com',
+            'email': 'admin@lienofficinal.fr',
             'password': 'AdminPass1!',
         }, format='json',
            REMOTE_ADDR='10.0.0.99',
-           HTTP_X_FORWARDED_FOR='127.0.0.1, 10.0.0.99')
-        # 127.0.0.1 est whitelistée → le middleware laisse passer
+           HTTP_X_FORWARDED_FOR='10.0.0.99, 127.0.0.1')
+        # 127.0.0.1 (dernière entrée = fiable) est whitelistée → pas de 403
         self.assertNotEqual(resp.status_code, 403)
