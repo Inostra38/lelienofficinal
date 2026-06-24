@@ -68,6 +68,11 @@
           </p>
           <div id="sepa-element" [class.hidden]="!sepaReady()" class="border border-gray-300 rounded-lg px-3 py-3 bg-white"></div>
 
+          <p class="text-xs text-gray-400 flex items-start gap-1.5">
+            <span>🔒</span>
+            <span>Paiement sécurisé via notre partenaire Stripe. Aucun RIB n'est stocké par Le Lien Officinal.</span>
+          </p>
+
           <!-- Champ code promo -->
           <div class="space-y-2">
             <label class="block text-sm font-medium text-gray-700">
@@ -163,6 +168,11 @@
             Paiement du pack <strong>{{ selectedPackLabel() }}</strong> ({{ selectedPackPrice() }}) par carte :
           </p>
           <div id="sms-card-element" class="border border-gray-300 rounded-lg px-3 py-3 bg-white"></div>
+
+          <p class="text-xs text-gray-400 flex items-start gap-1.5">
+            <span>🔒</span>
+            <span>Paiement sécurisé via notre partenaire Stripe. Aucune donnée de carte n'est stockée par Le Lien Officinal.</span>
+          </p>
           <div class="flex gap-2">
             <button
               (click)="paySmsPack()"
