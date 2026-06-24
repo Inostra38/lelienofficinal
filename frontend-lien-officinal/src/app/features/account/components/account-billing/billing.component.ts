@@ -282,6 +282,14 @@ export class AccountBillingComponent implements OnInit {
   // Helpers                                                              //
   // ------------------------------------------------------------------ //
 
+  downloadInvoice(inv: Invoice) {
+    this.errorMessage.set(null);
+    this.billingService.downloadInvoice(inv.id).subscribe({
+      next: ({ download_url }) => window.open(download_url, '_blank'),
+      error: () => this.errorMessage.set('Téléchargement de la facture impossible.'),
+    });
+  }
+
   statusLabel(status: string): string {
     const labels: Record<string, string> = {
       trialing:  'Essai gratuit',

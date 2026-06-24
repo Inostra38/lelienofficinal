@@ -196,6 +196,7 @@
               <th class="pb-2 font-medium">Montant TTC</th>
               <th class="pb-2 font-medium">Date</th>
               <th class="pb-2 font-medium">Statut</th>
+              <th class="pb-2 font-medium"></th>
             </tr>
           </thead>
           <tbody class="divide-y divide-gray-50">
@@ -213,6 +214,12 @@
                   } @else {
                     <span class="text-amber-600 text-xs font-medium">En attente</span>
                   }
+                </td>
+                <td class="py-2 text-right">
+                  <button (click)="downloadInvoice(inv)"
+                          class="text-xs text-green-700 hover:text-green-800 hover:underline">
+                    Télécharger
+                  </button>
                 </td>
               </tr>
             }

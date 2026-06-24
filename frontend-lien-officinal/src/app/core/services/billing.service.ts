@@ -70,4 +70,8 @@ export class BillingService {
   getInvoices(): Observable<Invoice[]> {
     return this.http.get<Invoice[]>(`${this.base}/invoices/`);
   }
+
+  downloadInvoice(invoiceId: number): Observable<{ download_url: string }> {
+    return this.http.get<{ download_url: string }>(`${this.base}/invoices/${invoiceId}/download/`);
+  }
 }
