@@ -70,3 +70,24 @@ class StripeWebhookTests(TestCase):
         })
         self.assertEqual(resp.status_code, 200)
         mock_task.delay.assert_not_called()
+
+    @patch('apps.billing.views.generate_subscription_invoice')
+    @patch('apps.billing.views.StripeService.construct_webhook_event', return_value=None)
+    def test_invoice_paid_new_api_format(self, _mock, mock_gen):
+        # API 2025+/dahlia : l'id d'abonnement est dans parent.subscription_details.
+        pharmacy = make_pharmacy()
+        sub = Subscription.objects.create(
+            pharmacy=pharmacy, stripe_subscription_id='sub_x', status='trialing',
+        )
+        resp = _post(self.client, {
+            'type': 'invoice.paid',
+            'data': {'object': {
+                'id': 'in_1', 'amount_paid': 3900, 'subscription': None,
+                'parent': {'subscription_details': {'subscription': 'sub_x'}},
+                'lines': {'data': [{'period': {'end': 1893456000}}]},
+            }},
+        })
+        self.assertEqual(resp.status_code, 200)
+        sub.refresh_from_db()
+        self.assertEqual(sub.status, Subscription.Status.ACTIVE)
+        mock_gen.delay.assert_called_once()

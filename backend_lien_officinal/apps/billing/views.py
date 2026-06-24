@@ -24,6 +24,19 @@ from apps.billing.tasks import (
 logger = logging.getLogger(__name__)
 
 
+def _invoice_subscription_id(stripe_invoice: dict):
+    """ID de l'abonnement d'une facture, compatible toutes versions d'API Stripe.
+
+    Avant 2025 : invoice['subscription']. Depuis (API 2025+/dahlia) : déplacé dans
+    invoice['parent']['subscription_details']['subscription'].
+    """
+    sid = stripe_invoice.get('subscription')
+    if sid:
+        return sid
+    parent = stripe_invoice.get('parent') or {}
+    return (parent.get('subscription_details') or {}).get('subscription')
+
+
 @method_decorator(csrf_exempt, name='dispatch')
 class StripeWebhookView(View):
     """
@@ -74,7 +87,7 @@ class StripeWebhookView(View):
 
     def _handle_invoice_paid(self, stripe_invoice):
         """Abonnement payé → status active + génération facture WeasyPrint."""
-        stripe_sub_id = stripe_invoice.get('subscription')
+        stripe_sub_id = _invoice_subscription_id(stripe_invoice)
         if not stripe_sub_id:
             return
 
@@ -100,7 +113,7 @@ class StripeWebhookView(View):
 
     def _handle_invoice_payment_failed(self, stripe_invoice):
         """Paiement échoué → status past_due + suspension programmée J+7 via Celery."""
-        stripe_sub_id = stripe_invoice.get('subscription')
+        stripe_sub_id = _invoice_subscription_id(stripe_invoice)
         if not stripe_sub_id:
             return
 
