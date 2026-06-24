@@ -91,3 +91,22 @@ class StripeWebhookTests(TestCase):
         sub.refresh_from_db()
         self.assertEqual(sub.status, Subscription.Status.ACTIVE)
         mock_gen.delay.assert_called_once()
+
+    @patch('apps.billing.views.generate_subscription_invoice')
+    @patch('apps.billing.views.StripeService.construct_webhook_event', return_value=None)
+    def test_invoice_paid_zero_amount_ignored(self, _mock, mock_gen):
+        # Factures à 0 € (essai / proration) : aucune facture client générée.
+        pharmacy = make_pharmacy()
+        Subscription.objects.create(
+            pharmacy=pharmacy, stripe_subscription_id='sub_z', status='trialing',
+        )
+        resp = _post(self.client, {
+            'type': 'invoice.paid',
+            'data': {'object': {
+                'id': 'in_0', 'amount_paid': 0, 'subscription': None,
+                'parent': {'subscription_details': {'subscription': 'sub_z'}},
+                'lines': {'data': [{'period': {'end': 1893456000}}]},
+            }},
+        })
+        self.assertEqual(resp.status_code, 200)
+        mock_gen.delay.assert_not_called()

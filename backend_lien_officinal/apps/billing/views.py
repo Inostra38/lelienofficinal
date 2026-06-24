@@ -91,6 +91,10 @@ class StripeWebhookView(View):
         if not stripe_sub_id:
             return
 
+        # Factures à 0 € (essai / proration) : pas de facture client émise.
+        if not stripe_invoice.get('amount_paid'):
+            return
+
         try:
             sub = Subscription.objects.get(stripe_subscription_id=stripe_sub_id)
         except Subscription.DoesNotExist:
