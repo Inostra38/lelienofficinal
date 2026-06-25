@@ -104,3 +104,20 @@ jobs:
         run: |
           git remote add scalingo git@ssh.osc-fr1.scalingo.com:${{ secrets.SCALINGO_APP_NAME }}.git
           git push scalingo main --force
+
+      # La phase release du Procfile n'est PAS exécutée par Scalingo sur cette app
+      # (vérifié : aucun conteneur release, migrations jamais appliquées → 500
+      # UndefinedColumn). On applique donc les migrations explicitement depuis la CI.
+      - name: Installer le CLI Scalingo
+        run: |
+          curl -O https://cli-dl.scalingo.com/release/scalingo_latest_linux_amd64.tar.gz
+          tar -xzf scalingo_latest_linux_amd64.tar.gz
+          sudo mv scalingo_*_linux_amd64/scalingo /usr/local/bin/
+          scalingo --version
+
+      - name: Appliquer les migrations Django sur Scalingo
+        env:
+          SCALINGO_API_TOKEN: ${{ secrets.SCALINGO_API_TOKEN }}
+        run: |
+          timeout 300 scalingo --region osc-fr1 --app "${{ secrets.SCALINGO_APP_NAME }}" \
+            run -- python /app/backend_lien_officinal/manage.py migrate --noinput
