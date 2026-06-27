@@ -32,6 +32,22 @@ class CreditSmsBalanceTests(TestCase):
             SmsCreditTransaction.objects.filter(pharmacy=self.pharmacy).count(), 1
         )
 
+    def test_payment_intent_unique_constraint(self):
+        """La contrainte unique partielle interdit deux crédits du même PI
+        (filet anti double-crédit sous concurrence)."""
+        from django.db import IntegrityError
+        SmsCreditTransaction.objects.create(
+            pharmacy=self.pharmacy, delta=100,
+            reason=SmsCreditTransaction.Reason.PURCHASE,
+            stripe_payment_intent_id='pi_dup',
+        )
+        with self.assertRaises(IntegrityError):
+            SmsCreditTransaction.objects.create(
+                pharmacy=self.pharmacy, delta=100,
+                reason=SmsCreditTransaction.Reason.PURCHASE,
+                stripe_payment_intent_id='pi_dup',
+            )
+
 
 class GenerateSubscriptionInvoiceTests(TestCase):
     @patch('apps.billing.email_service.send_subscription_invoice_email')

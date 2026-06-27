@@ -88,6 +88,13 @@ class ValidatePromoCodeViewTests(TestCase):
         resp = self.client.post('/api/billing/promo/validate/', {}, format='json')
         self.assertEqual(resp.status_code, 400)
 
+    def test_validate_has_throttle_configured(self):
+        """Anti brute-force : la vue impose bien le throttle promo (le 429 réel
+        n'est pas testable ici — cache DummyCache en settings_test)."""
+        from apps.billing.views import ValidatePromoCodeView, PromoValidateThrottle
+        self.assertIn(PromoValidateThrottle, ValidatePromoCodeView.throttle_classes)
+        self.assertEqual(PromoValidateThrottle.scope, 'promo_validate')
+
 
 class UpdatePaymentMethodViewTests(TestCase):
     """Changement de RIB en autonomie."""

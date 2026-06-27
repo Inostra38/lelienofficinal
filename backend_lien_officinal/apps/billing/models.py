@@ -148,12 +148,22 @@ class SmsCreditTransaction(models.Model):
     delta      = models.IntegerField()   # positif = crédit, négatif = débit
     reason     = models.CharField(max_length=20, choices=Reason.choices)
     note       = models.CharField(max_length=255, blank=True)
+    # Idempotence des crédits d'achat : un PaymentIntent ne peut être crédité
+    # qu'une seule fois (contrainte unique partielle ci-dessous).
+    stripe_payment_intent_id = models.CharField(max_length=255, null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
         verbose_name = 'Transaction SMS'
         verbose_name_plural = 'Transactions SMS'
         ordering = ['-created_at']
+        constraints = [
+            models.UniqueConstraint(
+                fields=['stripe_payment_intent_id'],
+                condition=models.Q(stripe_payment_intent_id__isnull=False),
+                name='bill_sms_tx_pi_unique',
+            ),
+        ]
         indexes = [
             models.Index(fields=['pharmacy', 'created_at'], name='bill_sms_tx_phcy_date_idx'),
         ]

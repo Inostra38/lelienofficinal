@@ -81,6 +81,21 @@ def execute_account_deletion(pharmacy_id: int) -> bool:
             note='Clôture du compte — crédits perdus',
         )
 
+    # 3b) Effacement RGPD côté Stripe : supprimer le customer (PII : email, nom,
+    #     IBAN/CB). Stripe conserve ses propres enregistrements financiers pour ses
+    #     obligations légales. On n'échoue pas l'anonymisation si Stripe erre.
+    from apps.billing.models import Subscription
+    sub = Subscription.objects.filter(pharmacy=pharmacy).first()
+    if sub and sub.stripe_customer_id:
+        try:
+            import stripe
+            stripe.Customer.delete(sub.stripe_customer_id)
+        except Exception:
+            logger.exception(
+                "Stripe customer delete failed during anonymization — pharmacy_id=%s",
+                pharmacy.id,
+            )
+
     # 4) Anonymisation de la pharmacie (la ligne survit pour les factures).
     pid = pharmacy.id
     pharmacy.email = f'deleted-{pid}@deleted.invalid'

@@ -341,6 +341,7 @@ REST_FRAMEWORK = {
         'sms_send_collaborator': '50/hour', # envoi SMS par collaborateur
         'admin_login': '5/hour',            # tentatives login admin
         'admin_totp': '10/hour',            # tentatives TOTP admin
+        'promo_validate': '10/min',         # validation code promo (anti brute-force/énumération)
     },
 }
 

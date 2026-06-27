@@ -83,18 +83,15 @@ def credit_sms_balance(self, pharmacy_id: int, quantity: int,
     """
     from apps.core.models import Pharmacy
     from apps.billing.models import SmsCreditTransaction
-    from django.db import transaction
+    from django.db import transaction, IntegrityError
     from django.db.models import F
 
     try:
         with transaction.atomic():
-            # Idempotence : Stripe peut redélivrer payment_intent.succeeded.
-            # On ne crédite pas deux fois le même PaymentIntent.
-            already = SmsCreditTransaction.objects.filter(
-                reason=SmsCreditTransaction.Reason.PURCHASE,
-                note__contains=payment_intent_id,
-            ).exists()
-            if already:
+            # Idempotence (fast-path) : Stripe peut redélivrer payment_intent.succeeded.
+            if SmsCreditTransaction.objects.filter(
+                stripe_payment_intent_id=payment_intent_id
+            ).exists():
                 logger.info('credit_sms_balance: PI %s déjà traité, ignoré', payment_intent_id)
                 return
 
@@ -105,23 +102,30 @@ def credit_sms_balance(self, pharmacy_id: int, quantity: int,
                 logger.warning('credit_sms_balance: pharmacy %s introuvable', pharmacy_id)
                 return
 
+            # La contrainte unique sur stripe_payment_intent_id ferme la course :
+            # deux livraisons concurrentes du même PI → IntegrityError → rollback
+            # du crédit (atomic) → pas de double-crédit.
             SmsCreditTransaction.objects.create(
                 pharmacy_id=pharmacy_id,
                 delta=quantity,
                 reason=SmsCreditTransaction.Reason.PURCHASE,
                 note=f'Pack {quantity} SMS — PI {payment_intent_id}',
+                stripe_payment_intent_id=payment_intent_id,
             )
-
-        generate_sms_receipt.delay(
-            pharmacy_id=pharmacy_id,
-            payment_intent_id=payment_intent_id,
-            amount_cents=amount_cents,
-            quantity=quantity,
-        )
-
+    except IntegrityError:
+        logger.info('credit_sms_balance: PI %s crédité en parallèle (race), ignoré', payment_intent_id)
+        return
     except Exception as exc:
         logger.exception('credit_sms_balance error: %s', exc)
         raise self.retry(exc=exc, countdown=60)
+
+    # Reçu PDF + email uniquement après crédit réellement appliqué.
+    generate_sms_receipt.delay(
+        pharmacy_id=pharmacy_id,
+        payment_intent_id=payment_intent_id,
+        amount_cents=amount_cents,
+        quantity=quantity,
+    )
 
 
 # ------------------------------------------------------------------ #

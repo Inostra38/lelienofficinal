@@ -10,6 +10,7 @@ from django.views.decorators.csrf import csrf_exempt
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
+from rest_framework.throttling import UserRateThrottle
 from rest_framework import status as drf_status
 
 from apps.billing.models import Subscription, Invoice, PromoCode, PromoRedemption
@@ -22,6 +23,11 @@ from apps.billing.tasks import (
 )
 
 logger = logging.getLogger(__name__)
+
+
+class PromoValidateThrottle(UserRateThrottle):
+    """Anti brute-force / énumération des codes promo (rate dans settings)."""
+    scope = 'promo_validate'
 
 
 def _invoice_subscription_id(stripe_invoice: dict):
@@ -418,6 +424,7 @@ class ValidatePromoCodeView(APIView):
     Permet à Angular d'afficher un aperçu avant confirmation.
     """
     permission_classes = [IsAuthenticated]
+    throttle_classes = [PromoValidateThrottle]
 
     def post(self, request):
         code = request.data.get('code', '').strip()
