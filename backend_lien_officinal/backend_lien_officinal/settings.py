@@ -433,7 +433,9 @@ STRIPE_PRICE_LARGE     = os.environ.get('STRIPE_PRICE_LARGE', '')
 # --- CACHE (Redis) ---
 CACHES = {
     "default": {
-        "BACKEND": "django.core.cache.backends.redis.RedisCache",
+        # Backend « fail-open » : un hoquet Redis ne fait pas tomber l'auth/API
+        # (sinon les throttles DRF lèvent une 500 dans check_throttles).
+        "BACKEND": "apps.core.cache.ResilientRedisCache",
         "LOCATION": _REDIS_URL or 'redis://localhost:6379/1',
     }
 }
