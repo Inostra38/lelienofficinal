@@ -52,6 +52,17 @@ def execute_account_deletion(pharmacy_id: int) -> bool:
     from apps.quality.models import NonConformity
     NonConformity.objects.filter(pharmacy=pharmacy).delete()
 
+    # 1b) Shift et AbsenceRequest n'ont pas de FK pharmacy directe : leur seul
+    #     lien locataire est ``collaborator`` en ``on_delete=SET_NULL``. Le
+    #     balayage générique (2) ne les atteint donc pas, et la suppression des
+    #     collaborateurs les orphelinerait (collaborator=NULL) au lieu de les
+    #     effacer — laissant en base des données RH sensibles (motifs d'absence
+    #     dont « maladie », noms via ``collaborator_snapshot``) après
+    #     l'anonymisation. On les supprime ici, tant que le lien existe encore.
+    from apps.planning.models import Shift, AbsenceRequest
+    Shift.objects.filter(collaborator__pharmacy=pharmacy).delete()
+    AbsenceRequest.objects.filter(collaborator__pharmacy=pharmacy).delete()
+
     # 2) Balayage générique : supprime toutes les relations inverses (FK et O2O)
     #    NON facturation. On ignore les M2M inverses (supprimerait des objets
     #    partagés) et les apps conservées.

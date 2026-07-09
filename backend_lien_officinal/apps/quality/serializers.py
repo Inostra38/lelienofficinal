@@ -162,6 +162,26 @@ class ProcedureDetailSerializer(serializers.ModelSerializer):
     images = ProcedureImageSerializer(many=True, read_only=True)
     history = ProcedureVersionSerializer(many=True, read_only=True)
 
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        # Sécurité multi-tenant : borner les cibles assignables à la pharmacie
+        # courante. Sans ce filtre (queryset=…objects.all()), un id de
+        # collaborateur / catégorie / groupe d'une AUTRE officine pouvait être
+        # attaché à une procédure, puis son nom/prénom relu via get_pilots →
+        # fuite de données personnelles inter-clients.
+        request = self.context.get('request')
+        if request is not None and request.user.is_authenticated:
+            pharmacy = request.user
+            self.fields['pilot_ids'].child_relation.queryset = (
+                Collaborator.objects.filter(pharmacy=pharmacy)
+            )
+            self.fields['category_ids'].child_relation.queryset = (
+                ProcedureCategory.objects.filter(pharmacy=pharmacy)
+            )
+            self.fields['group'].queryset = (
+                ProcedureGroup.objects.filter(pharmacy=pharmacy)
+            )
+
     class Meta:
         model = Procedure
         fields = [

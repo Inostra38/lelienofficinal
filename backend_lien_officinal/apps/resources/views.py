@@ -201,7 +201,13 @@ def wizard_complete(request):
             assigned_cat = category_map.get(cat_nom, autre_cat)
 
             try:
-                card = ResourceCard.objects.get(pk=resource_id)
+                # Seules les cartes partagées (OFFICIAL/PARTNER) sont adoptables,
+                # comme dans assign_category_to_card. Sans ce filtre, un id de
+                # carte PRIVATE d'une autre officine adopté ici la rendrait
+                # lisible au dashboard de l'appelant (fuite inter-clients).
+                card = ResourceCard.objects.get(
+                    pk=resource_id, type__in=['OFFICIAL', 'PARTNER']
+                )
                 PharmacyPreference.objects.get_or_create(
                     pharmacy=pharmacy,
                     card=card,
