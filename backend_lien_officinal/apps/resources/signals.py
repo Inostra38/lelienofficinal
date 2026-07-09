@@ -27,6 +27,10 @@ def _send_recommendation_email(instance_type: str, title: str, pharmacy_name: st
                     f"Acc\u00e9der au panel admin pour valider :\n{admin_url}"
                 ),
             },
+            # Ce signal tourne dans le thread sync de la requête : sans timeout,
+            # un Mailgun qui ne répond pas fige le conteneur ASGI entier (et le
+            # except ci-dessous ne se déclenche jamais, rien n'étant levé).
+            timeout=5,
         )
     except Exception:
         pass  # fail silently

@@ -386,7 +386,13 @@ if _REDIS_URL:
         "default": {
             "BACKEND": "channels_redis.core.RedisChannelLayer",
             "CONFIG": {
-                "hosts": [_REDIS_URL],
+                # socket_timeout doit rester > brpop_timeout (5 s) de
+                # RedisChannelLayer, sinon chaque receive() lève en boucle.
+                "hosts": [{
+                    "address": _REDIS_URL,
+                    "socket_connect_timeout": 2,
+                    "socket_timeout": 10,
+                }],
             },
         }
     }
@@ -437,6 +443,15 @@ CACHES = {
         # (sinon les throttles DRF lèvent une 500 dans check_throttles).
         "BACKEND": "apps.core.cache.ResilientRedisCache",
         "LOCATION": _REDIS_URL or 'redis://localhost:6379/1',
+        # Ces timeouts conditionnent le fail-open : sans eux, redis-py attend
+        # indéfiniment sur une socket morte, ne lève rien, et le except du
+        # backend ne se déclenche jamais. Django exécutant toutes les vues sync
+        # sur l'unique thread de asgiref, un seul appel bloqué fige le conteneur.
+        "OPTIONS": {
+            "socket_connect_timeout": 1,
+            "socket_timeout": 2,
+            "health_check_interval": 30,
+        },
     }
 }
 
