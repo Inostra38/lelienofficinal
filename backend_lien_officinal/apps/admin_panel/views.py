@@ -789,7 +789,8 @@ class ListOfficialCardsView(APIView):
 # ── Helpers ──────────────────────────────────────────────────────────────────
 
 def _get_ip(request) -> str:
-    forwarded = request.META.get('HTTP_X_FORWARDED_FOR')
-    if forwarded:
-        return forwarded.split(',')[0].strip()
-    return request.META.get('REMOTE_ADDR', '')
+    # S20 : déléguer au helper anti-spoofing (E2) plutôt que de lire l'entrée la
+    # plus à GAUCHE de X-Forwarded-For, contrôlable par le client — sinon l'IP
+    # enregistrée dans les logs d'audit admin et last_login_ip est falsifiable.
+    from .middleware import get_client_ip
+    return get_client_ip(request)

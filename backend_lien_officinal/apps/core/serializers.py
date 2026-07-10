@@ -1,6 +1,28 @@
+from django.core.exceptions import ValidationError as DjangoValidationError
 from rest_framework import serializers
 from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
 from .models import Pharmacy
+
+
+class LogoValidationMixin:
+    """S17 : le logo pharmacie ne passait par aucune validation d'upload → un
+    SVG/HTML pouvait être stocké (vecteur XSS servi ensuite). On applique la même
+    allowlist type/extension/taille que les autres téléversements."""
+
+    def validate_logo(self, value):
+        if value:
+            from apps.core.upload_validation import (
+                validate_upload, ALLOWED_IMAGE_TYPES, ALLOWED_IMAGE_EXTENSIONS,
+            )
+            try:
+                validate_upload(
+                    value,
+                    allowed_types=ALLOWED_IMAGE_TYPES,
+                    allowed_extensions=ALLOWED_IMAGE_EXTENSIONS,
+                )
+            except DjangoValidationError as e:
+                raise serializers.ValidationError(e.messages)
+        return value
 
 
 class PharmacyTokenObtainPairSerializer(TokenObtainPairSerializer):
@@ -60,7 +82,7 @@ class ProfileSetupSerializer(serializers.ModelSerializer):
         return value
 
 
-class PharmacySerializer(serializers.ModelSerializer):
+class PharmacySerializer(LogoValidationMixin, serializers.ModelSerializer):
     """Serializer pour les informations de la pharmacie"""
 
     class Meta:
@@ -99,7 +121,7 @@ class ResetPasswordSerializer(serializers.Serializer):
     password = serializers.CharField(min_length=8, write_only=True)
 
 
-class PharmacyUpdateSerializer(serializers.ModelSerializer):
+class PharmacyUpdateSerializer(LogoValidationMixin, serializers.ModelSerializer):
     """Serializer pour mettre à jour les informations de la pharmacie"""
 
     class Meta:
