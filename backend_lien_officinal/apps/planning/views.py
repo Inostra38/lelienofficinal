@@ -996,20 +996,15 @@ class BulkShiftUpdateView(APIView):
         from zoneinfo import ZoneInfo
         tz = ZoneInfo('Europe/Paris')
 
-        # Collecter toutes les dates couvertes
-        try:
-            dates = list({date.fromisoformat(item['date']) for item in items})
-        except (KeyError, ValueError) as e:
-            return Response({'detail': f'Format de date invalide : {e}'}, status=status.HTTP_400_BAD_REQUEST)
-
-        # Supprimer tous les shifts existants sur ces dates pour cette pharmacie
-        Shift.objects.filter(
-            collaborator__pharmacy=request.user,
-            start_datetime__date__in=dates,
-        ).delete()
-
-        created_shifts = []
-        violations = []
+        # Q01 : valider TOUS les items AVANT toute suppression. La docstring
+        # promettait une opération atomique mais la version précédente
+        # supprimait les shifts existants puis pouvait sortir en 400 au milieu
+        # de la boucle de création (date/heure invalide, collaborateur
+        # introuvable) → suppression déjà commitée, planning partiellement
+        # recréé, perte de données. On parse et on résout tout d'abord ; un
+        # échec ici ne détruit rien.
+        specs = []
+        dates = set()
         for item in items:
             try:
                 collab_id  = item['collaborator_id']
@@ -1021,7 +1016,6 @@ class BulkShiftUpdateView(APIView):
                     {'detail': f'Données invalides dans le shift : {e}'},
                     status=status.HTTP_400_BAD_REQUEST,
                 )
-
             try:
                 collaborator = Collaborator.objects.get(id=collab_id, pharmacy=request.user)
             except Collaborator.DoesNotExist:
@@ -1029,27 +1023,41 @@ class BulkShiftUpdateView(APIView):
                     {'detail': f'Collaborateur {collab_id} introuvable ou non autorisé.'},
                     status=status.HTTP_400_BAD_REQUEST,
                 )
-
             start_dt = timezone.make_aware(dt.combine(shift_date, start_time), tz)
             end_dt   = timezone.make_aware(dt.combine(shift_date, end_time), tz)
+            specs.append((collaborator, shift_date, start_dt, end_dt,
+                          item.get('post', '') or item.get('note', '')))
+            dates.add(shift_date)
 
-            shift = Shift(
-                collaborator=collaborator,
-                start_datetime=start_dt,
-                end_datetime=end_dt,
-                is_published=False,
-                note=item.get('post', '') or item.get('note', ''),
-            )
-            try:
-                shift.save()
-                created_shifts.append(shift)
-            except ValidationError as e:
-                collab_name = f"{collaborator.first_name} {collaborator.last_name}"
-                violations.append({
-                    'shift_date': str(shift_date),
-                    'collaborator': collab_name,
-                    'error': e.messages[0] if e.messages else str(e),
-                })
+        # Suppression + recréation dans une seule transaction : tout ou rien.
+        created_shifts = []
+        violations = []
+        with transaction.atomic():
+            Shift.objects.filter(
+                collaborator__pharmacy=request.user,
+                start_datetime__date__in=dates,
+            ).delete()
+
+            for collaborator, shift_date, start_dt, end_dt, note in specs:
+                shift = Shift(
+                    collaborator=collaborator,
+                    start_datetime=start_dt,
+                    end_datetime=end_dt,
+                    is_published=False,
+                    note=note,
+                )
+                try:
+                    shift.save()
+                    created_shifts.append(shift)
+                except ValidationError as e:
+                    # Violation métier « douce » : on la remonte sans détruire
+                    # le reste (ce shift n'est simplement pas créé).
+                    collab_name = f"{collaborator.first_name} {collaborator.last_name}"
+                    violations.append({
+                        'shift_date': str(shift_date),
+                        'collaborator': collab_name,
+                        'error': e.messages[0] if e.messages else str(e),
+                    })
 
         return Response({'shifts': ShiftSerializer(created_shifts, many=True).data, 'violations': violations})
 
@@ -1338,6 +1346,14 @@ class ConstraintsView(APIView):
         return Response(ConstraintSerializer(constraints, many=True).data)
 
     def post(self, request):
+        # S08 : cette création n'avait aucun contrôle can_manage_planning
+        # (contrairement aux autres écritures planning), alors que les
+        # contraintes biaisent la génération IA du planning. Même convention
+        # que le reste du module : le jeton pharmacie de base (actor=None) a les
+        # droits titulaire, un collaborateur sans le droit est refusé.
+        actor = _get_collaborator(request)
+        if actor and not actor.can_manage_planning:
+            return Response({'detail': 'Permission insuffisante.'}, status=status.HTTP_403_FORBIDDEN)
         constraint_set = _get_or_create_constraint_set(request.user)
         level = request.data.get('level', 'pharmacy')
         if level == 'regulatory':
@@ -1382,9 +1398,20 @@ class ConstraintDetailView(APIView):
             return None
 
     def patch(self, request, pk):
+        # S11 : ni contrôle de permission, ni protection des contraintes
+        # réglementaires (seul delete les protégeait) → un collaborateur pouvait
+        # désactiver (is_active) une contrainte réglementaire.
+        actor = _get_collaborator(request)
+        if actor and not actor.can_manage_planning:
+            return Response({'detail': 'Permission insuffisante.'}, status=status.HTTP_403_FORBIDDEN)
         constraint = self._get_constraint(request, pk)
         if not constraint:
             return Response({"detail": "Introuvable."}, status=status.HTTP_404_NOT_FOUND)
+        if constraint.level == Constraint.Level.REGULATORY:
+            return Response(
+                {"detail": "Les contraintes réglementaires ne peuvent pas être modifiées."},
+                status=status.HTTP_403_FORBIDDEN,
+            )
         if 'description' in request.data:
             constraint.description = request.data['description']
         if 'is_active' in request.data:
