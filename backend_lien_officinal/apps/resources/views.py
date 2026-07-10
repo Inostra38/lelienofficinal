@@ -475,6 +475,19 @@ class ResourceCardViewSet(viewsets.ModelViewSet):
             ordre=0
         )
 
+    def perform_update(self, serializer):
+        # MT10 : le serializer expose ``category`` sur Category.objects.all().
+        # Sans ce contrôle (absent car il n'y avait pas de perform_update), un
+        # PATCH pouvait rattacher sa carte à la catégorie d'une autre officine.
+        # On reflète la vérification déjà faite dans perform_create.
+        from rest_framework import serializers as drf_serializers
+        category = serializer.validated_data.get('category')
+        if category and category.owner_pharmacy != self.request.user:
+            raise drf_serializers.ValidationError(
+                {"category": "Cette catégorie ne vous appartient pas."}
+            )
+        serializer.save()
+
 
 # =====================================================
 # ITEMS (CRUD)

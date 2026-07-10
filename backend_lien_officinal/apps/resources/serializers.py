@@ -33,6 +33,18 @@ class ResourceItemSerializer(serializers.ModelSerializer):
             'owner': {'read_only': True}
         }
 
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        # MT09 : borner ``card`` aux cartes privées de la pharmacie courante.
+        # Sans ça (queryset=ResourceCard.objects.all() implicite), un item
+        # pouvait être rattaché à la carte d'une autre officine.
+        request = self.context.get('request')
+        if request is not None and request.user.is_authenticated and 'card' in self.fields:
+            from .models import ResourceCard
+            self.fields['card'].queryset = ResourceCard.objects.filter(
+                owner_pharmacy=request.user
+            )
+
     def validate_file(self, value):
         if value:
             if value.content_type not in ALLOWED_FILE_TYPES:

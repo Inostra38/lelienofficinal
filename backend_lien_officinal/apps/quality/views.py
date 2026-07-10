@@ -225,6 +225,33 @@ class ProcedureViewSet(viewsets.ModelViewSet):
                 status=status.HTTP_403_FORBIDDEN,
             )
 
+        # MT08 : group_id et parent_id étaient assignés en brut, sans vérifier
+        # leur appartenance à la pharmacie — un id de groupe/procédure d'une
+        # autre officine pouvait être rattaché ici (le serializer, borné par
+        # ailleurs, est court-circuité par cette action). On valide en masse.
+        group_ids = {item['group_id'] for item in items if item.get('group_id') is not None}
+        if group_ids:
+            valid_groups = set(
+                ProcedureGroup.objects.filter(id__in=group_ids, pharmacy=pharmacy)
+                .values_list('id', flat=True)
+            )
+            if group_ids - valid_groups:
+                return Response(
+                    {'detail': 'Un ou plusieurs groupes sont introuvables ou non autorisés.'},
+                    status=status.HTTP_403_FORBIDDEN,
+                )
+        parent_ids = {item['parent_id'] for item in items if item.get('parent_id') is not None}
+        if parent_ids:
+            valid_parents = set(
+                Procedure.objects.filter(id__in=parent_ids, pharmacy=pharmacy)
+                .values_list('id', flat=True)
+            )
+            if parent_ids - valid_parents:
+                return Response(
+                    {'detail': 'Une ou plusieurs procédures parentes sont non autorisées.'},
+                    status=status.HTTP_403_FORBIDDEN,
+                )
+
         with transaction.atomic():
             for item in items:
                 p = procedures[item['id']]
