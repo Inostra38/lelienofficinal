@@ -121,6 +121,30 @@ class StripeWebhookTests(TestCase):
 
     @patch('apps.billing.views.generate_subscription_invoice')
     @patch('apps.billing.views.StripeService.construct_webhook_event', return_value=None)
+    def test_invoice_paid_transmet_la_periode_facturee(self, _mock, mock_gen):
+        # Q05 : la période facturée (start ET end) doit être transmise à la tâche
+        # de génération, distincte, et non start == end == current_period_end.
+        pharmacy = make_pharmacy()
+        Subscription.objects.create(
+            pharmacy=pharmacy, stripe_subscription_id='sub_p', status='trialing',
+        )
+        start_ts, end_ts = 1890777600, 1893456000  # start < end
+        _post(self.client, {
+            'type': 'invoice.paid',
+            'data': {'object': {
+                'id': 'in_p', 'amount_paid': 3900, 'subscription': None,
+                'parent': {'subscription_details': {'subscription': 'sub_p'}},
+                'lines': {'data': [{'period': {'start': start_ts, 'end': end_ts}}]},
+            }},
+        })
+        mock_gen.delay.assert_called_once()
+        kwargs = mock_gen.delay.call_args.kwargs
+        self.assertEqual(kwargs['period_start_ts'], start_ts)
+        self.assertEqual(kwargs['period_end_ts'], end_ts)
+        self.assertNotEqual(kwargs['period_start_ts'], kwargs['period_end_ts'])
+
+    @patch('apps.billing.views.generate_subscription_invoice')
+    @patch('apps.billing.views.StripeService.construct_webhook_event', return_value=None)
     def test_invoice_paid_zero_amount_ignored(self, _mock, mock_gen):
         # Factures à 0 € (essai / proration) : aucune facture client générée.
         pharmacy = make_pharmacy()

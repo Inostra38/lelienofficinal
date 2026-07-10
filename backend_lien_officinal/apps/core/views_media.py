@@ -9,6 +9,7 @@ Préfixes gérés :
   quality/images/       → ProcedureImage (vérifié via procedure.pharmacy)
   pharmacy_logos/       → Pharmacy.logo (vérifié via request.user)
   cards/                → OFFICIAL/PARTNER : partagés ; PRIVATE : réservé au propriétaire (M1)
+  invoices/             → facture PDF réservée à la pharmacie propriétaire (Q06)
   (tout autre préfixe)  → refusé par défaut (M1 : deny-by-default)
 """
 
@@ -40,6 +41,14 @@ def _check_quality_image(path: str, pharmacy) -> bool:
 
 def _check_pharmacy_logo(path: str, pharmacy) -> bool:
     return str(pharmacy.logo) == path if pharmacy.logo else False
+
+
+def _check_invoice(path: str, pharmacy) -> bool:
+    """Q06 : une facture PDF (invoices/{pharmacy_id}/...) n'est servie qu'à la
+    pharmacie propriétaire. Sans ce contrôle, le préfixe invoices/ tombait dans
+    le deny-by-default → téléchargement de facture cassé en storage local."""
+    from apps.billing.models import Invoice
+    return Invoice.objects.filter(pdf_storage_key=path, pharmacy=pharmacy).exists()
 
 
 def _check_card_media(path: str, pharmacy) -> bool:
@@ -102,6 +111,8 @@ def serve_protected_media(request, path):
             allowed = _check_pharmacy_logo(path, pharmacy)
         elif path.startswith("cards/"):
             allowed = _check_card_media(path, pharmacy)
+        elif path.startswith("invoices/"):
+            allowed = _check_invoice(path, pharmacy)
         else:
             allowed = False
 

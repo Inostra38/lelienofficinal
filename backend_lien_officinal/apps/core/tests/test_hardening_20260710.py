@@ -67,3 +67,34 @@ class TestInactivityAdRoute(TestCase):
         # Q03 : la route doit résoudre vers /api/ads/inactivity/ (et non une URL
         # absolue collée dans path()).
         self.assertEqual(reverse('inactivity-ad'), '/api/ads/inactivity/')
+
+
+class TestInvoiceMediaAccess(TestCase):
+    """Q06 — le préfixe invoices/ est servi avec contrôle d'appartenance."""
+
+    def test_check_invoice_proprietaire_vs_autre(self):
+        from apps.billing.models import Invoice
+        from apps.core.views_media import _check_invoice
+
+        proprio = _pharma()
+        key = f'invoices/{proprio.id}/INV-1.pdf'
+        Invoice.objects.create(
+            pharmacy=proprio, invoice_type=Invoice.InvoiceType.SUBSCRIPTION,
+            invoice_number='INV-1', pdf_storage_key=key, amount_ht=10, amount_ttc=12,
+        )
+        autre = _pharma()
+        self.assertTrue(_check_invoice(key, proprio))
+        self.assertFalse(_check_invoice(key, autre))
+
+    def test_facture_dautre_pharmacie_404(self):
+        from apps.billing.models import Invoice
+
+        proprio = _pharma()
+        key = f'invoices/{proprio.id}/INV-2.pdf'
+        Invoice.objects.create(
+            pharmacy=proprio, invoice_type=Invoice.InvoiceType.SUBSCRIPTION,
+            invoice_number='INV-2', pdf_storage_key=key, amount_ht=10, amount_ttc=12,
+        )
+        autre = _pharma()
+        resp = _client(autre).get(f'/media/{key}')
+        self.assertEqual(resp.status_code, 404)

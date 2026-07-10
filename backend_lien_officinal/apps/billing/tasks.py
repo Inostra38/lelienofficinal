@@ -140,8 +140,10 @@ def _get_pharmacy(pharmacy_id: int):
 
 @shared_task(bind=True, max_retries=3)
 def generate_subscription_invoice(self, pharmacy_id: int,
-                                   stripe_invoice_id: str, amount_cents: int):
+                                   stripe_invoice_id: str, amount_cents: int,
+                                   period_start_ts: int = None, period_end_ts: int = None):
     """Génère la facture PDF abonnement (WeasyPrint) et la stocke."""
+    from datetime import datetime, timezone as dt_timezone
     from apps.billing.models import Invoice, Subscription
     from apps.billing.pdf_service import generate_subscription_invoice_pdf
 
@@ -163,12 +165,24 @@ def generate_subscription_invoice(self, pharmacy_id: int,
             amount_ttc=0,
         )
 
+        # Q05 : période facturée réelle (start ≠ end). Repli sur
+        # current_period_end si une tâche ancienne (sans ces params) est encore
+        # en file — mais les nouvelles factures portent la vraie période.
+        period_start = (
+            datetime.fromtimestamp(period_start_ts, tz=dt_timezone.utc)
+            if period_start_ts else sub.current_period_end
+        )
+        period_end = (
+            datetime.fromtimestamp(period_end_ts, tz=dt_timezone.utc)
+            if period_end_ts else sub.current_period_end
+        )
+
         generate_subscription_invoice_pdf(
             invoice=invoice,
             pharmacy=pharmacy,
             amount_ttc_cents=amount_cents,
-            period_start=sub.current_period_end,
-            period_end=sub.current_period_end,
+            period_start=period_start,
+            period_end=period_end,
         )
 
         logger.info('Facture abonnement générée : %s', invoice.invoice_number)

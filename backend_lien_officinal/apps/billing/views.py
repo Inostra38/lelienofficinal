@@ -107,11 +107,15 @@ class StripeWebhookView(View):
             logger.warning('invoice.paid: subscription introuvable %s', stripe_sub_id)
             return
 
+        # Q05 : capturer la période FACTURÉE (start ET end) depuis la ligne
+        # Stripe. Avant, seul 'end' était lu et la facture PDF affichait
+        # period_start == period_end (les deux = current_period_end).
+        period = stripe_invoice['lines']['data'][0]['period']
+        period_start_ts = period.get('start')
+        period_end_ts = period.get('end')
+
         sub.status = Subscription.Status.ACTIVE
-        sub.current_period_end = datetime.fromtimestamp(
-            stripe_invoice['lines']['data'][0]['period']['end'],
-            tz=dt_timezone.utc,
-        )
+        sub.current_period_end = datetime.fromtimestamp(period_end_ts, tz=dt_timezone.utc)
         sub.save(update_fields=['status', 'current_period_end', 'updated_at'])
 
         # Génération facture WeasyPrint en tâche asynchrone
@@ -119,6 +123,8 @@ class StripeWebhookView(View):
             pharmacy_id=sub.pharmacy_id,
             stripe_invoice_id=stripe_invoice['id'],
             amount_cents=stripe_invoice['amount_paid'],
+            period_start_ts=period_start_ts,
+            period_end_ts=period_end_ts,
         )
 
     def _handle_invoice_payment_failed(self, stripe_invoice):
