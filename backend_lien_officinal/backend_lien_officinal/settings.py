@@ -452,7 +452,21 @@ CACHES = {
             "socket_timeout": 2,
             "health_check_interval": 30,
         },
-    }
+    },
+    # Révocation des tokens admin — cache SÉPARÉ, volontairement fail-CLOSED.
+    # Contrairement au `default` résilient (fail-open pour ne pas tomber l'API),
+    # ce backend Redis natif LÈVE si Redis est injoignable. Le check de blacklist
+    # (admin_panel.authentication.is_jti_revoked) refuse alors le token : on ne
+    # veut JAMAIS accepter un token admin révoqué parce que Redis a hoqueté (S21).
+    "admin_revocation": {
+        "BACKEND": "django.core.cache.backends.redis.RedisCache",
+        "LOCATION": _REDIS_URL or 'redis://localhost:6379/1',
+        "OPTIONS": {
+            "socket_connect_timeout": 1,
+            "socket_timeout": 2,
+            "health_check_interval": 30,
+        },
+    },
 }
 
 # --- CELERY ---

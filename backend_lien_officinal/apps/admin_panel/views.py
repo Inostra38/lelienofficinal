@@ -9,7 +9,7 @@ import jwt
 import pyotp
 import qrcode
 from django.conf import settings
-from django.core.cache import cache
+from django.core.cache import cache, caches
 from django.utils import timezone as django_tz
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
@@ -17,7 +17,7 @@ from rest_framework.throttling import AnonRateThrottle
 from rest_framework.views import APIView
 from rest_framework import status
 
-from .authentication import AdminJWTAuthentication
+from .authentication import AdminJWTAuthentication, is_jti_revoked
 from .models import AdminUser, AdminAuditLog
 from .crypto import decrypt_totp_secret, encrypt_totp_secret
 from .serializers import ChangePasswordSerializer
@@ -118,12 +118,18 @@ def _blacklist_jti(payload: dict) -> None:
         return
     ttl = int(payload.get('exp', 0) - datetime.now(tz=timezone.utc).timestamp())
     if ttl > 0:
-        cache.set(f"admin_blacklist_{jti}", True, timeout=ttl)
+        # S21 : la blacklist vit dans le cache dédié `admin_revocation` (Redis
+        # natif, fail-closed à la lecture). Best-effort à l'écriture pour ne pas
+        # faire échouer le logout si Redis tousse — durant l'indisponibilité la
+        # lecture refuse de toute façon tous les tokens (fail-closed).
+        try:
+            caches['admin_revocation'].set(f"admin_blacklist_{jti}", True, timeout=ttl)
+        except Exception:
+            logger.warning("Blacklist admin : écriture Redis échouée (jti=%s)", jti, exc_info=True)
 
 
 def _is_blacklisted(payload: dict) -> bool:
-    jti = payload.get('jti')
-    return bool(jti and cache.get(f"admin_blacklist_{jti}"))
+    return is_jti_revoked(payload.get('jti'))
 
 
 def _set_refresh_cookie(response: Response, token: str) -> None:
