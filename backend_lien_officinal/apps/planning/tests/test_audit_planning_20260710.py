@@ -15,7 +15,7 @@ from rest_framework.test import APIClient
 from rest_framework_simplejwt.tokens import AccessToken, RefreshToken
 
 from apps.core.models import Pharmacy
-from apps.planning.models import Constraint, ConstraintSet, Shift
+from apps.planning.models import Constraint, ConstraintSet, Shift, TimeAdjustment
 from apps.team.models import Collaborator
 
 _n = 0
@@ -34,8 +34,10 @@ def _pharma_client(p):
 
 
 def _collab(pharmacy, **perms):
+    global _n
+    _n += 1
     c = Collaborator.objects.create(
-        pharmacy=pharmacy, first_name="A", last_name="B",
+        pharmacy=pharmacy, first_name=f"C{_n}", last_name="X",
         role=Collaborator.Role.PREPARATEUR, color="#112233", weekly_hours=35, **perms,
     )
     c.set_pin("1234")
@@ -124,3 +126,40 @@ class TestConstraintAuthz(TestCase):
             f'/api/planning/constraints/{c.id}/', {'description': 'modif'}, format='json',
         )
         self.assertEqual(resp.status_code, 403)
+
+
+class TestTimeAdjustmentDeleteAuthz(TestCase):
+    """S10 — « ses propres ajustements » = ceux qu'il a déclarés (declared_by)."""
+
+    def _adj(self, pharmacy, collaborator, declared_by):
+        return TimeAdjustment.objects.create(
+            collaborator=collaborator, declared_by=declared_by,
+            date=timezone.now().date(), type=TimeAdjustment.Type.OVERTIME,
+            actual_time=datetime.time(19, 0), reference_time=datetime.time(18, 0),
+            duration_minutes=60,
+        )
+
+    def test_sujet_non_declarant_ne_peut_pas_supprimer(self):
+        pharma = _pharma()
+        manager = _collab(pharma, can_manage_planning=True)
+        salarie = _collab(pharma)
+        # le manager a saisi un ajustement AU SUJET du salarié
+        adj = self._adj(pharma, collaborator=salarie, declared_by=manager)
+        resp = _collab_client(pharma, salarie).delete(f'/api/planning/adjustments/{adj.id}/')
+        self.assertEqual(resp.status_code, 403)
+        self.assertTrue(TimeAdjustment.objects.filter(id=adj.id).exists())
+
+    def test_declarant_peut_supprimer_le_sien(self):
+        pharma = _pharma()
+        salarie = _collab(pharma)
+        adj = self._adj(pharma, collaborator=salarie, declared_by=salarie)
+        resp = _collab_client(pharma, salarie).delete(f'/api/planning/adjustments/{adj.id}/')
+        self.assertEqual(resp.status_code, 204)
+
+    def test_manager_peut_tout_supprimer(self):
+        pharma = _pharma()
+        manager = _collab(pharma, can_manage_planning=True)
+        salarie = _collab(pharma)
+        adj = self._adj(pharma, collaborator=salarie, declared_by=salarie)
+        resp = _collab_client(pharma, manager).delete(f'/api/planning/adjustments/{adj.id}/')
+        self.assertEqual(resp.status_code, 204)

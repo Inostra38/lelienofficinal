@@ -1242,8 +1242,11 @@ class TimeAdjustmentDeleteView(APIView):
         except TimeAdjustment.DoesNotExist:
             return Response({'detail': 'Introuvable.'}, status=status.HTTP_404_NOT_FOUND)
 
-        # Staff peut supprimer ses propres ajustements, manager peut tout supprimer
-        if actor and not actor.can_manage_planning and adj.collaborator != actor:
+        # S10 : « ses propres ajustements » = ceux qu'il a DÉCLARÉS (declared_by),
+        # pas ceux dont il est le sujet (collaborator). Sans ça, un salarié
+        # pouvait supprimer un ajustement qu'un manager avait saisi à son sujet.
+        # Le manager (can_manage_planning) peut tout supprimer.
+        if actor and not actor.can_manage_planning and adj.declared_by != actor:
             return Response({'detail': 'Permission insuffisante.'}, status=status.HTTP_403_FORBIDDEN)
 
         adj.delete()
