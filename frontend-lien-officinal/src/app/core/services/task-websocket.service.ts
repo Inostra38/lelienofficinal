@@ -29,8 +29,11 @@ export class TaskWebSocketService implements OnDestroy {
 
   private _doConnect(token: string): void {
     this.shouldReconnect = true;
-    const url = `${environment.wsUrl}/ws/tasks/?token=${encodeURIComponent(token)}`;
-    this.socket = new WebSocket(url);
+    // S18/S19 : jeton passé en SOUS-PROTOCOLE (comme la messagerie), pas en
+    // query string. Le middleware backend ne lit que le sous-protocole, et un
+    // jeton en query string finit dans les logs serveur/proxy.
+    const url = `${environment.wsUrl}/ws/tasks/`;
+    this.socket = new WebSocket(url, ['bearer', token]);
 
     this.socket.onmessage = () => {
       this.events$.next();

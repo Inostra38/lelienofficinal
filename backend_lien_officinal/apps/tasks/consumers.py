@@ -19,7 +19,10 @@ class TaskConsumer(AsyncWebsocketConsumer):
         self.room_group_name = f'tasks_pharmacy_{self.pharmacy_id}'
 
         await self.channel_layer.group_add(self.room_group_name, self.channel_name)
-        await self.accept()
+        # Q09 : échoter le sous-protocole 'bearer' (comme le consumer messagerie).
+        # Le client offre ['bearer', <jwt>] ; un navigateur exige que le serveur
+        # confirme l'un des sous-protocoles offerts, sinon il rejette le handshake.
+        await self.accept(subprotocol='bearer')
 
     async def disconnect(self, close_code):
         if hasattr(self, 'room_group_name'):
