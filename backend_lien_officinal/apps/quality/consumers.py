@@ -40,7 +40,8 @@ class QualityAIConsumer(AsyncWebsocketConsumer):
         if not collaborator:
             await self.close(code=4003)
             return
-        await self.accept()
+        # Échoter le sous-protocole offert par le client (['bearer', <jwt>]).
+        await self.accept(subprotocol='bearer')
 
     async def disconnect(self, code):
         pass

@@ -20,7 +20,8 @@ class SMSStatusConsumer(AsyncWebsocketConsumer):
         self.room_group_name = f'sms_status_{self.pharmacy_id}'
 
         await self.channel_layer.group_add(self.room_group_name, self.channel_name)
-        await self.accept()
+        # Échoter le sous-protocole offert par le client (['bearer', <jwt>]).
+        await self.accept(subprotocol='bearer')
 
     async def disconnect(self, close_code):
         if hasattr(self, 'room_group_name'):

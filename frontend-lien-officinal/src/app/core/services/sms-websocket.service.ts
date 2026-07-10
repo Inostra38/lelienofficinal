@@ -39,8 +39,10 @@ export class SmsWebSocketService implements OnDestroy {
 
   private _doConnect(token: string): void {
     this.shouldReconnect = true;
-    const url = `${environment.wsUrl}/ws/sms/status/?token=${encodeURIComponent(token)}`;
-    this.socket = new WebSocket(url);
+    // Jeton en sous-protocole (le middleware ne lit que ça ; un jeton en query
+    // string finit dans les logs serveur/proxy). Cohérent avec la messagerie.
+    const url = `${environment.wsUrl}/ws/sms/status/`;
+    this.socket = new WebSocket(url, ['bearer', token]);
 
     this.socket.onopen = () => {
       this.backoffDelay = WS_BACKOFF_INITIAL; // reset au succès

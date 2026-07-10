@@ -46,8 +46,10 @@ export class QualityAiWsService implements OnDestroy {
         return;
       }
 
-      const url = `${environment.wsUrl}/ws/quality/ai/?token=${encodeURIComponent(token)}`;
-      const ws  = new WebSocket(url);
+      // Jeton en sous-protocole (le middleware ne lit que ça ; un jeton en
+      // query string finit dans les logs). Cohérent avec la messagerie.
+      const url = `${environment.wsUrl}/ws/quality/ai/`;
+      const ws  = new WebSocket(url, ['bearer', token]);
 
       ws.onopen = () => {
         this.socket            = ws;
