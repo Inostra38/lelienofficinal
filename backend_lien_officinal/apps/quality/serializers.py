@@ -190,6 +190,12 @@ class ProcedureDetailSerializer(serializers.ModelSerializer):
             'content', 'created_by', 'created_at', 'archived_by', 'archived_at',
             'next_review_date', 'attachments', 'images', 'history',
         ]
+        # S01/Q11 : status et version ne doivent PAS être modifiables par un
+        # PATCH direct — les transitions passent par les actions dédiées
+        # (publish/archive, qui écrivent status en bypassant le serializer) et
+        # l'incrément de version par le versioning. Sans ça, un éditeur sans
+        # droit de publication pouvait fixer status='published' via PATCH.
+        read_only_fields = ['status', 'version', 'archived_at']
         validators = []  # Gestion manuelle pour l'unicité de la référence
 
     def get_pilots(self, obj):
@@ -294,6 +300,11 @@ class NonConformityDetailSerializer(NonConformityListSerializer):
         fields = NonConformityListSerializer.Meta.fields + [
             'description', 'closed_at', 'closed_by', 'corrective_actions',
         ]
+        # S02/S07 : le statut d'une NC (dont la clôture) ne passe QUE par les
+        # actions dédiées assign/close (gardées par CanCloseNonConformities).
+        # Sans ce read_only, un PATCH direct fixait status='closed' + closed_at
+        # en contournant la permission.
+        read_only_fields = ['status', 'closed_at', 'created_at']
 
     def get_closed_by(self, obj):
         return _collab_repr(obj.closed_by)

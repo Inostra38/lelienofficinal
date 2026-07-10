@@ -94,6 +94,14 @@ class ProcedureViewSet(viewsets.ModelViewSet):
             return [IsAuthenticated(), CanPublishProcedures()]
         if self.action in ('archive', 'unarchive'):
             return [IsAuthenticated(), CanManageProcedures()]
+        # S04 : ces actions retombaient sur IsAuthenticated par défaut → tout
+        # collaborateur pouvait ajouter une image / une pièce jointe à une
+        # procédure. L'écriture exige les droits d'édition (le GET des pièces
+        # jointes reste ouvert, borné par le queryset).
+        if self.action == 'upload_image':
+            return [IsAuthenticated(), CanEditProcedure()]
+        if self.action == 'attachments' and self.request.method == 'POST':
+            return [IsAuthenticated(), CanEditProcedure()]
         return [IsAuthenticated()]
 
     def perform_create(self, serializer):
@@ -431,6 +439,15 @@ class ProcedureAttachmentViewSet(viewsets.GenericViewSet):
 
 class NonConformityViewSet(viewsets.ModelViewSet):
     permission_classes = [IsAuthenticated]
+
+    def get_permissions(self):
+        # S02 : le ModelViewSet exposait update/partial_update/destroy en
+        # IsAuthenticated seul → tout collaborateur pouvait modifier/supprimer
+        # une non-conformité, ou la clôturer par PATCH, en contournant les
+        # actions dédiées assign/close (elles, gardées). On gate les écritures.
+        if self.action in ('update', 'partial_update', 'destroy'):
+            return [IsAuthenticated(), CanManageQuality()]
+        return [IsAuthenticated()]
 
     def get_queryset(self):
         qs = (
