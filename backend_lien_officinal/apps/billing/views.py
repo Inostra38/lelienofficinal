@@ -306,6 +306,15 @@ class ConfirmSubscriptionView(APIView):
                 status=drf_status.HTTP_404_NOT_FOUND
             )
 
+        # Q04 : garde anti-rejeu. Sans ça, un double POST (double-clic, retry
+        # réseau) créait un SECOND abonnement Stripe et écrasait l'id du premier
+        # dans sub → abonnement orphelin facturé + double prélèvement.
+        if sub.stripe_subscription_id:
+            return Response(
+                {'error': 'Un abonnement est déjà actif pour cette pharmacie.'},
+                status=drf_status.HTTP_409_CONFLICT,
+            )
+
         # Attacher le moyen de paiement au customer
         stripe.PaymentMethod.attach(
             payment_method_id,
