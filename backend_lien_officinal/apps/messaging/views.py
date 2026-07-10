@@ -167,6 +167,10 @@ class MessageListCreateView(APIView):
             sender=collaborator,
             content=serializer.validated_data['content'],
         )
+        # Q07 : réapparition automatique, cohérente avec le chemin WebSocket
+        # (consumers.save_message). Sans ça, une conversation masquée par un
+        # participant ne réapparaissait pas quand un message arrivait via HTTP.
+        conversation.hidden_by.clear()
         return Response(
             MessageSerializer(message, context={'request': request}).data,
             status=status.HTTP_201_CREATED

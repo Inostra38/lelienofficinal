@@ -9,7 +9,9 @@ PERMISSION_FIELDS = [
 
 class CollaboratorSerializer(serializers.ModelSerializer):
     """Serializer pour lire et mettre à jour les collaborateurs"""
-    pin = serializers.CharField(write_only=True, required=False)
+    # S13 : mêmes bornes qu'à la création (CollaboratorCreateSerializer) — sans
+    # ça, une mise à jour pouvait fixer un PIN d'un seul caractère.
+    pin = serializers.CharField(write_only=True, required=False, min_length=4, max_length=6)
 
     class Meta:
         model = Collaborator
