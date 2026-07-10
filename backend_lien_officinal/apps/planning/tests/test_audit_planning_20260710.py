@@ -15,7 +15,7 @@ from rest_framework.test import APIClient
 from rest_framework_simplejwt.tokens import AccessToken, RefreshToken
 
 from apps.core.models import Pharmacy
-from apps.planning.models import Constraint, ConstraintSet, Shift, TimeAdjustment
+from apps.planning.models import AbsenceRequest, Constraint, ConstraintSet, Shift, TimeAdjustment
 from apps.team.models import Collaborator
 
 _n = 0
@@ -163,3 +163,48 @@ class TestTimeAdjustmentDeleteAuthz(TestCase):
         adj = self._adj(pharma, collaborator=salarie, declared_by=salarie)
         resp = _collab_client(pharma, manager).delete(f'/api/planning/adjustments/{adj.id}/')
         self.assertEqual(resp.status_code, 204)
+
+
+class TestGenerateTemplateAuthz(TestCase):
+    """Balayage — GenerateTemplateView.post doit exiger can_manage_planning."""
+
+    def test_prepa_sans_droit_403(self):
+        pharma = _pharma()
+        prepa = _collab(pharma)
+        resp = _collab_client(pharma, prepa).post(
+            '/api/planning/constraints/generate/', {'rotation': 2, 'conversation': []}, format='json',
+        )
+        self.assertEqual(resp.status_code, 403)
+
+
+class TestMonthlyAbsenceHealthData(TestCase):
+    """Balayage — le type d'absence (maladie) ne doit pas fuiter aux non-managers."""
+
+    def setUp(self):
+        self.pharma = _pharma()
+        self.salarie = _collab(self.pharma)
+        import datetime as _dt
+        jour = _dt.date.today().replace(day=15)
+        AbsenceRequest.objects.create(
+            collaborator=self.salarie, start_date=jour, end_date=jour,
+            type='maladie', status=AbsenceRequest.Status.APPROVED,
+        )
+        self.month = jour.strftime('%Y-%m')
+
+    def test_non_manager_ne_voit_pas_le_motif(self):
+        prepa = _collab(self.pharma)
+        resp = _collab_client(self.pharma, prepa).get(
+            f'/api/planning/absences/monthly-summary/?month={self.month}',
+        )
+        self.assertEqual(resp.status_code, 200)
+        blob = str(resp.data)
+        self.assertNotIn('maladie', blob)
+        self.assertIn('absent', blob)
+
+    def test_manager_voit_le_motif(self):
+        manager = _collab(self.pharma, can_manage_planning=True)
+        resp = _collab_client(self.pharma, manager).get(
+            f'/api/planning/absences/monthly-summary/?month={self.month}',
+        )
+        self.assertEqual(resp.status_code, 200)
+        self.assertIn('maladie', str(resp.data))

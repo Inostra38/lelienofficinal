@@ -588,6 +588,13 @@ class MonthlyAbsenceSummaryView(APIView):
     permission_classes = [IsAuthenticated]
 
     def get(self, request):
+        # Balayage : le TYPE d'absence (dont « maladie », donnée de santé) était
+        # exposé à tout collaborateur. On garde le calendrier (qui/quand) visible
+        # pour la couverture d'équipe, mais on ne révèle le motif qu'aux managers
+        # (le jeton pharmacie de base = titulaire). Un non-manager voit « absent ».
+        actor = _get_collaborator(request)
+        is_manager = (actor is None) or actor.can_manage_planning
+
         month_str = request.query_params.get('month')
         try:
             year, mo = int(month_str.split('-')[0]), int(month_str.split('-')[1])
@@ -615,9 +622,9 @@ class MonthlyAbsenceSummaryView(APIView):
                 iso = current.isoformat()
                 result.setdefault(iso, []).append({
                     'collaborator_id': absence.collaborator.id,
-                    'initials': f"{absence.collaborator.first_name[0]}{absence.collaborator.last_name[0]}".upper(),
+                    'initials': (absence.collaborator.first_name[:1] + absence.collaborator.last_name[:1]).upper(),
                     'color':    absence.collaborator.color,
-                    'type':     absence.type,
+                    'type':     absence.type if is_manager else 'absent',
                 })
                 current += timedelta(days=1)
 
@@ -1448,7 +1455,18 @@ class GenerateTemplateView(APIView):
     throttle_classes = [GenerateTemplateThrottle]
 
     def post(self, request):
-        rotation     = int(request.data.get('rotation', 2))
+        # Balayage : aucune garde de permission (contrairement aux autres
+        # écritures planning) → un non-manager déclenchait la génération IA
+        # (coût Anthropic) et lisait, via le poll, les données de toute l'équipe.
+        actor = _get_collaborator(request)
+        if actor and not actor.can_manage_planning:
+            return Response({'detail': 'Permission insuffisante.'}, status=status.HTTP_403_FORBIDDEN)
+
+        try:
+            rotation = int(request.data.get('rotation', 2))
+        except (TypeError, ValueError):
+            return Response({'detail': 'rotation invalide.'}, status=status.HTTP_400_BAD_REQUEST)
+        rotation = max(1, min(rotation, 4))  # borne : 1 à 4 semaines
         conversation = request.data.get('conversation', [])
 
         constraint_set = _get_or_create_constraint_set(request.user)
