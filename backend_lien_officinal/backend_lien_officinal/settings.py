@@ -16,6 +16,12 @@ if SENTRY_DSN:
         integrations=[DjangoIntegration()],
         traces_sample_rate=0.2,
         send_default_pii=False,
+        # C23/C24 : send_default_pii=False ne suffit pas pour une app de santé.
+        # Par défaut Sentry capture le CORPS des requêtes (max_request_body_size
+        # ~'medium') et les VARIABLES LOCALES des stack traces — où transite le
+        # contenu déchiffré des messages patient. On coupe les deux.
+        max_request_body_size="never",
+        include_local_variables=False,
     )
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
