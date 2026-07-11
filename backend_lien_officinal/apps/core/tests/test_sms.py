@@ -63,6 +63,37 @@ class TestSMSSendDebitCredits(TestCase):
         # Celery appelé
         mock_task.delay.assert_called_once()
 
+    @patch('apps.core.tasks.send_sms_task')
+    def test_envoi_cree_transaction_registre_send(self, mock_task):
+        # C21 : le débit doit être journalisé dans SmsCreditTransaction (audit).
+        from apps.billing.models import SmsCreditTransaction
+        mock_task.delay.return_value = None
+        resp = self.client.post(
+            '/api/sms/send/', {'to': '+33612345678', 'message': 'Bonjour'}, format='json',
+        )
+        self.assertEqual(resp.status_code, 202)
+        tx = SmsCreditTransaction.objects.filter(
+            pharmacy=self.pharmacy, reason=SmsCreditTransaction.Reason.SEND,
+        )
+        self.assertEqual(tx.count(), 1)
+        self.assertLess(tx.first().delta, 0)  # débit
+
+    @patch('apps.core.tasks.send_sms_task')
+    @patch('apps.core.views_sms.SMSLog.objects.create', side_effect=RuntimeError('DB down'))
+    def test_echec_creation_log_annule_le_debit(self, _mock_create, mock_task):
+        # C18 : si la création du log échoue APRÈS le débit, la transaction doit
+        # tout annuler — sinon les crédits sont perdus sans SMS ni log.
+        from apps.billing.models import SmsCreditTransaction
+        avant = self.pharmacy.sms_credits
+        with self.assertRaises(RuntimeError):
+            self.client.post(
+                '/api/sms/send/', {'to': '+33612345678', 'message': 'Bonjour'}, format='json',
+            )
+        self.pharmacy.refresh_from_db()
+        self.assertEqual(self.pharmacy.sms_credits, avant)  # crédits intacts
+        self.assertEqual(SmsCreditTransaction.objects.filter(pharmacy=self.pharmacy).count(), 0)
+        mock_task.delay.assert_not_called()
+
 
 class TestSMSCreditsInsuffisants(TestCase):
     """Envoi SMS avec 0 crédits → 402, aucun SMSLog créé."""

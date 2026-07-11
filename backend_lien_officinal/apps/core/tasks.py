@@ -58,15 +58,24 @@ def send_sms_task(self, log_id: int, phone: str, message: str):
         try:
             raise self.retry(exc=exc)
         except self.MaxRetriesExceededError:
-            # Échec définitif : marquer et rembourser les crédits
-            SMSLog.objects.filter(pk=log_id).update(
-                status=SMSLog.Status.FAILED,
-                error_message=str(exc),
-            )
+            # Échec définitif : marquer et rembourser les crédits, dans une
+            # transaction, avec l'entrée de registre correspondante (C21).
+            from django.db import transaction
             from apps.core.models import Pharmacy
-            Pharmacy.objects.filter(pk=log.pharmacy_id).update(
-                sms_credits=F('sms_credits') + log.credits_used
-            )
+            from apps.billing.models import SmsCreditTransaction
+            with transaction.atomic():
+                SMSLog.objects.filter(pk=log_id).update(
+                    status=SMSLog.Status.FAILED,
+                    error_message=str(exc),
+                )
+                Pharmacy.objects.filter(pk=log.pharmacy_id).update(
+                    sms_credits=F('sms_credits') + log.credits_used
+                )
+                SmsCreditTransaction.objects.create(
+                    pharmacy_id=log.pharmacy_id, delta=log.credits_used,
+                    reason=SmsCreditTransaction.Reason.REFUND,
+                    note=f'Échec définitif SMS log #{log_id}',
+                )
 
 
 @shared_task(bind=True, max_retries=3, default_retry_delay=120)

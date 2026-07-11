@@ -8,6 +8,7 @@ from rest_framework.permissions import IsAuthenticated, AllowAny
 from rest_framework.throttling import UserRateThrottle, SimpleRateThrottle
 
 logger = logging.getLogger(__name__)
+from django.db import transaction
 from django.db.models import F
 from django.utils import timezone
 
@@ -127,43 +128,55 @@ class SMSSendView(APIView):
                 return Response({'detail': 'Template introuvable.'}, status=status.HTTP_404_NOT_FOUND)
 
         credits_needed = SMSPartnerService.count_sms(data['message'])
+        phone = data['to'].replace(' ', '')
+        to_hash = SMSPartnerService.hash_phone(phone)
 
-        # Déduction atomique (race-condition safe)
-        updated = pharmacy.__class__.objects.filter(
-            pk=pharmacy.pk, sms_credits__gte=credits_needed
-        ).update(sms_credits=F('sms_credits') - credits_needed)
+        from .tasks import send_sms_task
+        from apps.billing.models import SmsCreditTransaction
 
-        if not updated:
-            return Response(
-                {'error': f'Crédits insuffisants : {credits_needed} requis.'},
-                status=status.HTTP_402_PAYMENT_REQUIRED,
+        # C18 : débit + log + registre de crédits dans UNE transaction. Avant,
+        # le débit (commité seul) puis la création du log étaient séparés : si le
+        # log échouait, les crédits étaient perdus. C21 : on journalise le débit
+        # dans SmsCreditTransaction (piste d'audit des mouvements de crédits).
+        with transaction.atomic():
+            # Déduction atomique (race-condition safe)
+            updated = pharmacy.__class__.objects.filter(
+                pk=pharmacy.pk, sms_credits__gte=credits_needed
+            ).update(sms_credits=F('sms_credits') - credits_needed)
+
+            if not updated:
+                return Response(
+                    {'error': f'Crédits insuffisants : {credits_needed} requis.'},
+                    status=status.HTTP_402_PAYMENT_REQUIRED,
+                )
+
+            log = SMSLog.objects.create(
+                pharmacy=pharmacy,
+                template=template,
+                sent_by=collaborator,
+                to_hash=to_hash,
+                recipient_civilite=data.get('recipient_civilite', ''),
+                recipient_name=data.get('recipient_name', ''),
+                motif=data.get('motif', ''),
+                status=SMSLog.Status.PENDING,
+                credits_used=credits_needed,
+            )
+            SmsCreditTransaction.objects.create(
+                pharmacy=pharmacy, delta=-credits_needed,
+                reason=SmsCreditTransaction.Reason.SEND, note=f'SMS log #{log.id}',
             )
 
-        pharmacy.refresh_from_db(fields=['sms_credits'])
+        # Le bloc a commité (débit + log + registre) : on enqueue seulement
+        # maintenant. Si la transaction avait échoué, l'exception serait remontée
+        # et on ne serait pas ici → pas de tâche orpheline sur des crédits annulés.
+        send_sms_task.delay(log.id, phone, data['message'])
 
+        pharmacy.refresh_from_db(fields=['sms_credits'])
         if pharmacy.sms_credits < 10:
             logger.warning(
                 "Crédits SMS bas — pharmacy_id=%s nom=%s credits=%s",
                 pharmacy.id, pharmacy.nom_officine, pharmacy.sms_credits,
             )
-
-        phone = data['to'].replace(' ', '')
-        to_hash = SMSPartnerService.hash_phone(phone)
-
-        log = SMSLog.objects.create(
-            pharmacy=pharmacy,
-            template=template,
-            sent_by=collaborator,
-            to_hash=to_hash,
-            recipient_civilite=data.get('recipient_civilite', ''),
-            recipient_name=data.get('recipient_name', ''),
-            motif=data.get('motif', ''),
-            status=SMSLog.Status.PENDING,
-            credits_used=credits_needed,
-        )
-
-        from .tasks import send_sms_task
-        send_sms_task.delay(log.id, phone, data['message'])
 
         return Response(
             {'log_id': log.id, 'credits_remaining': pharmacy.sms_credits},
