@@ -150,33 +150,38 @@ export class AuthService {
   canManageTeam(): boolean      { return this._getClaim('can_manage_team'); }
   canAssignTask(): boolean      { return this._getClaim('can_assign_task'); }
 
-  private _getClaim(claim: string): boolean {
-    if (this._accessToken) {
-      try {
-        const payload = JSON.parse(atob(this._accessToken.split('.')[1]));
-        return payload[claim] === true;
-      } catch {}
+  /**
+   * C02 : décode le payload d'un JWT. Les payloads sont en base64url (RFC 7515,
+   * avec - et _ au lieu de + et /, sans padding) ; atob() attend du base64
+   * standard et échoue dès qu'un - ou _ apparaît. On convertit avant de décoder.
+   */
+  private _decodePayload(): any | null {
+    if (!this._accessToken) return null;
+    try {
+      const part = this._accessToken.split('.')[1];
+      const b64 = part.replace(/-/g, '+').replace(/_/g, '/');
+      const padded = b64.padEnd(b64.length + (4 - (b64.length % 4)) % 4, '=');
+      return JSON.parse(atob(padded));
+    } catch {
+      return null;
     }
+  }
+
+  private _getClaim(claim: string): boolean {
+    const payload = this._decodePayload();
+    if (payload) return payload[claim] === true;
     return this._getSessionInfo()?.[claim] === true;
   }
 
   getAuthType(): 'pharmacy_account' | 'collaborator' | null {
-    if (this._accessToken) {
-      try {
-        const payload = JSON.parse(atob(this._accessToken.split('.')[1]));
-        return payload.auth_type ?? 'pharmacy_account';
-      } catch {}
-    }
+    const payload = this._decodePayload();
+    if (payload) return payload.auth_type ?? 'pharmacy_account';
     return this._getSessionInfo()?.['auth_type'] ?? null;
   }
 
   isAuthenticated(): boolean {
-    if (this._accessToken) {
-      try {
-        const payload = JSON.parse(atob(this._accessToken.split('.')[1]));
-        return payload.exp * 1000 > Date.now();
-      } catch { return false; }
-    }
+    const payload = this._decodePayload();
+    if (payload) return payload.exp * 1000 > Date.now();
     // Fallback : session_info cookie (page reload — le refresh se déclenchera sur le premier appel API)
     return !!this._getSessionInfo()?.['auth_type'];
   }
@@ -224,13 +229,10 @@ export class AuthService {
   // ── Helpers privés ────────────────────────────────────────────────────────
 
   private _readCollaboratorIdFromToken(): number | null {
-    if (!this._accessToken) return null;
-    try {
-      const payload = JSON.parse(atob(this._accessToken.split('.')[1]));
-      if (payload.auth_type === 'collaborator' && payload.collaborator_id) {
-        return Number(payload.collaborator_id);
-      }
-    } catch {}
+    const payload = this._decodePayload();
+    if (payload && payload.auth_type === 'collaborator' && payload.collaborator_id) {
+      return Number(payload.collaborator_id);
+    }
     return null;
   }
 
