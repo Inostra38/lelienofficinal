@@ -105,26 +105,49 @@ class Invoice(models.Model):
         return f"{self.invoice_number} — {self.pharmacy} ({self.amount_ttc}€ TTC)"
 
     @classmethod
+    def _next_invoice_number(cls, year: int) -> str:
+        """Calcule le prochain numéro. DOIT être appelé dans une transaction
+        (le SELECT FOR UPDATE n'a de sens qu'à l'intérieur d'une transaction)."""
+        last = (
+            cls.objects
+            .filter(invoice_number__startswith=f'LLO-{year}-')
+            .select_for_update()
+            .order_by('-invoice_number')
+            .first()
+        )
+        new_seq = int(last.invoice_number.split('-')[-1]) + 1 if last else 1
+        return f'LLO-{year}-{new_seq:06d}'
+
+    @classmethod
     def generate_invoice_number(cls, invoice_type: str) -> str:
-        """
-        Génère un numéro séquentiel unique et thread-safe.
-        Format : LLO-YYYY-XXXXXX (ex : LLO-2026-000001).
-        SELECT FOR UPDATE pour éviter les doublons en concurrence.
-        """
+        """Numéro seul (usage tests / compat). Pour CRÉER une facture, utiliser
+        create_with_sequential_number : le numéro seul relâche le verrou avant
+        l'insert de l'appelant (C19), donc deux créations concurrentes tirent le
+        même numéro."""
         from django.db import transaction
         from django.utils import timezone
-        year = timezone.now().year
-
         with transaction.atomic():
-            last = (
-                cls.objects
-                .filter(invoice_number__startswith=f'LLO-{year}-')
-                .select_for_update()
-                .order_by('-invoice_number')
-                .first()
-            )
-            new_seq = int(last.invoice_number.split('-')[-1]) + 1 if last else 1
-            return f'LLO-{year}-{new_seq:06d}'
+            return cls._next_invoice_number(timezone.now().year)
+
+    @classmethod
+    def create_with_sequential_number(cls, *, invoice_type, **fields):
+        """C19 : réserve le numéro ET insère la facture dans UNE SEULE
+        transaction, pour que le verrou SELECT FOR UPDATE tienne jusqu'à
+        l'insertion. Retry sur la contrainte unique (course table-vide, où il
+        n'y a pas de ligne à verrouiller)."""
+        from django.db import IntegrityError, transaction
+        from django.utils import timezone
+        year = timezone.now().year
+        for attempt in range(5):
+            try:
+                with transaction.atomic():
+                    number = cls._next_invoice_number(year)
+                    return cls.objects.create(
+                        invoice_number=number, invoice_type=invoice_type, **fields
+                    )
+            except IntegrityError:
+                if attempt == 4:
+                    raise
 
 
 class SmsCreditTransaction(models.Model):

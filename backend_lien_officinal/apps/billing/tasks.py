@@ -156,10 +156,10 @@ def generate_subscription_invoice(self, pharmacy_id: int,
         pharmacy = _get_pharmacy(pharmacy_id)
         sub      = Subscription.objects.get(pharmacy=pharmacy)
 
-        invoice = Invoice.objects.create(
-            pharmacy=pharmacy,
+        # C19 : numéro + insert dans une seule transaction (verrou tenu).
+        invoice = Invoice.create_with_sequential_number(
             invoice_type=Invoice.InvoiceType.SUBSCRIPTION,
-            invoice_number=Invoice.generate_invoice_number('subscription'),
+            pharmacy=pharmacy,
             stripe_invoice_id=stripe_invoice_id,
             amount_ht=0,      # recalculés dans pdf_service
             amount_ttc=0,
@@ -221,10 +221,10 @@ def generate_sms_receipt(self, pharmacy_id: int, payment_intent_id: str,
 
         pharmacy = _get_pharmacy(pharmacy_id)
 
-        invoice = Invoice.objects.create(
-            pharmacy=pharmacy,
+        # C19 : numéro + insert dans une seule transaction (verrou tenu).
+        invoice = Invoice.create_with_sequential_number(
             invoice_type=Invoice.InvoiceType.SMS_PACK,
-            invoice_number=Invoice.generate_invoice_number('sms_pack'),
+            pharmacy=pharmacy,
             stripe_payment_intent_id=payment_intent_id,
             amount_ht=0,
             amount_ttc=0,

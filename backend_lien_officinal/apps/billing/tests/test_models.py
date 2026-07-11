@@ -40,6 +40,37 @@ class InvoiceNumberTests(TestCase):
         self.assertEqual(n2, f'LLO-{year}-000002')
         self.assertEqual(n3, f'LLO-{year}-000003')
 
+    # C19 : create_with_sequential_number réserve le numéro + insère atomiquement.
+
+    def test_create_with_sequential_number_unique_et_sequentiel(self):
+        year = timezone.now().year
+        inv = [
+            Invoice.create_with_sequential_number(
+                invoice_type=Invoice.InvoiceType.SUBSCRIPTION, pharmacy=self.pharmacy,
+                amount_ht=Decimal('10.00'), amount_ttc=Decimal('12.00'),
+            )
+            for _ in range(3)
+        ]
+        nums = [i.invoice_number for i in inv]
+        self.assertEqual(nums, [f'LLO-{year}-00000{k}' for k in (1, 2, 3)])
+        self.assertEqual(len(set(nums)), 3)
+        self.assertTrue(all(Invoice.objects.filter(pk=i.pk).exists() for i in inv))
+
+    def test_create_with_sequential_number_retry_sur_collision(self):
+        from unittest.mock import patch
+        year = timezone.now().year
+        self._make_invoice(f'LLO-{year}-000001')  # numéro deja pris
+        # 1re tentative : numero en collision -> IntegrityError -> retry ; 2e : libre
+        with patch.object(
+            Invoice, '_next_invoice_number',
+            side_effect=[f'LLO-{year}-000001', f'LLO-{year}-000002'],
+        ):
+            inv = Invoice.create_with_sequential_number(
+                invoice_type=Invoice.InvoiceType.SMS_PACK, pharmacy=self.pharmacy,
+                amount_ht=Decimal('1.00'), amount_ttc=Decimal('1.20'),
+            )
+        self.assertEqual(inv.invoice_number, f'LLO-{year}-000002')
+
 
 class PromoCodeModelTests(TestCase):
     def test_trial_days_total(self):
