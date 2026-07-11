@@ -14,9 +14,13 @@ export const authInterceptor: HttpInterceptorFn = (req, next) => {
 
   // C04/C05 : n'attacher le jeton QU'AUX requêtes vers notre API. Sinon une URL
   // externe passée à HttpClient (ex. item.final_url d'un lien partenaire) recevait
-  // le JWT pharmacie → exfiltration. On accepte l'API absolue et les URL relatives
-  // (même origine, donc notre backend).
-  const isOurApi = req.url.startsWith(environment.apiUrl) || req.url.startsWith('/');
+  // le JWT pharmacie → exfiltration. On accepte les URL relatives (même origine,
+  // cas de la prod où le frontend est servi par Django) et, si apiUrl est défini
+  // (dev), l'API absolue. Le garde !!environment.apiUrl évite le piège
+  // startsWith('') — toujours vrai — quand apiUrl est vide en prod.
+  const isOurApi =
+    req.url.startsWith('/') ||
+    (!!environment.apiUrl && req.url.startsWith(environment.apiUrl));
   const authReq = (token && isOurApi)
     ? req.clone({ setHeaders: { Authorization: `Bearer ${token}` } })
     : req;
