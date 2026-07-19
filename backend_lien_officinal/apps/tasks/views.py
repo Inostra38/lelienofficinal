@@ -8,6 +8,7 @@ from rest_framework import status
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
+from apps.billing.permissions import HasPaidAccess
 
 
 def _notify_tasks(pharmacy_id):
@@ -29,7 +30,7 @@ def _sort_tasks(tasks):
 
 
 class TaskListCreateView(APIView):
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsAuthenticated, HasPaidAccess]
 
     def get(self, request):
         collaborator = _get_collaborator(request)
@@ -87,7 +88,7 @@ class TaskListCreateView(APIView):
 
 
 class TaskDetailView(APIView):
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsAuthenticated, HasPaidAccess]
 
     def _get_task(self, task_id, request):
         return get_object_or_404(Task, id=task_id, pharmacy=request.user)
@@ -129,7 +130,7 @@ def _check_involved(collaborator, task):
 
 
 class TaskStartView(APIView):
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsAuthenticated, HasPaidAccess]
 
     def post(self, request, task_id):
         task = get_object_or_404(Task, id=task_id, pharmacy=request.user)
@@ -149,7 +150,7 @@ class TaskStartView(APIView):
 
 
 class TaskCompleteView(APIView):
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsAuthenticated, HasPaidAccess]
 
     def post(self, request, task_id):
         task = get_object_or_404(Task, id=task_id, pharmacy=request.user)
@@ -169,7 +170,7 @@ class TaskCompleteView(APIView):
 
 
 class TaskReopenView(APIView):
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsAuthenticated, HasPaidAccess]
 
     def post(self, request, task_id):
         task = get_object_or_404(Task, id=task_id, pharmacy=request.user)
@@ -191,7 +192,7 @@ class TaskReopenView(APIView):
 
 
 class TaskUnseenCountView(APIView):
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsAuthenticated, HasPaidAccess]
 
     def get(self, request):
         collaborator = _get_collaborator(request)
@@ -208,7 +209,7 @@ class TaskUnseenCountView(APIView):
 
 
 class TaskMarkSeenView(APIView):
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsAuthenticated, HasPaidAccess]
 
     def post(self, request):
         collaborator = _get_collaborator(request)
@@ -228,7 +229,7 @@ class TaskMarkSeenView(APIView):
 
 
 class TaskCommentListCreateView(APIView):
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsAuthenticated, HasPaidAccess]
 
     def get(self, request, task_id):
         task = get_object_or_404(Task, id=task_id, pharmacy=request.user)
@@ -249,7 +250,7 @@ class TaskCommentListCreateView(APIView):
 
 
 class TaskReorderView(APIView):
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsAuthenticated, HasPaidAccess]
 
     def post(self, request):
         task_ids = request.data.get('task_ids', [])

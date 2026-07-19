@@ -58,3 +58,10 @@ npm-debug.log
 # Fichiers locaux pour la configuration Angular
 # (Peuvent être ignorés s'ils ne contiennent pas de chemins d'accès critiques)
 # angular.json est généralement gardé, mais le cache est ignoré.
+# Auth Scalingo isolée (compte minmax) + direnv local
+.scalingo/
+.envrc
+
+# La vitrine a son propre dépôt : Inostra38/lienofficinal-vitrine
+# (dépôt imbriqué — sans cette ligne, git la prendrait pour un sous-module)
+landingpages/

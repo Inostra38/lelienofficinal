@@ -11,6 +11,8 @@ export interface SubscriptionStatus {
   cancel_at_period_end: boolean;
   has_stripe_subscription: boolean;
   is_access_allowed: boolean;
+  /** Motif du refus quand is_access_allowed est faux. */
+  access_denied_reason: 'trial_expired' | 'payment_failed' | 'suspended' | 'canceled' | null;
 }
 
 export interface BillingStatusResponse {

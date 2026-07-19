@@ -12,8 +12,14 @@ L'appel Anthropic est entièrement async — ne bloque pas Daphne.
 import json
 
 import anthropic
+from channels.db import database_sync_to_async
 from channels.generic.websocket import AsyncWebsocketConsumer
 from django.conf import settings
+
+from apps.billing.permissions import (
+    WS_CLOSE_PAYMENT_REQUIRED,
+    pharmacy_has_paid_access,
+)
 
 
 CATEGORY_LABELS = {
@@ -40,8 +46,15 @@ class QualityAIConsumer(AsyncWebsocketConsumer):
         if not collaborator:
             await self.close(code=4003)
             return
+        if not await self._has_paid_access(collaborator.pharmacy_id):
+            await self.close(code=WS_CLOSE_PAYMENT_REQUIRED)
+            return
         # Échoter le sous-protocole offert par le client (['bearer', <jwt>]).
         await self.accept(subprotocol='bearer')
+
+    @database_sync_to_async
+    def _has_paid_access(self, pharmacy_id):
+        return pharmacy_has_paid_access(pharmacy_id)
 
     async def disconnect(self, code):
         pass

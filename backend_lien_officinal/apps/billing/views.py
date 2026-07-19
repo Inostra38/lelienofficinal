@@ -116,7 +116,13 @@ class StripeWebhookView(View):
 
         sub.status = Subscription.Status.ACTIVE
         sub.current_period_end = datetime.fromtimestamp(period_end_ts, tz=dt_timezone.utc)
-        sub.save(update_fields=['status', 'current_period_end', 'updated_at'])
+        # Impayé régularisé : on réarme le délai de grâce pour un éventuel
+        # échec futur, sinon le suivant couperait l'accès immédiatement.
+        sub.past_due_since = None
+        sub.suspended_at = None
+        sub.save(update_fields=[
+            'status', 'current_period_end', 'past_due_since', 'suspended_at', 'updated_at',
+        ])
 
         # Génération facture WeasyPrint en tâche asynchrone
         generate_subscription_invoice.delay(
@@ -139,7 +145,12 @@ class StripeWebhookView(View):
             return
 
         sub.status = Subscription.Status.PAST_DUE
-        sub.save(update_fields=['status', 'updated_at'])
+        # Origine du délai de grâce de 7 jours. Ne pas réarmer si l'on est déjà
+        # en impayé : Stripe réémet l'événement à chaque tentative échouée, et
+        # le délai doit courir depuis le PREMIER échec.
+        if sub.past_due_since is None:
+            sub.past_due_since = datetime.now(dt_timezone.utc)
+        sub.save(update_fields=['status', 'past_due_since', 'updated_at'])
 
         # Email de relance immédiat
         from apps.billing.tasks import schedule_suspension, send_payment_failed_email
@@ -170,6 +181,18 @@ class StripeWebhookView(View):
         if stripe_status in status_map:
             sub.status = status_map[stripe_status]
             fields.append('status')
+            # Miroir de _handle_invoice_payment_failed : le délai de grâce doit
+            # rester cohérent quelle que soit la voie par laquelle Stripe nous
+            # annonce l'impayé ou sa régularisation.
+            if sub.status == Subscription.Status.PAST_DUE:
+                if sub.past_due_since is None:
+                    sub.past_due_since = datetime.now(dt_timezone.utc)
+                    fields.append('past_due_since')
+            elif sub.status in (Subscription.Status.ACTIVE, Subscription.Status.TRIALING):
+                if sub.past_due_since is not None or sub.suspended_at is not None:
+                    sub.past_due_since = None
+                    sub.suspended_at = None
+                    fields.extend(['past_due_since', 'suspended_at'])
         if 'cancel_at_period_end' in stripe_sub:
             sub.cancel_at_period_end = bool(stripe_sub['cancel_at_period_end'])
             fields.append('cancel_at_period_end')
@@ -335,9 +358,18 @@ class ConfirmSubscriptionView(APIView):
         collab_count = pharmacy.collaborators.filter(is_active=True).count()
         plan = 'large' if collab_count >= 10 else 'small'
 
+        # Reliquat de l'essai ouvert à l'inscription. Sans ça, souscrire
+        # relancerait 30 jours pleins : un compte ayant déjà consommé son essai
+        # s'en offrirait un second en arrivant sur l'écran de paiement.
+        trial_days = 0
+        if sub.trial_ends_at:
+            remaining = sub.trial_ends_at - datetime.now(dt_timezone.utc)
+            trial_days = max(0, remaining.days)
+        else:
+            trial_days = Subscription.TRIAL_DAYS
+
         # Code promo optionnel → étend le trial
         promo_code_str = request.data.get('promo_code', '').strip()
-        trial_days = 30
         if promo_code_str:
             from apps.billing.promo_service import validate_and_redeem, PromoError
             try:

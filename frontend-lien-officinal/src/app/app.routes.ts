@@ -13,6 +13,7 @@ import { MainLayoutComponent } from './shared/layouts/main-layout/main-layout.co
 import { authGuard } from './core/auth/auth.guard';
 import { noAuthGuard } from './core/auth/no-auth.guard';
 import { onboardingGuard } from './core/auth/onboarding.guard';
+import { paidAccessGuard } from './core/auth/paid-access.guard';
 import { qualityManagerGuard } from './core/auth/quality-manager.guard';
 import { planningManagerGuard } from './core/auth/planning-manager.guard';
 import { taskAssignerGuard } from './core/auth/task-assigner.guard';
@@ -63,20 +64,20 @@ export const routes: Routes = [
     children: [
       { path: 'dashboard', component: DashboardComponent },
       { path: 'ressources-partagees', component: SharedResourcesComponent },
-      { path: 'messagerie', component: MessagingComponent },
-      { path: 'taches', component: TasksComponent },
-      { path: 'planning', component: PlanningComponent },
+      { path: 'messagerie', component: MessagingComponent, canActivate: [paidAccessGuard] },
+      { path: 'taches', component: TasksComponent, canActivate: [paidAccessGuard] },
+      { path: 'planning', component: PlanningComponent, canActivate: [paidAccessGuard] },
       { path: 'account', component: AccountComponent },
-      { path: 'sms', component: SmsDashboardComponent },
-      { path: 'sms/settings', component: SmsSettingsComponent },
-      { path: 'quality', component: ProcedureBoardsComponent },
-      { path: 'quality/procedures/new', component: ProcedureEditorComponent, canActivate: [qualityManagerGuard] },
-      { path: 'quality/procedures/:id/edit', component: ProcedureEditorComponent },
-      { path: 'quality/procedures/:id', component: ProcedureDetailComponent },
-      { path: 'quality/nc', component: NcListComponent },
-      { path: 'quality/nc/new', component: NcFormComponent },
-      { path: 'quality/nc/:id', component: NcDetailComponent },
-      { path: 'quality/archives', component: ProcedureArchivesComponent },
+      { path: 'sms', component: SmsDashboardComponent, canActivate: [paidAccessGuard] },
+      { path: 'sms/settings', component: SmsSettingsComponent, canActivate: [paidAccessGuard] },
+      { path: 'quality', component: ProcedureBoardsComponent, canActivate: [paidAccessGuard] },
+      { path: 'quality/procedures/new', component: ProcedureEditorComponent, canActivate: [paidAccessGuard, qualityManagerGuard] },
+      { path: 'quality/procedures/:id/edit', component: ProcedureEditorComponent, canActivate: [paidAccessGuard] },
+      { path: 'quality/procedures/:id', component: ProcedureDetailComponent, canActivate: [paidAccessGuard] },
+      { path: 'quality/nc', component: NcListComponent, canActivate: [paidAccessGuard] },
+      { path: 'quality/nc/new', component: NcFormComponent, canActivate: [paidAccessGuard] },
+      { path: 'quality/nc/:id', component: NcDetailComponent, canActivate: [paidAccessGuard] },
+      { path: 'quality/archives', component: ProcedureArchivesComponent, canActivate: [paidAccessGuard] },
       { path: '', redirectTo: 'dashboard', pathMatch: 'full' }
     ]
   }
