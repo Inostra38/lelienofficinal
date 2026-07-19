@@ -61,3 +61,7 @@ npm-debug.log
 # Auth Scalingo isolée (compte minmax) + direnv local
 .scalingo/
 .envrc
+
+# La vitrine a son propre dépôt : Inostra38/lienofficinal-vitrine
+# (dépôt imbriqué — sans cette ligne, git la prendrait pour un sous-module)
+landingpages/
