@@ -6,3 +6,7 @@ class BillingConfig(AppConfig):
     name = 'apps.billing'
     label = 'billing'
     verbose_name = 'Facturation'
+
+    def ready(self):
+        # Crée l'abonnement d'essai à la naissance de toute pharmacie.
+        from apps.billing import signals  # noqa: F401

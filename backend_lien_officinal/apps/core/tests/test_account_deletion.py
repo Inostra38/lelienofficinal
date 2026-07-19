@@ -7,7 +7,7 @@ from django.test import TestCase
 from apps.core.account_deletion import execute_account_deletion
 from apps.core.models import Pharmacy, SMSTemplate
 from apps.billing.models import Invoice, SmsCreditTransaction
-from apps.billing.tests.utils import make_pharmacy
+from apps.billing.tests.utils import make_pharmacy, set_subscription
 
 
 class ExecuteAccountDeletionTests(TestCase):
@@ -93,8 +93,7 @@ class ExecuteAccountDeletionTests(TestCase):
     def test_deletes_stripe_customer_for_rgpd(self, mock_del):
         from apps.billing.models import Subscription
         p = make_pharmacy()
-        Subscription.objects.create(
-            pharmacy=p, stripe_customer_id='cus_x', stripe_subscription_id='sub_x',
+        set_subscription(p, stripe_customer_id='cus_x', stripe_subscription_id='sub_x',
         )
         execute_account_deletion(p.id)
         mock_del.assert_called_once_with('cus_x')
@@ -103,7 +102,7 @@ class ExecuteAccountDeletionTests(TestCase):
     def test_stripe_failure_does_not_block_anonymization(self, _mock_del):
         from apps.billing.models import Subscription
         p = make_pharmacy()
-        Subscription.objects.create(pharmacy=p, stripe_customer_id='cus_y')
+        set_subscription(p, stripe_customer_id='cus_y')
         # Une erreur Stripe ne doit pas empêcher l'anonymisation locale.
         self.assertTrue(execute_account_deletion(p.id))
         p.refresh_from_db()

@@ -7,7 +7,7 @@ from django.test import TestCase
 from rest_framework.test import APIClient
 
 from apps.billing.models import Subscription
-from apps.billing.tests.utils import make_pharmacy
+from apps.billing.tests.utils import make_pharmacy, set_subscription
 
 
 def _client(pharmacy):
@@ -50,8 +50,7 @@ class AccountDeleteRequestTests(TestCase):
     def test_cancels_subscription_at_period_end(self, mock_cancel):
         p = make_pharmacy()
         period_end = timezone.now() + timedelta(days=12)
-        sub = Subscription.objects.create(
-            pharmacy=p, stripe_customer_id='cus_1', stripe_subscription_id='sub_1',
+        sub = set_subscription(p, stripe_customer_id='cus_1', stripe_subscription_id='sub_1',
             status='active', current_period_end=period_end,
         )
         resp = _client(p).delete(self.URL, {'password': 'pass1234'}, format='json')
@@ -81,8 +80,7 @@ class AccountDeletionCancelTests(TestCase):
         p = make_pharmacy(deletion_scheduled_for=timezone.now() + timedelta(days=10))
         p.deletion_requested_at = timezone.now()
         p.save()
-        Subscription.objects.create(
-            pharmacy=p, stripe_customer_id='cus_1', stripe_subscription_id='sub_1',
+        set_subscription(p, stripe_customer_id='cus_1', stripe_subscription_id='sub_1',
             status='active', cancel_at_period_end=True,
         )
         resp = _client(p).post(self.URL, {}, format='json')

@@ -5,7 +5,7 @@ from django.test import TestCase
 
 from apps.billing import tasks
 from apps.billing.models import Invoice, SmsCreditTransaction, Subscription
-from apps.billing.tests.utils import make_pharmacy
+from apps.billing.tests.utils import make_pharmacy, set_subscription
 
 
 class CreditSmsBalanceTests(TestCase):
@@ -56,8 +56,7 @@ class GenerateSubscriptionInvoiceTests(TestCase):
     @patch('apps.billing.pdf_service.generate_subscription_invoice_pdf')
     def test_creates_invoice_and_sends_email(self, mock_pdf, _mread, _msign, mock_email):
         pharmacy = make_pharmacy()
-        Subscription.objects.create(
-            pharmacy=pharmacy, stripe_subscription_id='sub_1',
+        set_subscription(pharmacy, stripe_subscription_id='sub_1',
             plan='small', status='active',
         )
         tasks.generate_subscription_invoice.apply(args=[pharmacy.id, 'in_1', 3900])
@@ -72,8 +71,7 @@ class GenerateSubscriptionInvoiceTests(TestCase):
     @patch('apps.billing.pdf_service.generate_subscription_invoice_pdf')
     def test_idempotent_on_same_stripe_invoice(self, mock_pdf, _mread, _msign, _memail):
         pharmacy = make_pharmacy()
-        Subscription.objects.create(
-            pharmacy=pharmacy, stripe_subscription_id='sub_1',
+        set_subscription(pharmacy, stripe_subscription_id='sub_1',
             plan='small', status='active',
         )
         tasks.generate_subscription_invoice.apply(args=[pharmacy.id, 'in_1', 3900])

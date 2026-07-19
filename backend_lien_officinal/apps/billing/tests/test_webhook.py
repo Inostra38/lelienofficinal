@@ -6,7 +6,7 @@ import stripe
 from django.test import Client, TestCase
 
 from apps.billing.models import Subscription
-from apps.billing.tests.utils import make_pharmacy
+from apps.billing.tests.utils import make_pharmacy, set_subscription
 
 WEBHOOK_URL = '/api/billing/webhook/stripe/'
 
@@ -35,8 +35,7 @@ class StripeWebhookTests(TestCase):
     @patch('apps.billing.views.StripeService.construct_webhook_event', return_value=None)
     def test_subscription_deleted_sets_canceled(self, _mock):
         pharmacy = make_pharmacy()
-        sub = Subscription.objects.create(
-            pharmacy=pharmacy, stripe_subscription_id='sub_1', status='active',
+        sub = set_subscription(pharmacy, stripe_subscription_id='sub_1', status='active',
         )
         resp = _post(self.client, {
             'type': 'customer.subscription.deleted',
@@ -49,8 +48,7 @@ class StripeWebhookTests(TestCase):
     @patch('apps.billing.views.StripeService.construct_webhook_event', return_value=None)
     def test_subscription_updated_syncs_cancel_at_period_end(self, _mock):
         pharmacy = make_pharmacy()
-        sub = Subscription.objects.create(
-            pharmacy=pharmacy, stripe_subscription_id='sub_c', status='active',
+        sub = set_subscription(pharmacy, stripe_subscription_id='sub_c', status='active',
         )
         # Stripe signale une résiliation programmée
         resp = _post(self.client, {
@@ -103,8 +101,7 @@ class StripeWebhookTests(TestCase):
     def test_invoice_paid_new_api_format(self, _mock, mock_gen):
         # API 2025+/dahlia : l'id d'abonnement est dans parent.subscription_details.
         pharmacy = make_pharmacy()
-        sub = Subscription.objects.create(
-            pharmacy=pharmacy, stripe_subscription_id='sub_x', status='trialing',
+        sub = set_subscription(pharmacy, stripe_subscription_id='sub_x', status='trialing',
         )
         resp = _post(self.client, {
             'type': 'invoice.paid',
@@ -125,8 +122,7 @@ class StripeWebhookTests(TestCase):
         # Q05 : la période facturée (start ET end) doit être transmise à la tâche
         # de génération, distincte, et non start == end == current_period_end.
         pharmacy = make_pharmacy()
-        Subscription.objects.create(
-            pharmacy=pharmacy, stripe_subscription_id='sub_p', status='trialing',
+        set_subscription(pharmacy, stripe_subscription_id='sub_p', status='trialing',
         )
         start_ts, end_ts = 1890777600, 1893456000  # start < end
         _post(self.client, {
@@ -148,8 +144,7 @@ class StripeWebhookTests(TestCase):
     def test_invoice_paid_zero_amount_ignored(self, _mock, mock_gen):
         # Factures à 0 € (essai / proration) : aucune facture client générée.
         pharmacy = make_pharmacy()
-        Subscription.objects.create(
-            pharmacy=pharmacy, stripe_subscription_id='sub_z', status='trialing',
+        set_subscription(pharmacy, stripe_subscription_id='sub_z', status='trialing',
         )
         resp = _post(self.client, {
             'type': 'invoice.paid',

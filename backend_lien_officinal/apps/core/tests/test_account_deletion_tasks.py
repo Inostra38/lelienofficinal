@@ -8,7 +8,7 @@ from django.utils import timezone
 
 from apps.core.tasks import execute_scheduled_deletions
 from apps.billing.models import Subscription
-from apps.billing.tests.utils import make_pharmacy
+from apps.billing.tests.utils import make_pharmacy, set_subscription
 
 WEBHOOK_URL = '/api/billing/webhook/stripe/'
 
@@ -48,7 +48,7 @@ class SubscriptionDeletedWebhookTriggerTests(TestCase):
     @patch('apps.billing.views.StripeService.construct_webhook_event', return_value=None)
     def test_pending_deletion_triggers_execution(self, _mock, mock_task):
         p = make_pharmacy(deletion_scheduled_for=timezone.now())
-        Subscription.objects.create(pharmacy=p, stripe_subscription_id='sub_del', status='active')
+        set_subscription(p, stripe_subscription_id='sub_del', status='active')
         resp = self.client.post(
             WEBHOOK_URL,
             data=json.dumps({'type': 'customer.subscription.deleted',
@@ -62,7 +62,7 @@ class SubscriptionDeletedWebhookTriggerTests(TestCase):
     @patch('apps.billing.views.StripeService.construct_webhook_event', return_value=None)
     def test_no_pending_deletion_does_not_trigger(self, _mock, mock_task):
         p = make_pharmacy()  # pas de suppression programmée
-        Subscription.objects.create(pharmacy=p, stripe_subscription_id='sub_x', status='active')
+        set_subscription(p, stripe_subscription_id='sub_x', status='active')
         resp = self.client.post(
             WEBHOOK_URL,
             data=json.dumps({'type': 'customer.subscription.deleted',

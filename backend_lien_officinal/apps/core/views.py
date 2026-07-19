@@ -136,19 +136,9 @@ class RegisterView(APIView):
         if serializer.is_valid():
             pharmacy = serializer.save()
 
-            # Essai de 30 jours ouvrant TOUTE la plateforme. Créé dès
-            # l'inscription — et non à la première visite de Compte >
-            # Facturation — sinon l'horloge ne démarre jamais et les modules
-            # payants restent ouverts indéfiniment.
-            # Le tableau de bord, lui, reste gratuit quel qu'en soit l'issue.
-            from apps.billing.models import Subscription
-            Subscription.objects.get_or_create(
-                pharmacy=pharmacy,
-                defaults={
-                    'status': Subscription.Status.TRIALING,
-                    'trial_ends_at': timezone.now() + timedelta(days=Subscription.TRIAL_DAYS),
-                },
-            )
+            # L'abonnement d'essai (30 jours, toute la plateforme) est créé par
+            # apps.billing.signals à la naissance de la pharmacie — quel que
+            # soit le chemin de création, pas seulement cette vue.
 
             # Générer et envoyer le token de vérification email
             token = uuid.uuid4()

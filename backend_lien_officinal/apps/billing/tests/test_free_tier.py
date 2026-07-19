@@ -15,7 +15,7 @@ from django.utils import timezone
 from rest_framework.test import APIClient
 
 from apps.billing.models import Subscription
-from apps.billing.tests.utils import make_pharmacy
+from apps.billing.tests.utils import make_pharmacy, set_subscription
 
 
 class FreeTierAlwaysOpenTests(TestCase):
@@ -50,24 +50,19 @@ class FreeTierAlwaysOpenTests(TestCase):
         self._assert_all_free_endpoints_ok('aucun objet Subscription')
 
     def test_gratuit_apres_essai_expire(self):
-        Subscription.objects.create(
-            pharmacy=self.pharmacy,
-            status=Subscription.Status.TRIALING,
+        set_subscription(self.pharmacy, status=Subscription.Status.TRIALING,
             trial_ends_at=timezone.now() - timedelta(days=1),
         )
         self._assert_all_free_endpoints_ok('essai expiré')
 
     def test_gratuit_quand_suspendu_pour_impaye(self):
-        Subscription.objects.create(
-            pharmacy=self.pharmacy,
-            status=Subscription.Status.SUSPENDED,
+        set_subscription(self.pharmacy, status=Subscription.Status.SUSPENDED,
             suspended_at=timezone.now(),
         )
         self._assert_all_free_endpoints_ok('abonnement suspendu')
 
     def test_gratuit_quand_resilie(self):
-        Subscription.objects.create(
-            pharmacy=self.pharmacy, status=Subscription.Status.CANCELED,
+        set_subscription(self.pharmacy, status=Subscription.Status.CANCELED,
         )
         self._assert_all_free_endpoints_ok('abonnement résilié')
 
@@ -86,9 +81,7 @@ class PaidModulesGatedTests(TestCase):
         self.client.force_authenticate(user=self.pharmacy)
 
     def test_402_quand_essai_expire(self):
-        Subscription.objects.create(
-            pharmacy=self.pharmacy,
-            status=Subscription.Status.TRIALING,
+        set_subscription(self.pharmacy, status=Subscription.Status.TRIALING,
             trial_ends_at=timezone.now() - timedelta(days=1),
         )
         for url in self.PAID_ENDPOINTS:
@@ -96,9 +89,7 @@ class PaidModulesGatedTests(TestCase):
                 self.assertEqual(self.client.get(url).status_code, 402)
 
     def test_ouvert_pendant_essai(self):
-        Subscription.objects.create(
-            pharmacy=self.pharmacy,
-            status=Subscription.Status.TRIALING,
+        set_subscription(self.pharmacy, status=Subscription.Status.TRIALING,
             trial_ends_at=timezone.now() + timedelta(days=10),
         )
         for url in self.PAID_ENDPOINTS:

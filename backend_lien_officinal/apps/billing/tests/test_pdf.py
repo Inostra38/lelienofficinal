@@ -11,7 +11,7 @@ from apps.billing.pdf_service import (
     _render_pdf,
     generate_subscription_invoice_pdf,
 )
-from apps.billing.tests.utils import make_pharmacy
+from apps.billing.tests.utils import make_pharmacy, set_subscription
 
 
 class ComputeAmountsTests(TestCase):
@@ -51,7 +51,7 @@ class GenerateSubscriptionInvoicePdfTests(TestCase):
             address1='1 rue de la Paix', postal_code='75002',
             city='Paris', siret='12345678900011',
         )
-        Subscription.objects.create(pharmacy=pharmacy, plan='small', status='active')
+        set_subscription(pharmacy, plan='small', status='active')
         invoice = Invoice.objects.create(
             pharmacy=pharmacy,
             invoice_type=Invoice.InvoiceType.SUBSCRIPTION,

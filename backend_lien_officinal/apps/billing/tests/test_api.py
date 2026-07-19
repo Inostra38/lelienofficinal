@@ -6,7 +6,7 @@ from django.test import TestCase
 from rest_framework.test import APIClient
 
 from apps.billing.models import Invoice, PromoCode, Subscription
-from apps.billing.tests.utils import make_pharmacy
+from apps.billing.tests.utils import make_pharmacy, set_subscription
 
 
 def _auth_client(pharmacy):
@@ -22,6 +22,9 @@ class BillingStatusViewTests(TestCase):
 
     def test_status_without_subscription(self):
         pharmacy = make_pharmacy(sms_credits=42)
+        # Le signal en crée un à l'inscription : on le retire pour atteindre
+        # la branche « aucun abonnement » de la vue.
+        Subscription.objects.filter(pharmacy=pharmacy).delete()
         resp = _auth_client(pharmacy).get('/api/billing/status/')
         self.assertEqual(resp.status_code, 200)
         self.assertIsNone(resp.data['subscription'])
@@ -104,12 +107,13 @@ class UpdatePaymentMethodViewTests(TestCase):
         self.client = _auth_client(self.pharmacy)
 
     def test_404_without_subscription(self):
+        Subscription.objects.filter(pharmacy=self.pharmacy).delete()
         resp = self.client.post('/api/billing/payment-method/',
                                 {'payment_method_id': 'pm_1'}, format='json')
         self.assertEqual(resp.status_code, 404)
 
     def test_400_without_payment_method(self):
-        Subscription.objects.create(pharmacy=self.pharmacy, stripe_customer_id='cus_1')
+        set_subscription(self.pharmacy, stripe_customer_id='cus_1')
         resp = self.client.post('/api/billing/payment-method/', {}, format='json')
         self.assertEqual(resp.status_code, 400)
 
@@ -117,9 +121,7 @@ class UpdatePaymentMethodViewTests(TestCase):
     @patch('apps.billing.views.stripe.Customer.modify')
     @patch('apps.billing.views.stripe.PaymentMethod.attach')
     def test_updates_payment_method(self, mock_attach, mock_cust, mock_sub):
-        Subscription.objects.create(
-            pharmacy=self.pharmacy,
-            stripe_customer_id='cus_1', stripe_subscription_id='sub_1',
+        set_subscription(self.pharmacy, stripe_customer_id='cus_1', stripe_subscription_id='sub_1',
         )
         resp = self.client.post('/api/billing/payment-method/',
                                 {'payment_method_id': 'pm_new'}, format='json')
@@ -137,19 +139,18 @@ class CancelSubscriptionViewTests(TestCase):
         self.client = _auth_client(self.pharmacy)
 
     def test_404_without_subscription(self):
+        Subscription.objects.filter(pharmacy=self.pharmacy).delete()
         resp = self.client.post('/api/billing/cancel/', {}, format='json')
         self.assertEqual(resp.status_code, 404)
 
     def test_400_without_stripe_subscription(self):
-        Subscription.objects.create(pharmacy=self.pharmacy, stripe_customer_id='cus_1')
+        set_subscription(self.pharmacy, stripe_customer_id='cus_1')
         resp = self.client.post('/api/billing/cancel/', {}, format='json')
         self.assertEqual(resp.status_code, 400)
 
     @patch('apps.billing.views.StripeService.cancel_subscription')
     def test_schedules_cancellation(self, mock_cancel):
-        sub = Subscription.objects.create(
-            pharmacy=self.pharmacy,
-            stripe_customer_id='cus_1', stripe_subscription_id='sub_1',
+        sub = set_subscription(self.pharmacy, stripe_customer_id='cus_1', stripe_subscription_id='sub_1',
         )
         resp = self.client.post('/api/billing/cancel/', {}, format='json')
         self.assertEqual(resp.status_code, 200)
@@ -159,9 +160,7 @@ class CancelSubscriptionViewTests(TestCase):
 
     @patch('apps.billing.views.stripe.Subscription.modify')
     def test_resume_clears_cancellation(self, mock_modify):
-        sub = Subscription.objects.create(
-            pharmacy=self.pharmacy,
-            stripe_customer_id='cus_1', stripe_subscription_id='sub_1',
+        sub = set_subscription(self.pharmacy, stripe_customer_id='cus_1', stripe_subscription_id='sub_1',
             cancel_at_period_end=True,
         )
         resp = self.client.post('/api/billing/resume/', {}, format='json')

@@ -10,6 +10,7 @@ from rest_framework.test import APIClient
 
 from apps.core.models import Pharmacy
 from apps.billing.models import Subscription
+from apps.billing.tests.utils import set_subscription
 
 _n = 0
 
@@ -32,8 +33,7 @@ class TestConfirmReplayGuard(TestCase):
     @patch('apps.billing.views.stripe.PaymentMethod.attach')
     def test_abonnement_deja_actif_renvoie_409(self, mock_attach, mock_modify, mock_create):
         pharma = _pharma()
-        Subscription.objects.create(
-            pharmacy=pharma, stripe_customer_id='cus_1',
+        set_subscription(pharma, stripe_customer_id='cus_1',
             stripe_subscription_id='sub_existant',  # déjà actif
         )
         resp = _client(pharma).post('/api/billing/confirm/', {'payment_method_id': 'pm_1'}, format='json')
@@ -47,7 +47,7 @@ class TestConfirmReplayGuard(TestCase):
     @patch('apps.billing.views.stripe.PaymentMethod.attach')
     def test_premier_abonnement_appelle_stripe(self, mock_attach, mock_modify, mock_create):
         pharma = _pharma()
-        Subscription.objects.create(pharmacy=pharma, stripe_customer_id='cus_1')  # pas encore d'abo
+        set_subscription(pharma, stripe_customer_id='cus_1')  # pas encore d'abo
         mock_create.return_value = type('S', (), {'id': 'sub_new', 'trial_end': 1893456000})()
 
         resp = _client(pharma).post('/api/billing/confirm/', {'payment_method_id': 'pm_1'}, format='json')
