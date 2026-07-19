@@ -5,6 +5,9 @@ from apps.billing.models import Subscription, Invoice
 
 class SubscriptionSerializer(serializers.ModelSerializer):
     is_access_allowed = serializers.BooleanField(read_only=True)
+    # Motif du refus, pour que le frontend formule un message juste plutôt que
+    # de le déduire du statut (un TRIALING peut être en cours OU expiré).
+    access_denied_reason = serializers.CharField(read_only=True, allow_null=True)
     has_stripe_subscription = serializers.SerializerMethodField()
 
     class Meta:
@@ -13,6 +16,7 @@ class SubscriptionSerializer(serializers.ModelSerializer):
             'plan', 'status', 'trial_ends_at',
             'current_period_end', 'cancel_at_period_end',
             'has_stripe_subscription', 'is_access_allowed',
+            'access_denied_reason',
         ]
         read_only_fields = fields
 

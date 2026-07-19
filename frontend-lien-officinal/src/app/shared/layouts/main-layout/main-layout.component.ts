@@ -17,11 +17,12 @@ import { SidebarComponent } from '../../../features/dashboard/components/sidebar
 import { PinModalComponent } from '../../../features/messaging/components/pin-modal/pin-modal.component';
 import { ToastComponent } from '../../components/toast/toast.component';
 import { EmailBannerComponent } from '../../components/email-banner/email-banner.component';
+import { SubscriptionBannerComponent } from '../../components/subscription-banner/subscription-banner.component';
 
 @Component({
   selector: 'app-main-layout',
   standalone: true,
-  imports: [CommonModule, RouterOutlet, SidebarComponent, PinModalComponent, ToastComponent, EmailBannerComponent],
+  imports: [CommonModule, RouterOutlet, SidebarComponent, PinModalComponent, ToastComponent, EmailBannerComponent, SubscriptionBannerComponent],
   templateUrl: './main-layout.component.html'
 })
 export class MainLayoutComponent implements OnInit, OnDestroy {

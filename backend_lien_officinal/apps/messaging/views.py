@@ -5,6 +5,7 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.throttling import UserRateThrottle
 from rest_framework.views import APIView
+from apps.billing.permissions import HasPaidAccess
 from apps.core.auth_helpers import get_collaborator_from_jwt as _get_collaborator
 
 
@@ -40,7 +41,7 @@ class ConversationListCreateView(APIView):
     GET  /api/messaging/conversations/  — Liste des fils de la pharmacie
     POST /api/messaging/conversations/  — Créer un fil
     """
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsAuthenticated, HasPaidAccess]
 
     def get(self, request):
         collaborator = _get_collaborator(request)
@@ -96,7 +97,7 @@ class ConversationDetailView(APIView):
     GET    /api/messaging/conversations/{id}/  — Détail d'un fil
     DELETE /api/messaging/conversations/{id}/  — Supprimer (créateur uniquement)
     """
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsAuthenticated, HasPaidAccess]
 
     def get(self, request, conversation_id):
         collaborator = _get_collaborator(request)
@@ -135,7 +136,7 @@ class MessageListCreateView(APIView):
     GET  /api/messaging/conversations/{id}/messages/  — Messages du fil
     POST /api/messaging/conversations/{id}/messages/  — Envoyer un message (fallback HTTP)
     """
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsAuthenticated, HasPaidAccess]
     throttle_classes = [MessagingThrottle]
 
     def get(self, request, conversation_id):
@@ -182,7 +183,7 @@ class MarkReadView(APIView):
     POST /api/messaging/conversations/{id}/mark-read/
     Marque tous les messages du fil comme lus par le collaborateur actif.
     """
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsAuthenticated, HasPaidAccess]
 
     def post(self, request, conversation_id):
         collaborator = _get_collaborator(request)
@@ -216,7 +217,7 @@ class ConversationHideView(APIView):
     Masque la conversation pour le collaborateur actif (soft delete personnel).
     Réservé aux participants non-créateurs.
     """
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsAuthenticated, HasPaidAccess]
 
     def post(self, request, conversation_id):
         collaborator = _get_collaborator(request)
@@ -242,7 +243,7 @@ class TeamMembersView(APIView):
     GET /api/messaging/team-members/
     Liste des collaborateurs actifs de la pharmacie (pour le sélecteur de participants).
     """
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsAuthenticated, HasPaidAccess]
 
     def get(self, request):
         collaborators = Collaborator.objects.filter(

@@ -5,6 +5,11 @@ from collections import defaultdict, deque
 from channels.generic.websocket import AsyncWebsocketConsumer
 from channels.db import database_sync_to_async
 
+from apps.billing.permissions import (
+    WS_CLOSE_PAYMENT_REQUIRED,
+    pharmacy_has_paid_access,
+)
+
 from .models import Conversation, Message
 
 # Rate limiting WebSocket : 30 messages par minute par collaborateur
@@ -32,6 +37,10 @@ class ConversationConsumer(AsyncWebsocketConsumer):
 
         if not collaborator:
             await self.close(code=4001)
+            return
+
+        if not await self._has_paid_access(collaborator.pharmacy_id):
+            await self.close(code=WS_CLOSE_PAYMENT_REQUIRED)
             return
 
         self.conversation_id = self.scope['url_route']['kwargs']['conversation_id']
@@ -95,6 +104,10 @@ class ConversationConsumer(AsyncWebsocketConsumer):
         await self.send(text_data=json.dumps(event['message']))
 
     # === Helpers DB ===
+
+    @database_sync_to_async
+    def _has_paid_access(self, pharmacy_id):
+        return pharmacy_has_paid_access(pharmacy_id)
 
     @database_sync_to_async
     def check_authorization(self, collaborator, conversation_id):

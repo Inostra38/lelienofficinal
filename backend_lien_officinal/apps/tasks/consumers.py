@@ -1,4 +1,10 @@
+from channels.db import database_sync_to_async
 from channels.generic.websocket import AsyncWebsocketConsumer
+
+from apps.billing.permissions import (
+    WS_CLOSE_PAYMENT_REQUIRED,
+    pharmacy_has_paid_access,
+)
 
 
 class TaskConsumer(AsyncWebsocketConsumer):
@@ -15,6 +21,10 @@ class TaskConsumer(AsyncWebsocketConsumer):
             await self.close(code=4001)
             return
 
+        if not await self._has_paid_access(collaborator.pharmacy_id):
+            await self.close(code=WS_CLOSE_PAYMENT_REQUIRED)
+            return
+
         self.pharmacy_id = collaborator.pharmacy_id
         self.room_group_name = f'tasks_pharmacy_{self.pharmacy_id}'
 
@@ -23,6 +33,10 @@ class TaskConsumer(AsyncWebsocketConsumer):
         # Le client offre ['bearer', <jwt>] ; un navigateur exige que le serveur
         # confirme l'un des sous-protocoles offerts, sinon il rejette le handshake.
         await self.accept(subprotocol='bearer')
+
+    @database_sync_to_async
+    def _has_paid_access(self, pharmacy_id):
+        return pharmacy_has_paid_access(pharmacy_id)
 
     async def disconnect(self, close_code):
         if hasattr(self, 'room_group_name'):

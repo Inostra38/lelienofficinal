@@ -6,6 +6,7 @@ from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated, AllowAny
 from rest_framework.throttling import UserRateThrottle, SimpleRateThrottle
+from apps.billing.permissions import HasPaidAccess
 
 logger = logging.getLogger(__name__)
 from django.db import transaction
@@ -53,7 +54,7 @@ class SMSCollaboratorThrottle(SimpleRateThrottle):
 
 class SMSTemplateViewSet(viewsets.ModelViewSet):
     serializer_class = SMSTemplateSerializer
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsAuthenticated, HasPaidAccess]
 
     def get_queryset(self):
         return SMSTemplate.objects.filter(pharmacy=self.request.user).order_by('title')
@@ -70,7 +71,7 @@ class SMSTemplateViewSet(viewsets.ModelViewSet):
 
 
 class SMSPreviewView(APIView):
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsAuthenticated, HasPaidAccess]
 
     def post(self, request):
         serializer = SMSPreviewSerializer(data=request.data)
@@ -108,7 +109,7 @@ class SMSPreviewView(APIView):
 
 
 class SMSSendView(APIView):
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsAuthenticated, HasPaidAccess]
     throttle_classes = [SMSSendThrottle, SMSCollaboratorThrottle]
 
     def post(self, request):
@@ -186,7 +187,7 @@ class SMSSendView(APIView):
 
 class SMSLogViewSet(viewsets.ReadOnlyModelViewSet):
     serializer_class = SMSLogSerializer
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsAuthenticated, HasPaidAccess]
     pagination_class = SMSLogPagination
 
     def get_queryset(self):
@@ -279,7 +280,7 @@ class SMSWebhookView(APIView):
 
 
 class SMSCreditsView(APIView):
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsAuthenticated, HasPaidAccess]
 
     def get(self, request):
         request.user.refresh_from_db(fields=['sms_credits'])
@@ -288,7 +289,7 @@ class SMSCreditsView(APIView):
 
 class SMSStatsView(APIView):
     """Statistiques SMS de la pharmacie — compteurs calculés en DB."""
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsAuthenticated, HasPaidAccess]
 
     def get(self, request):
         now = timezone.now()

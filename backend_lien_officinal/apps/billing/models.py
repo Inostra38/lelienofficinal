@@ -1,4 +1,7 @@
+from datetime import timedelta
+
 from django.db import models
+from django.utils import timezone
 
 
 class Subscription(models.Model):
@@ -26,6 +29,10 @@ class Subscription(models.Model):
     status                 = models.CharField(max_length=20, choices=Status.choices, default=Status.TRIALING)
     trial_ends_at          = models.DateTimeField(null=True, blank=True)
     current_period_end     = models.DateTimeField(null=True, blank=True)
+    past_due_since         = models.DateTimeField(
+                                 null=True, blank=True,
+                                 help_text="Entrée en impayé — origine du délai de grâce de 7 jours."
+                             )
     suspended_at           = models.DateTimeField(null=True, blank=True)
     cancel_at_period_end   = models.BooleanField(default=False)
     created_at             = models.DateTimeField(auto_now_add=True)
@@ -53,10 +60,59 @@ class Subscription(models.Model):
     def __str__(self):
         return f"{self.pharmacy} — {self.get_plan_display()} ({self.get_status_display()})"
 
+    #: Durée de l'essai, ouvrant toute la plateforme. Aligné sur le
+    #: ``trial_days`` transmis à Stripe lors de la souscription.
+    TRIAL_DAYS = 30
+
+    #: Délai de grâce accordé après un échec de paiement, avant coupure des
+    #: modules payants. Le titulaire est invité à mettre à jour sa carte.
+    PAST_DUE_GRACE = timedelta(days=7)
+
     @property
     def is_access_allowed(self):
-        """Renvoie True si la pharmacie a accès à la plateforme."""
-        return self.status in (self.Status.TRIALING, self.Status.ACTIVE, self.Status.PAST_DUE)
+        """Accès aux modules PAYANTS (planning, qualité, tâches, messagerie, SMS).
+
+        Le tableau de bord est gratuit et n'est JAMAIS soumis à cette règle :
+        voir apps.billing.permissions.HasPaidAccess.
+
+        Calculé à la volée depuis les dates, et non depuis le seul statut :
+        un essai expiré ou un impayé dépassé perd l'accès même si aucune tâche
+        planifiée n'est passée basculer le statut. L'accès ne dépend donc ni de
+        Celery ni de Redis.
+        """
+        now = timezone.now()
+
+        if self.status == self.Status.ACTIVE:
+            return True
+
+        if self.status == self.Status.TRIALING:
+            # Sans date de fin, l'essai n'a pas encore démarré côté Stripe :
+            # on l'accorde plutôt que de couper un compte fraîchement créé.
+            return self.trial_ends_at is None or self.trial_ends_at > now
+
+        if self.status == self.Status.PAST_DUE:
+            # Délai de grâce de 7 jours. Sans horodatage (impayé antérieur à
+            # l'ajout du champ), on accorde le bénéfice du doute.
+            return (
+                self.past_due_since is None
+                or now - self.past_due_since < self.PAST_DUE_GRACE
+            )
+
+        # SUSPENDED, CANCELED
+        return False
+
+    @property
+    def access_denied_reason(self):
+        """Motif de refus, destiné au frontend. None si l'accès est ouvert."""
+        if self.is_access_allowed:
+            return None
+        if self.status == self.Status.TRIALING:
+            return 'trial_expired'
+        if self.status == self.Status.PAST_DUE:
+            return 'payment_failed'
+        if self.status == self.Status.SUSPENDED:
+            return 'suspended'
+        return 'canceled'
 
 
 class Invoice(models.Model):

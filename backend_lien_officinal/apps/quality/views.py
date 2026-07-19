@@ -5,6 +5,7 @@ from rest_framework import viewsets, status
 from rest_framework.decorators import action
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
+from apps.billing.permissions import HasPaidAccess
 
 from .models import (
     Procedure, ProcedureAttachment, ProcedureImage, NonConformity,
@@ -27,7 +28,7 @@ from .permissions import (
 # ── Procedure ─────────────────────────────────────────────────────────────────
 
 class ProcedureViewSet(viewsets.ModelViewSet):
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsAuthenticated, HasPaidAccess]
 
     def get_queryset(self):
         qs = (
@@ -338,6 +339,9 @@ class ProcedureViewSet(viewsets.ModelViewSet):
 # ── ProcedureCategory ─────────────────────────────────────────────────────────
 
 class ProcedureCategoryViewSet(viewsets.ModelViewSet):
+    # Explicite : ces deux viewsets s'appuyaient sur DEFAULT_PERMISSION_CLASSES
+    # et auraient échappé au verrou payant.
+    permission_classes = [IsAuthenticated, HasPaidAccess]
     serializer_class = ProcedureCategorySerializer
 
     def get_queryset(self):
@@ -363,6 +367,7 @@ class ProcedureCategoryViewSet(viewsets.ModelViewSet):
 # ── ProcedureGroup ────────────────────────────────────────────────────────────
 
 class ProcedureGroupViewSet(viewsets.ModelViewSet):
+    permission_classes = [IsAuthenticated, HasPaidAccess]
     serializer_class = ProcedureGroupSerializer
 
     def get_queryset(self):
@@ -408,7 +413,7 @@ class ProcedureGroupViewSet(viewsets.ModelViewSet):
 # ── ProcedureImage (suppression seule) ───────────────────────────────────────
 
 class ProcedureImageViewSet(viewsets.GenericViewSet):
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsAuthenticated, HasPaidAccess]
     serializer_class = ProcedureImageSerializer
 
     def get_queryset(self):
@@ -423,7 +428,7 @@ class ProcedureImageViewSet(viewsets.GenericViewSet):
 # ── ProcedureAttachment (suppression seule) ───────────────────────────────────
 
 class ProcedureAttachmentViewSet(viewsets.GenericViewSet):
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsAuthenticated, HasPaidAccess]
     serializer_class = ProcedureAttachmentSerializer
 
     def get_queryset(self):
@@ -438,7 +443,7 @@ class ProcedureAttachmentViewSet(viewsets.GenericViewSet):
 # ── NonConformity ─────────────────────────────────────────────────────────────
 
 class NonConformityViewSet(viewsets.ModelViewSet):
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsAuthenticated, HasPaidAccess]
 
     def get_permissions(self):
         # S02 : le ModelViewSet exposait update/partial_update/destroy en
@@ -545,7 +550,7 @@ class CorrectiveActionViewSet(
     viewsets.mixins.UpdateModelMixin,
     viewsets.GenericViewSet,
 ):
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsAuthenticated, HasPaidAccess]
     serializer_class = CorrectiveActionSerializer
 
     def get_queryset(self):
@@ -569,7 +574,7 @@ class ProcedureNotificationViewSet(
     viewsets.mixins.ListModelMixin,
     viewsets.GenericViewSet,
 ):
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsAuthenticated, HasPaidAccess]
 
     def _get_collaborator(self):
         return _get_collaborator(self.request, self.request.user)

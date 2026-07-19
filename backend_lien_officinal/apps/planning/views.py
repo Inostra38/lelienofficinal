@@ -14,6 +14,7 @@ from rest_framework.response import Response
 from rest_framework.throttling import UserRateThrottle
 from rest_framework.views import APIView
 from rest_framework_simplejwt.authentication import JWTAuthentication
+from apps.billing.permissions import HasPaidAccess
 
 from apps.team.models import Collaborator, ContractHistory
 from apps.core.auth_helpers import get_collaborator_from_jwt as _get_collaborator
@@ -67,7 +68,7 @@ class WeekView(APIView):
     Retourne shifts, statuts journaliers et résumé hebdomadaire.
     """
     authentication_classes = [JWTAuthentication]
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsAuthenticated, HasPaidAccess]
 
     def get(self, request):
         monday = _parse_week(request.query_params.get('week'))
@@ -137,7 +138,7 @@ class WeekView(APIView):
 
 class ShiftListCreateView(APIView):
     authentication_classes = [JWTAuthentication]
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsAuthenticated, HasPaidAccess]
 
     def post(self, request):
         actor = _get_collaborator(request)
@@ -153,7 +154,7 @@ class ShiftListCreateView(APIView):
 
 class ShiftDetailView(APIView):
     authentication_classes = [JWTAuthentication]
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsAuthenticated, HasPaidAccess]
 
     def _get_shift(self, pk, pharmacy):
         try:
@@ -210,7 +211,7 @@ class ShiftDetailView(APIView):
 class ShiftPublishView(APIView):
     """POST /api/planning/shifts/{id}/publish/"""
     authentication_classes = [JWTAuthentication]
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsAuthenticated, HasPaidAccess]
 
     def post(self, request, pk):
         actor = _get_collaborator(request)
@@ -234,7 +235,7 @@ class ShiftPublishView(APIView):
 class PublishWeekView(APIView):
     """POST /api/planning/publish-week/  { week: '2025-W12' }"""
     authentication_classes = [JWTAuthentication]
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsAuthenticated, HasPaidAccess]
 
     def post(self, request):
         actor = _get_collaborator(request)
@@ -267,7 +268,7 @@ class PublishWeekView(APIView):
 class UnpublishWeekView(APIView):
     """POST /api/planning/unpublish-week/  { week: '2025-W12' }"""
     authentication_classes = [JWTAuthentication]
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsAuthenticated, HasPaidAccess]
 
     def post(self, request):
         actor = _get_collaborator(request)
@@ -291,7 +292,7 @@ class UnpublishWeekView(APIView):
 
 class AbsenceListCreateView(APIView):
     authentication_classes = [JWTAuthentication]
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsAuthenticated, HasPaidAccess]
 
     def get(self, request):
         actor = _get_collaborator(request)
@@ -469,7 +470,7 @@ class AbsenceListCreateView(APIView):
 class AbsenceReviewView(APIView):
     """POST /api/planning/absences/{id}/approve/  ou  /reject/"""
     authentication_classes = [JWTAuthentication]
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsAuthenticated, HasPaidAccess]
 
     def post(self, request, pk, action):
         actor = _get_collaborator(request)
@@ -497,7 +498,7 @@ class AbsenceReviewView(APIView):
 class AbsenceDeleteView(APIView):
     """DELETE /api/planning/absences/{pk}/"""
     authentication_classes = [JWTAuthentication]
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsAuthenticated, HasPaidAccess]
 
     def delete(self, request, pk):
         actor = _get_collaborator(request)
@@ -517,7 +518,7 @@ class AbsenceDeleteView(APIView):
 
 class DayStatusListCreateView(APIView):
     authentication_classes = [JWTAuthentication]
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsAuthenticated, HasPaidAccess]
 
     def get(self, request):
         week_str = request.query_params.get('week')
@@ -560,7 +561,7 @@ class DayStatusListCreateView(APIView):
 class DayStatusDeleteView(APIView):
     """DELETE /api/planning/day-status/{date}/  — supprime le statut d'un jour"""
     authentication_classes = [JWTAuthentication]
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsAuthenticated, HasPaidAccess]
 
     def delete(self, request, iso_date):
         actor = _get_collaborator(request)
@@ -585,7 +586,7 @@ class MonthlyAbsenceSummaryView(APIView):
     Retourne par jour du mois la liste des absences approuvées (initiales + type).
     """
     authentication_classes = [JWTAuthentication]
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsAuthenticated, HasPaidAccess]
 
     def get(self, request):
         # Balayage : le TYPE d'absence (dont « maladie », donnée de santé) était
@@ -635,7 +636,7 @@ class MonthlyAbsenceSummaryView(APIView):
 
 class PlanningSettingsView(APIView):
     authentication_classes = [JWTAuthentication]
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsAuthenticated, HasPaidAccess]
 
     def _get_or_create_settings(self, pharmacy):
         obj, _ = PlanningSettings.objects.get_or_create(pharmacy=pharmacy)
@@ -662,7 +663,7 @@ class PlanningSettingsView(APIView):
 class WeekTemplateListView(APIView):
     """GET /api/planning/templates/  → liste des templates de la pharmacie"""
     authentication_classes = [JWTAuthentication]
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsAuthenticated, HasPaidAccess]
 
     def get(self, request):
         templates = WeekTemplate.objects.filter(pharmacy=request.user).prefetch_related('shifts')
@@ -675,7 +676,7 @@ class WeekTemplateDetailView(APIView):
     PATCH /api/planning/templates/{letter}/  → modifier apply_from
     """
     authentication_classes = [JWTAuthentication]
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsAuthenticated, HasPaidAccess]
 
     def _get_or_create(self, pharmacy, letter):
         if letter not in [c[0] for c in WeekTemplate.Letter.choices]:
@@ -711,7 +712,7 @@ class TemplateShiftListCreateView(APIView):
     POST /api/planning/templates/{letter}/shifts/  → ajouter un shift
     """
     authentication_classes = [JWTAuthentication]
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsAuthenticated, HasPaidAccess]
 
     def _get_template(self, pharmacy, letter):
         try:
@@ -753,7 +754,7 @@ class TemplateShiftDetailView(APIView):
     DELETE /api/planning/templates/{letter}/shifts/{id}/
     """
     authentication_classes = [JWTAuthentication]
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsAuthenticated, HasPaidAccess]
 
     def _get_shift(self, pk, pharmacy, letter):
         try:
@@ -808,7 +809,7 @@ class TemplateBulkReplaceView(APIView):
     Supprime tous les TemplateShifts existants pour cette lettre, recrée en transaction atomique.
     """
     authentication_classes = [JWTAuthentication]
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsAuthenticated, HasPaidAccess]
 
     def post(self, request, letter):
         actor = _get_collaborator(request)
@@ -849,7 +850,7 @@ class TemplateBulkReplaceView(APIView):
 class TemplateApplyView(APIView):
     """POST /api/planning/templates/{letter}/apply/  { week: '2025-W12' }"""
     authentication_classes = [JWTAuthentication]
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsAuthenticated, HasPaidAccess]
 
     def post(self, request, letter):
         actor = _get_collaborator(request)
@@ -988,7 +989,7 @@ class BulkShiftUpdateView(APIView):
     Supprime tous les shifts existants sur les dates reçues, recrée en transaction atomique.
     """
     authentication_classes = [JWTAuthentication]
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsAuthenticated, HasPaidAccess]
 
     def post(self, request, letter):
         actor = _get_collaborator(request)
@@ -1076,7 +1077,7 @@ class OpeningHoursView(APIView):
     POST /api/planning/opening-hours/                     → créer un créneau (version_id optionnel)
     """
     authentication_classes = [JWTAuthentication]
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsAuthenticated, HasPaidAccess]
 
     def get(self, request):
         week_str   = request.query_params.get('week')
@@ -1126,7 +1127,7 @@ class OpeningHoursVersionCreateView(APIView):
     Body : { "effective_from": "2025-W22" | "2025-06-02" }
     """
     authentication_classes = [JWTAuthentication]
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsAuthenticated, HasPaidAccess]
 
     def post(self, request):
         actor = _get_collaborator(request)
@@ -1165,7 +1166,7 @@ class OpeningHoursVersionCreateView(APIView):
 class OpeningHoursDetailView(APIView):
     """DELETE /api/planning/opening-hours/{pk}/"""
     authentication_classes = [JWTAuthentication]
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsAuthenticated, HasPaidAccess]
 
     def delete(self, request, pk):
         actor = _get_collaborator(request)
@@ -1189,7 +1190,7 @@ class TimeAdjustmentListCreateView(APIView):
     POST /api/planning/adjustments/
     """
     authentication_classes = [JWTAuthentication]
-    permission_classes     = [IsAuthenticated]
+    permission_classes     = [IsAuthenticated, HasPaidAccess]
 
     def get(self, request):
         actor    = _get_collaborator(request)
@@ -1240,7 +1241,7 @@ class TimeAdjustmentListCreateView(APIView):
 class TimeAdjustmentDeleteView(APIView):
     """DELETE /api/planning/adjustments/{pk}/"""
     authentication_classes = [JWTAuthentication]
-    permission_classes     = [IsAuthenticated]
+    permission_classes     = [IsAuthenticated, HasPaidAccess]
 
     def delete(self, request, pk):
         actor = _get_collaborator(request)
@@ -1269,7 +1270,7 @@ class AnalyticsView(APIView):
     Accessible uniquement aux managers planning.
     """
     authentication_classes = [JWTAuthentication]
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsAuthenticated, HasPaidAccess]
 
     def get(self, request):
         actor = _get_collaborator(request)
@@ -1347,7 +1348,7 @@ class ConstraintsView(APIView):
     GET  /api/planning/constraints/   → list all constraints for the pharmacy
     POST /api/planning/constraints/   → add a new constraint (pharmacy or personal)
     """
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsAuthenticated, HasPaidAccess]
     authentication_classes = [JWTAuthentication]
 
     def get(self, request):
@@ -1396,7 +1397,7 @@ class ConstraintDetailView(APIView):
     PATCH  /api/planning/constraints/{id}/  → update description / toggle active
     DELETE /api/planning/constraints/{id}/  → delete (forbidden for regulatory)
     """
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsAuthenticated, HasPaidAccess]
     authentication_classes = [JWTAuthentication]
 
     def _get_constraint(self, request, pk):
@@ -1450,7 +1451,7 @@ class GenerateTemplateThrottle(UserRateThrottle):
 
 class GenerateTemplateView(APIView):
     """POST /api/planning/constraints/generate/"""
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsAuthenticated, HasPaidAccess]
     authentication_classes = [JWTAuthentication]
     throttle_classes = [GenerateTemplateThrottle]
 
@@ -1631,7 +1632,7 @@ class GenerateTemplatePollView(APIView):
     { status: "pending" | "done" | "error", ... }
     """
     authentication_classes = [JWTAuthentication]
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsAuthenticated, HasPaidAccess]
 
     def get(self, request, task_id: str):
         from django.core.cache import cache
@@ -1648,7 +1649,7 @@ class PayeAnalyticsView(APIView):
     Managers uniquement.
     """
     authentication_classes = [JWTAuthentication]
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsAuthenticated, HasPaidAccess]
 
     def get(self, request):
         actor = _get_collaborator(request)
@@ -1681,7 +1682,7 @@ class PayeAnalyticsView(APIView):
 class SplitShiftView(APIView):
     """POST /api/planning/shifts/<pk>/split/  { split_time: "HH:MM" }"""
     authentication_classes = [JWTAuthentication]
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsAuthenticated, HasPaidAccess]
 
     def post(self, request, pk):
         actor = _get_collaborator(request)
@@ -1748,7 +1749,7 @@ class SplitShiftView(APIView):
 class TransformShiftView(APIView):
     """POST /api/planning/shifts/<pk>/transform/  { transform_type: "cp"|... }"""
     authentication_classes = [JWTAuthentication]
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsAuthenticated, HasPaidAccess]
 
     _VALID = {'cp', 'injustifiee', 'conge_exceptionnel', 'maladie', 'rcr', 'sans_solde', 'formation'}
 
@@ -1787,7 +1788,7 @@ class TransformShiftView(APIView):
 class EarlyDepartureView(APIView):
     """POST /api/planning/shifts/<pk>/early-departure/  { actual_end_time, note }"""
     authentication_classes = [JWTAuthentication]
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsAuthenticated, HasPaidAccess]
 
     def post(self, request, pk):
         actor = _get_collaborator(request)
@@ -1834,7 +1835,7 @@ class EarlyDepartureView(APIView):
 class OvertimeView(APIView):
     """POST /api/planning/shifts/<pk>/overtime/  { duration_minutes, note }"""
     authentication_classes = [JWTAuthentication]
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsAuthenticated, HasPaidAccess]
 
     def post(self, request, pk):
         actor = _get_collaborator(request)
@@ -1877,7 +1878,7 @@ class OvertimeView(APIView):
 class RCRView(APIView):
     """POST /api/planning/shifts/<pk>/rcr/"""
     authentication_classes = [JWTAuthentication]
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsAuthenticated, HasPaidAccess]
 
     def post(self, request, pk):
         actor = _get_collaborator(request)
