@@ -1,6 +1,5 @@
 import { Injectable, inject } from '@angular/core';
 import { Observable } from 'rxjs';
-import { map } from 'rxjs/operators';
 import { QualityAiWsService } from './quality-ai-ws.service';
 
 export interface CorrectiveActionSuggestion {
@@ -15,15 +14,6 @@ export interface CorrectiveActionSuggestion {
 @Injectable({ providedIn: 'root' })
 export class AiService {
   private ws = inject(QualityAiWsService);
-
-  generateProcedureContent(payload: {
-    title: string;
-    category: string;
-    reference: string;
-    context?: string;
-  }): Observable<{ content: string }> {
-    return this.ws.request<{ content: string }>('generate_content', payload);
-  }
 
   refactorText(payload: {
     text: string;
