@@ -32,7 +32,8 @@ def _make_pharmacy(email=None):
 
 class TestRegisterView(TestCase):
 
-    def test_register_succes_201(self):
+    @patch('apps.core.tasks.send_verification_email_task')
+    def test_register_succes_201(self, _mock_email):
         resp = self.client.post('/api/auth/register/', {
             'email': 'nouveau@test.com',
             'password': 'motdepasse1',
@@ -53,7 +54,8 @@ class TestRegisterView(TestCase):
         }, content_type='application/json')
         self.assertEqual(resp.status_code, 400)
 
-    def test_register_email_domaine_normalise_minuscule(self):
+    @patch('apps.core.tasks.send_verification_email_task')
+    def test_register_email_domaine_normalise_minuscule(self, _mock_email):
         """Django normalize_email met le domaine en minuscule (pas la partie locale)."""
         resp = self.client.post('/api/auth/register/', {
             'email': 'MAJuscule@TEST.COM',
@@ -187,7 +189,8 @@ class TestHttpOnlyCookies(TestCase):
 
     # ── session_info : présence, non-HttpOnly, contenu JSON ───────────────────
 
-    def test_register_set_session_info_cookie(self):
+    @patch('apps.core.tasks.send_verification_email_task')
+    def test_register_set_session_info_cookie(self, _mock_email):
         """Register pose également le cookie session_info."""
         resp = self.client.post('/api/auth/register/', {
             'email': 'cookie_si@test.com',

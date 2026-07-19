@@ -7,8 +7,6 @@ from .views import (
     ProcedureGroupViewSet, ProcedureCategoryViewSet,
     ProcedureNotificationViewSet,
 )
-from .views_ai import generate_procedure_content, suggest_corrective_actions, refactor_text
-
 router = DefaultRouter()
 router.register(r'categories', ProcedureCategoryViewSet, basename='procedure-category')
 router.register(r'groups', ProcedureGroupViewSet, basename='procedure-group')
@@ -21,7 +19,4 @@ router.register(r'notifications', ProcedureNotificationViewSet, basename='proced
 
 urlpatterns = [
     path('', include(router.urls)),
-    path('ai/generate-procedure/', generate_procedure_content, name='ai-generate-procedure'),
-    path('ai/suggest-actions/', suggest_corrective_actions, name='ai-suggest-actions'),
-    path('ai/refactor-text/', refactor_text, name='ai-refactor-text'),
 ]

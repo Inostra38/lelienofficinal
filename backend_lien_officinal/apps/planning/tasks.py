@@ -21,15 +21,32 @@ def generate_template_task(task_id: str, api_key: str, system_prompt: str, messa
         from .utils import parse_ai_planning_response, AIParseError
 
         client = anthropic_sdk.Anthropic(api_key=api_key)
-        ai_response = client.messages.create(
-            model='claude-sonnet-4-6',
-            max_tokens=16000,
+        # Streaming imposé par le SDK au-delà de ~16k tokens de sortie, et
+        # nécessaire ici : un planning 2 semaines mesuré dépasse déjà 16k une
+        # fois le raisonnement compté dans le même budget.
+        with client.messages.stream(
+            model='claude-sonnet-5',
+            max_tokens=32000,
+            thinking={'type': 'adaptive'},
             system=system_prompt,
             messages=messages,
-        )
-        raw_text = ai_response.content[0].text
+        ) as stream:
+            ai_response = stream.get_final_message()
 
-        assistant_message = raw_text
+        # Le premier bloc est un bloc de raisonnement, pas du texte : sélectionner
+        # explicitement le bloc textuel.
+        assistant_message = next(
+            (b.text for b in ai_response.content if b.type == 'text'), ''
+        )
+
+        if ai_response.stop_reason == 'max_tokens':
+            logger.error('AI response truncated for task_id=%s', task_id)
+            cache.set(cache_key, {
+                'status': 'error',
+                'detail': "La réponse de l'IA a été tronquée avant d'être complète. "
+                          'Réessayez en réduisant le nombre de semaines demandées.',
+            }, timeout=_TASK_TTL)
+            return
 
         try:
             template_json = parse_ai_planning_response(assistant_message)

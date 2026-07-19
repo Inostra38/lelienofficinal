@@ -115,31 +115,46 @@ Consignes :
 - Base-toi sur le titre ET la description de la ressource, ainsi que sur la description de chaque catégorie.
 - Si une ressource peut appartenir à plusieurs catégories, choisis celle qui correspond le mieux à son usage principal.
 - Si vraiment aucune catégorie ne convient, utilise "Autre".
-- Tu DOIS retourner une entrée pour CHAQUE ressource de la liste.
+- Tu DOIS retourner une entrée pour CHAQUE ressource de la liste."""
 
-Réponds UNIQUEMENT avec un tableau JSON valide, sans texte avant ni après, sans balises markdown.
-Format attendu :
-[
-  {{"resource_id": 1, "category": "Grossistes-répartiteurs"}},
-  {{"resource_id": 2, "category": "Outils patients"}}
-]"""
+    # Le schéma garantit la forme de la sortie et, via l'enum, qu'aucune
+    # catégorie inventée ne remonte : plus de markdown à décaper.
+    schema = {
+        'type': 'json_schema',
+        'schema': {
+            'type': 'object',
+            'properties': {
+                'classifications': {
+                    'type': 'array',
+                    'items': {
+                        'type': 'object',
+                        'properties': {
+                            'resource_id': {'type': 'integer'},
+                            'category': {
+                                'type': 'string',
+                                'enum': list(selected_categories) + ['Autre'],
+                            },
+                        },
+                        'required': ['resource_id', 'category'],
+                        'additionalProperties': False,
+                    },
+                },
+            },
+            'required': ['classifications'],
+            'additionalProperties': False,
+        },
+    }
 
     try:
         client = anthropic.Anthropic(api_key=settings.ANTHROPIC_API_KEY)
         message = client.messages.create(
-            model='claude-haiku-4-5-20251001',
+            model='claude-haiku-4-5',
             max_tokens=4096,
-            messages=[{'role': 'user', 'content': prompt}]
+            messages=[{'role': 'user', 'content': prompt}],
+            output_config={'format': schema},
         )
-        raw = message.content[0].text.strip()
-        # Supprimer les balises markdown si présentes (```json ... ```)
-        if raw.startswith('```'):
-            raw = raw.split('```', 2)[1]
-            if raw.startswith('json'):
-                raw = raw[4:]
-            raw = raw.strip()
-        result = json.loads(raw)
-        return Response(result)
+        raw = next((b.text for b in message.content if b.type == 'text'), '')
+        return Response(json.loads(raw)['classifications'])
     except Exception:
         # Fallback silencieux : tout dans "Autre"
         return Response([{'resource_id': r['id'], 'category': 'Autre'} for r in resources])
