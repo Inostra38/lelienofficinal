@@ -41,8 +41,15 @@ class HasPaidAccess(BasePermission):
     """
 
     def has_permission(self, request, view):
-        pharmacy = request.user
-        subscription = getattr(pharmacy, 'subscription', None)
+        from apps.billing.models import Subscription
+
+        # Requête explicite plutôt que getattr(pharmacy, 'subscription') :
+        # l'accesseur inverse d'un OneToOne est mis en cache sur l'instance, et
+        # renvoyait un abonnement périmé dès que request.user avait déjà été
+        # touché dans le même cycle. Une lecture indexée sur une OneToOne est
+        # peu coûteuse, et le droit d'accès ne doit pas dépendre d'un cache
+        # d'ORM.
+        subscription = Subscription.objects.filter(pharmacy=request.user).first()
 
         if subscription is None:
             raise PaymentRequired(detail="Aucun abonnement. Démarrez votre essai gratuit.")
