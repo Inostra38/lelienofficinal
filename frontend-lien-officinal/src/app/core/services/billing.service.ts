@@ -13,6 +13,8 @@ export interface SubscriptionStatus {
   is_access_allowed: boolean;
   /** Motif du refus quand is_access_allowed est faux. */
   access_denied_reason: 'trial_expired' | 'payment_failed' | 'suspended' | 'canceled' | null;
+  /** Jours restants avant coupure sur un impayé en grâce ; null hors de cet état. */
+  grace_days_left: number | null;
 }
 
 export interface BillingStatusResponse {

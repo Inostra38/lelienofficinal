@@ -391,6 +391,16 @@ export class AccountBillingComponent implements OnInit {
     return !!sub && sub.is_access_allowed === false;
   }
 
+  /** Impayé encore dans la grâce : accès ouvert, mais coupure imminente. */
+  inGrace(): boolean {
+    const sub = this.status()?.subscription;
+    return !!sub && sub.status === 'past_due' && sub.is_access_allowed === true;
+  }
+
+  graceDaysLeft(): number | null {
+    return this.status()?.subscription?.grace_days_left ?? null;
+  }
+
   deniedReason(): string | null {
     return this.status()?.subscription?.access_denied_reason ?? null;
   }
@@ -425,7 +435,7 @@ export class AccountBillingComponent implements OnInit {
 
 const DENIAL_MESSAGES: Record<string, string> = {
   trial_expired:  "Votre essai gratuit est terminé. Abonnez-vous ci-dessous pour retrouver le planning, la qualité, les tâches, la messagerie et les SMS.",
-  payment_failed: "Votre dernier paiement a échoué. Mettez à jour votre RIB pour conserver vos modules.",
+  payment_failed: "Votre dernier paiement a échoué. Mettez à jour votre RIB pour retrouver vos modules.",
   suspended:      "Votre abonnement est suspendu pour impayé. Régularisez pour réactiver vos modules.",
   canceled:       "Votre abonnement est résilié. Réabonnez-vous pour retrouver vos modules.",
 };

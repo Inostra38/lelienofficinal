@@ -8,6 +8,9 @@ class SubscriptionSerializer(serializers.ModelSerializer):
     # Motif du refus, pour que le frontend formule un message juste plutôt que
     # de le déduire du statut (un TRIALING peut être en cours OU expiré).
     access_denied_reason = serializers.CharField(read_only=True, allow_null=True)
+    # Compte à rebours de la grâce d'impayé (null hors de cet état) — alimente
+    # le bandeau « mettez à jour votre RIB sous X jours ».
+    grace_days_left = serializers.IntegerField(read_only=True, allow_null=True)
     has_stripe_subscription = serializers.SerializerMethodField()
 
     class Meta:
@@ -16,7 +19,7 @@ class SubscriptionSerializer(serializers.ModelSerializer):
             'plan', 'status', 'trial_ends_at',
             'current_period_end', 'cancel_at_period_end',
             'has_stripe_subscription', 'is_access_allowed',
-            'access_denied_reason',
+            'access_denied_reason', 'grace_days_left',
         ]
         read_only_fields = fields
 

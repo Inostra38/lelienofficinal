@@ -142,3 +142,26 @@ class AccessRuleTests(TestCase):
 
     def test_actif_autorise(self):
         self.assertTrue(self._sub(status=Subscription.Status.ACTIVE).is_access_allowed)
+
+    def test_grace_days_left_compte_a_rebours_pendant_impaye(self):
+        # Impayé de 3 jours → il reste ~4 jours sur les 7 de grâce (arrondi sup.).
+        sub = self._sub(
+            status=Subscription.Status.PAST_DUE,
+            past_due_since=timezone.now() - timedelta(days=3),
+        )
+        self.assertEqual(sub.grace_days_left, 4)
+
+    def test_grace_days_left_zero_quand_grace_depassee(self):
+        sub = self._sub(
+            status=Subscription.Status.PAST_DUE,
+            past_due_since=timezone.now() - timedelta(days=7, seconds=1),
+        )
+        self.assertEqual(sub.grace_days_left, 0)
+
+    def test_grace_days_left_none_hors_impaye(self):
+        # Aucun compte à rebours n'a de sens hors d'un impayé en cours.
+        self.assertIsNone(self._sub(status=Subscription.Status.ACTIVE).grace_days_left)
+        self.assertIsNone(self._sub(
+            status=Subscription.Status.TRIALING,
+            trial_ends_at=timezone.now() + timedelta(days=10),
+        ).grace_days_left)

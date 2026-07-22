@@ -114,6 +114,22 @@ class Subscription(models.Model):
             return 'suspended'
         return 'canceled'
 
+    @property
+    def grace_days_left(self):
+        """Jours restants avant coupure, sur un impayé encore dans la grâce.
+
+        Renvoie None hors de cet état — c'est le signal qu'aucun compte à rebours
+        n'a de sens (essai, actif, ou impayé déjà coupé). Arrondi au jour
+        supérieur : « sous 1 jour » jusqu'au dernier moment, jamais « sous 0 ».
+        """
+        if self.status != self.Status.PAST_DUE or self.past_due_since is None:
+            return None
+        import math
+        remaining = (self.past_due_since + self.PAST_DUE_GRACE) - timezone.now()
+        if remaining.total_seconds() <= 0:
+            return 0
+        return math.ceil(remaining.total_seconds() / 86400)
+
 
 class Invoice(models.Model):
     """Facture générée par WeasyPrint, liée à un événement Stripe."""
