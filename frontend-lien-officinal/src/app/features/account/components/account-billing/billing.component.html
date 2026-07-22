@@ -32,6 +32,19 @@
     <div class="bg-white border border-gray-200 rounded-xl p-6 space-y-4">
       <h2 class="text-lg font-semibold text-gray-900">Abonnement</h2>
 
+      <!-- Accès coupé : bandeau d'alerte, tous états refusés confondus -->
+      @if (accessDenied()) {
+        <div class="bg-red-50 border border-red-200 rounded-lg px-4 py-3 flex items-start gap-3">
+          <svg class="h-5 w-5 text-red-500 shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/>
+          </svg>
+          <div>
+            <p class="text-sm font-semibold text-red-800">Modules payants suspendus</p>
+            <p class="text-sm text-red-700">{{ deniedMessage() }}</p>
+          </div>
+        </div>
+      }
+
       @if (status()?.subscription?.has_stripe_subscription) {
         <!-- ============ Abonnement existant : statut + gestion ============ -->
         <div class="flex items-center justify-between">
@@ -47,9 +60,15 @@
         </div>
 
         @if (status()?.subscription?.status === 'trialing' && status()?.subscription?.trial_ends_at) {
-          <p class="text-sm text-amber-600">
-            Période d'essai jusqu'au {{ status()!.subscription!.trial_ends_at | date:'dd/MM/yyyy' }}
-          </p>
+          @if (status()?.subscription?.is_access_allowed) {
+            <p class="text-sm text-amber-600">
+              Période d'essai jusqu'au {{ status()!.subscription!.trial_ends_at | date:'dd/MM/yyyy' }}
+            </p>
+          } @else {
+            <p class="text-sm text-red-600">
+              Essai expiré le {{ status()!.subscription!.trial_ends_at | date:'dd/MM/yyyy' }}
+            </p>
+          }
         }
 
         @if (status()?.subscription?.cancel_at_period_end) {
@@ -144,13 +163,20 @@
         }
       } @else {
         <!-- ============ Pas d'abonnement : démarrage ============ -->
-        <p class="text-sm text-gray-500">
-          Aucun abonnement actif. Démarrez votre abonnement ci-dessous — premier mois d'essai offert.
-        </p>
+        @if (accessDenied()) {
+          <!-- Essai déjà consommé : ne pas promettre un mois offert qui ne viendra pas. -->
+          <p class="text-sm text-gray-500">
+            Saisissez votre IBAN ci-dessous pour vous abonner et retrouver vos modules.
+          </p>
+        } @else {
+          <p class="text-sm text-gray-500">
+            Aucun abonnement actif. Démarrez votre abonnement ci-dessous — profitez de votre essai gratuit en cours.
+          </p>
+        }
 
         <div class="border-t border-gray-100 pt-4 space-y-4">
           <p class="text-sm text-gray-600">
-            Saisissez votre IBAN pour démarrer votre abonnement (1 mois d'essai gratuit).
+            Saisissez votre IBAN pour démarrer votre abonnement.
           </p>
           <div id="sepa-element" [class.hidden]="!sepaReady()" class="border border-gray-300 rounded-lg px-3 py-3 bg-white"></div>
 

@@ -1,10 +1,11 @@
-import { Component, EventEmitter, HostListener, Input, Output, inject } from '@angular/core';
+import { Component, EventEmitter, HostListener, Input, OnInit, Output, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { RouterLink, RouterLinkActive } from '@angular/router';
 import { Router } from '@angular/router';
 import { Collaborator } from '../../../../core/services/collaborator.service';
 import { AdSpaceComponent } from '../../../../shared/ui/ad-space/ad-space.component';
 import { AuthService } from '../../../../core/auth/auth.service';
+import { SubscriptionStateService } from '../../../../core/services/subscription-state.service';
 
 interface NavItem {
   id: string;
@@ -13,6 +14,17 @@ interface NavItem {
   svgPath: string;
 }
 
+/** Modules payants : verrouillés quand l'accès n'est plus ouvert. Le tableau de
+ *  bord (id 'dashboard') en est volontairement absent — il reste gratuit. */
+const PAID_MODULE_IDS = new Set(['messagerie', 'taches', 'planning', 'qualite', 'sms']);
+
+const LOCK_MESSAGES: Record<string, string> = {
+  trial_expired:  "Votre essai gratuit est terminé. Abonnez-vous pour retrouver ce module — votre tableau de bord reste accessible.",
+  payment_failed: "Votre dernier paiement a échoué. Mettez à jour vos informations bancaires pour retrouver ce module.",
+  suspended:      "Votre abonnement est suspendu pour impayé. Régularisez pour retrouver ce module.",
+  canceled:       "Votre abonnement est résilié. Réabonnez-vous pour retrouver ce module.",
+};
+
 @Component({
   selector: 'app-sidebar',
   standalone: true,
@@ -20,7 +32,7 @@ interface NavItem {
   templateUrl: './sidebar.component.html',
   styleUrl: './sidebar.component.css'
 })
-export class SidebarComponent {
+export class SidebarComponent implements OnInit {
   @Input() activeCollaborator: Collaborator | null = null;
   @Input() team: Collaborator[] = [];
   @Input() unreadMessagesCount = 0;
@@ -32,11 +44,22 @@ export class SidebarComponent {
   @Output() sessionClick = new EventEmitter<Collaborator>();
 
   private authService = inject(AuthService);
+  private subscriptionState = inject(SubscriptionStateService);
   constructor(private router: Router) {}
 
   private readonly COLLAPSE_BREAKPOINT = 1280;
   isCollapsed = window.innerWidth <= this.COLLAPSE_BREAKPOINT;
   isPharmacyMenuOpen = false;
+
+  /** Modale de module verrouillé (clic sur un onglet payant sans accès). */
+  lockModalOpen = false;
+  private lockModalReason: string | null = null;
+
+  ngOnInit(): void {
+    // Charge l'état d'abonnement pour savoir quels modules verrouiller.
+    // Optimiste tant qu'il n'est pas chargé : rien n'est verrouillé à tort.
+    this.subscriptionState.load().subscribe();
+  }
 
   @HostListener('window:resize')
   onResize() {
@@ -97,7 +120,7 @@ export class SidebarComponent {
     this.isPharmacyMenuOpen = false;
     switch (action) {
       case 'account': this.router.navigate(['/account']); break;
-      case 'billing': console.log('TODO: Facturation'); break;
+      case 'billing': this.router.navigate(['/account'], { queryParams: { section: 'billing' } }); break;
       case 'preferences': console.log('TODO: Préférences'); break;
       case 'logout': this.authService.logout(); break;
     }
@@ -108,6 +131,29 @@ export class SidebarComponent {
     if (id === 'taches') return this.unseenTasksCount;
     if (id === 'qualite') return this.unreadQualityCount;
     return 0;
+  }
+
+  /** Un module payant sans accès ouvert : l'onglet est verrouillé. */
+  isLocked(item: NavItem): boolean {
+    return PAID_MODULE_IDS.has(item.id) && !this.subscriptionState.hasPaidAccess();
+  }
+
+  openLockModal(): void {
+    this.lockModalReason = this.subscriptionState.deniedReason();
+    this.lockModalOpen = true;
+  }
+
+  closeLockModal(): void {
+    this.lockModalOpen = false;
+  }
+
+  goToBillingFromLock(): void {
+    this.lockModalOpen = false;
+    this.router.navigate(['/account'], { queryParams: { section: 'billing' } });
+  }
+
+  lockModalMessage(): string {
+    return LOCK_MESSAGES[this.lockModalReason ?? 'canceled'];
   }
 
 }

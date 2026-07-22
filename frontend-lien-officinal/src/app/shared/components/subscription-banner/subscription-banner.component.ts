@@ -12,14 +12,17 @@ import { SubscriptionStateService } from '../../../core/services/subscription-st
  *    puisque le tableau de bord est gratuit. Le message le dit explicitement,
  *    pour ne pas laisser croire à une coupure totale.
  *
- * Calquée sur EmailBannerComponent (même emplacement, même grammaire visuelle).
+ * Fermeture persistante (localStorage), mémorisée PAR MOTIF : fermer le bandeau
+ * « essai expiré » ne masque pas un futur « abonnement suspendu ». Le verrou des
+ * onglets et la page facturation restent, eux, toujours visibles — fermer la
+ * bannière n'occulte donc pas l'information.
  */
 @Component({
   selector: 'app-subscription-banner',
   standalone: true,
   imports: [CommonModule, RouterLink],
   template: `
-    @if (visible() && !dismissed()) {
+    @if (visible()) {
       <div class="border-b px-4 py-2 flex items-center justify-between text-sm"
            [class]="denied() ? 'bg-red-50 border-red-200' : 'bg-amber-50 border-amber-200'">
         <span [class]="denied() ? 'text-red-800' : 'text-amber-800'">{{ message() }}</span>
@@ -28,12 +31,9 @@ import { SubscriptionStateService } from '../../../core/services/subscription-st
              class="text-green-700 font-medium hover:underline">
             {{ denied() ? 'Mettre à jour mon abonnement' : "S'abonner" }}
           </a>
-          <!-- Un accès refusé n'est pas masquable : le titulaire doit agir. -->
-          @if (!denied()) {
-            <button (click)="dismissed.set(true)"
-                    class="text-amber-500 hover:text-amber-700"
-                    aria-label="Masquer">&#x2715;</button>
-          }
+          <button (click)="dismiss()"
+                  [class]="denied() ? 'text-red-400 hover:text-red-700' : 'text-amber-500 hover:text-amber-700'"
+                  aria-label="Masquer">&#x2715;</button>
         </div>
       </div>
     }
@@ -42,15 +42,29 @@ import { SubscriptionStateService } from '../../../core/services/subscription-st
 export class SubscriptionBannerComponent implements OnInit {
   private subscriptionState = inject(SubscriptionStateService);
 
-  dismissed = signal(false);
+  /** Incrémenté à chaque fermeture pour re-évaluer `dismissed` (localStorage n'est pas réactif). */
+  private readonly dismissTick = signal(0);
 
   /** Seuil à partir duquel on prévient de la fin d'essai. */
   private static readonly WARN_DAYS = 7;
 
   readonly denied = computed(() => !this.subscriptionState.hasPaidAccess());
 
+  /** Clé de fermeture propre à la situation courante (motif de refus, ou avertissement d'essai). */
+  private readonly dismissKey = computed(() =>
+    this.denied()
+      ? `llo.subBanner.denied.${this.subscriptionState.deniedReason() ?? 'unknown'}`
+      : 'llo.subBanner.trialWarning',
+  );
+
+  private readonly dismissed = computed(() => {
+    this.dismissTick();
+    return this.readDismissed(this.dismissKey());
+  });
+
   readonly visible = computed(() => {
     if (!this.subscriptionState.loaded()) return false;
+    if (this.dismissed()) return false;
     if (this.denied()) return true;
     const daysLeft = this.subscriptionState.trialDaysLeft();
     return daysLeft !== null && daysLeft <= SubscriptionBannerComponent.WARN_DAYS;
@@ -68,8 +82,29 @@ export class SubscriptionBannerComponent implements OnInit {
     return `Votre essai gratuit se termine dans ${daysLeft} jours. Votre tableau de bord restera accessible.`;
   });
 
+  dismiss(): void {
+    this.writeDismissed(this.dismissKey());
+    this.dismissTick.update(n => n + 1);
+  }
+
   ngOnInit(): void {
     this.subscriptionState.load().subscribe();
+  }
+
+  // localStorage peut lever (mode privé, quota, SSR) — la fermeture est un
+  // confort, jamais une garantie : on échoue en silence sans casser l'affichage.
+  private readDismissed(key: string): boolean {
+    try {
+      return localStorage.getItem(key) === '1';
+    } catch {
+      return false;
+    }
+  }
+
+  private writeDismissed(key: string): void {
+    try {
+      localStorage.setItem(key, '1');
+    } catch { /* ignore */ }
   }
 }
 
