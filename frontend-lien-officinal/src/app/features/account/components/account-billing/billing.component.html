@@ -45,6 +45,25 @@
         </div>
       }
 
+      <!-- Impayé encore dans la grâce : accès ouvert, coupure imminente -->
+      @if (inGrace()) {
+        <div class="bg-amber-50 border border-amber-200 rounded-lg px-4 py-3 flex items-start gap-3">
+          <svg class="h-5 w-5 text-amber-500 shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01M5.07 19h13.86a2 2 0 001.74-2.99L13.74 4a2 2 0 00-3.48 0L3.33 16.01A2 2 0 005.07 19z"/>
+          </svg>
+          <div>
+            <p class="text-sm font-semibold text-amber-800">Paiement en échec</p>
+            <p class="text-sm text-amber-700">
+              Votre dernier paiement a échoué. Mettez à jour votre RIB
+              @if (graceDaysLeft() !== null) {
+                {{ graceDaysLeft()! <= 1 ? 'sous 1 jour' : 'sous ' + graceDaysLeft() + ' jours' }}
+              }
+              pour éviter la coupure de vos modules.
+            </p>
+          </div>
+        </div>
+      }
+
       @if (status()?.subscription?.has_stripe_subscription) {
         <!-- ============ Abonnement existant : statut + gestion ============ -->
         <div class="flex items-center justify-between">
@@ -160,6 +179,9 @@
               </div>
             }
           </div>
+        } @else {
+          <!-- Compte Stripe existant mais accès coupé (résilié / suspendu / impayé) : se réabonner -->
+          <ng-container *ngTemplateOutlet="subscribeForm; context: { startLabel: 'Me réabonner' }"></ng-container>
         }
       } @else {
         <!-- ============ Pas d'abonnement : démarrage ============ -->
@@ -174,80 +196,87 @@
           </p>
         }
 
-        <div class="border-t border-gray-100 pt-4 space-y-4">
-          <p class="text-sm text-gray-600">
-            Saisissez votre IBAN pour démarrer votre abonnement.
-          </p>
-          <div id="sepa-element" [class.hidden]="!sepaReady()" class="border border-gray-300 rounded-lg px-3 py-3 bg-white"></div>
-
-          <p class="text-xs text-gray-400 flex items-start gap-1.5">
-            <span>🔒</span>
-            <span>Paiement sécurisé via notre partenaire Stripe. Aucun RIB n'est stocké par Le Lien Officinal.</span>
-          </p>
-
-          <!-- Champ code promo -->
-          <div class="space-y-2">
-            <label class="block text-sm font-medium text-gray-700">
-              Code promo (facultatif)
-            </label>
-            <div class="flex gap-2">
-              <input
-                type="text"
-                [value]="promoCode()"
-                (input)="promoCode.set($any($event.target).value.toUpperCase())"
-                placeholder="Ex: GIPHAR3"
-                class="flex-1 border border-gray-300 rounded-lg px-3 py-2 text-sm
-                       focus:outline-none focus:ring-2 focus:ring-green-500 uppercase">
-              <button
-                (click)="validatePromo()"
-                [disabled]="promoLoading() || !promoCode()"
-                class="bg-gray-100 text-gray-700 px-4 py-2 rounded-lg text-sm
-                       font-medium hover:bg-gray-200 disabled:opacity-50">
-                {{ promoLoading() ? '...' : 'Vérifier' }}
-              </button>
-            </div>
-
-            @if (promoValidation()?.valid) {
-              <div class="flex items-center gap-2 text-green-700 text-sm bg-green-50
-                          border border-green-200 rounded-lg px-3 py-2">
-                <span>✓</span>
-                <span>{{ promoValidation()!.message }}</span>
-              </div>
-            }
-
-            @if (promoValidation() && !promoValidation()!.valid) {
-              <p class="text-red-600 text-sm">{{ promoValidation()!.error }}</p>
-            }
-          </div>
-
-          @if (!sepaReady()) {
-            <button
-              (click)="setupSepa()"
-              [disabled]="sepaLoading()"
-              class="bg-green-700 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-green-800 disabled:opacity-50">
-              {{ sepaLoading() ? 'Chargement...' : 'Démarrer mon abonnement' }}
-            </button>
-          } @else {
-            <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
-              <input
-                [value]="ownerName()" (input)="ownerName.set($any($event.target).value)"
-                placeholder="Nom du titulaire du compte"
-                class="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-500">
-              <input
-                type="email" [value]="ownerEmail()" (input)="ownerEmail.set($any($event.target).value)"
-                placeholder="Email du titulaire"
-                class="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-500">
-            </div>
-            <button
-              (click)="confirmSepa(ownerName(), ownerEmail())"
-              [disabled]="sepaLoading() || !ownerName() || !ownerEmail()"
-              class="bg-green-700 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-green-800 disabled:opacity-50">
-              {{ sepaLoading() ? 'Activation...' : 'Confirmer et activer' }}
-            </button>
-          }
-        </div>
+        <ng-container *ngTemplateOutlet="subscribeForm; context: { startLabel: accessDenied() ? 'Me réabonner' : 'Démarrer mon abonnement' }"></ng-container>
       }
     </div>
+
+    <!-- Formulaire d'abonnement SEPA, réutilisé pour souscrire ET se réabonner.
+         Une seule instance rendue à la fois (branches @if exclusives) → pas de
+         collision sur l'id #sepa-element. -->
+    <ng-template #subscribeForm let-startLabel="startLabel">
+      <div class="border-t border-gray-100 pt-4 space-y-4">
+        <p class="text-sm text-gray-600">
+          Saisissez votre IBAN pour démarrer votre abonnement.
+        </p>
+        <div id="sepa-element" [class.hidden]="!sepaReady()" class="border border-gray-300 rounded-lg px-3 py-3 bg-white"></div>
+
+        <p class="text-xs text-gray-400 flex items-start gap-1.5">
+          <span>🔒</span>
+          <span>Paiement sécurisé via notre partenaire Stripe. Aucun RIB n'est stocké par Le Lien Officinal.</span>
+        </p>
+
+        <!-- Champ code promo -->
+        <div class="space-y-2">
+          <label class="block text-sm font-medium text-gray-700">
+            Code promo (facultatif)
+          </label>
+          <div class="flex gap-2">
+            <input
+              type="text"
+              [value]="promoCode()"
+              (input)="promoCode.set($any($event.target).value.toUpperCase())"
+              placeholder="Ex: GIPHAR3"
+              class="flex-1 border border-gray-300 rounded-lg px-3 py-2 text-sm
+                     focus:outline-none focus:ring-2 focus:ring-green-500 uppercase">
+            <button
+              (click)="validatePromo()"
+              [disabled]="promoLoading() || !promoCode()"
+              class="bg-gray-100 text-gray-700 px-4 py-2 rounded-lg text-sm
+                     font-medium hover:bg-gray-200 disabled:opacity-50">
+              {{ promoLoading() ? '...' : 'Vérifier' }}
+            </button>
+          </div>
+
+          @if (promoValidation()?.valid) {
+            <div class="flex items-center gap-2 text-green-700 text-sm bg-green-50
+                        border border-green-200 rounded-lg px-3 py-2">
+              <span>✓</span>
+              <span>{{ promoValidation()!.message }}</span>
+            </div>
+          }
+
+          @if (promoValidation() && !promoValidation()!.valid) {
+            <p class="text-red-600 text-sm">{{ promoValidation()!.error }}</p>
+          }
+        </div>
+
+        @if (!sepaReady()) {
+          <button
+            (click)="setupSepa()"
+            [disabled]="sepaLoading()"
+            class="bg-green-700 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-green-800 disabled:opacity-50">
+            {{ sepaLoading() ? 'Chargement...' : startLabel }}
+          </button>
+        } @else {
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
+            <input
+              [value]="ownerName()" (input)="ownerName.set($any($event.target).value)"
+              placeholder="Nom du titulaire du compte"
+              class="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-500">
+            <input
+              type="email" [value]="ownerEmail()" (input)="ownerEmail.set($any($event.target).value)"
+              placeholder="Email du titulaire"
+              class="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-500">
+          </div>
+          <button
+            (click)="confirmSepa(ownerName(), ownerEmail())"
+            [disabled]="sepaLoading() || !ownerName() || !ownerEmail()"
+            class="bg-green-700 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-green-800 disabled:opacity-50">
+            {{ sepaLoading() ? 'Activation...' : 'Confirmer et activer' }}
+          </button>
+        }
+      </div>
+    </ng-template>
 
     <!-- Crédits SMS -->
     <div class="bg-white border border-gray-200 rounded-xl p-6 space-y-4">
