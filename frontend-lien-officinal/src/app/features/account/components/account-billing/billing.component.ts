@@ -381,6 +381,24 @@ export class AccountBillingComponent implements OnInit {
     });
   }
 
+  // ------------------------------------------------------------------ //
+  // Accès refusé                                                         //
+  // ------------------------------------------------------------------ //
+
+  /** Vrai si l'abonnement existe mais que les modules payants sont coupés. */
+  accessDenied(): boolean {
+    const sub = this.status()?.subscription;
+    return !!sub && sub.is_access_allowed === false;
+  }
+
+  deniedReason(): string | null {
+    return this.status()?.subscription?.access_denied_reason ?? null;
+  }
+
+  deniedMessage(): string {
+    return DENIAL_MESSAGES[this.deniedReason() ?? 'canceled'];
+  }
+
   statusLabel(status: string): string {
     const labels: Record<string, string> = {
       trialing:  'Essai gratuit',
@@ -404,3 +422,10 @@ export class AccountBillingComponent implements OnInit {
     return `${base} ${colors[status] ?? 'bg-gray-100 text-gray-500'}`;
   }
 }
+
+const DENIAL_MESSAGES: Record<string, string> = {
+  trial_expired:  "Votre essai gratuit est terminé. Abonnez-vous ci-dessous pour retrouver le planning, la qualité, les tâches, la messagerie et les SMS.",
+  payment_failed: "Votre dernier paiement a échoué. Mettez à jour votre RIB pour conserver vos modules.",
+  suspended:      "Votre abonnement est suspendu pour impayé. Régularisez pour réactiver vos modules.",
+  canceled:       "Votre abonnement est résilié. Réabonnez-vous pour retrouver vos modules.",
+};
