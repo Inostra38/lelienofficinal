@@ -1,5 +1,6 @@
 import { Component, EventEmitter, HostListener, Input, OnInit, Output, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
+import { FormsModule } from '@angular/forms';
 import { RouterLink, RouterLinkActive } from '@angular/router';
 import { Router } from '@angular/router';
 import { Collaborator } from '../../../../core/services/collaborator.service';
@@ -28,13 +29,39 @@ const LOCK_MESSAGES: Record<string, string> = {
 @Component({
   selector: 'app-sidebar',
   standalone: true,
-  imports: [CommonModule, RouterLink, RouterLinkActive, AdSpaceComponent],
+  imports: [CommonModule, FormsModule, RouterLink, RouterLinkActive, AdSpaceComponent],
   templateUrl: './sidebar.component.html',
   styleUrl: './sidebar.component.css'
 })
 export class SidebarComponent implements OnInit {
   @Input() activeCollaborator: Collaborator | null = null;
   @Input() team: Collaborator[] = [];
+
+  /** Au-delà de ce nombre, la grille d'initiales laisse place à un champ de
+   *  recherche + une liste nommée (plus lisible, sans collision d'initiales). */
+  private readonly COLLAB_SEARCH_THRESHOLD = 12;
+  collaboratorSearch = '';
+
+  get showCollaboratorSearch(): boolean {
+    return this.team.length > this.COLLAB_SEARCH_THRESHOLD;
+  }
+
+  get filteredTeam(): Collaborator[] {
+    const q = this.collaboratorSearch.trim().toLowerCase();
+    if (!q) return this.team;
+    return this.team.filter(c => {
+      const initials = (c.first_name.charAt(0) + c.last_name.charAt(0)).toLowerCase();
+      const full = `${c.first_name} ${c.last_name}`.toLowerCase();
+      return full.includes(q) || initials.includes(q);
+    });
+  }
+
+  /** Entrée dans la recherche : sélectionne s'il ne reste qu'un collaborateur. */
+  onCollaboratorSearchEnter(): void {
+    if (this.filteredTeam.length === 1) {
+      this.sessionClick.emit(this.filteredTeam[0]);
+    }
+  }
   @Input() unreadMessagesCount = 0;
   @Input() unseenTasksCount = 0;
   @Input() unreadQualityCount = 0;
