@@ -59,6 +59,13 @@ class ConversationConsumer(AsyncWebsocketConsumer):
     async def disconnect(self, close_code):
         if hasattr(self, 'room_group_name'):
             await self.channel_layer.group_discard(self.room_group_name, self.channel_name)
+        # Évite la croissance non bornée de _ws_message_timestamps : on retire
+        # l'entrée du collaborateur à la déconnexion. Sa fenêtre de rate-limit
+        # repart à neuf s'il se reconnecte — sans conséquence pour une protection
+        # anti-spam souple (30 messages/min).
+        collaborator = getattr(self, 'collaborator', None)
+        if collaborator is not None:
+            _ws_message_timestamps.pop(collaborator.id, None)
 
     async def receive(self, text_data):
         try:
