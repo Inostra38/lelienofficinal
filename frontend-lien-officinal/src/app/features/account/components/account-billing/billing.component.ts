@@ -3,11 +3,12 @@ import { CommonModule } from '@angular/common';
 import { loadStripe, Stripe, StripeElements } from '@stripe/stripe-js';
 import { environment } from '../../../../../environments/environment';
 import { BillingService, BillingStatusResponse, Invoice } from '../../../../core/services/billing.service';
+import { PharmacyInfoComponent } from '../pharmacy-info/pharmacy-info.component';
 
 @Component({
   selector: 'app-account-billing',
   standalone: true,
-  imports: [CommonModule],
+  imports: [CommonModule, PharmacyInfoComponent],
   templateUrl: './billing.component.html',
 })
 export class AccountBillingComponent implements OnInit {
@@ -93,6 +94,26 @@ export class AccountBillingComponent implements OnInit {
   // ------------------------------------------------------------------ //
   // SEPA Setup                                                           //
   // ------------------------------------------------------------------ //
+
+  // ------------------------------------------------------------------ //
+  // Verrou d'informations avant paiement                                 //
+  // ------------------------------------------------------------------ //
+
+  /** Modale reproduisant la page Informations, ouverte avant la saisie du RIB. */
+  showInfoGate = signal(false);
+
+  /** Clic sur « souscrire / me réabonner » : on force d'abord les informations. */
+  startSubscribe() {
+    this.errorMessage.set(null);
+    this.showInfoGate.set(true);
+  }
+
+  /** Informations complétées → fermer la modale et révéler le formulaire RIB. */
+  onGateCompleted() {
+    this.showInfoGate.set(false);
+    this.loadData();   // rafraîchir le statut après la mise à jour des infos
+    this.setupSepa();
+  }
 
   setupSepa() {
     this.sepaLoading.set(true);
