@@ -7,6 +7,7 @@ export interface PharmacyData {
   id?: number;
   email?: string;
   nom_officine: string;
+  raison_sociale?: string;
   siret: string;
   address1: string;
   address2: string;
@@ -15,12 +16,13 @@ export interface PharmacyData {
   region: string;
   country: string;
   vat_number: string;
+  phone_fixe?: string;
+  phone_mobile?: string;
   pharmacy_type: 'urbaine' | 'rurale' | 'centre-bourg' | 'centre-commercial';
   logo?: string;
   is_premium?: boolean;
   date_joined?: string;
   sms_credits?: number;
-  phone?: string;
   pending_email?: string;
   email_verified?: boolean;
   deletion_scheduled_for?: string | null;

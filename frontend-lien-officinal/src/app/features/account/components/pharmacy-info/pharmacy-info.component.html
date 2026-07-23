@@ -22,7 +22,10 @@
           Logo de la pharmacie (optionnel)
         </label>
         <div class="flex items-center gap-4">
-          <div class="w-20 h-20 rounded-lg bg-gradient-to-br from-green-600 to-green-700 flex items-center justify-center text-white font-bold text-2xl">
+          <img *ngIf="pharmacyData.logo" [src]="pharmacyData.logo" alt="Logo de la pharmacie"
+               class="w-20 h-20 rounded-lg object-cover border border-gray-200">
+          <div *ngIf="!pharmacyData.logo"
+               class="w-20 h-20 rounded-lg bg-gradient-to-br from-green-600 to-green-700 flex items-center justify-center text-white font-bold text-2xl">
             P
           </div>
           <div>
@@ -50,6 +53,18 @@
                required
                class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 outline-none transition-all"
                placeholder="Pharmacie des Lilas">
+      </div>
+
+      <!-- Email de connexion (lecture seule) -->
+      <div>
+        <label class="block text-sm font-medium text-gray-700 mb-2">
+          Email de connexion
+        </label>
+        <input type="email"
+               [value]="pharmacyData.email"
+               disabled
+               class="w-full px-4 py-2 border border-gray-200 rounded-lg bg-gray-100 text-gray-500 cursor-not-allowed outline-none">
+        <p class="text-xs text-gray-500 mt-1">Non modifiable ici — le changement d'email se fait dans « Sécurité du compte », avec vérification.</p>
       </div>
 
       <!-- Adresse -->
@@ -110,13 +125,14 @@
           <label class="block text-sm font-medium text-gray-700 mb-2">
             Région <span class="text-red-500">*</span>
           </label>
-          <input type="text"
-                 [(ngModel)]="pharmacyData.region"
-                 name="region"
-                 (ngModelChange)="onDataChange()"
-                 required
-                 class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 outline-none transition-all"
-                 placeholder="Île-de-France">
+          <select [(ngModel)]="pharmacyData.region"
+                  name="region"
+                  (ngModelChange)="onDataChange()"
+                  required
+                  class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 outline-none transition-all bg-white">
+            <option value="" disabled>Sélectionnez une région</option>
+            <option *ngFor="let r of regions" [value]="r">{{ r }}</option>
+          </select>
         </div>
 
         <div>
@@ -135,6 +151,19 @@
 
       <!-- Informations légales -->
       <div class="grid grid-cols-1 md:grid-cols-2 gap-4 pt-4 border-t border-gray-200">
+        <div class="md:col-span-2">
+          <label class="block text-sm font-medium text-gray-700 mb-2">
+            Raison sociale
+          </label>
+          <input type="text"
+                 [(ngModel)]="pharmacyData.raisonSociale"
+                 name="raisonSociale"
+                 (ngModelChange)="onDataChange()"
+                 class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 outline-none transition-all"
+                 placeholder="Pharmacie des Lilas SARL">
+          <p class="text-xs text-gray-500 mt-1">Nom légal de la société — requis pour la facturation.</p>
+        </div>
+
         <div>
           <label class="block text-sm font-medium text-gray-700 mb-2">
             Numéro de SIRET <span class="text-red-500">*</span>
@@ -162,6 +191,33 @@
                  class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 outline-none transition-all"
                  placeholder="FR12345678901">
           <p class="text-xs text-gray-500 mt-1">Format européen (ex: FR12345678901)</p>
+        </div>
+      </div>
+
+      <!-- Contact -->
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-4 pt-4 border-t border-gray-200">
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-2">
+            Téléphone fixe
+          </label>
+          <input type="tel"
+                 [(ngModel)]="pharmacyData.phoneFixe"
+                 name="phoneFixe"
+                 (ngModelChange)="onDataChange()"
+                 class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 outline-none transition-all"
+                 placeholder="01 23 45 67 89">
+        </div>
+
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-2">
+            Téléphone portable
+          </label>
+          <input type="tel"
+                 [(ngModel)]="pharmacyData.phoneMobile"
+                 name="phoneMobile"
+                 (ngModelChange)="onDataChange()"
+                 class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 outline-none transition-all"
+                 placeholder="06 12 34 56 78">
         </div>
       </div>
 

@@ -91,6 +91,7 @@ class PharmacySerializer(LogoValidationMixin, serializers.ModelSerializer):
             'id',
             'email',
             'nom_officine',
+            'raison_sociale',
             'siret',
             'address1',
             'address2',
@@ -99,6 +100,8 @@ class PharmacySerializer(LogoValidationMixin, serializers.ModelSerializer):
             'region',
             'country',
             'vat_number',
+            'phone_fixe',
+            'phone_mobile',
             'pharmacy_type',
             'logo',
             'is_premium',
@@ -128,6 +131,7 @@ class PharmacyUpdateSerializer(LogoValidationMixin, serializers.ModelSerializer)
         model = Pharmacy
         fields = [
             'nom_officine',
+            'raison_sociale',
             'siret',
             'address1',
             'address2',
@@ -136,6 +140,8 @@ class PharmacyUpdateSerializer(LogoValidationMixin, serializers.ModelSerializer)
             'region',
             'country',
             'vat_number',
+            'phone_fixe',
+            'phone_mobile',
             'pharmacy_type',
             'logo'
         ]

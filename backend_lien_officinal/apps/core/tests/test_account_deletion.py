@@ -14,7 +14,9 @@ class ExecuteAccountDeletionTests(TestCase):
 
     def test_anonymizes_pii_and_disables_login(self):
         p = make_pharmacy(
-            siret='12345678901234', city='Paris', phone='0102030405',
+            siret='12345678901234', city='Paris',
+            phone_fixe='0102030405', phone_mobile='0605040302',
+            raison_sociale='Pharmacie Test SARL',
             address1='1 rue Test', vat_number='FR123', email_verified=True,
         )
         self.assertTrue(execute_account_deletion(p.id))
@@ -24,7 +26,9 @@ class ExecuteAccountDeletionTests(TestCase):
         self.assertEqual(p.nom_officine, f'Pharmacie supprimée #{p.id}')
         self.assertIsNone(p.siret)
         self.assertEqual(p.city, '')
-        self.assertEqual(p.phone, '')
+        self.assertEqual(p.phone_fixe, '')
+        self.assertEqual(p.phone_mobile, '')
+        self.assertEqual(p.raison_sociale, '')
         self.assertEqual(p.vat_number, '')
         self.assertFalse(p.email_verified)
         self.assertFalse(p.is_active)

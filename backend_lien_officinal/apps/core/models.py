@@ -5,6 +5,33 @@ from django.contrib.auth.models import AbstractBaseUser, PermissionsMixin, BaseU
 from django.utils.translation import gettext_lazy as _
 from django.utils import timezone
 
+
+# Régions administratives françaises : 13 métropolitaines + 5 DROM.
+# Valeur = libellé (les noms de régions sont stables). Utilisé pour le `choices`
+# du champ region et repris à l'identique dans le menu déroulant frontend.
+FRENCH_REGIONS = [
+    'Auvergne-Rhône-Alpes',
+    'Bourgogne-Franche-Comté',
+    'Bretagne',
+    'Centre-Val de Loire',
+    'Corse',
+    'Grand Est',
+    'Hauts-de-France',
+    'Île-de-France',
+    'Normandie',
+    'Nouvelle-Aquitaine',
+    'Occitanie',
+    'Pays de la Loire',
+    "Provence-Alpes-Côte d'Azur",
+    'Guadeloupe',
+    'Martinique',
+    'Guyane',
+    'La Réunion',
+    'Mayotte',
+]
+REGION_CHOICES = [(r, r) for r in FRENCH_REGIONS]
+
+
 class PharmacyManager(BaseUserManager):
     """
     Gestionnaire personnalisé pour créer les Pharmacies.
@@ -47,14 +74,16 @@ class Pharmacy(AbstractBaseUser, PermissionsMixin):
     address2 = models.CharField(_("Complément d'adresse"), max_length=255, blank=True)
     postal_code = models.CharField(_("Code postal"), max_length=10, blank=True)
     city = models.CharField(_("Ville"), max_length=100, blank=True)
-    region = models.CharField(_("Région"), max_length=100, blank=True)
+    region = models.CharField(_("Région"), max_length=100, blank=True, choices=REGION_CHOICES)
     country = models.CharField(_("Pays"), max_length=100, default="France")
 
     # Informations légales
+    raison_sociale = models.CharField(_("Raison sociale"), max_length=255, blank=True)
     vat_number = models.CharField(_("Numéro de TVA"), max_length=20, blank=True)
 
-    # Contact
-    phone = models.CharField(_("Téléphone"), max_length=20, blank=True)
+    # Contact — ligne fixe + portable
+    phone_fixe = models.CharField(_("Téléphone fixe"), max_length=20, blank=True)
+    phone_mobile = models.CharField(_("Téléphone portable"), max_length=20, blank=True)
 
     # Crédits SMS
     sms_credits = models.PositiveIntegerField(_("Crédits SMS"), default=20)
