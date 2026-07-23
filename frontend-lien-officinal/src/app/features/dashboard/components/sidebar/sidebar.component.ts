@@ -120,8 +120,6 @@ export class SidebarComponent implements OnInit {
     this.isPharmacyMenuOpen = false;
     switch (action) {
       case 'account': this.router.navigate(['/account']); break;
-      case 'billing': this.router.navigate(['/account'], { queryParams: { section: 'billing' } }); break;
-      case 'preferences': console.log('TODO: Préférences'); break;
       case 'logout': this.authService.logout(); break;
     }
   }
