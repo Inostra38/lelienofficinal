@@ -238,8 +238,28 @@
         <p class="text-xs text-gray-500 mt-1">Utilisé pour le ciblage publicitaire</p>
       </div>
 
-      <!-- Bouton d'enregistrement -->
-      <div class="flex justify-end pt-4 border-t border-gray-200">
+      <!-- Bouton — mode verrou d'abonnement -->
+      <div *ngIf="gateMode" class="pt-4 border-t border-gray-200 space-y-2">
+        <p *ngIf="!isGateComplete()" class="text-sm text-amber-700">
+          Complétez toutes les informations pour continuer. Seuls le complément d'adresse et le logo sont facultatifs ; un téléphone (fixe ou portable) suffit.
+        </p>
+        <div class="flex justify-end">
+          <button type="button"
+                  (click)="saveAndContinue()"
+                  [disabled]="!isGateComplete() || isLoading"
+                  [class.opacity-50]="!isGateComplete() || isLoading"
+                  [class.cursor-not-allowed]="!isGateComplete() || isLoading"
+                  class="px-6 py-2.5 bg-green-700 hover:bg-green-800 text-white font-medium rounded-lg transition-colors flex items-center gap-2 disabled:hover:bg-green-700">
+            {{ isLoading ? 'Enregistrement...' : 'Continuer vers le paiement' }}
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 5l7 7m0 0l-7 7m7-7H3" />
+            </svg>
+          </button>
+        </div>
+      </div>
+
+      <!-- Bouton d'enregistrement — mode normal -->
+      <div *ngIf="!gateMode" class="flex justify-end pt-4 border-t border-gray-200">
         <button type="submit"
                 [disabled]="!hasUnsavedChanges"
                 [class.opacity-50]="!hasUnsavedChanges"
