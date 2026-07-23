@@ -32,6 +32,18 @@ FRENCH_REGIONS = [
 REGION_CHOICES = [(r, r) for r in FRENCH_REGIONS]
 
 
+def logo_storage():
+    """Stockage du logo de pharmacie : URL signée 7 jours (URLs quasi-stables)
+    en prod S3, stockage par défaut (fichiers) en dev. Callable pour rester
+    compatible avec les migrations et les deux environnements."""
+    from django.conf import settings
+    from django.core.files.storage import default_storage
+    if getattr(settings, 'SCW_ACCESS_KEY', None):
+        from apps.core.storages import LogoStorage
+        return LogoStorage()
+    return default_storage
+
+
 class PharmacyManager(BaseUserManager):
     """
     Gestionnaire personnalisé pour créer les Pharmacies.
@@ -104,7 +116,7 @@ class Pharmacy(AbstractBaseUser, PermissionsMixin):
     )
 
     # Logo (optionnel)
-    logo = models.ImageField(_("Logo"), upload_to='pharmacy_logos/', blank=True, null=True)
+    logo = models.ImageField(_("Logo"), upload_to='pharmacy_logos/', blank=True, null=True, storage=logo_storage)
 
     # Email en attente de vérification (structure prête pour Mailgun)
     pending_email = models.EmailField(_("Email en attente"), blank=True, null=True)
