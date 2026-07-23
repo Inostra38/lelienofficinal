@@ -1,6 +1,6 @@
-import { Component } from '@angular/core';
+import { Component, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { Router } from '@angular/router';
+import { ActivatedRoute, Router } from '@angular/router';
 import { PharmacyInfoComponent } from './components/pharmacy-info/pharmacy-info.component';
 import { AccountSecurityComponent } from './components/account-security/account-security.component';
 import { TeamManagementComponent } from './components/team-management/team-management.component';
@@ -15,7 +15,7 @@ type Section = 'information' | 'securite' | 'equipe' | 'facturation';
   templateUrl: './account.component.html',
   styleUrl: './account.component.css'
 })
-export class AccountComponent {
+export class AccountComponent implements OnInit {
   activeSection: Section = 'information';
 
   navItems: { id: Section; label: string; icon: string }[] = [
@@ -41,7 +41,23 @@ export class AccountComponent {
     }
   ];
 
-  constructor(private router: Router) {}
+  constructor(private router: Router, private route: ActivatedRoute) {}
+
+  ngOnInit(): void {
+    // Ouvre la section demandée via ?section=... (réactif : gère aussi le
+    // changement de paramètre alors qu'on est déjà sur /account). L'alias
+    // « billing » pointe vers Facturation, pour que les liens « Gérer mon
+    // abonnement » (verrou, bandeau, guard) atterrissent au bon endroit.
+    this.route.queryParamMap.subscribe(params => {
+      this.activeSection = this.sectionFromParam(params.get('section'));
+    });
+  }
+
+  private sectionFromParam(param: string | null): Section {
+    if (param === 'billing') return 'facturation';
+    const known: Section[] = ['information', 'securite', 'equipe', 'facturation'];
+    return known.includes(param as Section) ? (param as Section) : 'information';
+  }
 
   goBack(): void {
     this.router.navigate(['/dashboard']);
