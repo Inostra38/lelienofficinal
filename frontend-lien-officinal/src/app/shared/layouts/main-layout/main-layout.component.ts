@@ -37,6 +37,7 @@ export class MainLayoutComponent implements OnInit, OnDestroy {
   team: Collaborator[] = [];
   teamLoaded = false;
   pharmacyName = '';
+  pharmacyLogo = '';
   unreadMessagesCount = 0;
   unseenTasksCount = 0;
   unreadQualityCount = 0;
@@ -56,7 +57,10 @@ export class MainLayoutComponent implements OnInit, OnDestroy {
   ngOnInit() {
     this.loadTeam();
     this.pharmacyService.getCurrentPharmacy().subscribe({
-      next: (data) => { this.pharmacyName = data.nom_officine; }
+      next: (data) => {
+        this.pharmacyName = data.nom_officine;
+        this.pharmacyLogo = data.logo ?? '';
+      }
     });
     this.unreadSub = this.messagingService.unreadCount$.subscribe(
       count => { this.unreadMessagesCount = count; }
