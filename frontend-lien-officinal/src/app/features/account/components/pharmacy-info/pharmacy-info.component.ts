@@ -5,6 +5,8 @@ import { PharmacyService, PharmacyData } from '../../../../core/services/pharmac
 
 interface PharmacyFormData {
   name: string;
+  raisonSociale: string;
+  email: string;          // lecture seule (changement via un flux vérifié dédié)
   address1: string;
   address2: string;
   postalCode: string;
@@ -13,9 +15,19 @@ interface PharmacyFormData {
   country: string;
   siret: string;
   vatNumber: string;
+  phoneFixe: string;
+  phoneMobile: string;
   type: 'urbaine' | 'rurale' | 'centre-bourg' | 'centre-commercial';
   logo?: string;
 }
+
+/** 13 régions métropolitaines + 5 DROM — même liste que REGION_CHOICES côté backend. */
+const FRENCH_REGIONS = [
+  'Auvergne-Rhône-Alpes', 'Bourgogne-Franche-Comté', 'Bretagne', 'Centre-Val de Loire',
+  'Corse', 'Grand Est', 'Hauts-de-France', 'Île-de-France', 'Normandie',
+  'Nouvelle-Aquitaine', 'Occitanie', 'Pays de la Loire', "Provence-Alpes-Côte d'Azur",
+  'Guadeloupe', 'Martinique', 'Guyane', 'La Réunion', 'Mayotte',
+];
 
 @Component({
   selector: 'app-pharmacy-info',
@@ -28,9 +40,12 @@ export class PharmacyInfoComponent implements OnInit {
   private pharmacyService = inject(PharmacyService);
 
   pharmacyData: PharmacyFormData = {
-    name: '', address1: '', address2: '', postalCode: '', city: '',
-    region: '', country: 'France', siret: '', vatNumber: '', type: 'urbaine'
+    name: '', raisonSociale: '', email: '', address1: '', address2: '',
+    postalCode: '', city: '', region: '', country: 'France', siret: '',
+    vatNumber: '', phoneFixe: '', phoneMobile: '', type: 'urbaine'
   };
+
+  readonly regions = FRENCH_REGIONS;
 
   pharmacyTypes = [
     { value: 'urbaine', label: 'Urbaine' },
@@ -53,9 +68,15 @@ export class PharmacyInfoComponent implements OnInit {
     this.pharmacyService.getCurrentPharmacy().subscribe({
       next: (data: PharmacyData) => {
         this.pharmacyData = {
-          name: data.nom_officine, address1: data.address1, address2: data.address2,
-          postalCode: data.postal_code, city: data.city, region: data.region,
+          name: data.nom_officine, raisonSociale: data.raison_sociale ?? '',
+          email: data.email ?? '',
+          address1: data.address1, address2: data.address2,
+          postalCode: data.postal_code, city: data.city,
+          // Région hors des 18 valeurs (ancienne saisie libre) → vide, à re-choisir,
+          // sinon le <select> l'ignore et le backend rejette la valeur au save.
+          region: FRENCH_REGIONS.includes(data.region) ? data.region : '',
           country: data.country, siret: data.siret, vatNumber: data.vat_number,
+          phoneFixe: data.phone_fixe ?? '', phoneMobile: data.phone_mobile ?? '',
           type: data.pharmacy_type, logo: data.logo
         };
         this.initialData = JSON.stringify(this.pharmacyData);
@@ -76,6 +97,7 @@ export class PharmacyInfoComponent implements OnInit {
     this.isLoading = true;
     const updateData = {
       nom_officine: this.pharmacyData.name,
+      raison_sociale: this.pharmacyData.raisonSociale,
       address1: this.pharmacyData.address1,
       address2: this.pharmacyData.address2,
       postal_code: this.pharmacyData.postalCode,
@@ -84,6 +106,8 @@ export class PharmacyInfoComponent implements OnInit {
       country: this.pharmacyData.country,
       siret: this.pharmacyData.siret,
       vat_number: this.pharmacyData.vatNumber,
+      phone_fixe: this.pharmacyData.phoneFixe,
+      phone_mobile: this.pharmacyData.phoneMobile,
       pharmacy_type: this.pharmacyData.type
     };
     this.pharmacyService.updatePharmacy(updateData).subscribe({

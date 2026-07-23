@@ -112,13 +112,15 @@ def execute_account_deletion(pharmacy_id: int) -> bool:
     pharmacy.email = f'deleted-{pid}@deleted.invalid'
     pharmacy.nom_officine = f'Pharmacie supprimée #{pid}'
     pharmacy.siret = None
+    pharmacy.raison_sociale = ''
     pharmacy.vat_number = ''
     pharmacy.address1 = ''
     pharmacy.address2 = ''
     pharmacy.postal_code = ''
     pharmacy.city = ''
     pharmacy.region = ''
-    pharmacy.phone = ''
+    pharmacy.phone_fixe = ''
+    pharmacy.phone_mobile = ''
     pharmacy.pending_email = None
     pharmacy.email_verification_token = None
     pharmacy.email_verification_expires = None
