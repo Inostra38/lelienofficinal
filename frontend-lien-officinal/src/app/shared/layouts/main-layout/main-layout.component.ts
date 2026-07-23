@@ -1,5 +1,6 @@
 import { Component, inject, OnInit, OnDestroy } from '@angular/core';
 import { CommonModule } from '@angular/common';
+import { FormsModule } from '@angular/forms';
 import { RouterOutlet } from '@angular/router';
 import { Subscription, interval, Subject } from 'rxjs';
 import { startWith, switchMap, takeUntil } from 'rxjs/operators';
@@ -22,7 +23,7 @@ import { SubscriptionBannerComponent } from '../../components/subscription-banne
 @Component({
   selector: 'app-main-layout',
   standalone: true,
-  imports: [CommonModule, RouterOutlet, SidebarComponent, PinModalComponent, ToastComponent, EmailBannerComponent, SubscriptionBannerComponent],
+  imports: [CommonModule, FormsModule, RouterOutlet, SidebarComponent, PinModalComponent, ToastComponent, EmailBannerComponent, SubscriptionBannerComponent],
   templateUrl: './main-layout.component.html'
 })
 export class MainLayoutComponent implements OnInit, OnDestroy {
@@ -36,6 +37,33 @@ export class MainLayoutComponent implements OnInit, OnDestroy {
 
   team: Collaborator[] = [];
   teamLoaded = false;
+
+  /** Au-delà de ce seuil, l'écran de sélection affiche un champ de recherche
+   *  au-dessus de la grille (filtrage par nom ou initiales). */
+  private readonly COLLAB_SEARCH_THRESHOLD = 12;
+  collaboratorSearch = '';
+
+  get showCollaboratorSearch(): boolean {
+    return this.team.length > this.COLLAB_SEARCH_THRESHOLD;
+  }
+
+  get filteredTeam(): Collaborator[] {
+    const q = this.collaboratorSearch.trim().toLowerCase();
+    if (!q) return this.team;
+    return this.team.filter(c => {
+      const initials = (c.first_name.charAt(0) + c.last_name.charAt(0)).toLowerCase();
+      const full = `${c.first_name} ${c.last_name}`.toLowerCase();
+      return full.includes(q) || initials.includes(q);
+    });
+  }
+
+  /** Entrée dans la recherche : sélectionne s'il ne reste qu'un collaborateur. */
+  onCollaboratorSearchEnter(): void {
+    if (this.filteredTeam.length === 1) {
+      this.openSession(this.filteredTeam[0]);
+    }
+  }
+
   pharmacyName = '';
   pharmacyLogo = '';
   unreadMessagesCount = 0;

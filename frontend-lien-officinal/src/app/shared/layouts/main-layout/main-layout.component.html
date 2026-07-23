@@ -37,8 +37,17 @@
     } @else if (team.length === 0) {
       <p class="text-sm text-gray-400 italic">Aucun collaborateur configuré.</p>
     } @else {
+      @if (showCollaboratorSearch) {
+        <input
+          type="text"
+          [(ngModel)]="collaboratorSearch"
+          (keyup.enter)="onCollaboratorSearchEnter()"
+          placeholder="Rechercher (nom ou initiales)"
+          autofocus
+          class="w-full max-w-md mb-4 px-4 py-2.5 text-sm border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent">
+      }
       <div class="grid grid-cols-2 sm:grid-cols-3 gap-3 w-full max-w-md">
-        @for (collab of team; track collab.id) {
+        @for (collab of filteredTeam; track collab.id) {
           @if (collab.id) {
             <button
               (click)="openSession(collab)"
@@ -55,6 +64,9 @@
           }
         }
       </div>
+      @if (filteredTeam.length === 0) {
+        <p class="text-sm text-gray-400 italic mt-4">Aucun collaborateur trouvé.</p>
+      }
     }
 
     <!-- Déconnexion complète -->
