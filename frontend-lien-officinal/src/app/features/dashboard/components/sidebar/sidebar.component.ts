@@ -39,6 +39,7 @@ export class SidebarComponent implements OnInit {
   @Input() unseenTasksCount = 0;
   @Input() unreadQualityCount = 0;
   @Input() pharmacyName = '';
+  @Input() pharmacyLogo = '';
 
   @Output() logout = new EventEmitter<void>();
   @Output() sessionClick = new EventEmitter<Collaborator>();
