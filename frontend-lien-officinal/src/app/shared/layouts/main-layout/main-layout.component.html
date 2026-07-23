@@ -1,14 +1,12 @@
 <div class="flex h-screen overflow-hidden min-w-[960px]">
 
   <app-sidebar
-    [team]="team"
     [activeCollaborator]="activeSessionCollaborator"
     [unreadMessagesCount]="unreadMessagesCount"
     [unseenTasksCount]="unseenTasksCount"
     [unreadQualityCount]="unreadQualityCount"
     [pharmacyName]="pharmacyName"
     [pharmacyLogo]="pharmacyLogo"
-    (sessionClick)="openSession($event)"
     (logout)="closeCollaboratorSession()">
   </app-sidebar>
 
@@ -26,7 +24,11 @@
 
     <!-- En-tête -->
     <div class="flex flex-col items-center mb-10">
-      <img src="logo-lienofficinal.svg" alt="Le Lien Officinal" class="w-12 h-12 mb-4">
+      @if (pharmacyLogo) {
+        <img [src]="pharmacyLogo" [alt]="pharmacyName" class="w-16 h-16 mb-4 rounded-xl object-contain bg-white border border-gray-200">
+      } @else {
+        <img src="logo-lienofficinal.svg" alt="Le Lien Officinal" class="w-12 h-12 mb-4">
+      }
       <h1 class="text-xl font-semibold text-gray-800">{{ pharmacyName || 'Le Lien Officinal' }}</h1>
       <p class="text-sm text-gray-500 mt-1">Qui êtes-vous ?</p>
     </div>
