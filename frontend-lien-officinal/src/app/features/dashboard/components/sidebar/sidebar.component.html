@@ -153,23 +153,50 @@
     <div *ngIf="!activeCollaborator && !isCollapsed" class="animate-in fade-in duration-300">
       <img *ngIf="pharmacyLogo" [src]="pharmacyLogo" alt="" class="w-14 h-14 rounded-lg object-cover mx-auto mb-3 border border-gray-200">
       <p class="text-xs font-bold text-gray-400 uppercase tracking-widest mb-3 text-center">Qui êtes-vous ?</p>
-      <div class="grid grid-cols-4 gap-2">
-        <button *ngFor="let collab of team"
-                (click)="sessionClick.emit(collab)"
-                class="aspect-square rounded-xl hover:shadow-md transition-all active:scale-95 flex items-center justify-center group relative border-2"
-                [style.background-color]="collab.color"
-                [style.border-color]="collab.color">
-          <span class="text-xs font-bold uppercase tracking-tight text-white">
-            {{ collab.first_name.charAt(0) }}{{ collab.last_name.charAt(0) }}
-          </span>
-          <span class="absolute -top-8 left-1/2 -translate-x-1/2 bg-gray-800 text-white text-[10px] py-1 px-2 rounded opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none whitespace-nowrap z-50 shadow-lg">
-            {{ collab.civility }} {{ collab.first_name }} {{ collab.last_name }}
-          </span>
-        </button>
-        <div class="aspect-square rounded-xl border border-dashed border-gray-300 flex items-center justify-center text-gray-300 cursor-not-allowed">
-          <span class="text-xs">+</span>
+      <!-- Grande équipe (> seuil) : recherche + liste nommée -->
+      <ng-container *ngIf="showCollaboratorSearch; else collabGrid">
+        <input type="text"
+               [(ngModel)]="collaboratorSearch"
+               (keyup.enter)="onCollaboratorSearchEnter()"
+               placeholder="Rechercher (nom ou initiales)"
+               autofocus
+               class="w-full mb-2 px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 outline-none">
+        <div class="space-y-1 max-h-64 overflow-y-auto custom-scrollbar">
+          <button *ngFor="let collab of filteredTeam"
+                  (click)="sessionClick.emit(collab)"
+                  class="w-full flex items-center gap-2 p-2 rounded-lg hover:bg-gray-100 active:scale-[0.98] transition-all text-left">
+            <span class="w-8 h-8 rounded-full flex items-center justify-center text-white text-xs font-bold uppercase tracking-tight shrink-0"
+                  [style.background-color]="collab.color">
+              {{ collab.first_name.charAt(0) }}{{ collab.last_name.charAt(0) }}
+            </span>
+            <span class="text-sm text-gray-700 truncate">{{ collab.civility }} {{ collab.first_name }} {{ collab.last_name }}</span>
+          </button>
+          <p *ngIf="filteredTeam.length === 0" class="text-xs text-gray-400 text-center py-3">
+            Aucun collaborateur trouvé.
+          </p>
         </div>
-      </div>
+      </ng-container>
+
+      <!-- Petite équipe : grille d'initiales -->
+      <ng-template #collabGrid>
+        <div class="grid grid-cols-4 gap-2">
+          <button *ngFor="let collab of team"
+                  (click)="sessionClick.emit(collab)"
+                  class="aspect-square rounded-xl hover:shadow-md transition-all active:scale-95 flex items-center justify-center group relative border-2"
+                  [style.background-color]="collab.color"
+                  [style.border-color]="collab.color">
+            <span class="text-xs font-bold uppercase tracking-tight text-white">
+              {{ collab.first_name.charAt(0) }}{{ collab.last_name.charAt(0) }}
+            </span>
+            <span class="absolute -top-8 left-1/2 -translate-x-1/2 bg-gray-800 text-white text-[10px] py-1 px-2 rounded opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none whitespace-nowrap z-50 shadow-lg">
+              {{ collab.civility }} {{ collab.first_name }} {{ collab.last_name }}
+            </span>
+          </button>
+          <div class="aspect-square rounded-xl border border-dashed border-gray-300 flex items-center justify-center text-gray-300 cursor-not-allowed">
+            <span class="text-xs">+</span>
+          </div>
+        </div>
+      </ng-template>
     </div>
 
     <!-- Bouton pharmacie — déplié -->
