@@ -71,6 +71,16 @@ class Command(BaseCommand):
             self.stdout.write(
                 f"id={s.id} status={s.status} "
                 f"trial_end={s.trial_end} "
-                f"current_period_end={getattr(s, 'current_period_end', None)}"
+                f"current_period_start={getattr(s, 'current_period_start', None)} "
+                f"current_period_end={getattr(s, 'current_period_end', None)} "
+                f"latest_invoice={s.latest_invoice}"
                 f"{orphan}"
+            )
+
+        self.stdout.write("--- Factures Stripe du Customer ---")
+        stripe_invoices = stripe.Invoice.list(customer=sub.stripe_customer_id, limit=10)
+        for inv in stripe_invoices.data:
+            self.stdout.write(
+                f"id={inv.id} status={inv.status} amount_due={inv.amount_due} "
+                f"created={inv.created} subscription={getattr(inv, 'subscription', None)}"
             )
