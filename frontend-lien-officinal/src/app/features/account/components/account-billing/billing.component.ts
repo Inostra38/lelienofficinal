@@ -121,7 +121,13 @@ export class AccountBillingComponent implements OnInit {
 
     this.billingService.setupSubscription().subscribe({
       next: async ({ client_secret }) => {
-        if (!this.stripe) return;
+        if (!this.stripe) {
+          this.errorMessage.set(
+            'Le module de paiement n\'a pas pu se charger (bloqueur de publicité ou connexion instable). Réessayez.',
+          );
+          this.sepaLoading.set(false);
+          return;
+        }
 
         this.sepaClientSecret = client_secret;
         this.elements = this.stripe.elements({ clientSecret: client_secret });
@@ -210,8 +216,10 @@ export class AccountBillingComponent implements OnInit {
         this.loadData();
         this.sepaLoading.set(false);
       },
-      error: () => {
-        this.errorMessage.set('Erreur lors de l\'activation de l\'abonnement.');
+      error: (err) => {
+        this.errorMessage.set(
+          err.error?.error ?? 'Erreur lors de l\'activation de l\'abonnement.',
+        );
         this.sepaLoading.set(false);
       },
     });

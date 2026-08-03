@@ -338,7 +338,11 @@ class ConfirmSubscriptionView(APIView):
         # Q04 : garde anti-rejeu. Sans ça, un double POST (double-clic, retry
         # réseau) créait un SECOND abonnement Stripe et écrasait l'id du premier
         # dans sub → abonnement orphelin facturé + double prélèvement.
-        if sub.stripe_subscription_id:
+        # `stripe_subscription_id` seul ne suffit pas : il n'est jamais vidé après
+        # résiliation/suspension, ce qui bloquait tout réabonnement légitime une
+        # fois l'accès coupé. On ne bloque donc que si un abonnement est
+        # RÉELLEMENT en cours (accès payant actif).
+        if sub.stripe_subscription_id and sub.is_access_allowed:
             return Response(
                 {'error': 'Un abonnement est déjà actif pour cette pharmacie.'},
                 status=drf_status.HTTP_409_CONFLICT,
