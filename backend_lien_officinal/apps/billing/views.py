@@ -301,11 +301,27 @@ class SetupSubscriptionView(APIView):
             sub.save(update_fields=['stripe_customer_id', 'updated_at'])
 
         # SetupIntent pour collecter le SEPA sans paiement immédiat
-        setup_intent = stripe.SetupIntent.create(
-            customer=sub.stripe_customer_id,
-            payment_method_types=['sepa_debit'],
-            usage='off_session',
-        )
+        try:
+            setup_intent = stripe.SetupIntent.create(
+                customer=sub.stripe_customer_id,
+                payment_method_types=['sepa_debit'],
+                usage='off_session',
+            )
+        except stripe.InvalidRequestError as e:
+            # Le Customer référencé n'existe plus côté Stripe (ex : données
+            # test-mode réinitialisées entre deux sessions de test) : notre
+            # stripe_customer_id devient une référence morte. On en recrée
+            # un et on retente une fois, plutôt que de planter en 500.
+            if e.code != 'resource_missing':
+                raise
+            customer_id = StripeService.create_customer(pharmacy)
+            sub.stripe_customer_id = customer_id
+            sub.save(update_fields=['stripe_customer_id', 'updated_at'])
+            setup_intent = stripe.SetupIntent.create(
+                customer=sub.stripe_customer_id,
+                payment_method_types=['sepa_debit'],
+                usage='off_session',
+            )
 
         return Response({'client_secret': setup_intent.client_secret})
 
