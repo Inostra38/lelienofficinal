@@ -32,15 +32,21 @@ class Command(BaseCommand):
         if sub is None or not sub.stripe_subscription_id:
             raise CommandError("Aucun abonnement Stripe actif pour cette pharmacie.")
 
-        invoice = stripe.Invoice.create(
-            customer=sub.stripe_customer_id,
-            subscription=sub.stripe_subscription_id,
+        # Invoice.create(subscription=...) seul ne récupère PAS le prix
+        # récurrent du plan (uniquement les invoice items en attente) → facture
+        # à 0 €. Pour tester un vrai cycle, on avance l'ancrage de facturation
+        # à maintenant : Stripe clôt la période en cours et émet la facture
+        # complète (prix du plan) pour la période suivante, avec prélèvement
+        # SEPA immédiat — le comportement réel d'un renouvellement mensuel.
+        subscription = stripe.Subscription.modify(
+            sub.stripe_subscription_id,
+            billing_cycle_anchor='now',
+            proration_behavior='none',
         )
-        invoice = stripe.Invoice.finalize_invoice(invoice.id)
 
         self.stdout.write(self.style.SUCCESS(
-            f"Facture {invoice.id} créée — status={invoice.status} "
-            f"amount_due={invoice.amount_due}"
+            f"Cycle de facturation avancé sur {subscription.id} — "
+            f"la facture du nouveau cycle va être émise et prélevée sous peu."
         ))
         self.stdout.write(
             "Le prélèvement SEPA est asynchrone : le paiement passera en "
