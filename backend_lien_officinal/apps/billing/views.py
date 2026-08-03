@@ -405,10 +405,17 @@ class ConfirmSubscriptionView(APIView):
 
         sub.stripe_subscription_id = stripe_sub.id
         sub.plan = plan
-        sub.status = Subscription.Status.TRIALING
-        sub.trial_ends_at = datetime.fromtimestamp(
-            stripe_sub.trial_end, tz=dt_timezone.utc
-        )
+        if stripe_sub.trial_end:
+            sub.status = Subscription.Status.TRIALING
+            sub.trial_ends_at = datetime.fromtimestamp(
+                stripe_sub.trial_end, tz=dt_timezone.utc
+            )
+        else:
+            # Reliquat d'essai déjà épuisé (trial_days=0) : Stripe facture
+            # immédiatement et ne renvoie pas de trial_end. Le statut ACTIVE
+            # sera confirmé par le webhook invoice.paid.
+            sub.status = Subscription.Status.ACTIVE
+            sub.trial_ends_at = None
         sub.save(update_fields=[
             'stripe_subscription_id', 'plan', 'status', 'trial_ends_at', 'updated_at'
         ])

@@ -1,12 +1,18 @@
 """Affiche l'état complet de l'abonnement d'une pharmacie (diagnostic, lecture seule).
 
+Affiche aussi les abonnements Stripe réels du Customer, pour repérer les
+abonnements orphelins (créés côté Stripe mais jamais enregistrés en base
+suite à une erreur serveur pendant la confirmation).
+
 Exemple :
     manage.py inspect_subscription webmaster@lienofficinal.fr
 """
 
+import stripe
 from django.core.management.base import BaseCommand, CommandError
 
 from apps.billing.models import Subscription
+from apps.billing.stripe_service import StripeService  # noqa: F401 — configure stripe.api_key
 from apps.core.models import Pharmacy
 
 
@@ -39,3 +45,20 @@ class Command(BaseCommand):
         self.stdout.write(f"cancel_at_period_end={sub.cancel_at_period_end}")
         self.stdout.write(f"is_access_allowed={sub.is_access_allowed}")
         self.stdout.write(f"access_denied_reason={sub.access_denied_reason}")
+
+        if not sub.stripe_customer_id:
+            return
+
+        self.stdout.write("--- Abonnements Stripe du Customer ---")
+        stripe_subs = stripe.Subscription.list(customer=sub.stripe_customer_id, limit=20)
+        if not stripe_subs.data:
+            self.stdout.write("(aucun)")
+            return
+        for s in stripe_subs.data:
+            orphan = " ORPHELIN (absent de la base)" if s.id != sub.stripe_subscription_id else ""
+            self.stdout.write(
+                f"id={s.id} status={s.status} "
+                f"trial_end={s.trial_end} "
+                f"current_period_end={getattr(s, 'current_period_end', None)}"
+                f"{orphan}"
+            )
