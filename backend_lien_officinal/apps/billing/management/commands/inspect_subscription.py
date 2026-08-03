@@ -11,7 +11,7 @@ Exemple :
 import stripe
 from django.core.management.base import BaseCommand, CommandError
 
-from apps.billing.models import Subscription
+from apps.billing.models import Invoice, Subscription
 from apps.billing.stripe_service import StripeService  # noqa: F401 — configure stripe.api_key
 from apps.core.models import Pharmacy
 
@@ -45,6 +45,18 @@ class Command(BaseCommand):
         self.stdout.write(f"cancel_at_period_end={sub.cancel_at_period_end}")
         self.stdout.write(f"is_access_allowed={sub.is_access_allowed}")
         self.stdout.write(f"access_denied_reason={sub.access_denied_reason}")
+
+        self.stdout.write("--- Factures en base (billing.Invoice) ---")
+        invoices = Invoice.objects.filter(pharmacy=pharmacy).order_by('-issued_at')[:10]
+        if not invoices:
+            self.stdout.write("(aucune)")
+        for inv in invoices:
+            self.stdout.write(
+                f"{inv.invoice_number} type={inv.invoice_type} "
+                f"amount_ttc={inv.amount_ttc} paid_at={inv.paid_at} "
+                f"pdf={'oui' if inv.pdf_storage_key else 'NON'} "
+                f"stripe_invoice_id={inv.stripe_invoice_id}"
+            )
 
         if not sub.stripe_customer_id:
             return
