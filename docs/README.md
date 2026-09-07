@@ -36,6 +36,14 @@ pour le projet.
 | A1 | [Annexe — Compétences DWWM](annexe-competences-dwwm.md) | Table de correspondance CP1 → CP8 |
 | A2 | [Annexe — Glossaire](annexe-glossaire.md) | Vocabulaire métier de l'officine |
 
+## Version web (synthèse navigable)
+
+Une synthèse de cette documentation, avec sommaire latéral et diagrammes rendus, est
+publiée comme page web privée :
+**<https://claude.ai/code/artifact/1fb576b1-47bb-4cf1-aaf9-e43d4b96db45>**
+
+Les fichiers Markdown de ce dossier restent la source de vérité (plus détaillée).
+
 ## Schémas
 
 Les diagrammes (architecture système, modèle de données, séquences d'authentification)
