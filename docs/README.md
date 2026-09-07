@@ -6,8 +6,12 @@
 
 Cette documentation décrit l'architecture, les choix techniques et les mécanismes de
 sécurité de la plateforme. Elle sert de support à la soutenance du titre professionnel
-**Développeur Web** — tronc commun (**bloc 1** Front End + **bloc 2** Back End) et
-**bloc 3, option Framework** — et de référence d'ingénierie pour le projet.
+**Développeur Web** et de référence d'ingénierie pour le projet.
+
+> **Deux projets sont présentés à la soutenance.** Le Lien Officinal porte le
+> **bloc 2** (Back End) et le **bloc 3** (option Framework). Le **bloc 1** (Front End)
+> est porté par un second projet, le site *Pharmacie Nord Montargis* — voir
+> l'[annexe référentiel](annexe-referentiel-competences.md).
 
 ## Comment lire cette documentation
 

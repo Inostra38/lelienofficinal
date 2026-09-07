@@ -30,22 +30,40 @@ la fin du MVP. Cela explique plusieurs des points suivants.
 | SSR Angular échafaudé mais désactivé | code `@angular/ssr` / `server.ts` non utilisé, sert un SPA statique | soit activer le SSR (SEO, temps de premier rendu), soit retirer l'échafaudage |
 | Pas d'ESLint | style TS non vérifié automatiquement (au-delà de `tsc --strict`) | ajouter `@angular-eslint` |
 
-## 12.4 Dette — accessibilité (RGAA)
+## 12.4 Dette — accessibilité
 
-C'est l'écart le plus explicitement exigé par le référentiel (**`C1.c`**), et il est
-assumé en connaissance de cause : au stade MVP, la priorité a été la couverture
-fonctionnelle et la sécurité des données de santé.
+### Le Lien Officinal — dette produit, pas écart de certification
 
-| Critère | État vérifié | Correction |
+Le bloc 1 étant présenté sur un **autre projet** (voir
+[annexe](annexe-referentiel-competences.md)), l'accessibilité de cette application
+n'est plus un écart au référentiel. Elle reste une **dette produit** légitime : c'est
+un outil utilisé toute la journée par une équipe.
+
+| Point | État vérifié | Correction |
 |---|---|---|
-| `Cr 1.c.2` **police adaptée aux personnes dyslexiques** | **absente** — aucune occurrence dans le code | intégrer une police (OpenDyslexic ou **Luciole**, conçue en France pour les déficients visuels) activable depuis les préférences, persistée par utilisateur |
-| `Cr 1.c.1` attributs des éléments visuels pour les lecteurs d'écran | **21** attributs `alt` ; **1 fichier sur 78** porte `aria-` / `role` / `tabindex` | passe systématique : `alt` sur toutes les images, `aria-label` sur les boutons-icônes, `role="dialog"` + `aria-modal` sur les modales maison, `aria-live` sur les toasts |
-| `Cr 1.c.4` navigation et accès aux fonctionnalités **au clavier** | non traité systématiquement (modales, tiroirs, pavé de PIN faits maison) | piège de focus dans les modales, fermeture par `Échap`, `:focus-visible` visible partout, lien d'évitement |
-| `Cr 1.c.3` information non portée uniquement par la couleur | ✅ **déjà conforme** | les états (absence, brouillon, gravité d'une non-conformité) sont toujours doublés d'un libellé texte |
-| `Cr 1.a.2` / `Cr 1.a.3` **validateur W3C** | un SPA Angular compilé émet des attributs non standard (`_ngcontent-*`) | faire passer le validateur sur le **site vitrine Astro** (HTML statique), et expliquer la nature générée du DOM Angular |
+| Attributs pour les lecteurs d'écran | **21** attributs `alt` ; **1 fichier sur 78** porte `aria-` / `role` / `tabindex` | `alt` sur toutes les images, `aria-label` sur les boutons-icônes, `role="dialog"` + `aria-modal` sur les modales maison, `aria-live` sur les toasts |
+| Navigation au clavier | non traité systématiquement (modales, tiroirs, pavé de PIN faits maison) | piège de focus dans les modales, fermeture par `Échap`, `:focus-visible` partout, lien d'évitement |
+| Police adaptée aux personnes dyslexiques | absente | police activable depuis les préférences (OpenDyslexic ou **Luciole**, conçue en France pour les déficients visuels) |
+| Information non portée uniquement par la couleur | ✅ **déjà conforme** | les états (absence, brouillon, gravité d'une non-conformité) sont toujours doublés d'un libellé texte |
 
-**Ordre de priorité si l'écart doit être comblé :** police dyslexique (exigence
-nommée) → `alt` et `aria-label` → focus clavier et modales → validateur.
+### Site Pharmacie Nord Montargis — les écarts du bloc 1
+
+État constaté le 2026-09-07, **documenté et non corrigé** (choix assumé). Le socle est
+bon : **101 attributs `aria-`**, 12 `role`, 100 % des images légendées, 15 `label`.
+
+| Critère | État vérifié | Correction | Effort |
+|---|---|---|---|
+| `Cr 1.e.6` pages canoniques | **absentes** sur les 6 pages | une balise `<link rel="canonical">` par page | ~10 min |
+| `Cr 1.e.3` balisage schema.org | **absent** | type `Pharmacy` / `LocalBusiness` : adresse, horaires, téléphone — vrai gain en référencement local | ~30 min |
+| `Cr 1.e.10` plan du site | `robots.txt` référence un `sitemap.xml` **qui n'existe pas** | produire le sitemap au build | ~15 min |
+| `Cr 1.e.4` sémantique des balises | `nav`, `main`, `section` présents ; pas de `header`, `footer`, `article`, `aside` | remplacer les `div` de structure | ~30 min |
+| `Cr 1.c.2` police pour dyslexiques | **absente** — seul écart du critère `C1.c` | police activable, persistée par utilisateur | ~1 h |
+| `Cr 2.b.1` contrôle de saisie en temps réel | perfectible — `validation.js` traite surtout l'affichage du panier | validation à la frappe sur les formulaires de commande et de dépôt d'ordonnance | ~1 h |
+
+**Total : environ deux heures et demie** pour tout combler. Si l'écart doit être
+comblé, l'ordre de priorité est : schema.org et canonical (gain réel de référencement,
+et critères nommés) → sitemap → balises sémantiques → police dyslexique → validation
+temps réel.
 
 ## 12.5 Écarts d'argumentation (pas de dette de code)
 

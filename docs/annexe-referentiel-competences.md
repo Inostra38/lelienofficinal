@@ -5,6 +5,21 @@ commun (bloc 1 + bloc 2)**, **un bloc optionnel** et une **période de stage**.
 
 **Option retenue : bloc 3 — Développement avancé avec un framework.**
 
+## ⚠️ Deux projets sont présentés
+
+| Bloc | Projet présenté |
+|---|---|
+| **Bloc 1 — Front End** | **Site Pharmacie Nord Montargis** — `pharmacienordmontargis.fr` (dépôt séparé) |
+| **Bloc 2 — Back End** | **Le Lien Officinal** — objet de cette documentation |
+| **Bloc 3 — Framework** | **Le Lien Officinal** (Angular + Django) |
+
+Le bloc 1 est porté par un second projet parce qu'il évalue des choses qu'une
+application Angular derrière authentification ne permet pas de démontrer : un HTML
+**réellement validable au W3C** (un SPA compilé émet des attributs générés), un site
+**public indexable** pour le référencement, et du **JavaScript natif** — le référentiel
+demande explicitement la maîtrise des « fonctions natives du langage » et de la
+manipulation du DOM, que justement un framework masque.
+
 Légende de couverture :
 **✅ couvert** · **◐ partiel / à argumenter à l'oral** · **⚠️ écart assumé**
 (les écarts sont détaillés au [chapitre 12](12-limites-dette-roadmap.md)).
@@ -13,26 +28,33 @@ Légende de couverture :
 
 ## Bloc 1 — Développement Front End
 
+> **Projet : site Pharmacie Nord Montargis.** 6 pages HTML statiques (accueil,
+> catalogue, validation de commande, dépôt sécurisé d'ordonnance, mentions légales,
+> politique de confidentialité), Tailwind CSS + 4 feuilles thématiques,
+> **3 395 lignes de JavaScript natif** en 11 modules, aucun framework front.
+> API Express en appui, hors périmètre de ce bloc.
+>
+> État constaté le 2026-09-07. Les écarts sont **documentés, non corrigés** — choix assumé.
+
 ### Activité 1 — Traduction de la maquette en code
 
 | Compétence | Couverture | Où / comment |
 |---|---|---|
-| **C1.a** Intégrer les maquettes en HTML/CSS (avec et sans framework) | ◐ | 78 templates Angular + le site vitrine Astro. `Cr 1.a.4` code commenté et indenté ✅ (Prettier, commentaires argumentés en tête de fichier). `Cr 1.a.1` conformité maquette et `Cr 1.a.3` validateur W3C : voir écarts ci-dessous. |
-| **C1.b** Responsive et compatibilité navigateurs | ✅ | `Cr 1.b.1` points de rupture Tailwind + seuils calculés en TypeScript (`@HostListener('window:resize')`, `COMPACT_BREAKPOINT = 1280` dans `dashboard.component.ts`). `Cr 1.b.2` autoprefixer + browserslist. `Cr 1.b.3` fallbacks CSS explicites avant les propriétés récentes. Feuille `@media print` A4 paysage dédiée (`src/styles.css`). |
-| **C1.c** Accessibilité (RGAA, diversité des publics) | ⚠️ | **Écart assumé.** `Cr 1.c.2` police dyslexique : absente. `Cr 1.c.1`/`Cr 1.c.4` : 21 attributs `alt`, 1 fichier sur 78 portant `aria-`/`role`/`tabindex`, focus clavier non traité systématiquement. `Cr 1.c.3` ✅ : les états (absence, brouillon, non-conformité) sont toujours doublés d'un libellé texte, jamais d'une seule couleur. Plan de correction au [ch. 12](12-limites-dette-roadmap.md). |
-| **C1.d** Intégration réutilisable, organisée, synthétique | ✅ | **Tailwind CSS** en approche utilitaire : `Cr 1.d.1` classes génériques et réutilisables par construction, `Cr 1.d.4` pas de répétition (c'est l'argument central de l'utilitaire). `Cr 1.d.2`/`Cr 1.d.3` `src/styles.css` organisé par thématiques (base, thème flatpickr, impression) et commenté. Extensions dans `tailwind.config.js` (keyframe `shake`, safelist des couleurs de collaborateurs). |
-| **C1.e** Référencement naturel | ✅ | **Porté par le site vitrine Astro** (`landingpages/`) — l'application, elle, est derrière authentification et n'a pas vocation à être indexée. `Cr 1.e.3` **schema.org** ✅ (`SoftwareApplication` dans `Base.astro`), `Cr 1.e.4` balises sémantiques ✅, `Cr 1.e.5` meta uniques par page ✅, `Cr 1.e.6` **canonique** ✅, `Cr 1.e.9` favicon ✅, `Cr 1.e.10`/`Cr 1.e.11` navigation + ancres (`#top`) ✅, sitemap via `@astrojs/sitemap` ✅, `og:` complet. `Cr 1.e.8` cache immuable sur `/_astro/` + build statique. |
+| **C1.a** Intégrer les maquettes en HTML/CSS | ✅ | 6 pages en **HTML statique**, donc `Cr 1.a.3` **réellement validable au W3C** — contrairement à un SPA compilé. `Cr 1.a.4` code commenté et indenté ; modules JS documentés, CSS séparé par thématique. |
+| **C1.b** Responsive et compatibilité navigateurs | ✅ | `Cr 1.b.1` **156 classes de point de rupture** Tailwind (`sm:` `md:` `lg:` `xl:`) sur les 6 pages. `Cr 1.b.2` PostCSS + autoprefixer sur toute la chaîne de build. |
+| **C1.c** Accessibilité (RGAA) | ◐ | Bien travaillée : `Cr 1.c.1` **101 attributs `aria-`**, 12 `role`, **5 `alt` pour 5 images** (100 %), 15 `label`. `Cr 1.c.3` ✅ information jamais portée par la seule couleur. `Cr 1.c.4` éléments natifs focusables, formulaires étiquetés. **Seul écart : `Cr 1.c.2`, la police adaptée aux dyslexiques, absente.** |
+| **C1.d** Intégration réutilisable, organisée, synthétique | ✅ | Approche utilitaire **Tailwind** (`Cr 1.d.1` classes génériques, `Cr 1.d.4` pas de répétition) + `tailwind.config.js`. `Cr 1.d.2`/`Cr 1.d.3` CSS custom découpé par rôle : mode clair, bandeau cookies, pages légales. |
+| **C1.e** Référencement naturel | ◐ | **Site public indexable.** Acquis : `Cr 1.e.1` un `h1`, 11 `h2`, 12 `h3` · `Cr 1.e.5` `title` + `meta description` par page · `Cr 1.e.7` 5 `alt` pour 5 images · `Cr 1.e.9` favicon · `og:` complet (titre, description, image, url, type, locale) · `robots.txt`. **Écarts : `Cr 1.e.6` pages canoniques absentes · `Cr 1.e.3` balisage schema.org absent · `Cr 1.e.10` `sitemap.xml` référencé mais inexistant · `Cr 1.e.4` `nav`/`main`/`section` présents mais pas `header`/`footer`/`article`/`aside`.** |
 
 ### Activité 2 — Développement de fonctionnalités front end
 
 | Compétence | Couverture | Où / comment |
 |---|---|---|
-| **C2.a** Interactivité et animations JavaScript | ✅ | `Cr 2.a.1` TypeScript strict, cible ES moderne. `Cr 2.a.2` manipulation du DOM via les templates Angular, `@ViewChild`, `@HostListener`. `Cr 2.a.3`/`Cr 2.a.4` glisser-déposer (`@angular/cdk/drag-drop`) sur le kanban, les procédures et le planning ; transitions et keyframes CSS. **`Cr 2.a.5` ✅✅ les trois paradigmes cohabitent explicitement** : orienté objet (services et composants sont des classes), fonctionnel (opérateurs RxJS : `map`, `switchMap`, `catchError`), événementiel (`(click)`, `@HostListener`, flux `Subject`). |
-| **C2.b** Validation des saisies utilisateur | ✅ | `Cr 2.b.1` contrôle en temps réel — *reactive forms* (`Validators`) sur l'éditeur de procédure et les non-conformités, *template-driven* ailleurs. `Cr 2.b.2` méthodes adaptées à la donnée : format e-mail, PIN numérique, couleur hexadécimale validée par expression régulière côté serveur (`apps/team/models.py`). `Cr 2.b.3` soumission bloquée tant que le format est invalide, messages d'erreur explicites + service de toasts. |
-| **C2.c** Requêtes asynchrones avec le serveur | ✅✅ | `Cr 2.c.1` `HttpClient` + RxJS sur toute l'API REST, plus **quatre canaux WebSocket** temps réel. **`Cr 2.c.2` (pas d'exposition de données sensibles) est un point fort argumenté** : le jeton n'est attaché **qu'aux** requêtes vers notre propre API (correctif `C04/C05`), et le JWT des WebSockets passe **en sous-protocole**, jamais en *query string*, pour ne pas fuiter dans les logs des proxys (`S18/S19`). `Cr 2.c.3`/`Cr 2.c.4` **traitement des erreurs sans interrompre l'exécution** : l'intercepteur rattrape 401 (refresh silencieux + rejeu de la requête), 402 (redirection vers l'abonnement), 403 et 429 (toast). Voir [ch. 05 §5.4](05-frontend-angular.md). |
-| **C2.d** Librairies externes | ✅ | `Cr 2.d.1` chaque librairie répond à un besoin précis : **Quill** (éditeur riche des procédures), **DOMPurify** (assainissement du HTML produit par l'éditeur et par l'IA), **flatpickr** (sélecteur de dates localisé FR), **@angular/cdk** (glisser-déposer), **Stripe.js** (saisie du mandat SEPA). `Cr 2.d.2` intégrations conformes à leur documentation, `flatpickr` et `quill` encapsulés dans des `ControlValueAccessor` maison. |
+| **C2.a** Interactivité et animations JavaScript | ✅✅ | **3 395 lignes de JavaScript natif**, 11 modules (`script`, `api`, `cart-v2`, `catalogue`, `home`, `upload`, `validation`, `csrf-manager`, `cache-manager`, `cookie-config`, `config`). `Cr 2.a.2` manipulation directe du DOM : 40 `classList`, 11 `querySelector`. `Cr 2.a.3`/`Cr 2.a.4` 10 blocs `@keyframes`, 45 transitions CSS, un `IntersectionObserver`. **`Cr 2.a.5` les trois paradigmes** : orienté objet (`csrf-manager`, `cache-manager`, `api`), fonctionnel (transformations du catalogue et du panier), événementiel (**33 `addEventListener`**). |
+| **C2.b** Validation des saisies utilisateur | ◐ | `validation.js` (207 lignes) côté client et `express-validator` + `validation.middleware.js` côté serveur ; 15 `label` et attributs `required`. **`Cr 2.b.1` (contrôle en temps réel pendant la saisie) est le point le plus perfectible** — à savoir montrer, ou à reconnaître. |
+| **C2.c** Requêtes asynchrones avec le serveur | ✅✅ | `Cr 2.c.1` **57 `await`, 37 `async`, 6 `fetch`**. `Cr 2.c.4` **erreurs traitées sans interrompre le script** : `try`/`catch`, `throw`, contrôle du statut HTTP dans `api.js`. `Cr 2.c.2` **`csrf-manager.js`** — jeton anti-CSRF sur chaque appel mutant, ce qui compte d'autant plus que le site reçoit des **dépôts d'ordonnances** (données de santé). `cache-manager.js` en complément. |
+| **C2.d** Librairies externes | ✅ | `Cr 2.d.1` Tailwind CSS et PostCSS, choisis et configurés pour un besoin précis ; pas de dépendance superflue. `Cr 2.d.2` intégration conforme à la documentation (`tailwind.config.js`, `postcss.config.js`). |
 
----
 
 ## Bloc 2 — Développement Back End
 
@@ -79,7 +101,8 @@ serrée. Quatre sujets méritent une préparation spécifique :
    choix de l'ORM (requêtes paramétrées, donc pas d'injection).
 2. **MVC vs MTV** (`C4.d`) — expliquer la correspondance sans esquiver la question de
    vocabulaire.
-3. **Accessibilité** (`C1.c`) — connaître précisément l'écart, le plan de correction
-   et l'ordre de priorité. Ne pas le découvrir devant le jury.
+3. **Écarts du bloc 1** (`C1.e`, `C1.c`, `C2.b`) — canonique, schema.org, sitemap,
+   balises sémantiques, police dyslexique, validation en temps réel. Les annoncer avec
+   leur chiffrage (~2 h 30 au total) plutôt que les laisser découvrir au jury.
 4. **Travail collectif** (`C4.f`) — préparer ce qui sera présenté depuis la période de
    stage, puisque ce projet est solo.

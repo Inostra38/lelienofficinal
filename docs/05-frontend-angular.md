@@ -1,13 +1,14 @@
 # 05 — Front-end Angular
 
-> **Référentiel — bloc 1, Développement Front End :**
-> **`C1.b`** responsive et compatibilité navigateurs (§5.6) · **`C1.d`** intégration
-> réutilisable et synthétique (Tailwind, §5.6) · **`C2.a`** interactivité et animations
-> (§5.6, §5.7) · **`C2.b`** validation des saisies (§5.6) · **`C2.c`** requêtes
-> asynchrones et traitement des erreurs (§5.4, §5.7) · **`C2.d`** librairies externes
-> (§5.1, §5.6).
-> Contribue aussi au **bloc 3** (`C5.a`, `C5.b`) — Angular est l'un des deux frameworks
-> présentés. Détail en [annexe](annexe-referentiel-competences.md).
+> **Référentiel — bloc 3, Framework :** **`C5.a`** s'approprier l'architecture et les
+> fonctionnalités d'un framework — Angular est l'un des deux frameworks présentés ·
+> **`C5.c`** application évolutive (patrons du framework adaptés, débogage outillé).
+>
+> ⚠️ **Le bloc 1 (Front End) n'est pas porté par ce chapitre** mais par un second
+> projet, le site *Pharmacie Nord Montargis* — voir
+> [annexe](annexe-referentiel-competences.md). Ce chapitre vient en **appui** sur
+> `C2.a` (les trois paradigmes), `C2.c` (requêtes asynchrones et traitement des
+> erreurs, §5.4) et `C2.d` (librairies).
 
 ## 5.1 Stack et parti pris
 
