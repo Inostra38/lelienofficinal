@@ -1,7 +1,10 @@
 # 04 — Spécifications fonctionnelles
 
-> **Compétences DWWM :** **CP1** — Maquetter une application (cette section porte les
-> maquettes et l'arborescence) ; sert de référence aux CP2/CP3.
+> **Référentiel — bloc 2, `C4.a` :** conceptualiser l'application et **formaliser son
+> schéma fonctionnel**. `Cr 4.a.3` — toutes les fonctionnalités listées et détaillées
+> (§4.2) · `Cr 4.a.4` — **l'enchaînement des vues en fonction des actions et
+> interactions** (§4.3). Sert aussi de référence au bloc 1 (`Cr 1.a.1`, conformité à la
+> maquette). Détail en [annexe](annexe-referentiel-competences.md).
 
 ## 4.1 Acteurs
 
@@ -123,18 +126,31 @@ guard de rôle. Détail : [chapitre 05](05-frontend-angular.md).
 Le vert est un choix identitaire (univers santé / pharmacie, la croix verte) et un
 choix d'accessibilité (contraste suffisant sur fond clair).
 
-## 4.5 Maquettes
+## 4.5 Schéma fonctionnel — enchaînement des vues
+
+> **[À PRODUIRE — exigence `Cr 4.a.4`]**
+>
+> Le critère demande un schéma décrivant **en détail l'enchaînement des vues en
+> fonction des différentes actions et interactions**. L'arborescence du §4.3 donne la
+> structure, mais pas les transitions.
+>
+> À formaliser : le parcours d'authentification (login → onboarding si incomplet →
+> tableau de bord ; 401 → *refresh* → rejeu ; 402 → facturation), la session
+> collaborateur par PIN, et un parcours métier complet (composition puis publication
+> d'un planning, ou déclaration puis clôture d'une non-conformité).
+
+## 4.6 Maquettes et captures
 
 > **[À COMPLÉTER par le porteur du projet]**
 >
-> Deux options selon ce qui existe :
-> - **Si des maquettes existent** (Figma, Penpot, croquis) : les intégrer ici (export
->   PNG dans `docs/assets/` + lien), en indiquant l'outil et le lien du projet source.
-> - **Sinon** : documenter l'interface **telle qu'implémentée** avec des captures
->   d'écran annotées des écrans clés (tableau de bord dans ses 3 vues, planning
->   semaine, éditeur de procédure, messagerie, parcours d'onboarding). Placer les
->   images dans `docs/assets/` et les référencer depuis cette section.
+> Le maquettage relève du **bloc 4 (option UX-UI)**, qui n'est pas l'option retenue —
+> il n'y a donc pas de wireframes ni de brand board à produire. Mais `Cr 1.a.1`
+> (« l'intégration est conforme à la maquette ») suppose un référentiel visuel.
 >
-> Pour la certification DWWM, **CP1 (« Maquetter une application »)** attend au
-> minimum : des wireframes ou maquettes des écrans principaux, l'enchaînement des
-> écrans (déjà couvert par le §4.3), et la charte graphique (§4.4).
+> Deux options :
+> - **Si des maquettes existent** (Figma, Penpot, croquis) : les intégrer ici (export
+>   PNG dans `docs/assets/`), en indiquant l'outil et le lien du projet source.
+> - **Sinon** : documenter l'interface **telle qu'implémentée**, par des captures
+>   annotées des écrans clés (tableau de bord dans ses 3 vues, planning semaine,
+>   éditeur de procédure, messagerie, parcours d'onboarding), et expliquer à l'oral
+>   que la conception visuelle a été menée directement en intégration.

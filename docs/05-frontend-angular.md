@@ -1,12 +1,13 @@
 # 05 — Front-end Angular
 
-> **Compétences DWWM couvertes ici :**
-> **CP2** — Réaliser une interface utilisateur web statique et adaptable (Tailwind,
-> responsive, `@media print`).
-> **CP3** — Développer une interface utilisateur web dynamique (composants Angular,
-> routing, formulaires, appels API, WebSocket, gestion d'état).
-> La sécurité côté client (jeton en mémoire, guards, assainissement HTML) relève de
-> l'**activité-type 1 « front-end sécurisé »**.
+> **Référentiel — bloc 1, Développement Front End :**
+> **`C1.b`** responsive et compatibilité navigateurs (§5.6) · **`C1.d`** intégration
+> réutilisable et synthétique (Tailwind, §5.6) · **`C2.a`** interactivité et animations
+> (§5.6, §5.7) · **`C2.b`** validation des saisies (§5.6) · **`C2.c`** requêtes
+> asynchrones et traitement des erreurs (§5.4, §5.7) · **`C2.d`** librairies externes
+> (§5.1, §5.6).
+> Contribue aussi au **bloc 3** (`C5.a`, `C5.b`) — Angular est l'un des deux frameworks
+> présentés. Détail en [annexe](annexe-referentiel-competences.md).
 
 ## 5.1 Stack et parti pris
 

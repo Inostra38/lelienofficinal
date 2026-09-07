@@ -42,4 +42,5 @@
 | **Fernet / MultiFernet** | Schéma de chiffrement symétrique authentifié (bibliothèque `cryptography`). MultiFernet gère plusieurs clés pour la rotation. |
 | **GSM-7 / Unicode (SMS)** | Encodages d'un SMS : GSM-7 (160 caractères/segment) pour l'alphabet latin de base, Unicode (70 caractères/segment) dès qu'un caractère sort de ce jeu (emoji, certains accents). |
 | **402 Payment Required** | Code HTTP utilisé ici pour signaler qu'un module nécessite un abonnement actif (sans déconnecter l'utilisateur). |
-| **DWWM** | Développeur Web et Web Mobile — titre professionnel visé (RNCP niveau 5). |
+| **RGAA** | Référentiel général d'amélioration de l'accessibilité — norme française d'accessibilité numérique, citée par le critère `C1.c`. |
+| **Tronc commun / bloc optionnel** | Le titre **Développeur Web** s'obtient en validant le bloc 1 (Front End) + le bloc 2 (Back End), **un** bloc optionnel — ici le **bloc 3, Framework** — et une période de stage. |

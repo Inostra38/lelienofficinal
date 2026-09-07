@@ -1,7 +1,11 @@
 # 07 — Modèle de données
 
-> **Compétence DWWM couverte ici :** **CP5** — Créer une base de données (modélisation
-> entité-association, contraintes d'intégrité, index).
+> **Référentiel — bloc 2, activité 3 (Data) :**
+> **`C3.a`** synthétiser et formaliser le modèle de données (§7.2 à §7.5, dont
+> `Cr 3.a.3` — des informations provenant d'API externes alimentent le modèle) ·
+> **`C3.b`** construire la base de données (nommage, types, relations, contraintes) ·
+> **`C3.c`** interroger la base (§7.1, et [ch. 06 §6.4](06-backend-django.md)).
+> Détail en [annexe](annexe-referentiel-competences.md).
 
 ## 7.1 Principes transverses
 

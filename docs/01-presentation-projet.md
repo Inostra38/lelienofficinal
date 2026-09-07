@@ -18,8 +18,8 @@ de SMS aux patients.
 >   qualité dans un classeur, etc.) ?
 > - **D'où vient l'idée** (expérience personnelle, entourage pharmacien, étude de
 >   marché) ?
-> - **Depuis quand** le projet est en développement, et dans quel cadre (formation
->   DWWM, projet personnel, création d'entreprise).
+> - **Depuis quand** le projet est en développement, et dans quel cadre (formation au
+>   titre Développeur Web, projet personnel, création d'entreprise).
 >
 > *Trame proposée, à valider :* « Une officine utilise en moyenne 5 à 10 outils
 > distincts sans lien entre eux. Le planning, en particulier, est un casse-tête

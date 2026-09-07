@@ -6,14 +6,14 @@
 
 Cette documentation décrit l'architecture, les choix techniques et les mécanismes de
 sécurité de la plateforme. Elle sert de support à la soutenance du titre professionnel
-**DWWM — Développeur Web et Web Mobile** (RNCP niveau 5) et de référence d'ingénierie
-pour le projet.
+**Développeur Web** — tronc commun (**bloc 1** Front End + **bloc 2** Back End) et
+**bloc 3, option Framework** — et de référence d'ingénierie pour le projet.
 
 ## Comment lire cette documentation
 
 | Vous êtes… | Commencez par |
 |---|---|
-| Membre du jury / évaluateur | [01 — Présentation](01-presentation-projet.md) puis [03 — Architecture générale](03-architecture-generale.md), et l'[annexe compétences DWWM](annexe-competences-dwwm.md) |
+| Membre du jury / évaluateur | l'[annexe référentiel de compétences](annexe-referentiel-competences.md) d'abord — elle renvoie vers chaque chapitre, critère par critère |
 | Développeur qui reprend le projet | [03 — Architecture générale](03-architecture-generale.md) → [05](05-frontend-angular.md) / [06](06-backend-django.md) → [10 — Déploiement](10-deploiement-exploitation.md) |
 | Responsable sécurité / conformité | [08 — Sécurité & conformité](08-securite-conformite.md) |
 
@@ -33,7 +33,7 @@ pour le projet.
 | 10 | [Déploiement & exploitation](10-deploiement-exploitation.md) | Scalingo, CI/CD GitHub Actions, environnements, supervision |
 | 11 | [Tests & qualité](11-tests-qualite.md) | Stratégie de tests, couverture, analyse statique, sécurité automatisée |
 | 12 | [Limites, dette technique & perspectives](12-limites-dette-roadmap.md) | État MVP, dette assumée, roadmap |
-| A1 | [Annexe — Compétences DWWM](annexe-competences-dwwm.md) | Table de correspondance CP1 → CP8 |
+| A1 | [Annexe — Référentiel de compétences](annexe-referentiel-competences.md) | Correspondance critère par critère : bloc 1 (`C1.a`→`C2.d`), bloc 2 (`C3.a`→`C4.g`), bloc 3 (`C5.a`→`C5.c`) |
 | A2 | [Annexe — Glossaire](annexe-glossaire.md) | Vocabulaire métier de l'officine |
 
 ## Version web (synthèse navigable)

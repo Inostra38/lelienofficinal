@@ -1,8 +1,11 @@
 # 08 — Sécurité & conformité
 
-> **Activité-type DWWM :** les deux blocs exigent une application **« sécurisée »**.
-> Ce chapitre regroupe les mesures transverses ; les mécanismes locaux sont aussi
-> décrits dans les chapitres [05](05-frontend-angular.md) et [06](06-backend-django.md).
+> **Référentiel :** **`C3.d`** respecter le cadre légal RGPD (§8.1, §8.7) ·
+> **`C4.e`** identifier l'utilisateur et délimiter ses champs d'action — protection de
+> l'intégrité des données, jetons, rôles et permissions (§8.2, §8.4, §8.5) ·
+> **`C2.c`** (`Cr 2.c.2`) les requêtes asynchrones n'exposent pas de données sensibles
+> (§8.6). Ce chapitre porte l'essentiel de l'argumentation sécurité des deux blocs du
+> tronc commun. Détail en [annexe](annexe-referentiel-competences.md).
 
 ## 8.1 Contexte : données de santé
 

@@ -3,8 +3,8 @@
 ## 2.1 Cadre
 
 > **[À COMPLÉTER par le porteur du projet]**
-> - Cadre exact : projet de formation **DWWM**, projet personnel, amorçage d'une
->   création d'entreprise ?
+> - Cadre exact : projet de formation au titre **Développeur Web**, projet personnel,
+>   amorçage d'une création d'entreprise ?
 > - **Rôle(s)** tenu(s) : conception, développement full-stack, design, ops — préciser
 >   ce qui a été fait seul et ce qui a été délégué / sous-traité.
 > - **Équipe** : d'après l'historique Git, le développement est **quasi

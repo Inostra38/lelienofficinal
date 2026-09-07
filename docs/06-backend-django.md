@@ -1,11 +1,12 @@
 # 06 — Back-end Django
 
-> **Compétences DWWM couvertes ici :**
-> **CP5** — Créer une base de données (voir aussi [chapitre 07](07-modele-de-donnees.md)).
-> **CP6** — Développer les composants d'accès aux données (ORM, sérialiseurs, requêtes
-> filtrées par tenant).
-> **CP7** — Développer la partie back-end d'une application web sécurisée (API REST,
-> authentification, permissions, *throttling*, tâches asynchrones).
+> **Référentiel — bloc 2, Développement Back End :**
+> **`C3.c`** interrogation de la base par l'ORM (§6.4) · **`C4.b`** développement avec
+> un langage serveur (§6.2, §6.3) · **`C4.c`** POO et héritage (§6.4) · **`C4.d`**
+> architecture MTV/MVC (§6.4) · **`C4.e`** identification de l'utilisateur et
+> délimitation de ses droits (§6.4).
+> Contribue au **bloc 3** (`C5.b` gestionnaire de dépendances et variables
+> d'environnement, §6.1–6.2). Détail en [annexe](annexe-referentiel-competences.md).
 
 ## 6.1 Stack
 

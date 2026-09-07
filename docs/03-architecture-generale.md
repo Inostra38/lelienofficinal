@@ -1,8 +1,10 @@
 # 03 — Architecture générale
 
-> **Compétences DWWM couvertes ici :** vision d'ensemble mobilisée par CP2, CP3
-> (front sécurisé) et CP5, CP6, CP7 (back sécurisé). Le détail par bloc est dans les
-> chapitres [05](05-frontend-angular.md) et [06](06-backend-django.md).
+> **Référentiel :** vue d'ensemble mobilisée par le **bloc 1** (front end) et le
+> **bloc 2** (back end), et socle de l'argumentation du **bloc 3 — framework**
+> (`C5.a`). Le détail est dans les chapitres [05](05-frontend-angular.md) et
+> [06](06-backend-django.md) ; la correspondance complète est en
+> [annexe](annexe-referentiel-competences.md).
 
 ## 3.1 Vue d'ensemble
 

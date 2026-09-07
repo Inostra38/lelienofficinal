@@ -1,7 +1,9 @@
 # 11 — Tests & qualité
 
-> **Compétences DWWM :** la démarche de test soutient l'ensemble des CP ; le jury
-> attend une **stratégie explicite** et des exemples de cas de test.
+> **Référentiel :** **`C4.g`** (`Cr 4.g.2` — *« des tests unitaires sont réalisés et
+> validés »*, `Cr 4.g.3`, `Cr 4.g.4`) · **`C5.c`** (`Cr 5.c.2`, `Cr 5.c.3` — erreurs de
+> développement identifiées, outils de débogage maîtrisés).
+> Détail en [annexe](annexe-referentiel-competences.md).
 
 ## 11.1 Backend — Django `TestCase`
 
