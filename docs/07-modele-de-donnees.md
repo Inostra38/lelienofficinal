@@ -6,6 +6,11 @@
 > **`C3.b`** construire la base de données (nommage, types, relations, contraintes) ·
 > **`C3.c`** interroger la base (§7.1, et [ch. 06 §6.4](06-backend-django.md)).
 > Détail en [annexe](annexe-referentiel-competences.md).
+>
+> 📐 **Ce chapitre porte le schéma *conceptuel*.** Le **schéma *physique*** — noms de
+> tables et de colonnes réels, types PostgreSQL, contraintes, DDL — est en
+> [annexe A3](annexe-schema-physique.md). Les éléments demandés du bloc 2 exigent
+> **les deux**.
 
 ## 7.1 Principes transverses
 
@@ -295,7 +300,31 @@ Le module `messaging` (hors schémas ci-dessus pour rester lisible) : `Conversat
 (PK UUID, `subject` chiffré) `1─N` `Message` (PK UUID, `content` chiffré), les deux
 reliés aux `Collaborator` participants en M2M.
 
-## 7.6 Migrations
+## 7.6 Du conceptuel au physique
+
+Les diagrammes ci-dessus sont **conceptuels** : ils nomment les entités métier et leurs
+associations. Le passage au **modèle physique** est réalisé par les migrations Django,
+qui produisent le schéma PostgreSQL réel :
+
+| Conceptuel (ce chapitre) | Physique ([annexe A3](annexe-schema-physique.md)) |
+|---|---|
+| entité `PHARMACY` | table `core_pharmacy`, 32 colonnes |
+| entité `COLLABORATOR` | table `team_collaborator`, 25 colonnes |
+| association `PHARMACY ─ COLLABORATOR` | colonne `pharmacy_id bigint NOT NULL` + `FOREIGN KEY … ON DELETE CASCADE` |
+| « unicité par pharmacie » | `UNIQUE (pharmacy_id, first_name, last_name)` |
+| « crédits SMS jamais négatifs » | `CONSTRAINT pharmacy_sms_credits_non_negative CHECK ("sms_credits" >= 0)` |
+| relation N-N `PROCEDURE ─ COLLABORATOR` | table de liaison `quality_procedure_pilots` |
+
+**Chiffres du schéma physique :** 46 tables applicatives, 420 colonnes, 79 clés
+étrangères, 7 tables de liaison, 8 contraintes `CHECK` déclarées, 17 index explicites.
+La base complète compte 62 tables avec celles de Django.
+
+👉 **[Annexe A3 — Schéma physique de la base (MPD)](annexe-schema-physique.md)** :
+inventaire par domaine, diagrammes relationnels avec les vrais noms de tables et types
+PostgreSQL, détail colonne par colonne des tables du cœur, contraintes d'intégrité, et
+le DDL `CREATE TABLE` réel de trois tables.
+
+## 7.7 Migrations
 
 66 migrations, per-app, versionnées dans le dépôt. Deux migrations de données
 (`RunPython`). En production, elles sont **appliquées depuis la CI** via le CLI

@@ -39,6 +39,7 @@ sécurité de la plateforme. Elle sert de support à la soutenance du titre prof
 | 12 | [Limites, dette technique & perspectives](12-limites-dette-roadmap.md) | État MVP, dette assumée, roadmap |
 | A1 | [Annexe — Référentiel de compétences](annexe-referentiel-competences.md) | Correspondance critère par critère : bloc 1 (`C1.a`→`C2.d`), bloc 2 (`C3.a`→`C4.g`), bloc 3 (`C5.a`→`C5.c`) |
 | A2 | [Annexe — Glossaire](annexe-glossaire.md) | Vocabulaire métier de l'officine |
+| A3 | [Annexe — Schéma physique de la base](annexe-schema-physique.md) | MPD PostgreSQL : 46 tables, 420 colonnes, 79 clés étrangères, contraintes, DDL réel |
 
 ## Version web (synthèse navigable)
 
