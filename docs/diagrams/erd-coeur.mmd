@@ -1,0 +1,51 @@
+erDiagram
+    PHARMACY ||--o{ COLLABORATOR : "emploie"
+    PHARMACY ||--|| SUBSCRIPTION : "possède"
+    PHARMACY ||--o{ INVOICE : "reçoit"
+    PHARMACY ||--o{ SMSCREDITTRANSACTION : "mouvemente"
+    PHARMACY ||--o{ SMSTEMPLATE : "définit"
+    PHARMACY ||--o{ SMSLOG : "émet"
+    PHARMACY ||--o{ PASSWORDRESETTOKEN : "demande"
+    COLLABORATOR ||--o{ CONTRACTHISTORY : "a"
+    COLLABORATOR ||--o{ COLLABORATORLOGINLOG : "journalise"
+    COLLABORATOR ||--o{ SMSLOG : "envoie"
+    PROMOCODE ||--o{ PROMOREDEMPTION : "consommé par"
+    PHARMACY ||--o{ PROMOREDEMPTION : "utilise"
+
+    PHARMACY {
+        int id PK
+        string email UK
+        string nom_officine
+        string siret UK
+        int sms_credits "CHECK >= 0"
+        bool email_verified
+        datetime deletion_scheduled_for "RGPD"
+    }
+    COLLABORATOR {
+        int id PK
+        int pharmacy_id FK
+        string role "Titulaire|Adjoint|Préparateur|Étudiant|Apprenti"
+        string pin_hash "haché"
+        int pin_fail_count
+        datetime pin_locked_until
+    }
+    SUBSCRIPTION {
+        int id PK
+        int pharmacy_id FK "OneToOne"
+        string plan "small|large"
+        string status "trialing|active|past_due|suspended|canceled"
+        datetime trial_ends_at
+        datetime past_due_since
+    }
+    INVOICE {
+        int id PK
+        string invoice_number UK "LLO-AAAA-000001"
+        string invoice_type "subscription|sms_pack"
+        decimal amount_ttc
+    }
+    SMSLOG {
+        int id PK
+        string to_hash "SHA-256"
+        string status "PENDING|SUCCESS|DELIVERED|FAILED"
+        datetime sent_at "TTL 30 jours"
+    }

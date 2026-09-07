@@ -1,0 +1,24 @@
+sequenceDiagram
+    autonumber
+    actor A as Administrateur SaaS
+    participant NG as Front admin (bloc lazy)
+    participant MW as AdminIPWhitelist + RateLimit
+    participant API as apps.admin_panel
+    participant RD as Redis (admin_revocation, fail-closed)
+
+    A->>NG: e-mail + mot de passe
+    NG->>MW: POST /api/admin/auth/login/
+    MW->>MW: IP dans ADMIN_ALLOWED_IPS ? (sinon 403 nu)
+    MW->>API: transmet
+    API-->>NG: 200 { session_token }  (5 min, usage TOTP uniquement)
+
+    A->>NG: saisit le code TOTP (6 chiffres)
+    NG->>API: POST /api/admin/auth/totp-verify/ { session_token, totp_code }
+    API->>API: pyotp.verify (valid_window=1)
+    API->>RD: cache.add("totp_used_<id>_<code>", ttl=90)  (anti-rejeu)
+    API-->>NG: 200 { access } (15 min, jti) + Set-Cookie admin_refresh (HttpOnly, path=/api/admin/auth/)
+    NG->>NG: jeton admin EN MÉMOIRE uniquement
+
+    rect rgb(248,240,240)
+    Note over NG,RD: à chaque refresh : ancien jti blacklisté dans admin_revocation<br/>si Redis KO -> jeton refusé (S21)
+    end

@@ -1,0 +1,22 @@
+sequenceDiagram
+    autonumber
+    actor C as Collaborateur
+    participant NG as Angular (SPA)
+    participant API as Django / DRF
+    participant DB as PostgreSQL
+
+    Note over NG: session pharmacie déjà ouverte
+    C->>NG: sélectionne son profil, saisit son PIN
+    NG->>API: POST /api/team/login/ { collaborator_id, pin }
+    API->>DB: charge le Collaborator
+    alt PIN verrouillé (pin_locked_until > now)
+        API-->>NG: 423 Locked (minutes restantes)
+    else PIN incorrect
+        API->>DB: register_pin_failure() (verrou à 5 échecs / 15 min)
+        API->>DB: CollaboratorLoginLog(success=False)
+        API-->>NG: 403 Forbidden
+    else PIN correct
+        API->>DB: reset_pin_failures()
+        API->>API: AccessToken.for_user(pharmacy)<br/>claims: auth_type=collaborator, collaborator_id, can_*  (30 min, non renouvelable)
+        API-->>NG: 200 { access } + Set-Cookie session_info
+    end

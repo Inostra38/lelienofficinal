@@ -1,0 +1,36 @@
+erDiagram
+    PHARMACY ||--o{ CATEGORY : "possède"
+    PHARMACY ||--o{ RESOURCECARD : "crée (PRIVATE)"
+    PARTNER ||--o{ RESOURCECARD : "gère (PARTNER)"
+    CATEGORY ||--o{ RESOURCECARD : "classe (défaut)"
+    RESOURCECARD ||--o{ RESOURCEITEM : "contient"
+    RESOURCECARD ||--o{ PHARMACYPREFERENCE : "personnalisée par"
+    PHARMACY ||--o{ PHARMACYPREFERENCE : "pose"
+    CATEGORY ||--o{ PHARMACYPREFERENCE : "catégorie assignée"
+
+    CATEGORY {
+        int id PK
+        int owner_pharmacy_id FK
+        string nom "unique par pharmacie"
+    }
+    RESOURCECARD {
+        int id PK
+        string titre
+        string type "OFFICIAL|PARTNER|PRIVATE"
+        string recommendation_status "PENDING|APPROVED|REJECTED"
+    }
+    RESOURCEITEM {
+        int id PK
+        int card_id FK
+        string type "WEB|PDF|TEL|MAIL"
+        string label
+    }
+    PHARMACYPREFERENCE {
+        int id PK
+        int pharmacy_id FK
+        int card_id FK
+        bool is_favorite
+        bool is_hidden
+        string note_courte "<= 150 car."
+        text note_longue
+    }

@@ -1,0 +1,38 @@
+erDiagram
+    PHARMACY ||--|| PLANNINGSETTINGS : "configure"
+    PHARMACY ||--o{ PHARMACYDAYSTATUS : "ouvre/ferme"
+    PHARMACY ||--o{ SHIFT : "planifie"
+    PHARMACY ||--o{ OPENINGHOURSVERSION : "versionne"
+    OPENINGHOURSVERSION ||--o{ OPENINGHOURS : "détaille"
+    COLLABORATOR ||--o{ SHIFT : "affecté à"
+    COLLABORATOR ||--o{ ABSENCEREQUEST : "demande"
+    COLLABORATOR ||--o{ TIMEADJUSTMENT : "ajuste"
+    PHARMACY ||--o{ WEEKTEMPLATE : "modélise"
+    WEEKTEMPLATE ||--o{ TEMPLATESHIFT : "compose"
+    WEEKTEMPLATE ||--o{ WEEKTEMPLATEAPPLICATION : "appliqué"
+    PHARMACY ||--|| CONSTRAINTSET : "borne"
+    CONSTRAINTSET ||--o{ CONSTRAINT : "règles"
+
+    SHIFT {
+        int id PK
+        int collaborator_id FK "SET_NULL + snapshot"
+        datetime start_datetime
+        datetime end_datetime "CHECK > start"
+        bool is_published
+        bool is_absent
+        decimal contract_hours_snapshot
+    }
+    ABSENCEREQUEST {
+        int id PK
+        string type "CP|maladie|RCR|formation"
+        string status "pending|approved|rejected"
+    }
+    WEEKTEMPLATE {
+        int id PK
+        string letter "A|B|C|D unique par pharmacie"
+    }
+    TIMEADJUSTMENT {
+        int id PK
+        string kind "overtime|early_departure"
+        decimal duration "CHECK > 0"
+    }

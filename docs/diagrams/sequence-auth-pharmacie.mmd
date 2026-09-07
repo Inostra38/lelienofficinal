@@ -1,0 +1,22 @@
+sequenceDiagram
+    autonumber
+    actor U as Titulaire
+    participant NG as Angular (SPA)
+    participant API as Django / DRF
+    participant DB as PostgreSQL
+
+    U->>NG: saisit e-mail + mot de passe
+    NG->>API: POST /api/token/ { email, password }
+    API->>DB: vérifie l'identité (hash PBKDF2)
+    DB-->>API: OK
+    API-->>NG: 200 { access } + Set-Cookie: refresh_token (HttpOnly, Strict, Secure)
+    Note over API,NG: cookie session_info (non-HttpOnly) : auth_type + permissions
+    NG->>NG: garde le jeton d'accès EN MÉMOIRE
+    NG-->>U: redirection vers returnUrl ou /dashboard
+
+    rect rgb(240,248,240)
+    Note over NG,API: Requête métier ultérieure
+    NG->>API: GET /api/... (Authorization: Bearer access)
+    API->>API: JWTAuthentication -> IsAuthenticated [-> HasPaidAccess]
+    API-->>NG: 200 données (filtrées pharmacy = request.user)
+    end

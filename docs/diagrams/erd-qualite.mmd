@@ -1,0 +1,29 @@
+erDiagram
+    PHARMACY ||--o{ PROCEDUREGROUP : "organise"
+    PHARMACY ||--o{ PROCEDURECATEGORY : "classe"
+    PROCEDURECATEGORY ||--o{ PROCEDURE : "contient"
+    PROCEDURE ||--o{ PROCEDURE : "parent / enfant"
+    PROCEDURE ||--o{ PROCEDUREVERSION : "historise"
+    PROCEDURE ||--o{ PROCEDUREATTACHMENT : "pièces jointes"
+    PROCEDURE ||--o{ PROCEDUREREADLOG : "lu par (scroll >= 90%)"
+    PROCEDURE }o--o{ COLLABORATOR : "pilotes (M2M)"
+    PROCEDURE ||--o{ NONCONFORMITY : "concernée par"
+    NONCONFORMITY ||--o{ CORRECTIVEACTION : "traitée par"
+
+    PROCEDURE {
+        int id PK
+        string reference "unique par pharmacie (null-safe)"
+        string status "draft|active|archived"
+        int version
+        date next_review_date
+    }
+    PROCEDUREVERSION {
+        int id PK
+        int version_number "unique par procédure"
+        text content_snapshot
+    }
+    NONCONFORMITY {
+        int id PK
+        string severity "minor|major|critical"
+        string status "open|in_progress|closed"
+    }

@@ -1,0 +1,10 @@
+stateDiagram-v2
+    [*] --> trialing : inscription (signal post_save)
+    trialing --> active : invoice.paid
+    trialing --> canceled : essai expiré + non converti
+    active --> past_due : invoice.payment_failed
+    past_due --> active : paiement régularisé
+    past_due --> suspended : schedule_suspension (J+7)
+    active --> canceled : résiliation
+    suspended --> active : réactivation
+    canceled --> [*]

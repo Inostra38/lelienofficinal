@@ -1,0 +1,48 @@
+flowchart TB
+    subgraph Client["Navigateur"]
+        NG["Application Angular 20 (SPA)<br/>servie en statique"]
+    end
+
+    subgraph Scalingo["Scalingo — app lelienofficinal (osc-fr1)"]
+        direction TB
+        WEB["Conteneur web<br/>Daphne (ASGI)"]
+        DJ["Django 6 + DRF<br/>+ Channels"]
+        WN["WhiteNoise<br/>(sert le bundle Angular)"]
+        WK["Conteneur worker<br/>Celery + Beat"]
+        WEB --> DJ
+        DJ --- WN
+    end
+
+    subgraph Addons["Add-ons managés"]
+        PG[("PostgreSQL")]
+        RD[("Redis")]
+    end
+
+    subgraph Ext["Services externes"]
+        ST["Stripe (abonnements SEPA)"]
+        SMS["SMS Partner"]
+        MG["Mailgun EU"]
+        SCW["Scaleway Object Storage"]
+        AI["API Anthropic"]
+        SENT["Sentry"]
+    end
+
+    NG -- "HTTPS / REST (JWT)" --> WEB
+    NG -- "WebSocket (JWT en sous-protocole)" --> WEB
+    NG -- "bundle JS/CSS" --> WN
+
+    DJ --> PG
+    DJ --> RD
+    WK --> PG
+    WK --> RD
+    DJ -- "webhooks + API" --> ST
+    WK --> SMS
+    WK --> MG
+    DJ --> SCW
+    WK --> AI
+    DJ -.-> SENT
+    WK -.-> SENT
+
+    subgraph Vitrine["App séparée — lienofficinal-vitrine"]
+        AS["Site Astro statique<br/>www.lienofficinal.fr"]
+    end

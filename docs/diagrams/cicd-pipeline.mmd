@@ -1,0 +1,9 @@
+flowchart LR
+    P["git push (toute branche)"] --> TB["test-backend<br/>~55 modules Django<br/>settings_test"]
+    P --> TF["test-and-build-frontend<br/>npm ci + ng build prod"]
+    TF --> D{"ref == main ?"}
+    D -- oui --> DEP["deploy<br/>git push scalingo main --force<br/>+ scalingo run manage.py migrate"]
+    D -- non --> X["fin"]
+    DEP --> SC["Scalingo : build (pre_compile -> ng build)<br/>web = Daphne · worker = Celery+beat"]
+
+    P -. "hebdo (cron)" .-> ZAP["OWASP ZAP baseline<br/>(rapport, non bloquant)"]

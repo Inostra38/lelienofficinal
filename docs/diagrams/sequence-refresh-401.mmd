@@ -1,0 +1,22 @@
+sequenceDiagram
+    autonumber
+    participant CMP as Composant Angular
+    participant INT as authInterceptor
+    participant API as Django / DRF
+    participant AUTH as AuthService
+
+    CMP->>INT: GET /api/planning/shifts/
+    INT->>API: + Authorization: Bearer (access expiré)
+    API-->>INT: 401 Unauthorized
+
+    Note over INT: URL != /token/ et != /api/admin/
+    INT->>AUTH: refreshAccessToken()  (single-flight)
+    AUTH->>API: POST /api/token/refresh/ (cookie refresh_token)
+    API-->>AUTH: 200 { access } (+ rotation : nouveau refresh cookie)
+    AUTH-->>INT: nouveau jeton d'accès
+
+    INT->>API: REJOUE GET /api/planning/shifts/ (nouveau Bearer)
+    API-->>INT: 200 données
+    INT-->>CMP: données
+
+    Note over INT,AUTH: si le refresh échoue -> authService.logout(router.url)<br/>(l'URL courante devient returnUrl)
